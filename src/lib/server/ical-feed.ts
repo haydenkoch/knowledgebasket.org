@@ -1,0 +1,86 @@
+/**
+ * Fetch and parse an iCal/ICS feed (e.g. News from Native California) and return
+ * future events in KB EventItem shape. Used to merge external calendar events
+ * into the events list.
+ */
+import ical from 'node-ical';
+import type { EventItem } from '$lib/data/kb';
+
+const ICS_FEED_URL = 'https://newsfromnativecalifornia.com/events/list/?ical=1';
+
+/** Format Date as MM/DD/YYYY for EventItem.startDate/endDate */
+function toMMDDYYYY(d: Date): string {
+	const m = d.getMonth() + 1;
+	const day = d.getDate();
+	return `${String(m).padStart(2, '0')}/${String(day).padStart(2, '0')}/${d.getFullYear()}`;
+}
+
+/** Strip basic HTML for description */
+function stripHtml(s: string): string {
+	if (!s || typeof s !== 'string') return '';
+	return s.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+/** Source label for imported events */
+const SOURCE_LABEL = 'News from Native California';
+
+/**
+ * Fetch the ICS feed, parse it, and return EventItem[] for events that start
+ * on or after today. Recurring events are expanded (next 2 years).
+ */
+export async function fetchEventsFromIcalFeed(
+	url: string = ICS_FEED_URL,
+	options?: { signal?: AbortSignal; from?: Date; to?: Date }
+): Promise<EventItem[]> {
+	const from = options?.from ?? new Date();
+	const to = options?.to ?? new Date(Date.now() + 2 * 365 * 24 * 60 * 60 * 1000);
+
+	try {
+		const data = await ical.async.fromURL(url, {
+			signal: options?.signal,
+			headers: { 'User-Agent': 'KB-Events-Importer/1.0' }
+		});
+
+		const items: EventItem[] = [];
+		const seenIds = new Set<string>();
+
+		for (const key of Object.keys(data)) {
+			const ev = data[key] as { type?: string; start?: Date; end?: Date; summary?: string; description?: string; location?: string; uid?: string; url?: string; rrule?: unknown } | undefined;
+			if (!ev || ev.type !== 'VEVENT' || !ev.start) continue;
+
+			const start = ev.start instanceof Date ? ev.start : new Date(ev.start);
+			const end = ev.end instanceof Date ? ev.end : start;
+			if (start < from || start > to) continue;
+
+			const uid = (ev.uid ?? key).replace(/[^a-zA-Z0-9-_]/g, '_');
+			const id = `ical-${uid}`;
+			if (seenIds.has(id)) continue;
+			seenIds.add(id);
+
+			items.push({
+				id,
+				title: (ev.summary ?? 'Untitled event').trim(),
+				coil: 'events',
+				description: stripHtml(ev.description ?? ''),
+				location: ev.location?.trim() || undefined,
+				region: SOURCE_LABEL,
+				startDate: toMMDDYYYY(start),
+				endDate: end.getTime() !== start.getTime() ? toMMDDYYYY(end) : undefined,
+				eventUrl: ev.url ?? 'https://newsfromnativecalifornia.com/events/',
+				hostOrg: SOURCE_LABEL
+			});
+		}
+
+		// Sort by start date
+		items.sort((a, b) => {
+			const aStart = a.startDate ? new Date(a.startDate).getTime() : 0;
+			const bStart = b.startDate ? new Date(b.startDate).getTime() : 0;
+			return aStart - bStart;
+		});
+
+		return items;
+	} catch (err) {
+		console.error('[ical-feed] Failed to fetch or parse ICS:', err);
+		return [];
+	}
+}

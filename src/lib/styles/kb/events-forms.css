@@ -1,0 +1,323 @@
+
+.kb-ecal-day-event-chip--free {
+  background: var(--color-mugwort-300);
+  border: 1px solid color-mix(in srgb, var(--color-mugwort-700) 40%, transparent);
+  color: #13211a;
+}
+
+.kb-ecal-day-event-chip--paid {
+  background: var(--color-flicker-900);
+  border: 1px solid color-mix(in srgb, var(--color-flicker-100) 40%, transparent);
+  color: #fff;
+}
+
+.kb-ecal-day-event-chip:hover {
+  filter: brightness(1.05);
+  text-decoration: none;
+}
+
+.kb-ecal-chip-time {
+  flex-shrink: 0;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+/* On hover, long titles gently scroll in a loop using duplicated text */
+.kb-ecal-week-chip:hover .kb-ecal-marquee,
+.kb-ecal-day-event-chip:hover .kb-ecal-marquee,
+.kb-ecal-week-span:hover .kb-ecal-marquee,
+.kb-ecal-month-span:hover .kb-ecal-marquee {
+  animation: kb-ecal-marquee-scroll 12s linear infinite;
+}
+
+@keyframes kb-ecal-marquee-scroll {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.kb-ecal-day--today {
+  border-left: 3px solid var(--color-flicker-950);
+  background: color-mix(in srgb, var(--color-flicker-950) 8%, var(--card));
+}
+
+.kb-ecal-day--today .kb-ecal-num {
+  font-weight: 700;
+  color: var(--color-flicker-950);
+}
+
+.kb-ecal-day--selected {
+  background: var(--color-lakebed-950);
+  color: #fff;
+}
+.kb-ecal-day--selected:hover {
+  background: var(--color-lakebed-950);
+}
+
+.kb-ecal-day--selected .kb-ecal-num,
+.kb-ecal-day--selected .kb-ecal-count,
+.kb-ecal-day--selected .kb-ecal-day-preview {
+  color: #fff;
+}
+
+.kb-ecal-day-thumb-wrap {
+  width: 100%;
+  aspect-ratio: 1;
+  max-height: 32px;
+  border-radius: 4px;
+  overflow: hidden;
+  background: var(--color-lakebed-200);
+  margin-top: 2px;
+}
+.kb-ecal-day-thumb {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+/* Month: single event = full-cell promo; two = 50/50 */
+.kb-ecal-day--single .kb-ecal-num,
+.kb-ecal-day--double .kb-ecal-num {
+  position: absolute;
+  top: 2px;
+  left: 4px;
+  z-index: 1;
+  font-size: 11px;
+  text-shadow: 0 0 2px #fff;
+}
+.kb-ecal-day-promo {
+  text-decoration: none;
+  color: inherit;
+  border-radius: 0;
+  overflow: hidden;
+  background: var(--card);
+  border: 1px solid var(--rule);
+  transition: border-color 0.15s ease;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+.kb-ecal-day-promo:hover {
+  border-color: var(--color-mugwort-300);
+}
+
+.kb-ecal-day--selected .kb-ecal-day-promo {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.5);
+}
+.kb-ecal-day--selected .kb-ecal-day-promo:hover {
+  background: rgba(255, 255, 255, 0.22);
+  border-color: rgba(255, 255, 255, 0.65);
+}
+
+.kb-ecal-day-promo--full {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  padding-top: 20px;
+  border-left: 3px solid var(--color-flicker-950);
+}
+.kb-ecal-day-promo--full .kb-ecal-day-promo-img {
+  width: 100%;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--color-lakebed-950);
+  position: relative;
+}
+.kb-ecal-day-promo--full .kb-ecal-day-promo-img img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.kb-ecal-day-promo--full .kb-ecal-day-promo-time {
+  font-family: var(--font-sans);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--color-flicker-950);
+  padding: 1px 4px 0;
+  flex-shrink: 0;
+}
+.kb-ecal-day-promo-title {
+  font-family: var(--font-serif);
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1.25;
+  padding: 3px 4px 5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  color: var(--color-lakebed-950);
+  width: 100%;
+  box-sizing: border-box;
+}
+.kb-ecal-day--selected .kb-ecal-day-promo-title {
+  color: #fff;
+  text-shadow: 0 0 2px rgba(0, 0, 0, 0.3);
+}
+
+.kb-ecal-day-split {
+  position: absolute;
+  inset: 0;
+  top: 18px;
+  display: flex;
+  flex-direction: row;
+  gap: 3px;
+  padding: 0 3px 3px;
+}
+.kb-ecal-day-promo--half {
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  border-radius: 6px;
+}
+.kb-ecal-day-promo--half img {
+  width: 100%;
+  flex: 1;
+  min-height: 22px;
+  object-fit: cover;
+  background: var(--color-lakebed-200);
+}
+.kb-ecal-day-promo--half .kb-ecal-day-promo-title {
+  padding: 2px 3px 3px;
+  font-size: 8px;
+  -webkit-line-clamp: 1;
+}
+
+.kb-ecal-num {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--dark);
+  line-height: 1.2;
+  flex-shrink: 0;
+}
+
+.kb-ecal-day-preview {
+  font-family: var(--font-sans);
+  font-size: 9px;
+  line-height: 1.2;
+  color: var(--muted-foreground);
+  text-align: center;
+  margin-top: 2px;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  width: 100%;
+}
+
+.kb-ecal-count {
+  font-family: var(--font-sans);
+  font-size: 9px;
+  font-weight: 600;
+  color: var(--muted-foreground);
+  margin-top: 2px;
+}
+
+/* Day panel (side panel or below on narrow) - match filter bar */
+.kb-ecal-panel {
+  background: var(--bone);
+  border: 1px solid var(--rule);
+  border-radius: 0;
+  padding: 20px 22px;
+  min-height: 200px;
+}
+
+@media (max-width: 900px) {
+  .kb-ecal-layout {
+    gap: 16px;
+  }
+  .kb-ecal-panel {
+    padding: 14px 16px;
+  }
+}
+
+@media (max-width: 640px) {
+  .kb-ecal-panel {
+    padding: 12px 14px;
+  }
+  .kb-ecal-day-item-thumb {
+    width: 64px;
+    height: 56px;
+  }
+}
+
+.kb-ecal-day-panel-title {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+  margin: 0 0 14px 0;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--rule);
+}
+
+.kb-ecal-day-summary {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  color: var(--muted-foreground);
+  margin: -8px 0 12px 0;
+}
+
+.kb-ecal-upcoming-title {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+  margin: 0 0 10px 0;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--rule);
+}
+
+.kb-ecal-upcoming-list .kb-ecal-day-item {
+  margin-bottom: 4px;
+}
+.kb-ecal-upcoming-list li {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.kb-ecal-goto-day {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-lakebed-950);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 2px 0;
+  align-self: flex-start;
+  text-decoration: underline;
+}
+.kb-ecal-goto-day:hover {
+  text-decoration: none;
+}
+.kb-ecal-day-item-date {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  color: var(--muted-foreground);
+}
+
+.kb-ecal-day-panel-empty {
+  font-family: var(--font-sans);
+  font-size: 14px;
+  color: var(--muted-foreground);
+  margin: 0;
+}

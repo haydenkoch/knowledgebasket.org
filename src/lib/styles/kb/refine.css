@@ -1,0 +1,295 @@
+/* ── Sidebar search + filters ───────────────────────────────────────────── */
+.kb-search-wrap {
+  position: relative;
+  margin-bottom: 28px;
+}
+
+.kb-search-icon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--muted-foreground);
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.kb-search-icon svg {
+  width: 16px;
+  height: 16px;
+}
+
+.kb-search-input {
+  width: 100%;
+  padding-left: 38px;
+  padding-right: 12px;
+  font-family: var(--font-sans);
+  font-size: 14px;
+  color: var(--foreground);
+  background: var(--card);
+}
+
+.kb-fg {
+  margin-bottom: 22px;
+}
+
+.kb-flbl {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+  margin-bottom: 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--rule);
+}
+
+.kb-refine-block-title,
+.kb-date-graph__label {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+  margin: 0 0 8px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--rule);
+}
+
+.kb-date-graph__label {
+  margin-top: 4px;
+  margin-bottom: 22px;
+}
+
+.kb-refine-block {
+  margin-bottom: 18px;
+}
+
+.kb-toggle-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.kb-toggle-label {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  text-transform: none;
+  color: var(--mid);
+}
+
+.kb-filter-bar {
+  margin-top: 8px;
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  border: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+  max-width: var(--kb-filter-dropdown-width, 100%);
+}
+
+.kb-filter-row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+}
+
+/* Fixed width for all filter controls (matches sidebar elements) */
+.kb-refine-sidebar .kb-filter-bar {
+  --kb-filter-dropdown-width: 100%;
+}
+
+/* Combobox dropdown: same width as trigger (sidebar 280px minus 48px padding). Portaled content uses :root variable. */
+:root {
+  --kb-refine-popover-width: calc(280px - 48px);
+}
+
+.kb-filter-popover-content {
+  width: var(--radix-popover-trigger-width, var(--kb-refine-popover-width));
+  min-width: var(--kb-refine-popover-width);
+  max-width: var(--radix-popover-trigger-width, var(--kb-refine-popover-width));
+  box-sizing: border-box;
+}
+
+/* Dropdown label text wraps within the row (icon and badge stay in place) */
+.kb-filter-popover-content .kb-filter-item__label {
+  overflow: visible;
+  text-overflow: unset;
+  white-space: normal;
+  word-break: break-word;
+  min-width: 0;
+}
+
+/* Hide scrollbar on filter dropdown lists (Cost, Geography, Type) – scroll still works */
+.kb-filter-popover-content [data-slot="command-list"] {
+  scrollbar-width: none;
+}
+.kb-filter-popover-content [data-slot="command-list"]::-webkit-scrollbar {
+  display: none;
+}
+
+.kb-refine-sidebar .kb-search-wrap,
+.kb-refine-sidebar .kb-fg,
+.kb-refine-sidebar .kb-refine-block,
+.kb-refine-sidebar .kb-filter-bar {
+  max-width: 100%;
+}
+
+.kb-view-selector {
+  width: 100%;
+}
+
+.kb-view-tabs-list {
+  width: 100%;
+}
+
+.kb-view-selector .kb-view-tab {
+  flex: 1;
+  justify-content: center;
+}
+
+.kb-view-selector .kb-view-tab[data-state="active"] {
+  background: var(--color-lakebed-950);
+  color: #ffffff;
+  border-color: transparent;
+}
+
+.kb-view-selector .kb-view-tab[data-state="active"] .kb-view-tab-icon {
+  color: #ffffff;
+}
+
+.kb-view-tab-icon {
+  width: 18px;
+  height: 18px;
+}
+
+/* Filter/combobox triggers in sidebar: full width, no stretch on children (fixes misalignment) */
+.kb-refine-sidebar .kb-refine-select,
+.kb-refine-sidebar button.kb-refine-select {
+  width: 100%;
+  min-width: 0;
+}
+
+/* Filter bar: Combobox trigger – single down chevron right-aligned, label left */
+.kb-filter-bar button.kb-refine-select {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 0.5rem;
+  width: 100% !important;
+  min-width: 0;
+  min-height: 44px;
+  padding-left: 0.75rem;
+  padding-right: 0.75rem;
+  color: var(--foreground) !important;
+  background: var(--card) !important;
+  border-color: var(--border) !important;
+}
+.kb-filter-bar button.kb-refine-select > :first-child {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: left;
+}
+.kb-filter-bar button.kb-refine-select > svg:last-child {
+  flex-shrink: 0;
+  margin-left: auto;
+  max-width: 24px;
+}
+
+/* Filter dropdown list items: label left, badge right-aligned and vertically centered */
+.kb-filter-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+}
+
+/* Filter dropdowns: hover/selected row uses lakebed 950 (overrides accent) */
+.kb-filter-popover-content .kb-filter-item[aria-selected="true"] {
+  background: var(--color-lakebed-950);
+  color: #ffffff;
+}
+
+.kb-filter-popover-content .kb-filter-item[aria-selected="true"] .kb-filter-item__label {
+  color: #ffffff;
+}
+
+/* Badge: default = lakebed 950 bg, white number; hovered row = white bg, lakebed 950 number */
+.kb-filter-item__badge {
+  flex-shrink: 0;
+  margin-left: auto;
+  background: var(--color-lakebed-950) !important;
+  color: #ffffff !important;
+  border: none !important;
+}
+
+.kb-filter-popover-content .kb-filter-item[aria-selected="true"] .kb-filter-item__badge {
+  background: #ffffff !important;
+  color: var(--color-lakebed-950) !important;
+}
+
+/* Checkmark white only when row is highlighted and this item is checked */
+.kb-filter-item[aria-selected="true"].kb-filter-item--checked > svg:first-child {
+  color: white;
+}
+
+.kb-filter-item__label {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Type filter: same pattern as events submit form (trigger with chips, popover with Command) */
+.kb-refine-type-row {
+  width: 100%;
+  min-width: 0;
+}
+
+.kb-refine-type-row .kb-form-type-trigger-wrap {
+  width: 100%;
+}
+
+.kb-filter-clear {
+  align-self: flex-start;
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  border: none;
+  background: none;
+  color: var(--teal);
+  cursor: pointer;
+  min-height: 44px;
+  min-width: 44px;
+  padding: 12px 16px 12px 0;
+  display: inline-flex;
+  align-items: center;
+}
+
+@media (max-width: 960px) {
+  .kb-filter-bar {
+    margin-top: 10px;
+    gap: 6px;
+  }
+
+  .kb-filter-row {
+    flex-direction: column;
+  }
+}
+

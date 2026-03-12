@@ -1,0 +1,1133 @@
+/* Events: calendar view (grid + day panel)
+   Visual style matches filter bar: var(--bone), 1px solid var(--rule).
+   Colors: lakebed-950, mugwort-300, flicker-950 only. */
+
+.kb-ecal-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+/* Schedule-X calendar wrapper: needs explicit size for responsive behavior */
+.kb-ecal-wrap--schedulex .kb-schedulex-wrapper {
+  width: 100%;
+  min-height: 640px;
+  height: min(80vh, 900px);
+}
+
+.kb-ecal-wrap--schedulex {
+  position: relative;
+}
+
+.kb-ecal-wrap--schedulex .sx-svelte-calendar-wrapper {
+  width: 100%;
+  height: 100%;
+  min-height: 640px;
+}
+
+/* Schedule-X theme: brand primary only — controls primary = lakebed-950 (see brand colors.json) */
+.kb-ecal-wrap--schedulex .sx-svelte-calendar-wrapper {
+  --sx-color-primary: var(--color-lakebed-950);
+  --sx-color-on-primary: var(--color-alpine-snow-100);
+  --sx-color-primary-container: var(--color-lakebed-200);
+  --sx-color-on-primary-container: var(--color-lakebed-950);
+  --sx-color-surface: var(--card);
+  --sx-color-on-surface: var(--foreground);
+  --sx-color-outline: var(--border);
+  --sx-color-outline-variant: var(--border);
+  --sx-color-background: var(--background);
+  --sx-color-on-background: var(--foreground);
+  font-family: var(--font-sans);
+}
+
+/* Match Schedule-X calendar chrome; use theme background so no white border around week/day padding */
+.kb-ecal-wrap--schedulex .sx__calendar {
+  border-color: var(--border);
+  background-color: var(--sx-color-background);
+}
+.kb-ecal-wrap--schedulex .sx__view-container {
+  background-color: var(--sx-color-background);
+}
+
+/* Remove default Schedule-X calendar header padding; we use a custom header above */
+.kb-ecal-wrap--schedulex .sx__calendar-header {
+  padding: 0;
+}
+
+/* Month view: give Sunday column a bit of internal left padding */
+.kb-ecal-wrap--schedulex .sx__month-grid-week .sx__month-grid-day:first-child {
+  padding-left: 8px;
+}
+
+/* Calendar events should feel clickable, not text-editable */
+.kb-ecal-wrap--schedulex .sx__month-grid-event,
+.kb-ecal-wrap--schedulex .sx__time-grid-event {
+  cursor: pointer;
+}
+
+/* Month view: hide start times (show title only) */
+.kb-ecal-wrap--schedulex .sx__month-grid-event-time {
+  display: none;
+}
+
+/* Week view: remove bottom border and transparent left offset from the built-in week header */
+.kb-ecal-wrap--schedulex .sx__week-header-border {
+  border-bottom: none;
+  border-left-width: 0;
+}
+
+/* Week/day views: hide the entire time grid (time axis + hour rows) */
+.kb-ecal-wrap--schedulex .sx__week-grid {
+  display: none !important;
+}
+
+/* Week/day views: remove left padding so dates are not pushed right; center the content */
+.kb-ecal-wrap--schedulex .sx__week-wrapper {
+  padding: 0 8px 8px !important;
+  background-color: var(--sx-color-background);
+  --sx-calendar-week-grid-padding-left: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.kb-ecal-wrap--schedulex .sx__week-grid__date-axis,
+.kb-ecal-wrap--schedulex .sx__date-grid {
+  padding-left: 0 !important;
+}
+.kb-ecal-wrap--schedulex .sx__week-wrapper > * {
+  width: 100%;
+  max-width: 1200px;
+}
+
+/* Calendar grid lines: match kb-date-graph__label rule color */
+.kb-ecal-wrap--schedulex .sx__week-grid__hour {
+  border-top-color: var(--rule);
+}
+.kb-ecal-wrap--schedulex .sx__month-grid-week {
+  border-top-color: var(--rule);
+}
+
+.kb-ecal-loading {
+  padding: 2rem;
+  text-align: center;
+  color: var(--muted-foreground);
+}
+
+/* (No longer used: event sheet styles removed) */
+
+/* Event details drawer (mobile) */
+.kb-event-drawer {
+  padding: 8px 12px 16px;
+}
+
+.kb-event-drawer__overlay {
+  background-color: rgba(0, 0, 0, 0.2);
+}
+
+.kb-event-drawer__body {
+  margin-top: 4px;
+}
+
+/* Right-hand event sidebar (desktop) — mirror kb-sidebar styles, but on the right */
+.kb-event-sidebar {
+  border-right: none;
+  border-left: 1px solid var(--rule);
+  position: relative;
+  width: 320px;
+}
+
+.kb-event-sidebar__close {
+  position: absolute;
+  top: 12px;
+  right: 16px;
+  margin: 0;
+  padding: 4px 8px;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  color: var(--muted-foreground);
+  background: none;
+  border: none;
+  border-radius: var(--radius);
+  cursor: pointer;
+  text-decoration: none;
+  transition: color 0.15s ease, background-color 0.15s ease;
+}
+
+.kb-event-sidebar__close:hover {
+  color: var(--foreground);
+  background: var(--accent);
+}
+
+.kb-event-sidebar__cards {
+  display: flex;
+  flex-direction: row;
+  gap: 12px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  margin-top: 4px;
+  padding-bottom: 8px;
+  scrollbar-gutter: stable;
+}
+
+.kb-event-sidebar__cards--vertical {
+  flex-direction: column;
+  overflow-x: visible;
+  overflow-y: visible;
+}
+
+.kb-event-sidebar__cards::-webkit-scrollbar {
+  height: 6px;
+}
+
+.kb-event-sidebar__cards::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 3px;
+}
+
+.kb-event-sidebar__card {
+  flex-shrink: 0;
+  min-width: 260px;
+  margin-top: 0;
+}
+
+.kb-event-sidebar__cards--vertical .kb-event-sidebar__card {
+  min-width: 0;
+}
+
+/* Card view sidebar: text-only list (no images) */
+.kb-event-sidebar__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 4px;
+}
+
+.kb-event-sidebar__list-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 12px;
+  border-radius: var(--radius);
+  text-decoration: none;
+  color: var(--foreground);
+  transition: background-color 0.12s ease, color 0.12s ease;
+}
+
+.kb-event-sidebar__list-item:hover {
+  background: var(--accent);
+  color: var(--foreground);
+  text-decoration: none;
+}
+
+.kb-event-sidebar__list-title {
+  font-family: var(--font-serif);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.3;
+  color: inherit;
+}
+
+.kb-event-sidebar__list-date {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+
+.kb-event-sidebar__list-item:hover .kb-event-sidebar__list-date {
+  color: var(--muted-foreground);
+}
+
+.kb-event-sidebar__empty {
+  margin: 0.5rem 0 0;
+  font-size: 0.875rem;
+  color: var(--muted-foreground);
+}
+
+.kb-event-sidebar__calendar {
+  display: block;
+  width: 100%;
+  margin-bottom: 12px;
+}
+
+.kb-event-sidebar__map {
+  margin-top: 12px;
+  width: 100%;
+  height: 200px;
+  border-radius: 8px;
+  overflow: hidden;
+  background-color: #dbe7ee;
+  position: relative;
+}
+
+/* (No longer used: old calendar modal helpers removed) */
+
+/* Schedule-X custom header: match filter sidebar (bone bg, rule border); primary = lakebed-950; same-height buttons */
+.kb-sx-header {
+  --primary: var(--color-lakebed-950);
+  --primary-foreground: var(--color-alpine-snow-100);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--rule);
+  background: var(--bone);
+  font-family: var(--font-sans);
+  font-size: 12px;
+}
+.kb-sx-header__row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.kb-sx-header__row--left {
+  flex: 1;
+  min-width: 0;
+}
+.kb-sx-header__row--right {
+  flex-shrink: 0;
+}
+.kb-sx-header__nav {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+/* All header buttons same height (32px / h-8) */
+.kb-sx-header__nav button,
+.kb-sx-header__btn,
+.kb-sx-header__date-btn {
+  height: 32px;
+  min-height: 32px;
+  padding-top: 0;
+  padding-bottom: 0;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 500;
+}
+.kb-sx-header__nav button {
+  width: 32px;
+  padding: 0;
+}
+.kb-sx-header__title {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--foreground);
+}
+.kb-sx-header__tabs {
+  margin: 0;
+}
+.kb-sx-header__tabs-list {
+  height: 32px;
+  padding: 2px;
+  background: var(--muted);
+  border-radius: var(--radius);
+  font-family: var(--font-sans);
+}
+.kb-sx-header__tab {
+  height: 28px;
+  min-width: 32px;
+  padding: 0 6px;
+  font-size: 12px;
+}
+/* Selected view tab = lakebed-950 (same as filter bar view selector) */
+.kb-sx-header__tab[data-state="active"] {
+  background: var(--color-lakebed-950);
+  color: #ffffff;
+  border-color: transparent;
+}
+.kb-sx-header__tab[data-state="active"] .kb-sx-header__tab-icon {
+  color: #ffffff;
+}
+.kb-sx-header__tab-icon {
+  width: 18px;
+  height: 18px;
+}
+.kb-sx-header__date-btn {
+  gap: 6px;
+}
+.kb-sx-header__presets-btn {
+  gap: 4px;
+}
+.kb-sx-header__presets-content {
+  min-width: 140px;
+}
+.kb-sx-header__preset-item {
+  display: block;
+  width: 100%;
+  padding: 6px 10px;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--foreground);
+  background: transparent;
+  border: none;
+  border-radius: var(--radius);
+  cursor: pointer;
+  text-align: left;
+}
+.kb-sx-header__preset-item:hover {
+  background: var(--muted);
+}
+
+.kb-ecal-layout {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 24px;
+  align-items: start;
+}
+
+@media (min-width: 900px) {
+  .kb-ecal-layout {
+    grid-template-columns: minmax(0, 1fr) 280px;
+  }
+}
+
+.kb-ecal-main {
+  background: var(--bone);
+  border: 1px solid var(--rule);
+  border-radius: 0;
+  overflow: hidden;
+}
+
+.kb-ecal {
+  overflow: hidden;
+}
+
+.kb-ecal-header {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  border-bottom: 1px solid var(--rule);
+  background: var(--bone);
+}
+
+.kb-ecal-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 14px;
+}
+
+.kb-ecal-header-row + .kb-ecal-header-row {
+  border-top: 1px solid var(--rule);
+  padding: 6px 14px;
+}
+
+.kb-ecal-header-nav {
+  justify-content: center;
+  gap: 6px;
+  background: color-mix(in srgb, var(--bone) 50%, var(--card));
+}
+
+.kb-ecal-header-start {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.kb-ecal-header-end {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.kb-ecal-long-toggle {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  border: none;
+  background: none;
+  color: var(--color-lakebed-950);
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 999px;
+}
+
+.kb-ecal-long-toggle:hover {
+  background: color-mix(in srgb, var(--color-lakebed-950) 8%, transparent);
+}
+
+.kb-ecal-title {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--foreground);
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+/* Tabs in calendar header */
+.kb-ecal-tabs-root {
+  width: auto;
+}
+.kb-ecal-tabs-list {
+  width: auto;
+}
+
+@media (max-width: 768px) {
+  .kb-ecal-header-row {
+    padding: 8px 10px;
+    gap: 8px;
+  }
+  .kb-ecal-title {
+    font-size: 11px;
+  }
+}
+
+/* Calendar nav uses shadcn Button + ButtonGroup + Tabs; see .kb-ecal-header-* and .kb-ecal-tabs-* */
+
+/* Week view: 7 columns, row 1 = headers, row 2 = spanning bars, row 3 = day cells */
+.kb-ecal-week {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  grid-template-rows: auto auto 1fr;
+  gap: 0;
+  min-height: 340px;
+  border-top: 1px solid var(--rule);
+  background: var(--bone);
+}
+
+@media (max-width: 900px) {
+  .kb-ecal-week {
+    grid-template-columns: repeat(7, minmax(140px, 1fr));
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    min-height: 300px;
+  }
+  .kb-ecal-main {
+    overflow-x: auto;
+  }
+}
+
+@media (max-width: 640px) {
+  .kb-ecal-week {
+    grid-template-columns: repeat(7, minmax(120px, 1fr));
+    min-height: 280px;
+  }
+  .kb-ecal-week-day {
+    padding: 8px 6px;
+  }
+  .kb-ecal-week-event-img-wrap {
+    width: 36px;
+    height: 36px;
+  }
+  .kb-ecal-week-event {
+    padding: 5px 6px;
+    gap: 6px;
+  }
+  .kb-ecal-week-event-title {
+    font-size: 10px;
+  }
+  .kb-ecal-week-num {
+    font-size: 16px;
+  }
+}
+
+/* Week: day headers (row 1) - match .kb-refine-block-title */
+.kb-ecal-week-day-head {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 8px 6px 10px;
+  border-right: 1px solid var(--rule);
+  border-bottom: 1px solid var(--rule);
+}
+.kb-ecal-week-day-head:last-of-type {
+  border-right: none;
+}
+.kb-ecal-week-day-head--today .kb-ecal-week-num {
+  color: var(--color-flicker-950);
+}
+.kb-ecal-week-day-head--selected {
+  background: var(--color-lakebed-950);
+  color: #fff;
+}
+.kb-ecal-week-day-head--selected .kb-ecal-week-dow,
+.kb-ecal-week-day-head--selected .kb-ecal-week-num,
+.kb-ecal-week-day-head--selected .kb-ecal-week-month {
+  color: #fff;
+}
+
+/* Week: spanning bar row (multi-day events) */
+.kb-ecal-week-spanning-wrap {
+  grid-column: 1 / -1;
+  min-height: 0;
+  border-bottom: 1px solid var(--rule);
+}
+.kb-ecal-week-spanning {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  grid-auto-rows: 28px;
+  gap: 2px;
+  padding: 4px 6px 6px;
+  min-height: 36px;
+}
+.kb-ecal-week-span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 10px;
+  background: color-mix(in srgb, var(--color-mugwort-300) 80%, var(--color-lakebed-950) 20%);
+  color: #fff;
+  text-decoration: none;
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 600;
+  overflow: hidden;
+  border-radius: 999px;
+  transition: filter 0.15s ease;
+  white-space: nowrap;
+}
+.kb-ecal-week-span:hover {
+  filter: brightness(1.1);
+  color: #fff;
+  text-decoration: none;
+}
+/* Marquee container used for scrolling titles inside chips and spans */
+.kb-ecal-marquee {
+  display: inline-flex;
+  align-items: center;
+}
+
+.kb-ecal-marquee__text {
+  white-space: nowrap;
+  padding-right: 24px;
+}
+.kb-ecal-week-span-dates {
+  flex-shrink: 0;
+  font-size: 10px;
+  opacity: 0.9;
+}
+
+/* Week: day cells (row 3) */
+.kb-ecal-week-day {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border-right: 1px solid color-mix(in srgb, var(--rule) 70%, transparent);
+  padding: 10px 8px;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+  background: color-mix(in srgb, var(--card) 80%, var(--bone));
+}
+.kb-ecal-week-day:last-child {
+  border-right: none;
+}
+
+.kb-ecal-week-day:hover {
+  background: var(--secondary);
+  border-color: var(--color-mugwort-300);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-mugwort-300) 60%, transparent);
+}
+
+.kb-ecal-week-day:focus-visible {
+  outline: 2px solid var(--color-lakebed-950);
+  outline-offset: 2px;
+}
+
+.kb-ecal-week-day--single,
+.kb-ecal-week-day--double,
+.kb-ecal-week-day--multi {
+  background: color-mix(in srgb, var(--card) 80%, var(--bone));
+}
+
+.kb-ecal-week-day--today {
+  border-left: 3px solid var(--color-flicker-950);
+}
+.kb-ecal-week-day--today .kb-ecal-week-num {
+  color: var(--color-flicker-950);
+}
+
+.kb-ecal-week-day--selected {
+  background: var(--color-lakebed-950);
+  color: #fff;
+}
+.kb-ecal-week-day--selected:hover {
+  background: var(--color-lakebed-950);
+}
+
+.kb-ecal-week-day--selected .kb-ecal-week-dow,
+.kb-ecal-week-day--selected .kb-ecal-week-num,
+.kb-ecal-week-day--selected .kb-ecal-week-month,
+.kb-ecal-week-day--selected .kb-ecal-week-event-title,
+.kb-ecal-week-day--selected .kb-ecal-week-event-time {
+  color: #fff;
+}
+
+.kb-ecal-week-day--selected .kb-ecal-week-empty,
+.kb-ecal-week-day--selected .kb-ecal-week-more {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.kb-ecal-week-day--selected .kb-ecal-week-event-time {
+  color: rgba(255, 255, 255, 0.9);
+}
+.kb-ecal-week-day--selected .kb-ecal-week-event-loc,
+.kb-ecal-week-day--selected .kb-ecal-week-event-cost,
+.kb-ecal-week-day--selected .kb-ecal-week-event-tag {
+  color: rgba(255, 255, 255, 0.95);
+}
+.kb-ecal-week-day--selected .kb-ecal-week-event-cost,
+.kb-ecal-week-day--selected .kb-ecal-week-event-tag {
+  background: rgba(255, 255, 255, 0.2) !important;
+  border-color: rgba(255, 255, 255, 0.3) !important;
+}
+
+.kb-ecal-week-dow {
+  font-family: var(--font-sans);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+
+.kb-ecal-week-num {
+  font-family: var(--font-sans);
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--color-lakebed-950);
+  line-height: 1.1;
+}
+
+.kb-ecal-week-month {
+  font-family: var(--font-sans);
+  font-size: 10px;
+  color: var(--muted-foreground);
+}
+
+.kb-ecal-week-day-events {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+}
+
+/* Week: compact chips for single-day events inside each column */
+.kb-ecal-week-chip-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.kb-ecal-week-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-lakebed-950) 8%, var(--card));
+  border: 1px solid color-mix(in srgb, var(--color-lakebed-200) 80%, transparent);
+  font-family: var(--font-sans);
+  font-size: 11px;
+  color: var(--color-lakebed-950);
+  text-decoration: none;
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.kb-ecal-week-chip:hover {
+  background: color-mix(in srgb, var(--color-lakebed-950) 14%, var(--card));
+  border-color: var(--color-lakebed-300);
+  text-decoration: none;
+}
+
+.kb-ecal-week-chip-time {
+  flex-shrink: 0;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  font-size: 10px;
+}
+
+.kb-ecal-week-empty {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  color: var(--muted-foreground);
+  font-style: italic;
+  padding: 8px 4px;
+  text-align: center;
+}
+
+.kb-ecal-week-event {
+  display: flex;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 0;
+  background: var(--card);
+  border: 1px solid var(--rule);
+  text-decoration: none;
+  color: inherit;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.kb-ecal-week-event:hover {
+  border-color: var(--color-mugwort-300);
+}
+
+.kb-ecal-week-day--selected .kb-ecal-week-event {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.4);
+}
+.kb-ecal-week-day--selected .kb-ecal-week-event:hover {
+  background: rgba(255, 255, 255, 0.22);
+  border-color: rgba(255, 255, 255, 0.55);
+}
+
+.kb-ecal-week-event-img-wrap {
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  border-radius: 4px;
+  overflow: hidden;
+  background: var(--color-lakebed-200);
+}
+.kb-ecal-week-event-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.kb-ecal-week-event-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.kb-ecal-week-event-time {
+  font-family: var(--font-sans);
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--color-flicker-950);
+  letter-spacing: 0.02em;
+}
+
+.kb-ecal-week-event-title {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--dark);
+  line-height: 1.25;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.kb-ecal-week-event-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  margin-top: 2px;
+}
+.kb-ecal-week-event-loc {
+  font-size: 9px;
+  color: var(--muted-foreground);
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.kb-ecal-week-event-cost,
+.kb-ecal-week-event-tag {
+  font-size: 9px !important;
+  padding: 1px 4px !important;
+  line-height: 1.2;
+}
+
+.kb-ecal-week-more {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  color: var(--muted-foreground);
+  font-weight: 600;
+}
+
+/* Week: single event = full-day promo card */
+.kb-ecal-week-day--single .kb-ecal-week-day-events {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+.kb-ecal-week-promo {
+  text-decoration: none;
+  color: inherit;
+  display: flex;
+  flex-direction: column;
+  border-radius: 0;
+  overflow: hidden;
+  background: var(--card);
+  border: 1px solid var(--rule);
+  transition: border-color 0.15s ease;
+}
+.kb-ecal-week-promo:hover {
+  border-color: var(--color-mugwort-300);
+}
+
+.kb-ecal-week-day--selected .kb-ecal-week-promo {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.5);
+}
+.kb-ecal-week-day--selected .kb-ecal-week-promo:hover {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.65);
+}
+
+.kb-ecal-week-promo--full {
+  flex: 1;
+  min-height: 0;
+  border-left: 3px solid var(--color-flicker-950);
+}
+.kb-ecal-week-promo--full:hover {
+  border-left-color: var(--color-flicker-950);
+}
+
+.kb-ecal-week-promo-img {
+  flex-shrink: 0;
+  width: 100%;
+  aspect-ratio: 16/10;
+  max-height: 110px;
+  overflow: hidden;
+  background: var(--color-lakebed-950);
+  position: relative;
+}
+.kb-ecal-week-promo-img img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.kb-ecal-week-promo-body {
+  flex: 1;
+  min-width: 0;
+  padding: 10px 8px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.kb-ecal-week-promo-time {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--color-flicker-700);
+}
+.kb-ecal-week-promo-title {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  color: var(--color-lakebed-950);
+}
+.kb-ecal-week-day--selected .kb-ecal-week-promo-title {
+  color: #fff;
+}
+.kb-ecal-week-promo-loc {
+  font-size: 10px;
+  color: var(--muted-foreground);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.kb-ecal-week-day--selected .kb-ecal-week-promo-loc {
+  color: rgba(255, 255, 255, 0.85);
+}
+.kb-ecal-week-promo-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.kb-ecal-week-promo-cost,
+.kb-ecal-week-promo-tag {
+  font-size: 9px !important;
+  padding: 2px 6px !important;
+  line-height: 1.2;
+  border-radius: 4px;
+}
+.kb-ecal-week-promo-cta {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  color: var(--color-lakebed-950);
+  margin-top: 4px;
+}
+.kb-ecal-week-day--selected .kb-ecal-week-promo-cta {
+  color: rgba(255, 255, 255, 0.95);
+}
+
+/* Week: 2 events = 50/50 */
+.kb-ecal-week-split--50 {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+  min-height: 0;
+}
+.kb-ecal-week-promo--half {
+  flex: 1;
+  min-height: 0;
+  padding: 0;
+}
+.kb-ecal-week-promo--half .kb-ecal-week-promo-img {
+  aspect-ratio: 16/9;
+  max-height: 56px;
+}
+.kb-ecal-week-promo--half .kb-ecal-week-promo-body {
+  padding: 4px 4px 6px;
+}
+.kb-ecal-week-promo--half .kb-ecal-week-promo-title {
+  font-size: 10px;
+  -webkit-line-clamp: 1;
+}
+.kb-ecal-week-promo--half .kb-ecal-week-promo-cta {
+  font-size: 9px;
+}
+
+/* Week: 3+ events = grid */
+.kb-ecal-week-split--grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+  gap: 4px;
+  flex: 1;
+  min-height: 0;
+}
+.kb-ecal-week-promo--tile {
+  min-height: 0;
+  padding: 0;
+}
+.kb-ecal-week-promo--tile .kb-ecal-week-promo-img {
+  aspect-ratio: 1;
+  max-height: 40px;
+}
+.kb-ecal-week-promo--tile .kb-ecal-week-promo-body {
+  padding: 2px 4px 4px;
+}
+.kb-ecal-week-promo--tile .kb-ecal-week-promo-title {
+  font-size: 9px;
+  -webkit-line-clamp: 1;
+}
+.kb-ecal-week-promo--tile .kb-ecal-week-promo-cta {
+  display: none;
+}
+.kb-ecal-week-split--grid .kb-ecal-week-more {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 2px 0;
+}
+
+/* Quarter view: 3 month grids – use container query so breakpoints
+   respond to actual calendar width, not viewport width */
+.kb-ecal-main {
+  container-type: inline-size;
+}
+
+.kb-ecal-quarter {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 20px;
+  padding: 16px;
+  border-top: 1px solid var(--rule);
+  min-width: 0;
+}
+
+/* 2 columns when calendar is narrow */
+@container (max-width: 700px) {
+  .kb-ecal-quarter {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+    padding: 14px;
+  }
+}
+
+/* 1 column when very narrow */
+@container (max-width: 420px) {
+  .kb-ecal-quarter {
+    grid-template-columns: 1fr;
+    gap: 16px;
+    padding: 12px;
+  }
+}
+
+.kb-ecal-quarter-month {
+  min-width: 0;
+}
+
+.kb-ecal-quarter-month-title {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+  width: 100%;
+  background: transparent;
+  border: none;
+  margin: 0 0 10px 0;
+  padding: 0 0 6px 0;
+  border-bottom: 1px solid var(--rule);
+  text-align: center;
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+.kb-ecal-quarter-month-title:hover {
+  color: var(--color-lakebed-950);
+  border-bottom-color: var(--color-mugwort-300);
+}
+.kb-ecal-quarter-month-title:focus-visible {
+  outline: 2px solid var(--color-lakebed-950);
+  outline-offset: 3px;
+}
+
+.kb-ecal-grid--quarter {
+  padding: 0;
+  gap: 0;
+  border-top: 1px solid var(--rule);
+}
+
+.kb-ecal-grid--quarter .kb-ecal-dow {
+  padding: 4px 2px;
+  font-size: 10px;
+  border-right: 1px solid var(--rule);
+  border-bottom: 1px solid var(--rule);
+}
+
+.kb-ecal-grid--quarter .kb-ecal-day {
+  aspect-ratio: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: space-between;
+  min-height: 36px;
+  padding: 4px 4px 6px;
+  border-right: 1px solid var(--rule);
+  border-bottom: 1px solid var(--rule);
+}

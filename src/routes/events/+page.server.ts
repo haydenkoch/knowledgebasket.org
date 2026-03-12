@@ -1,23 +1,16 @@
-import { kbData } from '$lib/data/kb';
-import { readSubmissions } from '$lib/server/submissions';
-import { fetchEventsFromIcalFeed } from '$lib/server/ical-feed';
-import type { EventItem } from '$lib/data/kb';
+import { getEvents } from '$lib/server/events';
 import { env } from '$env/dynamic/private';
 
 export async function load({ url }) {
 	const mapboxToken = env.MAPBOX_ACCESS_TOKEN ?? env.MAPBOX_TOKEN ?? null;
-	const [submissions, icalEvents] = await Promise.all([
-		readSubmissions('events') as Promise<EventItem[]>,
-		fetchEventsFromIcalFeed()
-	]);
-	const events: EventItem[] = [...kbData.events, ...submissions, ...icalEvents];
+	const events = await getEvents();
 
 	const view = url.searchParams.get('view');
 	const mode = url.searchParams.get('mode');
 	const dateParam = url.searchParams.get('date');
 
-	let initialCalendarView: 'cards' | 'list' | 'calendar' = 'list';
-	if (view === 'calendar') initialCalendarView = 'calendar';
+	let initialView: 'cards' | 'list' | 'calendar' = 'list';
+	if (view === 'cards' || view === 'list' || view === 'calendar') initialView = view;
 
 	let initialCalendarMode: 'week' | 'month' | 'quarter' = 'month';
 	if (mode === 'week' || mode === 'month' || mode === 'quarter') initialCalendarMode = mode;
@@ -36,7 +29,7 @@ export async function load({ url }) {
 
 	return {
 		events,
-		initialCalendarView,
+		initialView,
 		initialCalendarMode,
 		initialCalendarYear,
 		initialCalendarMonth,

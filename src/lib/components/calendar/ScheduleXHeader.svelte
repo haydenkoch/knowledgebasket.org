@@ -172,7 +172,7 @@
 	<div class="kb-sx-header__row kb-sx-header__row--right">
 		<Popover.Root bind:open={datePickerOpen}>
 			<Popover.Trigger>
-				<Button variant="outline" size="sm" class="kb-sx-header__date-btn">
+				<Button variant="outline" size="sm" class="kb-sx-header__date-btn" aria-label="Pick date" aria-haspopup="dialog">
 					<CalendarIcon class="size-4" aria-hidden="true" />
 					{displayDate.toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
 				</Button>

@@ -1,0 +1,38 @@
+/* ── Main layout (sidebar + main content) ───────────────────────────────── */
+.kb-layout {
+  display: flex;
+  flex-direction: row;
+  min-height: calc(100vh - 220px);
+}
+
+.kb-sidebar {
+  width: 280px;
+  flex-shrink: 0;
+  background: var(--bone);
+  border-right: 1px solid var(--rule);
+  padding: 28px 24px;
+}
+
+.kb-main {
+  flex: 1;
+  padding: 28px 32px;
+  min-width: 0;
+}
+
+@media (max-width: 960px) {
+  .kb-layout {
+    flex-direction: column;
+  }
+
+  .kb-sidebar {
+    width: 100%;
+    border-right: none;
+    border-bottom: 1px solid var(--rule);
+    padding: 20px 16px;
+  }
+
+  .kb-main {
+    padding: 20px 16px;
+  }
+}
+

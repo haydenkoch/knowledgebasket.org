@@ -2,9 +2,15 @@
 	import type { FundingItem } from '$lib/data/kb';
 
 	let { data } = $props();
-	let item = $derived(data.item as FundingItem);
+	let item = $derived(data.item as FundingItem | null);
 </script>
 
+{#if !item}
+	<div class="mx-auto max-w-4xl px-4 py-8 sm:px-6">
+		<p class="text-[var(--color-kb-slate)]">This section is being updated. No listing found.</p>
+		<a href="/funding" class="text-[var(--color-kb-teal)] underline hover:no-underline">Back to Funding</a>
+	</div>
+{:else}
 <div class="mx-auto max-w-4xl px-4 py-8 sm:px-6">
 	<nav class="mb-6 font-[family-name:var(--font-sans)] text-sm text-[var(--color-kb-slate)]">
 		<a href="/funding" class="text-[var(--color-kb-teal)] underline hover:no-underline">Funding</a>
@@ -67,3 +73,4 @@
 		</aside>
 	</div>
 </div>
+{/if}

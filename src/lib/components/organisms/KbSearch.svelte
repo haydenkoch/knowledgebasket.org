@@ -126,7 +126,7 @@
 				{/each}
 			{:else if query.trim().length >= 2}
 				<div class="px-4 py-6 text-center text-sm text-[var(--color-kb-slate)]">
-					No results for “{query}”. Try different words or browse a coil below.
+					No results for "{query}". Try different words or browse a coil below.
 				</div>
 			{/if}
 		</div>

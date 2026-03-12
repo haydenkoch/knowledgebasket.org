@@ -1,42 +1,50 @@
-# sv
+# Knowledge Basket (site)
 
-Everything you need to build a Svelte project, powered by [`sv`](https://github.com/sveltejs/cli).
+SvelteKit app for the Knowledge Basket — events, and (stubbed) funding, red pages, jobs, toolbox.
 
-## Creating a project
+## Backend (Docker)
 
-If you're seeing this, you've probably already done this step. Congrats!
-
-```sh
-# create a new project
-npx sv create my-app
-```
-
-To recreate this project with the same configuration:
+From the **repo root** (parent of `site/`), start Postgres, MinIO, Meilisearch, and Redis:
 
 ```sh
-# recreate this project
-pnpm dlx sv@0.12.5 create --template minimal --types ts --add prettier eslint tailwindcss="plugins:typography,forms" mcp="ide:cursor+setup:local" --install pnpm ./site
+docker compose up -d
 ```
+
+Then in `site/.env` set `DATABASE_URL` to point at the Docker Postgres, e.g.:
+
+```
+DATABASE_URL="postgres://kb:kbdev@localhost:5432/kb"
+```
+
+See `site/.env.example` for all optional env vars (MinIO, Meilisearch, Redis, Mapbox, etc.).
 
 ## Developing
 
-Once you've created a project and installed dependencies with `npm install` (or `pnpm install` or `yarn`), start a development server:
+From the `site/` directory:
 
 ```sh
-npm run dev
-
-# or start the server and open the app in a new browser tab
-npm run dev -- --open
+pnpm install
+pnpm dev
 ```
+
+Open the app (e.g. http://localhost:5173).
+
+## Database
+
+- **Push schema:** `pnpm run db:push` (after `docker compose up` and `DATABASE_URL` set).
+- **Seed events from CSV:** `pnpm run db:seed` (run from `site/`; script reads CSV from `../data/` or `data/`).
+- **Reindex search:** After seeding, POST to `http://localhost:5173/api/reindex` to sync events into Meilisearch (or start the app and call it once).
+- **Auth schema:** If you use better-auth, run `pnpm run auth:schema` then `pnpm run db:push` so auth tables exist.
+
+Events list = DB events + iCal feed (News from Native California), merged in memory. Search uses Meilisearch (events only).
+
+## Stubbed sections
+
+Funding, Red Pages, Job Board, and Toolbox are stubbed (empty data). Only Events are backed by Postgres and Meilisearch for now.
 
 ## Building
 
-To create a production version of your app:
-
 ```sh
-npm run build
+pnpm run build
+pnpm run preview
 ```
-
-You can preview the production build with `npm run preview`.
-
-> To deploy your app, you may need to install an [adapter](https://svelte.dev/docs/kit/adapters) for your target environment.

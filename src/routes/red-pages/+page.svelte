@@ -1,8 +1,8 @@
 <script lang="ts">
 	import Input from '$lib/components/ui/input/input.svelte';
-	import KbHero from '$lib/components/KbHero.svelte';
-	import KbTwoColumnLayout from '$lib/components/KbTwoColumnLayout.svelte';
-	import KbFilterSection from '$lib/components/KbFilterSection.svelte';
+	import KbHero from '$lib/components/organisms/KbHero.svelte';
+	import KbTwoColumnLayout from '$lib/components/organisms/KbTwoColumnLayout.svelte';
+	import KbFilterSection from '$lib/components/organisms/KbFilterSection.svelte';
 	import type { RedPagesItem } from '$lib/data/kb';
 	import { stripHtml, matchSearch, filterByFacets, facetCounts } from '$lib/utils/format';
 

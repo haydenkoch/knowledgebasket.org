@@ -15,7 +15,7 @@ export function matchSearch<T extends { title: string; description?: string }>(
 	const hay = [
 		item.title,
 		item.description ?? '',
-		...extraFields.map((k) => String((item as Record<string, unknown>)[k] ?? ''))
+		...extraFields.map((k) => String((item as Record<string, unknown>)[k as string] ?? ''))
 	]
 		.join(' ')
 		.toLowerCase();

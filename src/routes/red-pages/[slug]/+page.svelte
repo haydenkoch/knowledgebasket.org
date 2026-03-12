@@ -2,9 +2,15 @@
 	import type { RedPagesItem } from '$lib/data/kb';
 
 	let { data } = $props();
-	let item = $derived(data.item as RedPagesItem);
+	let item = $derived(data.item as RedPagesItem | null);
 </script>
 
+{#if !item}
+	<div class="mx-auto max-w-4xl px-4 py-8 sm:px-6">
+		<p class="text-[var(--color-kb-slate)]">This section is being updated. No listing found.</p>
+		<a href="/red-pages" class="text-[var(--color-kb-teal)] underline hover:no-underline">Back to Red Pages</a>
+	</div>
+{:else}
 <div class="mx-auto max-w-4xl px-4 py-8 sm:px-6">
 	<nav class="mb-6 font-[family-name:var(--font-sans)] text-sm text-[var(--color-kb-slate)]">
 		<a href="/red-pages" class="text-[var(--color-kb-teal)] underline hover:no-underline">Red Pages</a>
@@ -73,3 +79,4 @@
 		</aside>
 	</div>
 </div>
+{/if}

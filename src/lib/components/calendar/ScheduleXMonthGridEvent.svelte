@@ -16,6 +16,7 @@
 <a
 	href="/events/{id}"
 	class="kb-sx-event kb-sx-event--month {isFree ? 'kb-sx-event--free' : 'kb-sx-event--paid'}"
+	aria-label={title || 'Event details'}
 	onclick={(e) => e.stopPropagation()}
 >
 	<span class="kb-sx-event__title">{title}</span>

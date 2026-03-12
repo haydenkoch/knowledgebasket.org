@@ -40,4 +40,3 @@
 		<span class="kb-fopt" style="color: var(--muted)">{fallbackEmpty}</span>
 	{/if}
 </div>
-

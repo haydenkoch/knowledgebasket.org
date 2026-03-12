@@ -4,10 +4,16 @@
 	import MapPinIcon from '@lucide/svelte/icons/map-pin';
 
 	let { data } = $props();
-	let item = $derived(data.item as JobItem);
-	const heroImage = $derived(item.imageUrl ?? getPlaceholderImage(0));
+	let item = $derived(data.item as JobItem | null);
+	const heroImage = $derived(item ? (item.imageUrl ?? getPlaceholderImage(0)) : '');
 </script>
 
+{#if !item}
+	<div class="mx-auto max-w-4xl px-4 py-8 sm:px-6">
+		<p class="text-[var(--color-kb-slate)]">This section is being updated. No listing found.</p>
+		<a href="/jobs" class="text-[var(--color-kb-teal)] underline hover:no-underline">Back to Job Board</a>
+	</div>
+{:else}
 <div class="mx-auto max-w-4xl px-4 py-8 sm:px-6">
 	<nav class="mb-6 font-[family-name:var(--font-sans)] text-sm text-[var(--color-kb-slate)]">
 		<a href="/jobs" class="text-[var(--color-kb-teal)] underline hover:no-underline">Job Board</a>
@@ -72,3 +78,4 @@
 		</aside>
 	</div>
 </div>
+{/if}

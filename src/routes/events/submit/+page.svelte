@@ -62,6 +62,7 @@
 	type FormResult = { success?: boolean; message?: string; error?: string; values?: Record<string, string> } | null;
 	let { data } = $props();
 	let form = $derived(($page as unknown as { form?: FormResult }).form ?? (data as { form?: FormResult })?.form ?? null);
+	let submitting = $state(false);
 	let descriptionHtml = $state('');
 	let eventTypes = $state<string[]>([]);
 	let eventTypeOpen = $state(false);
@@ -226,6 +227,11 @@
 	});
 </script>
 
+<svelte:head>
+	<title>Submit an event | Events | Knowledge Basket</title>
+	<meta name="description" content="Submit an Indigenous-led or Indigenous-serving event for the Knowledge Basket. Free listings; reviewed by IFS staff." />
+</svelte:head>
+
 <div style="--kb-accent: var(--teal)">
 	<nav class="kb-breadcrumb">
 		<a href="/events">Events</a>
@@ -235,7 +241,7 @@
 
 	<div class="kb-form-wrap">
 		{#if form?.success}
-			<div class="kb-success-wrap">
+			<div class="kb-success-wrap" role="status" aria-live="polite">
 				<div class="kb-success-ico">✓</div>
 				<h2>Event submitted</h2>
 				<p>{form.message}</p>
@@ -250,13 +256,18 @@
 				📋 <strong>Moderation Note:</strong> All submissions are reviewed within 3–5 business days. You'll receive an email when your event is approved or if IFS staff need more information.
 			</div>
 
-			<form method="POST" action="?/default" enctype="multipart/form-data" use:enhance={() => {
-				return ({ result, update }) => {
-					if (result.type === 'success' || result.type === 'failure') update();
+			<form method="POST" action="?/default" enctype="multipart/form-data" aria-describedby={form?.error ? 'submit-error' : undefined} use:enhance={() => {
+				submitting = true;
+				return async ({ result, update }) => {
+					try {
+						if (result.type === 'success' || result.type === 'failure') await update();
+					} finally {
+						submitting = false;
+					}
 				};
 			}}>
 				{#if form?.error}
-					<p class="kb-form-row" style="color: var(--red); margin-bottom: 16px">{form.error}</p>
+					<div id="submit-error" class="kb-form-row" role="alert" aria-live="assertive" style="color: var(--red); margin-bottom: 16px">{form.error}</div>
 				{/if}
 
 				<div class="kb-form-section">
@@ -682,7 +693,9 @@
 				</div>
 
 				<div class="kb-form-actions">
-					<button type="submit" class="kb-btn-submit">Submit for review</button>
+					<button type="submit" class="kb-btn-submit" disabled={submitting} aria-busy={submitting}>
+						{submitting ? 'Submitting…' : 'Submit for review'}
+					</button>
 					<a href="/events" class="kb-btn-cancel">Cancel</a>
 				</div>
 			</form>

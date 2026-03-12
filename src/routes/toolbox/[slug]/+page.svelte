@@ -2,10 +2,16 @@
 	import type { ToolboxItem } from '$lib/data/kb';
 
 	let { data } = $props();
-	let item = $derived(data.item as ToolboxItem);
-	const isPdf = $derived(!!item.url && /\.pdf$/i.test(item.url));
+	let item = $derived(data.item as ToolboxItem | null);
+	const isPdf = $derived(!!item?.url && /\.pdf$/i.test(item.url));
 </script>
 
+{#if !item}
+	<div class="mx-auto max-w-4xl px-4 py-8 sm:px-6">
+		<p class="text-[var(--color-kb-slate)]">This section is being updated. No listing found.</p>
+		<a href="/toolbox" class="text-[var(--color-kb-teal)] underline hover:no-underline">Back to Toolbox</a>
+	</div>
+{:else}
 <div class="kb-library-detail">
 	<nav class="kb-library-breadcrumb">
 		<a href="/toolbox">Toolbox</a>
@@ -69,3 +75,4 @@
 		</aside>
 	</div>
 </div>
+{/if}

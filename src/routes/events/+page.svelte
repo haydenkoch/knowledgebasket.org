@@ -1,66 +1,45 @@
 <script lang="ts">
 	import 'temporal-polyfill/global';
-	import EventsViewTabs from '$lib/components/EventsViewTabs.svelte';
-	import KbHero from '$lib/components/KbHero.svelte';
+	import EventsViewTabs from '$lib/components/organisms/EventsViewTabs.svelte';
+	import KbHero from '$lib/components/organisms/KbHero.svelte';
 	import Input from '$lib/components/ui/input/input.svelte';
 	import SearchIcon from '@lucide/svelte/icons/search';
-	import CheckIcon from '@lucide/svelte/icons/check';
-	import * as Command from '$lib/components/ui/command/index.js';
-	import * as Popover from '$lib/components/ui/popover/index.js';
-	import { Button } from '$lib/components/ui/button/index.js';
-	import * as ButtonGroup from '$lib/components/ui/button-group/index.js';
-	import * as Tabs from '$lib/components/ui/tabs/index.js';
 	import ChevronLeftIcon from '@lucide/svelte/icons/chevron-left';
 	import ChevronRightIcon from '@lucide/svelte/icons/chevron-right';
-	import { Badge } from '$lib/components/ui/badge/index.js';
-	import { Calendar } from '$lib/components/ui/calendar/index.js';
-	import { CalendarDate, getLocalTimeZone } from '@internationalized/date';
-	import { cn } from '$lib/utils.js';
-	import Slider from '$lib/components/ui/slider/slider.svelte';
-	import ChevronDownIcon from '@lucide/svelte/icons/chevron-down';
-	import XIcon from '@lucide/svelte/icons/x';
-	import MapPinIcon from '@lucide/svelte/icons/map-pin';
+	import { CalendarDate } from '@internationalized/date';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
 	import { setContext } from 'svelte';
 	import { get } from 'svelte/store';
 	import type { EventItem } from '$lib/data/kb';
-	import { getPlaceholderImage } from '$lib/data/placeholders';
-	import { ScheduleXCalendar } from '@schedule-x/svelte';
-	import {
-		createCalendar,
-		createViewMonthGrid,
-		createViewWeek,
-		createViewDay,
-		viewMonthGrid,
-		viewWeek,
-		viewDay
-	} from '@schedule-x/calendar';
-	import { createEventsServicePlugin } from '@schedule-x/events-service';
-	import '@schedule-x/theme-shadcn/dist/index.css';
-import ScheduleXHeader from '$lib/components/calendar/ScheduleXHeader.svelte';
-	import CaliforniaMap from '$lib/components/CaliforniaMap.svelte';
+	import type { CalendarApp } from '@schedule-x/calendar';
+	import EventsFilterBar from '$lib/components/organisms/EventsFilterBar.svelte';
+	import EventCard from '$lib/components/molecules/EventCard.svelte';
+	import EventListItem from '$lib/components/molecules/EventListItem.svelte';
+	import EventsToolbar from '$lib/components/molecules/EventsToolbar.svelte';
+	import EventsDateRangeFilter from '$lib/components/organisms/EventsDateRangeFilter.svelte';
+	import EventsSidebar from '$lib/components/organisms/EventsSidebar.svelte';
+	import EventsCalendarView from '$lib/components/organisms/EventsCalendarView.svelte';
+	import EventsRightSidebar from '$lib/components/organisms/EventsRightSidebar.svelte';
+	import { tsToDateStr, dateStrToTs, tsToCalendarDate } from '$lib/utils/date.js';
 import {
-	stripHtml,
 	matchSearch,
 	filterByFacets,
 	facetCounts,
 	parseEventStart,
-	formatEventDateShort,
 	formatEventTime,
 	eventCalendarParts,
 	eventCalendarDaysSpanned,
 	isMultiDayEvent,
-	getEventTypeTags,
 	eventMatchesTypeGroup,
 	eventTypeGroupCounts
 } from '$lib/utils/format';
 import { eventTypeGroups, eventTypeTags } from '$lib/data/formSchema';
-import * as Drawer from '$lib/components/ui/drawer/index.js';
 import { IsMobile } from '$lib/hooks/is-mobile.svelte';
-	import type { CalendarApp } from '@schedule-x/calendar';
 
 	type EventView = 'cards' | 'list' | 'calendar';
+
+	const EVENTS_PAGE_SIZE = 12;
 
 	/** Schedule-X timezone (must match calendar config so week/day time grid is correct). */
 	const CALENDAR_TZ = 'America/Los_Angeles';
@@ -141,24 +120,24 @@ let costFilter = $state<string[]>([]);
 
 	/** Currently selected event from the calendar (for inline sidebar / mobile drawer). */
 	let calendarSelectedId = $state<string | null>(null);
-	const calendarSelectedEvent = $derived(
-		calendarSelectedId ? filtered.find((e) => e.id === calendarSelectedId) ?? null : null
-	);
 	let eventDetailsOpen = $state(false);
 	const isMobile = new IsMobile();
 
-	/** Schedule-X calendar app (created when calendar view is active). */
+	/** Schedule-X calendar app (created when calendar view is active). Lazy-loaded with calendar bundle. */
 	let scheduleXApp = $state<CalendarApp | null>(null);
+	let calendarLoadStarted = false;
 
+	/** Restore view and calendar state from URL (load + replaceState). */
 	$effect(() => {
 		const d = data as {
-			initialCalendarView?: string;
+			initialView?: 'cards' | 'list' | 'calendar';
 			initialCalendarMode?: string;
 			initialCalendarYear?: number | null;
 			initialCalendarMonth?: number | null;
 			initialCalendarDay?: number | null;
 		};
-		if (d.initialCalendarView === 'calendar') eventView = 'calendar';
+		if (d.initialView === 'cards' || d.initialView === 'list' || d.initialView === 'calendar')
+			eventView = d.initialView;
 		if (d.initialCalendarMode === 'week' || d.initialCalendarMode === 'month' || d.initialCalendarMode === 'quarter')
 			calendarViewMode = d.initialCalendarMode as CalendarViewMode;
 		if (d.initialCalendarYear != null) calendarYear = d.initialCalendarYear;
@@ -166,53 +145,73 @@ let costFilter = $state<string[]>([]);
 		if (d.initialCalendarDay != null) selectedDay = d.initialCalendarDay;
 	});
 
-	/** Create Schedule-X calendar when user switches to calendar view. Use URL params for initial view and date. */
+	/** Sync URL when user changes main view (Cards / List / Calendar). Defer so tab switch paints first. */
+	$effect(() => {
+		const v = eventView;
+		const p = get(page);
+		const url = new URL(p.url);
+		const current = url.searchParams.get('view');
+		if (current === v) return;
+		url.searchParams.set('view', v);
+		if (v !== 'calendar') {
+			url.searchParams.delete('mode');
+			url.searchParams.delete('date');
+		}
+		const pathSearch = `${url.pathname}${url.search}`;
+		queueMicrotask(() => goto(pathSearch, { replaceState: true, noScroll: true }));
+	});
+
+	/** Create Schedule-X calendar when user switches to calendar view (lazy-loads calendar bundle). */
 	$effect(() => {
 		if (eventView !== 'calendar') return;
 		if (scheduleXApp) return;
+		if (calendarLoadStarted) return;
+		calendarLoadStarted = true;
 		const d = data as {
 			initialCalendarMode?: string;
 			initialCalendarYear?: number | null;
 			initialCalendarMonth?: number | null;
 			initialCalendarDay?: number | null;
 		};
-		const mode = d.initialCalendarMode ?? 'month';
-		const defaultView =
-			mode === 'week' ? viewWeek.name : mode === 'day' ? viewDay.name : viewMonthGrid.name;
-		const selected =
-			d.initialCalendarYear != null &&
-			d.initialCalendarMonth != null &&
-			d.initialCalendarDay != null
-				? Temporal.PlainDate.from({
-						year: d.initialCalendarYear,
-						month: d.initialCalendarMonth + 1,
-						day: d.initialCalendarDay
-					})
-				: Temporal.PlainDate.from(new Date().toISOString().slice(0, 10));
-		scheduleXApp = createCalendar(
-			{
-				views: [createViewMonthGrid(), createViewWeek(), createViewDay()],
-				events: [],
-				theme: 'shadcn',
-				timezone: CALENDAR_TZ,
-				firstDayOfWeek: 7,
-				defaultView,
-				selectedDate: selected,
-				callbacks: {
-					onEventClick(calEvent: { id: string | number }) {
-						const id = String(calEvent.id);
-						const match = filtered.find((e) => e.id === id);
-						if (!match) {
-							goto(`/events/${id}`);
-							return;
+		import('$lib/calendar/calendar-loader.js').then((mod) => {
+			const mode = d.initialCalendarMode ?? 'month';
+			const defaultView =
+				mode === 'week' ? mod.viewWeek.name : mode === 'day' ? mod.viewDay.name : mod.viewMonthGrid.name;
+			const selected =
+				d.initialCalendarYear != null &&
+				d.initialCalendarMonth != null &&
+				d.initialCalendarDay != null
+					? Temporal.PlainDate.from({
+							year: d.initialCalendarYear,
+							month: d.initialCalendarMonth + 1,
+							day: d.initialCalendarDay
+						})
+					: Temporal.PlainDate.from(new Date().toISOString().slice(0, 10));
+			scheduleXApp = mod.createCalendar(
+				{
+					views: [mod.createViewMonthGrid(), mod.createViewWeek(), mod.createViewDay()],
+					events: [],
+					theme: 'shadcn',
+					timezone: CALENDAR_TZ,
+					firstDayOfWeek: 7,
+					defaultView,
+					selectedDate: selected,
+					callbacks: {
+						onEventClick(calEvent: { id: string | number }) {
+							const id = String(calEvent.id);
+							const match = filtered.find((e) => e.id === id);
+							if (!match) {
+								goto(`/events/${id}`);
+								return;
+							}
+							calendarSelectedId = id;
+							eventDetailsOpen = true;
 						}
-						calendarSelectedId = id;
-						eventDetailsOpen = true;
 					}
-				}
-			},
-			[createEventsServicePlugin()]
-		);
+				},
+				[mod.createEventsServicePlugin()]
+			);
+		});
 	});
 
 	/** Provide URL-sync callback for calendar header (view + date in query). */
@@ -231,11 +230,13 @@ let costFilter = $state<string[]>([]);
 		});
 	});
 
-	/** Close calendar modal if user leaves calendar view. */
+	/** When leaving calendar view: clear selection and destroy calendar app so it recreates fresh when returning. */
 	$effect(() => {
 		if (eventView !== 'calendar') {
 			calendarSelectedId = null;
 			eventDetailsOpen = false;
+			scheduleXApp = null;
+			calendarLoadStarted = false;
 		}
 	});
 
@@ -254,39 +255,6 @@ let costFilter = $state<string[]>([]);
 		const sxEvents = filtered.map(eventToSx).filter((e): e is NonNullable<typeof e> => e != null);
 		service.set(sxEvents);
 	});
-
-	// Helpers for date range (YYYY-MM-DD for inputs; CalendarDate for shadcn Calendar)
-	function tsToDateStr(ts: number): string {
-		const d = new Date(ts);
-		const y = d.getFullYear();
-		const m = String(d.getMonth() + 1).padStart(2, '0');
-		const day = String(d.getDate()).padStart(2, '0');
-		return `${y}-${m}-${day}`;
-	}
-	function dateStrToTs(str: string): number {
-		if (!str) return 0;
-		const [y, m, d] = str.split('-').map(Number);
-		if (isNaN(y) || isNaN(m) || isNaN(d)) return 0;
-		return new Date(y, m - 1, d, 0, 0, 0, 0).getTime();
-	}
-	function endOfDayTs(str: string): number {
-		if (!str) return 0;
-		const [y, m, d] = str.split('-').map(Number);
-		if (isNaN(y) || isNaN(m) || isNaN(d)) return 0;
-		return new Date(y, m - 1, d, 23, 59, 59, 999).getTime();
-	}
-	function tsToCalendarDate(ts: number): CalendarDate {
-		const d = new Date(ts);
-		return new CalendarDate(d.getFullYear(), d.getMonth() + 1, d.getDate());
-	}
-	function calendarDateToStartTs(d: CalendarDate): number {
-		const js = d.toDate(getLocalTimeZone());
-		return new Date(js.getFullYear(), js.getMonth(), js.getDate(), 0, 0, 0, 0).getTime();
-	}
-	function calendarDateToEndTs(d: CalendarDate): number {
-		const js = d.toDate(getLocalTimeZone());
-		return new Date(js.getFullYear(), js.getMonth(), js.getDate(), 23, 59, 59, 999).getTime();
-	}
 
 	// Single source of truth: range as timestamps. Default: today → today + 12 months
 	function getDefaultRange() {
@@ -321,25 +289,32 @@ let costFilter = $state<string[]>([]);
 		endDateDisplay = tsToCalendarDate(rangeEnd);
 	});
 
-	// Fixed 24 month buckets: 12 months back + 12 months forward from today
+	// Fixed 24 month buckets from real events: 12 months back + 12 months forward from today.
+	// Each bar = count of events that overlap that month (start in or span into it).
 	const dateBuckets = $derived.by(() => {
 		const now = new Date();
 		const buckets: { label: string; start: number; end: number; count: number }[] = [];
-		const withDate = events.filter((e) => parseEventStart(e.startDate) != null);
-		// 12 months back + 12 months forward = 24 bars
+		const eventRanges = events
+			.map((e) => {
+				const startTs = parseEventStart(e.startDate);
+				if (startTs == null) return null;
+				const endTs = e.endDate?.trim() ? parseEventStart(e.endDate) ?? startTs : startTs;
+				const end = endTs >= startTs ? endTs : startTs;
+				return { start: startTs, end };
+			})
+			.filter((r): r is { start: number; end: number } => r != null);
 		for (let i = -12; i < 12; i++) {
 			const y = now.getFullYear();
 			const m = now.getMonth() + i;
-			const start = new Date(y, m, 1).getTime();
-			const end = new Date(y, m + 1, 0, 23, 59, 59, 999).getTime();
-			const count = withDate.filter((e) => {
-				const t = parseEventStart(e.startDate)!;
-				return t >= start && t <= end;
-			}).length;
+			const monthStart = new Date(y, m, 1).getTime();
+			const monthEnd = new Date(y, m + 1, 0, 23, 59, 59, 999).getTime();
+			const count = eventRanges.filter(
+				({ start, end }) => start <= monthEnd && end >= monthStart
+			).length;
 			buckets.push({
 				label: new Date(y, m).toLocaleDateString('en-US', { month: 'short', year: '2-digit' }),
-				start,
-				end,
+				start: monthStart,
+				end: monthEnd,
 				count
 			});
 		}
@@ -466,20 +441,41 @@ let costFilter = $state<string[]>([]);
 	);
 	const filteredTotal = $derived(filtered.length);
 
+	const totalPages = $derived(Math.max(1, Math.ceil(filteredTotal / EVENTS_PAGE_SIZE)));
+	const currentPageFromUrl = $derived.by(() => {
+		const p = get(page).url.searchParams.get('page');
+		const n = parseInt(p ?? '1', 10);
+		return Number.isFinite(n) && n >= 1 ? n : 1;
+	});
+	const currentPage = $derived(Math.min(currentPageFromUrl, totalPages));
+	const paginatedList = $derived(
+		filtered.slice((currentPage - 1) * EVENTS_PAGE_SIZE, currentPage * EVENTS_PAGE_SIZE)
+	);
+
+	function goToPage(num: number) {
+		const url = new URL(get(page).url);
+		url.searchParams.set('page', String(num));
+		goto(url.pathname + url.search);
+	}
+
+
+	const calendarSelectedEvent = $derived(
+		calendarSelectedId ? filtered.find((e) => (e.slug ?? e.id) === calendarSelectedId) ?? null : null
+	);
+
 	/** Sidebar feeds */
 	const sidebarFeatured = $derived(filtered.slice(0, 3));
-	const sidebarWeekUpcoming = $derived(() => {
-		const nowTs = todayStart;
-		const weekEnd = nowTs + 7 * 24 * 60 * 60 * 1000;
-		return filtered.filter((e) => {
-			const t = parseEventStart(e.startDate);
-			return t != null && t >= nowTs && t <= weekEnd;
-		}).slice(0, 5);
-	});
-	const sidebarCalendarInView = $derived(() => {
-		// For now, just reuse filtered when in calendar view; can be tightened to current grid range later.
-		return filtered.slice(0, 8);
-	});
+	const sidebarWeekUpcoming = $derived(
+		(() => {
+			const nowTs = todayStart;
+			const weekEnd = nowTs + 7 * 24 * 60 * 60 * 1000;
+			return filtered.filter((e) => {
+				const t = parseEventStart(e.startDate);
+				return t != null && t >= nowTs && t <= weekEnd;
+			}).slice(0, 5);
+		})()
+	);
+	const sidebarCalendarInView = $derived(filtered.slice(0, 8));
 
 	const sidebarCalendarValue = $derived(tsToCalendarDate(rangeStart));
 
@@ -871,6 +867,11 @@ let costFilter = $state<string[]>([]);
 	});
 	</script>
 
+<svelte:head>
+	<title>Events | Knowledge Basket</title>
+	<meta name="description" content="Indigenous gatherings, trainings, and cultural events in the Sierra Nevada bioregion and California. Find and submit events." />
+</svelte:head>
+
 <div class="kb-coil kb-coil--events">
 	<KbHero
 		heroClass="kb-hero--events"
@@ -895,8 +896,8 @@ let costFilter = $state<string[]>([]);
 	</KbHero>
 
 	<div class="kb-layout">
-		<aside class="kb-sidebar kb-refine-sidebar">
-			<div class="kb-search-wrap">
+		<EventsSidebar>
+			<div class="kb-search-wrap" role="search" aria-label="Search events">
 				<span class="kb-search-icon" aria-hidden="true">
 					<SearchIcon size={16} strokeWidth={1.8} aria-hidden="true" />
 				</span>
@@ -905,6 +906,7 @@ let costFilter = $state<string[]>([]);
 					placeholder="Search events…"
 					class="kb-search-input"
 					bind:value={searchQuery}
+					aria-label="Search events"
 				/>
 			</div>
 			<div class="kb-fg">
@@ -912,597 +914,144 @@ let costFilter = $state<string[]>([]);
 				<EventsViewTabs bind:value={eventView} />
 			</div>
 
-			<!-- Date distribution graph + slider -->
-			<div class="kb-refine-block kb-refine-date-graph" role="group" aria-label="Filter by date">
-
-				{#if dateBuckets.buckets.length > 0}
-					<div class="kb-date-graph">
-						<p class="kb-date-graph__label">Date range</p>
-						<div class="kb-date-graph__chart" role="img" aria-label="Event count by month">
-							{#each dateBuckets.buckets as bucket, i}
-								{@const pct = dateBuckets.maxCount > 0 ? (bucket.count / dateBuckets.maxCount) * 100 : 0}
-								<span
-									class="kb-date-graph__bar"
-									class:kb-date-graph__bar--in-range={i >= sliderMinIx && i <= Math.min(sliderMaxIx, numBuckets - 1)}
-									style="height: {pct}%"
-									data-min={bucket.start}
-									data-max={bucket.end}
-									data-count={bucket.count}
-									aria-label="Month {bucket.label}. Events: {bucket.count}."
-								></span>
-							{/each}
-						</div>
-						<div class="kb-date-graph__controls">
-							<Slider
-								min={0}
-								max={Math.max(0, numBuckets - 1)}
-								step={1}
-								value={[sliderMinIx, sliderMaxIx]}
-								onValueChange={handleSliderChange}
-								onValueCommit={handleSliderCommit}
-								type="multiple"
-								class="kb-date-slider"
-								aria-label="Date range"
-							/>
-							<div class="kb-date-graph__labels">
-								<div class="kb-date-input-wrap">
-									<span class="kb-date-input-label">From</span>
-									<Popover.Root bind:open={startDateOpen}>
-										<Popover.Trigger>
-											{#snippet child({ props })}
-												<input
-													{...props}
-													type="date"
-													class="kb-date-input kb-date-input--calendar-trigger"
-													aria-label="Start date"
-													value={tsToDateStr(rangeStart)}
-													oninput={(e) => {
-														const v = (e.currentTarget as HTMLInputElement).value;
-														const ts = dateStrToTs(v);
-														if (ts) {
-															rangeStart = ts;
-															if (rangeStart > rangeEnd) rangeEnd = rangeStart;
-														}
-													}}
-													onclick={(e) => {
-														e.preventDefault();
-														startDateOpen = true;
-													}}
-													min={tsToDateStr(dateBuckets.buckets[0]?.start ?? rangeStart)}
-													max={tsToDateStr(rangeEnd)}
-												/>
-											{/snippet}
-										</Popover.Trigger>
-										<Popover.Content class="w-auto overflow-hidden p-0" align="start">
-											<Calendar
-												type="single"
-												bind:value={startDateDisplay}
-												onValueChange={() => {
-													rangeStart = calendarDateToStartTs(startDateDisplay);
-													if (rangeStart > rangeEnd) rangeEnd = rangeStart;
-													startDateOpen = false;
-												}}
-												captionLayout="dropdown"
-												minValue={tsToCalendarDate(dateBuckets.buckets[0]?.start ?? rangeStart)}
-												maxValue={tsToCalendarDate(rangeEnd)}
-											/>
-										</Popover.Content>
-									</Popover.Root>
-								</div>
-								<div class="kb-date-input-wrap">
-									<span class="kb-date-input-label">To</span>
-									<Popover.Root bind:open={endDateOpen}>
-										<Popover.Trigger>
-											{#snippet child({ props })}
-												<input
-													{...props}
-													type="date"
-													class="kb-date-input kb-date-input--calendar-trigger"
-													aria-label="End date"
-													value={tsToDateStr(rangeEnd)}
-													oninput={(e) => {
-														const v = (e.currentTarget as HTMLInputElement).value;
-														const ts = endOfDayTs(v);
-														if (ts) {
-															rangeEnd = ts;
-															if (rangeEnd < rangeStart) rangeStart = dateStrToTs(v);
-														}
-													}}
-													onclick={(e) => {
-														e.preventDefault();
-														endDateOpen = true;
-													}}
-													min={tsToDateStr(rangeStart)}
-													max={tsToDateStr(dateBuckets.buckets[dateBuckets.buckets.length - 1]?.end ?? rangeEnd)}
-												/>
-											{/snippet}
-										</Popover.Trigger>
-										<Popover.Content class="w-auto overflow-hidden p-0" align="start">
-											<Calendar
-												type="single"
-												bind:value={endDateDisplay}
-												onValueChange={() => {
-													rangeEnd = calendarDateToEndTs(endDateDisplay);
-													if (rangeEnd < rangeStart) rangeStart = calendarDateToStartTs(endDateDisplay);
-													endDateOpen = false;
-												}}
-												captionLayout="dropdown"
-												minValue={tsToCalendarDate(rangeStart)}
-												maxValue={tsToCalendarDate(dateBuckets.buckets[dateBuckets.buckets.length - 1]?.end ?? rangeEnd)}
-											/>
-										</Popover.Content>
-									</Popover.Root>
-								</div>
-							</div>
-						</div>
-					</div>
-				{:else}
-					<p class="kb-date-graph__hint">No events in range.</p>
-				{/if}
-			</div>
+			<EventsDateRangeFilter
+				{dateBuckets}
+				{numBuckets}
+				{sliderMinIx}
+				{sliderMaxIx}
+				{rangeStart}
+				{rangeEnd}
+				bind:startDateOpen
+				bind:endDateOpen
+				bind:startDateDisplay
+				bind:endDateDisplay
+				onSliderChange={handleSliderChange}
+				onSliderCommit={handleSliderCommit}
+				onRangeStartChange={(ts) => {
+					rangeStart = ts;
+					if (rangeStart > rangeEnd) rangeEnd = rangeStart;
+				}}
+				onRangeEndChange={(ts) => {
+					rangeEnd = ts;
+					if (rangeEnd < rangeStart) rangeStart = dateStrToTs(tsToDateStr(ts));
+				}}
+				onStartDateOpenChange={(open) => (startDateOpen = open)}
+				onEndDateOpenChange={(open) => (endDateOpen = open)}
+			/>
 
 			<!-- Facet filters -->
-			<div class="kb-fg kb-fg--filters">
-				<div class="kb-flbl">Filter</div>
-				<div class="kb-filter-bar" aria-label="Filter events">
-					<div class="kb-filter-row">
-						<!-- Cost combobox -->
-						<Popover.Root bind:open={costOpen}>
-							<Popover.Trigger>
-								{#snippet child({ props })}
-									<Button
-										{...props}
-										variant="outline"
-										class="kb-refine-select w-full justify-between"
-										role="combobox"
-										aria-expanded={costOpen}
-									>
-										{formatCostLabel()}
-										<ChevronDownIcon class="size-4 shrink-0 opacity-50" />
-									</Button>
-								{/snippet}
-							</Popover.Trigger>
-							<Popover.Content class="kb-filter-popover-content p-0" align="start">
-								<Command.Root>
-									<Command.Input placeholder="Search cost…" />
-									<Command.List>
-										<Command.Empty>No cost found.</Command.Empty>
-										<Command.Group>
-											{#each costValuesVisible as c (c)}
-												<Command.Item
-													value={c}
-													onSelect={() => (costFilter = toggleMulti(costFilter, c))}
-													class={cn('kb-filter-item', costFilter.includes(c) && 'kb-filter-item--checked')}
-												>
-													<CheckIcon class={cn('size-4', !costFilter.includes(c) && 'text-transparent')} />
-													<span class="kb-filter-item__label">{c}</span>
-													<Badge variant="secondary" class="kb-filter-item__badge">{costCountsInRange[c] ?? 0}</Badge>
-												</Command.Item>
-											{/each}
-										</Command.Group>
-									</Command.List>
-								</Command.Root>
-							</Popover.Content>
-						</Popover.Root>
-
-						<!-- Region combobox -->
-						<Popover.Root bind:open={regionOpen}>
-							<Popover.Trigger>
-								{#snippet child({ props })}
-									<Button
-										{...props}
-										variant="outline"
-										class="kb-refine-select w-full justify-between"
-										role="combobox"
-										aria-expanded={regionOpen}
-									>
-										{regionTriggerLabel}
-										<ChevronDownIcon class="size-4 shrink-0 opacity-50" />
-									</Button>
-								{/snippet}
-							</Popover.Trigger>
-							<Popover.Content class="kb-filter-popover-content p-0" align="start">
-								<Command.Root>
-									<Command.Input placeholder="Search geography…" />
-									<Command.List>
-										<Command.Empty>No geography found.</Command.Empty>
-										<Command.Group>
-											{#each regionValuesVisible as r (r)}
-												<Command.Item
-													value={r}
-													onSelect={() => (regionSelect = toggleMulti(regionSelect, r))}
-													class={cn('kb-filter-item', regionSelect.includes(r) && 'kb-filter-item--checked')}
-												>
-													<CheckIcon class={cn('size-4', !regionSelect.includes(r) && 'text-transparent')} />
-													<span class="kb-filter-item__label">{r}</span>
-													<Badge variant="secondary" class="kb-filter-item__badge">{regionCountsInRange[r] ?? 0}</Badge>
-												</Command.Item>
-											{/each}
-										</Command.Group>
-									</Command.List>
-								</Command.Root>
-							</Popover.Content>
-						</Popover.Root>
-
-						<!-- Type: same as events submit form (trigger with chips + popover Command) -->
-						<div class="kb-refine-type-row">
-							<div class="kb-flbl">Type</div>
-							<Popover.Root bind:open={typeOpen}>
-								<Popover.Trigger class="kb-form-type-trigger-wrap" aria-label="Filter by event type">
-									<div class="kb-form-type-trigger" class:empty={typeSelect.length === 0}>
-										{#if typeSelect.length > 0}
-											<span class="kb-form-type-chips">
-												{#each typeSelect as label (label)}
-													<span class="kb-form-type-chip">
-														{label}
-														<button
-															type="button"
-															class="kb-form-type-chip-remove"
-															aria-label="Remove {label}"
-															onclick={(e) => {
-																e.preventDefault();
-																e.stopPropagation();
-																removeType(label);
-															}}
-														>
-															<XIcon class="size-3" />
-														</button>
-													</span>
-												{/each}
-											</span>
-										{/if}
-										<span class="kb-form-type-placeholder">{typeSelect.length ? 'Add another…' : 'Search to add types…'}</span>
-									</div>
-								</Popover.Trigger>
-								<Popover.Content class="kb-filter-popover-content p-0" align="start">
-									<Command.Root>
-										<Command.Input placeholder="Search types…" />
-										<Command.List>
-											<Command.Empty>No type found.</Command.Empty>
-											<Command.Group>
-												{#each typeTagsVisible as tag (tag)}
-													{@const groupForTag = eventTypeGroups.find((g) => (g.tags as readonly string[]).includes(tag))}
-													<Command.Item
-														value={tag}
-														onSelect={() => (typeSelect = toggleMulti(typeSelect as string[], tag as string))}
-														class={cn('kb-filter-item', typeSelect.includes(tag) && 'kb-filter-item--checked')}
-													>
-														<CheckIcon class={cn('size-4', !typeSelect.includes(tag) && 'text-transparent')} />
-														<span class="kb-filter-item__label">{tag}</span>
-														<Badge variant="secondary" class="kb-filter-item__badge">{groupForTag ? (typeGroupCountsInRange[groupForTag.label] ?? 0) : 0}</Badge>
-													</Command.Item>
-												{/each}
-											</Command.Group>
-										</Command.List>
-									</Command.Root>
-								</Popover.Content>
-							</Popover.Root>
-						</div>
-					</div>
-					<button
-						type="button"
-						class="kb-filter-clear"
-						onclick={clearFilters}
-					>
-						Clear filters &amp; search
-					</button>
-				</div>
-			</div>
-		</aside>
+			<EventsFilterBar
+				bind:costOpen
+				bind:regionOpen
+				bind:typeOpen
+				{costFilter}
+				{regionSelect}
+				{typeSelect}
+				{costValuesVisible}
+				{regionValuesVisible}
+				{typeTagsVisible}
+				{costCountsInRange}
+				{regionCountsInRange}
+				{typeGroupCountsInRange}
+				{eventTypeGroups}
+				{formatCostLabel}
+				{regionTriggerLabel}
+				onCostChange={(c: string) => (costFilter = toggleMulti(costFilter, c))}
+				onRegionChange={(r: string) => (regionSelect = toggleMulti(regionSelect, r))}
+				onTypeChange={(t: string) => (typeSelect = toggleMulti(typeSelect as string[], t))}
+				onTypeRemove={removeType}
+				onClear={clearFilters}
+			/>
+		</EventsSidebar>
 		<main class="kb-main">
-			<div class="kb-toolbar kb-events-toolbar" aria-live="polite" aria-atomic="true">
-				<div class="kb-rcount">Showing <strong>{filteredTotal}</strong> events</div>
-			</div>
+			<h2 class="sr-only">Upcoming events</h2>
+			<EventsToolbar filteredTotal={filteredTotal} />
 
 			{#if eventView === 'cards'}
-				<div class="kb-grid kb-event-cards">
-					{#each filtered as event, i (event.id)}
-						<a href="/events/{event.id}" class="kb-card kb-event-card">
-							<div class="kb-cimg" style="background: linear-gradient(135deg, var(--color-lakebed-950), var(--color-lakebed-800))">
-								<img src={event.imageUrl ?? getPlaceholderImage(i)} alt="" class="kb-cimg-photo" />
-								<span class="kb-event-card-date">{formatEventDateShort(event.startDate, event.endDate)}</span>
-								{#if event.cost}
-									<span class="kb-event-card-cost"><Badge class="kb-badge-cost">{event.cost}</Badge></span>
-								{/if}
-							</div>
-							<div class="kb-cbody">
-								<div class="kb-ctags">
-									{#if event.region}<Badge class="kb-badge-tag">{event.region}</Badge>{/if}
-									{#each getEventTypeTags(event) as tag (tag)}
-										<Badge class="kb-badge-tag kb-badge-tag--type">{tag}</Badge>
-									{/each}
-								</div>
-								<div class="kb-ctit">{event.title}</div>
-								{#if event.location}<div class="kb-cmeta"><MapPinIcon class="kb-location-icon" /> {event.location}</div>{/if}
-								{#if event.description}<div class="kb-cdesc">{stripHtml(String(event.description))}</div>{/if}
-								<span class="kb-ccta">View event</span>
-							</div>
-						</a>
-					{/each}
-				</div>
-			{:else if eventView === 'list'}
-				<ul class="kb-elist kb-elist-eb">
-					{#each filtered as event, i (event.id)}
-						<li>
-							<a href="/events/{event.id}" class="kb-elist-item kb-elist-item-eb">
-								<div class="kb-elist-photo" style="background: linear-gradient(135deg, var(--color-lakebed-950), var(--color-lakebed-800))">
-									<img src={event.imageUrl ?? getPlaceholderImage(i)} alt="" class="kb-elist-photo-img" />
-								</div>
-								<div class="kb-elist-body">
-									<div class="kb-elist-tags">
-										{#if event.region}<Badge class="kb-badge-tag">{event.region}</Badge>{/if}
-										{#each getEventTypeTags(event) as tag (tag)}
-											<Badge class="kb-badge-tag kb-badge-tag--type">{tag}</Badge>
-										{/each}
-									</div>
-									<div class="kb-elist-title">{event.title}</div>
-									{#if event.location}<div class="kb-elist-venue"><MapPinIcon class="kb-location-icon" /> {event.location}</div>{/if}
-									<div class="kb-elist-meta-row">
-										<span class="kb-elist-date">{formatEventDateShort(event.startDate, event.endDate)}</span>
-										{#if event.cost}<Badge class="kb-badge-cost">{event.cost}</Badge>{/if}
-									</div>
-									{#if event.description}<div class="kb-elist-desc">{stripHtml(String(event.description))}</div>{/if}
-									<span class="kb-elist-cta">View event</span>
-								</div>
-							</a>
-						</li>
-					{/each}
-				</ul>
-			{:else}
-				<div class="kb-ecal-wrap kb-ecal-wrap--schedulex">
-					<div class="kb-schedulex-wrapper">
-						{#if scheduleXApp}
-							<ScheduleXCalendar calendarApp={scheduleXApp} headerContent={ScheduleXHeader} />
-						{:else}
-							<p class="kb-ecal-loading">Loading calendar…</p>
-						{/if}
+				{#if filtered.length === 0}
+					<div class="kb-empty-state" role="status">
+						<p class="kb-empty-state__message">No events match your filters.</p>
+						<button type="button" class="kb-empty-state__cta" onclick={clearFilters}>Clear filters</button>
 					</div>
-
-					{#if calendarSelectedEvent && isMobile.current}
-						<Drawer.Root bind:open={eventDetailsOpen}>
-							<Drawer.Portal>
-								<Drawer.Overlay class="kb-event-drawer__overlay" />
-								<Drawer.Content class="kb-event-drawer">
-										<Drawer.Header class="kb-event-drawer__header">
-											<Drawer.Title class="kb-event-drawer__title">
-												{calendarSelectedEvent.title}
-											</Drawer.Title>
-										</Drawer.Header>
-										<div class="kb-event-drawer__body">
-											<a
-												href="/events/{calendarSelectedEvent.id}"
-												class="kb-card kb-event-card"
-											>
-												<div
-													class="kb-cimg"
-													style="background: linear-gradient(135deg, var(--color-lakebed-950), var(--color-lakebed-800))"
-												>
-													<img
-														src={calendarSelectedEvent.imageUrl ?? getPlaceholderImage(0)}
-														alt=""
-														class="kb-cimg-photo"
-													/>
-													<span class="kb-event-card-date">
-														{formatEventDateShort(
-															calendarSelectedEvent.startDate,
-															calendarSelectedEvent.endDate
-														)}
-													</span>
-													{#if calendarSelectedEvent.cost}
-														<span class="kb-event-card-cost">
-															<Badge class="kb-badge-cost">
-																{calendarSelectedEvent.cost}
-															</Badge>
-														</span>
-													{/if}
-												</div>
-												<div class="kb-cbody">
-													<div class="kb-ctags">
-														{#if calendarSelectedEvent.region}
-															<Badge class="kb-badge-tag">
-																{calendarSelectedEvent.region}
-															</Badge>
-														{/if}
-														{#each getEventTypeTags(calendarSelectedEvent) as tag (tag)}
-															<Badge class="kb-badge-tag kb-badge-tag--type">
-																{tag}
-															</Badge>
-														{/each}
-													</div>
-													<div class="kb-ctit">{calendarSelectedEvent.title}</div>
-													{#if calendarSelectedEvent.location}
-														<div class="kb-cmeta">
-															<MapPinIcon class="kb-location-icon" />
-															{calendarSelectedEvent.location}
-														</div>
-													{/if}
-													{#if calendarSelectedEvent.description}
-														<div class="kb-cdesc">
-															{stripHtml(String(calendarSelectedEvent.description))}
-														</div>
-													{/if}
-													<span class="kb-ccta">View event</span>
-												</div>
-											</a>
-										</div>
-									</Drawer.Content>
-								</Drawer.Portal>
-							</Drawer.Root>
-						{/if}
-				</div>
+				{:else}
+					<div class="kb-grid kb-event-cards">
+						{#each paginatedList as event, i (event.slug ?? event.id)}
+							<EventCard {event} index={i + (currentPage - 1) * EVENTS_PAGE_SIZE} />
+						{/each}
+					</div>
+				{/if}
+			{:else if eventView === 'list'}
+				{#if filtered.length === 0}
+					<div class="kb-empty-state" role="status">
+						<p class="kb-empty-state__message">No events match your filters.</p>
+						<button type="button" class="kb-empty-state__cta" onclick={clearFilters}>Clear filters</button>
+					</div>
+				{:else}
+					<ul class="kb-elist kb-elist-eb">
+						{#each paginatedList as event, i (event.slug ?? event.id)}
+							<li>
+								<EventListItem {event} index={i + (currentPage - 1) * EVENTS_PAGE_SIZE} />
+							</li>
+						{/each}
+					</ul>
+				{/if}
+			{:else}
+				<EventsCalendarView
+					scheduleXApp={scheduleXApp}
+					calendarSelectedEvent={calendarSelectedEvent}
+					bind:eventDetailsOpen
+					isMobile={isMobile}
+				/>
 			{/if}
-			{#if eventView === 'cards' && filteredTotal > 6}
-				<nav class="kb-pagi" aria-label="Pagination">
-					<button type="button" class="kb-pbtn active">1</button>
-					<button type="button" class="kb-pbtn">2</button>
+			{#if (eventView === 'cards' || eventView === 'list') && totalPages > 1}
+				<nav class="kb-pagi" aria-label="Events pagination">
+					<button
+						type="button"
+						class="kb-pbtn"
+						disabled={currentPage <= 1}
+						onclick={() => goToPage(currentPage - 1)}
+						aria-label="Previous page"
+					>
+						<ChevronLeftIcon class="size-4" aria-hidden="true" />
+					</button>
+					{#each Array.from({ length: totalPages }, (_, i) => i + 1) as pageNum}
+						<button
+							type="button"
+							class="kb-pbtn"
+							class:active={pageNum === currentPage}
+							aria-current={pageNum === currentPage ? 'page' : undefined}
+							onclick={() => goToPage(pageNum)}
+						>
+							{pageNum}
+						</button>
+					{/each}
+					<button
+						type="button"
+						class="kb-pbtn"
+						disabled={currentPage >= totalPages}
+						onclick={() => goToPage(currentPage + 1)}
+						aria-label="Next page"
+					>
+						<ChevronRightIcon class="size-4" aria-hidden="true" />
+					</button>
 				</nav>
 			{/if}
 		</main>
 
 		{#if !isMobile.current}
-			<aside class="kb-sidebar kb-refine-sidebar kb-event-sidebar">
-				<button
-					type="button"
-					class="kb-clr kb-event-sidebar__close"
-					onclick={() => {
-						calendarSelectedId = null;
-						eventDetailsOpen = false;
-					}}
-				>
-					{#if calendarSelectedEvent}
-						Close
-					{/if}
-				</button>
-
-				{#if calendarSelectedEvent}
-					<a
-						href="/events/{calendarSelectedEvent.id}"
-						class="kb-card kb-event-card kb-event-sidebar__card"
-					>
-						<div
-							class="kb-cimg"
-							style="background: linear-gradient(135deg, var(--color-lakebed-950), var(--color-lakebed-800))"
-						>
-							<img
-								src={calendarSelectedEvent.imageUrl ?? getPlaceholderImage(0)}
-								alt=""
-								class="kb-cimg-photo"
-							/>
-							<span class="kb-event-card-date">
-								{formatEventDateShort(
-									calendarSelectedEvent.startDate,
-									calendarSelectedEvent.endDate
-								)}
-							</span>
-							{#if calendarSelectedEvent.cost}
-								<span class="kb-event-card-cost">
-									<Badge class="kb-badge-cost">{calendarSelectedEvent.cost}</Badge>
-								</span>
-							{/if}
-						</div>
-						<div class="kb-cbody">
-							<div class="kb-ctags">
-								{#if calendarSelectedEvent.region}
-									<Badge class="kb-badge-tag">{calendarSelectedEvent.region}</Badge>
-								{/if}
-								{#each getEventTypeTags(calendarSelectedEvent) as tag (tag)}
-									<Badge class="kb-badge-tag kb-badge-tag--type">{tag}</Badge>
-								{/each}
-							</div>
-							<div class="kb-ctit">{calendarSelectedEvent.title}</div>
-							{#if calendarSelectedEvent.location}
-								<div class="kb-cmeta">
-									<MapPinIcon class="kb-location-icon" />
-									{calendarSelectedEvent.location}
-								</div>
-							{/if}
-							{#if calendarSelectedEvent.description}
-								<div class="kb-cdesc">
-									{stripHtml(String(calendarSelectedEvent.description))}
-								</div>
-							{/if}
-							<span class="kb-ccta">View event</span>
-						</div>
-					</a>
-				{:else}
-					{#if eventView === 'cards'}
-						<p class="kb-date-graph__label">Featured events</p>
-						{#each sidebarFeatured as ev, i (ev.id)}
-							<a href="/events/{ev.id}" class="kb-card kb-event-card kb-event-sidebar__card">
-								<div
-									class="kb-cimg"
-									style="background: linear-gradient(135deg, var(--color-lakebed-950), var(--color-lakebed-800))"
-								>
-									<img
-										src={ev.imageUrl ?? getPlaceholderImage(i)}
-										alt=""
-										class="kb-cimg-photo"
-									/>
-									<span class="kb-event-card-date">
-										{formatEventDateShort(ev.startDate, ev.endDate)}
-									</span>
-									{#if ev.cost}
-										<span class="kb-event-card-cost">
-											<Badge class="kb-badge-cost">{ev.cost}</Badge>
-										</span>
-									{/if}
-								</div>
-								<div class="kb-cbody">
-									<div class="kb-ctags">
-										{#if ev.region}
-											<Badge class="kb-badge-tag">{ev.region}</Badge>
-										{/if}
-										{#each getEventTypeTags(ev) as tag (tag)}
-											<Badge class="kb-badge-tag kb-badge-tag--type">{tag}</Badge>
-										{/each}
-									</div>
-									<div class="kb-ctit">{ev.title}</div>
-									{#if ev.location}
-										<div class="kb-cmeta">
-											<MapPinIcon class="kb-location-icon" />
-											{ev.location}
-										</div>
-									{/if}
-								</div>
-							</a>
-						{/each}
-					{:else if eventView === 'list'}
-						<p class="kb-date-graph__label">This week</p>
-						<Calendar
-							type="single"
-							value={sidebarCalendarValue}
-							class="kb-event-sidebar__calendar rounded-md border shadow-sm"
-							numberOfMonths={1}
-						/>
-						<ul class="kb-elist kb-elist-eb">
-							{#each sidebarWeekUpcoming as ev (ev.id)}
-								<li>
-									<a href="/events/{ev.id}" class="kb-elist-item kb-elist-item-eb">
-										<div class="kb-elist-body">
-											<div class="kb-elist-title">{ev.title}</div>
-											<div class="kb-elist-meta-row">
-												<span class="kb-elist-date">
-													{formatEventDateShort(ev.startDate, ev.endDate)}
-												</span>
-												{#if ev.cost}
-													<Badge class="kb-badge-cost">{ev.cost}</Badge>
-												{/if}
-											</div>
-										</div>
-									</a>
-								</li>
-							{/each}
-						</ul>
-						<div class="kb-event-sidebar__map">
-						<CaliforniaMap token={data.mapboxToken ?? undefined} />
-					</div>
-					{:else}
-						<p class="kb-date-graph__label">This calendar</p>
-						<Calendar
-							type="single"
-							value={sidebarCalendarValue}
-							class="kb-event-sidebar__calendar rounded-md border shadow-sm"
-							numberOfMonths={1}
-						/>
-						<ul class="kb-elist kb-elist-eb">
-							{#each sidebarCalendarInView as ev (ev.id)}
-								<li>
-									<a href="/events/{ev.id}" class="kb-elist-item kb-elist-item-eb">
-										<div class="kb-elist-body">
-											<div class="kb-elist-title">{ev.title}</div>
-											<div class="kb-elist-meta-row">
-												<span class="kb-elist-date">
-													{formatEventDateShort(ev.startDate, ev.endDate)}
-												</span>
-											</div>
-										</div>
-									</a>
-								</li>
-							{/each}
-						</ul>
-					{/if}
-				{/if}
-			</aside>
+			<EventsRightSidebar
+				calendarSelectedEvent={calendarSelectedEvent}
+				{eventView}
+				sidebarFeatured={sidebarFeatured}
+				sidebarCalendarValue={sidebarCalendarValue}
+				sidebarWeekUpcoming={sidebarWeekUpcoming}
+				sidebarCalendarInView={sidebarCalendarInView}
+				mapboxToken={data.mapboxToken ?? undefined}
+				onClose={() => {
+					calendarSelectedId = null;
+					eventDetailsOpen = false;
+				}}
+			/>
 		{/if}
 	</div>
 

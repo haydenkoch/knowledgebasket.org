@@ -1,8 +1,6 @@
 import { fail } from '@sveltejs/kit';
 import type { Actions } from './$types';
-import { readSubmissions, appendSubmission, generateSlug, getExistingIds } from '$lib/server/submissions';
-import { kbData } from '$lib/data/kb';
-import type { EventItem } from '$lib/data/kb';
+import { createEvent } from '$lib/server/events';
 import { writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';
 
@@ -84,46 +82,41 @@ export const actions: Actions = {
 			}
 		}
 
-		const existing = [...kbData.events, ...(await readSubmissions('events'))];
-		const id = generateSlug(event_name, getExistingIds(existing));
-
 		let imageUrl: string | undefined;
 		if (image && image.size > 0) {
 			const ext = EXT_MAP[image.type] || 'jpg';
 			const dir = join(process.cwd(), 'static', 'uploads', 'events');
 			await mkdir(dir, { recursive: true });
-			const path = join(dir, `${id}.${ext}`);
+			const slugBase = event_name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 50);
+			const path = join(dir, `${slugBase}.${ext}`);
 			const buf = Buffer.from(await image.arrayBuffer());
 			await writeFile(path, buf);
-			imageUrl = `/uploads/events/${id}.${ext}`;
+			imageUrl = `/uploads/events/${slugBase}.${ext}`;
 		}
 
 		const locationParts = [venue, address, city_state].filter(Boolean);
 		const location = locationParts.length > 0 ? locationParts.join(', ') : city_state || undefined;
 		const lat = latStr ? parseFloat(latStr) : undefined;
 		const lng = lngStr ? parseFloat(lngStr) : undefined;
-		const item: EventItem = {
-			id,
+
+		await createEvent({
 			title: event_name,
 			description: description || undefined,
-			coil: 'events',
 			location: location || undefined,
 			address: address || undefined,
-			lat: Number.isFinite(lat) ? lat : undefined,
-			lng: Number.isFinite(lng) ? lng : undefined,
 			region: geography || undefined,
-			type: event_type || undefined,
-			types: event_types.length > 0 ? event_types : undefined,
 			audience: audience || undefined,
 			cost: cost || undefined,
 			eventUrl: event_url || undefined,
 			startDate: start_date || undefined,
 			endDate: end_date || undefined,
 			hostOrg: host_org || undefined,
+			lat: Number.isFinite(lat) ? lat : undefined,
+			lng: Number.isFinite(lng) ? lng : undefined,
+			type: event_type || undefined,
+			types: event_types.length > 0 ? event_types : undefined,
 			imageUrl
-		};
-
-		await appendSubmission('events', item);
+		});
 
 		return {
 			success: true,

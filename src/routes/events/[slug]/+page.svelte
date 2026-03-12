@@ -1,14 +1,18 @@
 <script lang="ts">
 	import type { EventItem } from '$lib/data/kb';
-	import { getPlaceholderImage } from '$lib/data/placeholders';
-	import { formatEventDateRange, getEventTypeTags, eventDateForCalendarUrl } from '$lib/utils/format';
+	import { getPlaceholderImageSrcset, DEFAULT_SIZES_HERO } from '$lib/data/placeholders';
+	import { formatEventDateRange, getEventTypeTags, eventDateForCalendarUrl, stripHtml } from '$lib/utils/format';
 	import MapPinIcon from '@lucide/svelte/icons/map-pin';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import * as ButtonGroup from '$lib/components/ui/button-group/index.js';
 
 	let { data } = $props();
 	let event = $derived(data.event as EventItem);
-	const heroImage = $derived(event.imageUrl ?? getPlaceholderImage(0));
+	const heroImgAttrs = $derived(
+		event.imageUrl
+			? { src: event.imageUrl }
+			: getPlaceholderImageSrcset(0, { sizes: DEFAULT_SIZES_HERO })
+	);
 	const calendarDate = $derived(eventDateForCalendarUrl(event.startDate));
 
 	function mapUrl(location?: string): string {
@@ -25,16 +29,30 @@
 	}
 </script>
 
+<svelte:head>
+	<title>{event.title} | Events | Knowledge Basket</title>
+	<meta name="description" content={event.description ? stripHtml(String(event.description)).slice(0, 160) : `${event.title}. ${event.region ?? ''} ${formatEventDateRange(event.startDate, event.endDate)}.`} />
+</svelte:head>
+
 <div class="kb-event-detail" style="--kb-accent: var(--teal)">
-	<nav class="kb-breadcrumb">
-		<a href="/events">Events</a>
-		<span class="kb-bc-sep">›</span>
-		<span>{event.title}</span>
+	<nav class="kb-breadcrumb" aria-label="Breadcrumb">
+		<ol class="kb-breadcrumb-list">
+			<li><a href="/events">Events</a></li>
+			<li><span>{event.title}</span></li>
+		</ol>
 	</nav>
 
 	<!-- Hero (Ticketmaster-style: full-width, tall) -->
 	<header class="kb-event-hero">
-		<img src={heroImage} alt="" class="kb-event-hero-img" />
+		<img
+			src={heroImgAttrs.src}
+			srcset={heroImgAttrs.srcSet}
+			sizes={heroImgAttrs.sizes}
+			alt=""
+			class="kb-event-hero-img"
+			fetchpriority="high"
+			decoding="async"
+		/>
 		<div class="kb-event-hero-overlay"></div>
 		<div class="kb-event-hero-content">
 			<div class="kb-event-hero-tags">
@@ -128,3 +146,17 @@
 		</aside>
 	</div>
 </div>
+
+<style>
+	.kb-breadcrumb-list {
+		display: flex;
+		flex-wrap: wrap;
+		list-style: none;
+		margin: 0;
+		padding: 0;
+		gap: 0.25rem;
+	}
+	.kb-breadcrumb li:not(:last-child)::after {
+		content: ' › ';
+	}
+</style>

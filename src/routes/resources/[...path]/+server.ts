@@ -1,16 +1,19 @@
 import { error } from '@sveltejs/kit';
-import { join, resolve } from 'path';
+import { resolve } from 'path';
 import { readFile } from 'fs/promises';
 import { existsSync } from 'fs';
+import { env } from '$env/dynamic/private';
 
-/** Project resources (PDFs etc.): from site/ use ../resources, from repo root use resources */
-const RESOURCES_DIR = resolve(process.cwd(), 'resources');
-const RESOURCES_DIR_ALT = resolve(process.cwd(), '..', 'resources');
-
+/** Project resources (PDFs etc.). Set KB_RESOURCES_PATH in .env for a fixed path; otherwise uses cwd/resources or ../resources. */
 function getResourcesDir(): string {
-	if (existsSync(RESOURCES_DIR)) return RESOURCES_DIR;
-	if (existsSync(RESOURCES_DIR_ALT)) return RESOURCES_DIR_ALT;
-	return RESOURCES_DIR;
+	const fromEnv = env.KB_RESOURCES_PATH;
+	if (fromEnv) return resolve(fromEnv);
+	const cwd = process.cwd();
+	const primary = resolve(cwd, 'resources');
+	const alt = resolve(cwd, '..', 'resources');
+	if (existsSync(primary)) return primary;
+	if (existsSync(alt)) return alt;
+	return primary;
 }
 
 export async function GET({ params }) {

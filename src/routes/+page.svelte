@@ -1,6 +1,6 @@
 <script lang="ts">
-	import KbSearch from '$lib/components/KbSearch.svelte';
-	import KbHero from '$lib/components/KbHero.svelte';
+	import KbSearch from '$lib/components/organisms/KbSearch.svelte';
+	import KbHero from '$lib/components/organisms/KbHero.svelte';
 	import { coilLabels, type CoilKey } from '$lib/data/kb';
 
 	const coils: { key: CoilKey; label: string; path: string; emoji: string; desc: string; gradient: string; btnBg: string }[] = [

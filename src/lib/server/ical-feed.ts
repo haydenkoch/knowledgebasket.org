@@ -36,10 +36,11 @@ export async function fetchEventsFromIcalFeed(
 	const to = options?.to ?? new Date(Date.now() + 2 * 365 * 24 * 60 * 60 * 1000);
 
 	try {
-		const data = await ical.async.fromURL(url, {
+		const raw = await ical.async.fromURL(url, {
 			signal: options?.signal,
 			headers: { 'User-Agent': 'KB-Events-Importer/1.0' }
 		});
+		const data = (raw ?? {}) as Record<string, unknown>;
 
 		const items: EventItem[] = [];
 		const seenIds = new Set<string>();

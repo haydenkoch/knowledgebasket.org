@@ -190,3 +190,30 @@ export function formatEventTime(startDate?: string): string | null {
 	if (d.getHours() === 0 && d.getMinutes() === 0 && d.getSeconds() === 0) return null;
 	return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
 }
+
+/** Format date for Google Calendar URL: YYYYMMDDTHHmmssZ (UTC). */
+function toGoogleDate(ts: number): string {
+	return new Date(ts).toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+}
+
+/** Build Google Calendar "Add to calendar" URL for an event, or null if no start date. */
+export function eventGoogleCalendarUrl(event: {
+	title?: string;
+	startDate?: string;
+	endDate?: string;
+	description?: string;
+	location?: string;
+}): string | null {
+	const start = parseEventStart(event.startDate);
+	if (start == null) return null;
+	const end = event.endDate?.trim() ? parseEventStart(event.endDate) : null;
+	const endTs = end != null && end > start ? end : start;
+	const params = new URLSearchParams({
+		action: 'TEMPLATE',
+		text: (event.title ?? 'Event').slice(0, 200),
+		dates: `${toGoogleDate(start)}/${toGoogleDate(endTs)}`,
+		details: stripHtml(String(event.description ?? '')).slice(0, 500),
+		location: (event.location ?? '').slice(0, 200)
+	});
+	return `https://calendar.google.com/calendar/render?${params.toString()}`;
+}

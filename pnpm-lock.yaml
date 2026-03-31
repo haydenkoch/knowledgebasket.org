@@ -32,6 +32,9 @@ importers:
       temporal-polyfill:
         specifier: ^0.3.2
         version: 0.3.2
+      tinymce:
+        specifier: ^8.3.2
+        version: 8.3.2
     devDependencies:
       '@better-auth/cli':
         specifier: ~1.4.21
@@ -3343,6 +3346,9 @@ packages:
     resolution: {integrity: sha512-j2Zq4NyQYG5XMST4cbs02Ak8iJUdxRM0XI5QyxXuZOzKOINmWurp3smXu3y5wDcJrptwpSjgXHzIQxR0omXljQ==}
     engines: {node: '>=12.0.0'}
 
+  tinymce@8.3.2:
+    resolution: {integrity: sha512-iZ8aIUtrgGOw2AkukNf8spUM0LOzNLoCHRepwXQwWmHxP2TI5LzHjjG0SmXGxbya4EmoD5/pAox0ZXJfLO5DUw==}
+
   tinyqueue@3.0.0:
     resolution: {integrity: sha512-gRa9gwYU3ECmQYv3lslts5hxuIa90veaEcxDYuu3QGOIAEM2mOZkVHp48ANJuu1CURtRdHKUBY5Lm1tHV+sD4g==}
 
@@ -6410,6 +6416,8 @@ snapshots:
     dependencies:
       fdir: 6.5.0(picomatch@4.0.3)
       picomatch: 4.0.3
+
+  tinymce@8.3.2: {}
 
   tinyqueue@3.0.0: {}
 

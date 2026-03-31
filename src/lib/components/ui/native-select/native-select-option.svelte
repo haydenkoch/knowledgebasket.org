@@ -1,14 +1,10 @@
 <script lang="ts">
-	import type { HTMLOptionAttributes } from "svelte/elements";
-	import type { WithElementRef } from "$lib/utils.js";
-
+	import type { Snippet } from 'svelte';
 	let {
-		ref = $bindable(null),
-		children,
-		...restProps
-	}: WithElementRef<HTMLOptionAttributes> = $props();
+		value = '',
+		disabled = false,
+		children
+	}: { value?: string; disabled?: boolean; children?: Snippet } = $props();
 </script>
 
-<option bind:this={ref} data-slot="native-select-option" {...restProps}>
-	{@render children?.()}
-</option>
+<option {value} {disabled}>{@render children?.()}</option>

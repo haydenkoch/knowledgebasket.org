@@ -1,0 +1,1264 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<title>Events Filter Bar Reference</title>
+		<style>
+			:root {
+				--events-filter-bg: #f6f2e8;
+				--events-filter-surface: #fffdf8;
+				--events-filter-border: #d7d0c4;
+				--events-filter-rule: #e7dfd0;
+				--events-filter-text: #172647;
+				--events-filter-muted: #6b7280;
+				--events-filter-accent: #1f6b64;
+				--events-filter-accent-strong: #153e43;
+				--events-filter-shadow: 0 18px 40px rgba(23, 38, 71, 0.12);
+				--page-bg: linear-gradient(180deg, #f3efe5 0%, #e8e0d1 100%);
+			}
+
+			* {
+				box-sizing: border-box;
+			}
+
+			body {
+				margin: 0;
+				font-family:
+					'Iowan Old Style', 'Palatino Linotype', 'Book Antiqua', Palatino, Georgia, serif;
+				background: var(--page-bg);
+				color: var(--events-filter-text);
+			}
+
+			.page {
+				max-width: 1180px;
+				margin: 0 auto;
+				padding: 40px 20px 80px;
+			}
+
+			.hero {
+				margin-bottom: 28px;
+			}
+
+			.hero__eyebrow {
+				margin: 0 0 8px;
+				font-family: 'Avenir Next', 'Segoe UI', sans-serif;
+				font-size: 12px;
+				font-weight: 800;
+				letter-spacing: 0.14em;
+				text-transform: uppercase;
+				color: var(--events-filter-accent);
+			}
+
+			.hero h1 {
+				margin: 0;
+				font-size: clamp(2.2rem, 4vw, 4rem);
+				line-height: 0.95;
+			}
+
+			.hero p {
+				max-width: 760px;
+				margin: 12px 0 0;
+				font-size: 1.05rem;
+				line-height: 1.55;
+				color: rgba(23, 38, 71, 0.82);
+			}
+
+			.layout {
+				display: grid;
+				grid-template-columns: minmax(300px, 360px) minmax(0, 1fr);
+				gap: 28px;
+				align-items: start;
+			}
+
+			.filter-bar {
+				position: sticky;
+				top: 20px;
+				display: flex;
+				flex-direction: column;
+				gap: 20px;
+				padding: 20px;
+				border: 1px solid var(--events-filter-border);
+				border-radius: 18px;
+				background:
+					linear-gradient(180deg, rgba(255, 255, 255, 0.82), rgba(255, 255, 255, 0.96)),
+					var(--events-filter-bg);
+				box-shadow: var(--events-filter-shadow);
+			}
+
+			.filter-bar__section {
+				display: flex;
+				flex-direction: column;
+				gap: 12px;
+			}
+
+			.section-label {
+				padding-bottom: 10px;
+				border-bottom: 1px solid var(--events-filter-rule);
+				font-family: 'Avenir Next', 'Segoe UI', sans-serif;
+				font-size: 11px;
+				font-weight: 800;
+				letter-spacing: 0.12em;
+				text-transform: uppercase;
+				color: var(--events-filter-muted);
+			}
+
+			.search {
+				position: relative;
+			}
+
+			.search svg {
+				position: absolute;
+				top: 50%;
+				left: 14px;
+				width: 16px;
+				height: 16px;
+				transform: translateY(-50%);
+				fill: none;
+				stroke: var(--events-filter-muted);
+				stroke-linecap: round;
+				stroke-linejoin: round;
+				stroke-width: 2;
+			}
+
+			.search input,
+			.dropdown__trigger,
+			.type-trigger {
+				width: 100%;
+				min-height: 44px;
+				padding: 13px 14px;
+				border: 1px solid var(--events-filter-border);
+				border-radius: 14px;
+				background: var(--events-filter-surface);
+				color: var(--events-filter-text);
+				font: inherit;
+			}
+
+			.search input {
+				padding-left: 42px;
+			}
+
+			.view-switcher {
+				display: grid;
+				grid-template-columns: repeat(3, minmax(0, 1fr));
+				gap: 8px;
+			}
+
+			.view-switcher button {
+				min-height: 44px;
+				border: 1px solid var(--events-filter-border);
+				border-radius: 999px;
+				background: rgba(255, 255, 255, 0.65);
+				color: var(--events-filter-muted);
+				font: inherit;
+				font-family: 'Avenir Next', 'Segoe UI', sans-serif;
+				font-size: 14px;
+				font-weight: 800;
+				text-transform: capitalize;
+				cursor: pointer;
+			}
+
+			.view-switcher button.is-active {
+				border-color: transparent;
+				background: var(--events-filter-accent-strong);
+				color: white;
+			}
+
+			.histogram {
+				display: flex;
+				align-items: end;
+				gap: 3px;
+				height: 58px;
+			}
+
+			.histogram__bar {
+				flex: 1;
+				min-width: 4px;
+				border-radius: 999px;
+				background: #b9b3ab;
+				opacity: 0.72;
+			}
+
+			.histogram__bar.is-active {
+				background: var(--events-filter-accent);
+				opacity: 1;
+			}
+
+			.range-slider {
+				position: relative;
+				height: 20px;
+			}
+
+			.range-slider__track,
+			.range-slider__fill {
+				position: absolute;
+				top: 50%;
+				height: 4px;
+				border-radius: 999px;
+				transform: translateY(-50%);
+			}
+
+			.range-slider__track {
+				left: 0;
+				right: 0;
+				background: #d5d0c8;
+			}
+
+			.range-slider__fill {
+				background: var(--events-filter-accent);
+			}
+
+			.range-slider input {
+				position: absolute;
+				inset: 0;
+				width: 100%;
+				margin: 0;
+				background: transparent;
+				appearance: none;
+				pointer-events: none;
+			}
+
+			.range-slider input::-webkit-slider-thumb {
+				width: 16px;
+				height: 16px;
+				border: 2px solid white;
+				border-radius: 999px;
+				background: var(--events-filter-accent-strong);
+				box-shadow: 0 2px 10px rgba(23, 38, 71, 0.18);
+				appearance: none;
+				pointer-events: auto;
+				cursor: pointer;
+			}
+
+			.range-slider input::-moz-range-thumb {
+				width: 16px;
+				height: 16px;
+				border: 2px solid white;
+				border-radius: 999px;
+				background: var(--events-filter-accent-strong);
+				box-shadow: 0 2px 10px rgba(23, 38, 71, 0.18);
+				pointer-events: auto;
+				cursor: pointer;
+			}
+
+			.range-values {
+				display: grid;
+				grid-template-columns: repeat(2, minmax(0, 1fr));
+				gap: 10px;
+			}
+
+			.range-values > div {
+				display: flex;
+				flex-direction: column;
+				gap: 4px;
+				padding: 10px 11px;
+				border: 1px solid var(--events-filter-border);
+				border-radius: 14px;
+				background: rgba(255, 255, 255, 0.66);
+			}
+
+			.range-values span {
+				font-family: 'Avenir Next', 'Segoe UI', sans-serif;
+				font-size: 10px;
+				font-weight: 800;
+				letter-spacing: 0.08em;
+				text-transform: uppercase;
+				color: var(--events-filter-muted);
+			}
+
+			.range-values strong {
+				font-size: 14px;
+			}
+
+			.dropdown-grid {
+				display: grid;
+				grid-template-columns: repeat(2, minmax(0, 1fr));
+				gap: 10px;
+			}
+
+			.dropdown {
+				position: relative;
+			}
+
+			.dropdown__trigger,
+			.type-trigger {
+				display: flex;
+				align-items: center;
+				justify-content: space-between;
+				gap: 10px;
+				cursor: pointer;
+				text-align: left;
+			}
+
+			.dropdown__chevron {
+				font-size: 16px;
+				color: var(--events-filter-muted);
+			}
+
+			.dropdown__panel {
+				position: absolute;
+				z-index: 20;
+				top: calc(100% + 7px);
+				left: 0;
+				right: 0;
+				display: none;
+				flex-direction: column;
+				gap: 6px;
+				max-height: 260px;
+				padding: 8px;
+				overflow: auto;
+				border: 1px solid var(--events-filter-border);
+				border-radius: 14px;
+				background: var(--events-filter-surface);
+				box-shadow: var(--events-filter-shadow);
+			}
+
+			.dropdown.is-open .dropdown__panel {
+				display: flex;
+			}
+
+			.dropdown__option {
+				display: flex;
+				align-items: center;
+				justify-content: space-between;
+				gap: 10px;
+				width: 100%;
+				padding: 11px 12px;
+				border: 0;
+				border-radius: 11px;
+				background: transparent;
+				color: inherit;
+				font: inherit;
+				text-align: left;
+				cursor: pointer;
+			}
+
+			.dropdown__option.is-selected {
+				background: var(--events-filter-accent-strong);
+				color: white;
+			}
+
+			.dropdown__option small {
+				display: inline-flex;
+				align-items: center;
+				justify-content: center;
+				min-width: 24px;
+				padding: 2px 6px;
+				border-radius: 999px;
+				background: rgba(23, 38, 71, 0.1);
+				font-family: 'Avenir Next', 'Segoe UI', sans-serif;
+				font-size: 10px;
+				font-weight: 800;
+			}
+
+			.dropdown__option.is-selected small {
+				background: rgba(255, 255, 255, 0.2);
+			}
+
+			.dropdown__empty {
+				margin: 0;
+				padding: 8px;
+				color: var(--events-filter-muted);
+				font-size: 14px;
+			}
+
+			.type-trigger {
+				align-items: flex-start;
+			}
+
+			.type-trigger__chips {
+				display: flex;
+				flex-wrap: wrap;
+				gap: 6px;
+				width: 100%;
+			}
+
+			.type-chip {
+				display: inline-flex;
+				align-items: center;
+				gap: 4px;
+				padding: 4px 9px;
+				border-radius: 999px;
+				background: var(--events-filter-accent-strong);
+				color: white;
+				font-family: 'Avenir Next', 'Segoe UI', sans-serif;
+				font-size: 11px;
+				font-weight: 800;
+			}
+
+			.type-chip button {
+				padding: 0;
+				border: 0;
+				background: transparent;
+				color: inherit;
+				font: inherit;
+				cursor: pointer;
+			}
+
+			.type-trigger__placeholder {
+				color: var(--events-filter-muted);
+				font-size: 14px;
+			}
+
+			.clear-button {
+				padding: 0;
+				border: 0;
+				background: transparent;
+				color: var(--events-filter-accent);
+				font-family: 'Avenir Next', 'Segoe UI', sans-serif;
+				font-size: 11px;
+				font-weight: 800;
+				letter-spacing: 0.12em;
+				text-transform: uppercase;
+				cursor: pointer;
+			}
+
+			.results {
+				display: flex;
+				flex-direction: column;
+				gap: 16px;
+			}
+
+			.results__meta {
+				display: flex;
+				align-items: center;
+				justify-content: space-between;
+				gap: 12px;
+				padding: 16px 18px;
+				border: 1px solid rgba(23, 38, 71, 0.12);
+				border-radius: 18px;
+				background: rgba(255, 253, 248, 0.82);
+				backdrop-filter: blur(8px);
+			}
+
+			.results__meta strong {
+				font-family: 'Avenir Next', 'Segoe UI', sans-serif;
+				font-size: 13px;
+				letter-spacing: 0.08em;
+				text-transform: uppercase;
+			}
+
+			.results__meta span {
+				color: var(--events-filter-muted);
+				font-size: 14px;
+			}
+
+			.results__grid {
+				display: grid;
+				grid-template-columns: repeat(2, minmax(0, 1fr));
+				gap: 16px;
+			}
+
+			.results__grid[data-view='list'] {
+				grid-template-columns: 1fr;
+			}
+
+			.results__grid[data-view='calendar'] {
+				grid-template-columns: 1fr;
+			}
+
+			.event-card {
+				display: flex;
+				flex-direction: column;
+				gap: 10px;
+				padding: 18px;
+				border: 1px solid rgba(23, 38, 71, 0.12);
+				border-radius: 18px;
+				background: rgba(255, 253, 248, 0.92);
+				box-shadow: 0 12px 24px rgba(23, 38, 71, 0.07);
+			}
+
+			.event-card__top {
+				display: flex;
+				flex-wrap: wrap;
+				gap: 8px;
+			}
+
+			.pill {
+				display: inline-flex;
+				align-items: center;
+				padding: 5px 10px;
+				border-radius: 999px;
+				background: rgba(31, 107, 100, 0.12);
+				font-family: 'Avenir Next', 'Segoe UI', sans-serif;
+				font-size: 11px;
+				font-weight: 800;
+				letter-spacing: 0.06em;
+				text-transform: uppercase;
+				color: var(--events-filter-accent-strong);
+			}
+
+			.event-card h2 {
+				margin: 0;
+				font-size: 1.35rem;
+				line-height: 1.05;
+			}
+
+			.event-card p {
+				margin: 0;
+				line-height: 1.5;
+				color: rgba(23, 38, 71, 0.82);
+			}
+
+			.event-card__meta {
+				display: grid;
+				grid-template-columns: repeat(2, minmax(0, 1fr));
+				gap: 10px;
+				padding-top: 8px;
+				border-top: 1px solid rgba(23, 38, 71, 0.08);
+				font-family: 'Avenir Next', 'Segoe UI', sans-serif;
+				font-size: 13px;
+			}
+
+			.event-card__meta div {
+				display: flex;
+				flex-direction: column;
+				gap: 2px;
+			}
+
+			.event-card__meta span {
+				color: var(--events-filter-muted);
+				text-transform: uppercase;
+				letter-spacing: 0.08em;
+				font-size: 10px;
+				font-weight: 800;
+			}
+
+			.empty {
+				padding: 28px;
+				border: 1px dashed rgba(23, 38, 71, 0.18);
+				border-radius: 18px;
+				background: rgba(255, 253, 248, 0.74);
+				text-align: center;
+			}
+
+			.output {
+				margin-top: 16px;
+				padding: 14px 16px;
+				border: 1px solid rgba(23, 38, 71, 0.12);
+				border-radius: 16px;
+				background: rgba(23, 38, 71, 0.92);
+				color: #e9f3f3;
+				font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+				font-size: 12px;
+				line-height: 1.5;
+				white-space: pre-wrap;
+			}
+
+			@media (max-width: 920px) {
+				.layout {
+					grid-template-columns: 1fr;
+				}
+
+				.filter-bar {
+					position: static;
+				}
+			}
+
+			@media (max-width: 640px) {
+				.dropdown-grid,
+				.range-values,
+				.results__grid,
+				.event-card__meta {
+					grid-template-columns: 1fr;
+				}
+			}
+		</style>
+	</head>
+	<body>
+		<div class="page">
+			<header class="hero">
+				<p class="hero__eyebrow">Reference File</p>
+				<h1>Events Filter Bar</h1>
+				<p>
+					A fully standalone HTML reference for the events filter bar. Everything below is
+					self-contained: markup, styling, sample data, and filtering logic.
+				</p>
+			</header>
+
+			<div class="layout">
+				<aside class="filter-bar" id="filterBar">
+					<section class="filter-bar__section">
+						<div class="search">
+							<svg viewBox="0 0 24 24" aria-hidden="true">
+								<circle cx="11" cy="11" r="7"></circle>
+								<path d="M20 20 16.65 16.65"></path>
+							</svg>
+							<input
+								id="searchInput"
+								type="search"
+								placeholder="Search events..."
+								aria-label="Search events"
+							/>
+						</div>
+					</section>
+
+					<section class="filter-bar__section">
+						<div class="section-label">View</div>
+						<div class="view-switcher" id="viewSwitcher">
+							<button type="button" data-view="list" class="is-active">List</button>
+							<button type="button" data-view="cards">Cards</button>
+							<button type="button" data-view="calendar">Calendar</button>
+						</div>
+					</section>
+
+					<section class="filter-bar__section">
+						<div class="section-label">Date Range</div>
+						<div class="histogram" id="histogram"></div>
+						<div class="range-slider">
+							<div class="range-slider__track"></div>
+							<div class="range-slider__fill" id="rangeFill"></div>
+							<input
+								id="rangeMin"
+								type="range"
+								min="0"
+								max="23"
+								value="12"
+								aria-label="Date range start"
+							/>
+							<input
+								id="rangeMax"
+								type="range"
+								min="0"
+								max="23"
+								value="23"
+								aria-label="Date range end"
+							/>
+						</div>
+						<div class="range-values">
+							<div>
+								<span>From</span>
+								<strong id="rangeStartLabel"></strong>
+							</div>
+							<div>
+								<span>To</span>
+								<strong id="rangeEndLabel"></strong>
+							</div>
+						</div>
+					</section>
+
+					<section class="filter-bar__section">
+						<div class="section-label">Filter</div>
+						<div class="dropdown-grid">
+							<div class="dropdown" data-dropdown="cost">
+								<button type="button" class="dropdown__trigger">
+									<span id="costTriggerLabel">Any cost</span>
+									<span class="dropdown__chevron">+</span>
+								</button>
+								<div class="dropdown__panel" id="costPanel"></div>
+							</div>
+
+							<div class="dropdown" data-dropdown="region">
+								<button type="button" class="dropdown__trigger">
+									<span id="regionTriggerLabel">Any geography</span>
+									<span class="dropdown__chevron">+</span>
+								</button>
+								<div class="dropdown__panel" id="regionPanel"></div>
+							</div>
+						</div>
+					</section>
+
+					<section class="filter-bar__section">
+						<div class="section-label">Type</div>
+						<div class="dropdown" data-dropdown="type">
+							<div
+								class="type-trigger"
+								id="typeTrigger"
+								tabindex="0"
+								role="button"
+								aria-label="Select event types"
+							>
+								<div class="type-trigger__chips" id="typeChips"></div>
+							</div>
+							<div class="dropdown__panel" id="typePanel"></div>
+						</div>
+					</section>
+
+					<button type="button" class="clear-button" id="clearButton" hidden>Clear all</button>
+				</aside>
+
+				<section class="results">
+					<div class="results__meta">
+						<strong id="resultCount"></strong>
+						<span id="resultSummary"></span>
+					</div>
+					<div class="results__grid" id="resultsGrid" data-view="list"></div>
+					<pre class="output" id="stateOutput"></pre>
+				</section>
+			</div>
+		</div>
+
+		<script>
+			const TYPE_TAGS = [
+				'Art Exhibit',
+				'Performance',
+				'Community Meeting',
+				'Forum',
+				'Conference',
+				'Summit',
+				'Symposium',
+				'Festival',
+				'Celebration',
+				'Film Screening',
+				'Powwow',
+				'Big Time',
+				'Trade Show',
+				'Marketplace',
+				'Other'
+			];
+
+			const EVENTS = [
+				{
+					id: 'evt-1',
+					title: 'Sierra Tribal Land Stewardship Summit',
+					description:
+						'A three-day gathering on cultural fire, restoration crews, and intertribal land stewardship strategy.',
+					location: 'Placerville, CA',
+					region: 'Sierra Nevada',
+					type: 'Summit',
+					types: ['Summit', 'Conference'],
+					cost: 'Registration Fee Required',
+					startDate: '2026-04-18',
+					endDate: '2026-04-20',
+					hostOrg: 'Indigenous Futures Society'
+				},
+				{
+					id: 'evt-2',
+					title: 'Native Arts Market Night',
+					description:
+						'An evening marketplace featuring basketry, prints, beadwork, and live music.',
+					location: 'Sacramento, CA',
+					region: 'California',
+					type: 'Marketplace',
+					types: ['Marketplace', 'Performance'],
+					cost: 'Free / Sponsored',
+					startDate: '2026-05-02',
+					endDate: '2026-05-02',
+					hostOrg: 'CA Indian Museum and Cultural Center'
+				},
+				{
+					id: 'evt-3',
+					title: 'Virtual Tribal Broadband Forum',
+					description:
+						'A remote forum for tribal leaders and staff working on connectivity and digital sovereignty.',
+					location: 'Online',
+					region: 'National',
+					type: 'Forum',
+					types: ['Forum'],
+					cost: 'Free / Sponsored',
+					startDate: '2026-06-11',
+					endDate: '2026-06-11',
+					hostOrg: 'National Congress of American Indians'
+				},
+				{
+					id: 'evt-4',
+					title: 'Big Time Summer Gathering',
+					description:
+						'A community celebration centered on dance, songs, cultural demonstrations, and food.',
+					location: 'Greenville, CA',
+					region: 'Sierra Nevada',
+					type: 'Big Time',
+					types: ['Big Time', 'Celebration'],
+					cost: 'Free / Sponsored',
+					startDate: '2026-07-09',
+					endDate: '2026-07-10',
+					hostOrg: 'Maidu Cultural Coalition'
+				},
+				{
+					id: 'evt-5',
+					title: 'Film Screening: Firekeepers',
+					description:
+						'Screening and panel conversation with Native filmmakers and cultural burners.',
+					location: 'San Francisco, CA',
+					region: 'California',
+					type: 'Film Screening',
+					types: ['Film Screening'],
+					cost: 'Registration Fee Required',
+					startDate: '2026-08-14',
+					endDate: '2026-08-14',
+					hostOrg: 'de Young Museum'
+				},
+				{
+					id: 'evt-6',
+					title: 'Indigenous Youth Powwow',
+					description:
+						'A weekend powwow supporting Native youth wellness and intertribal community building.',
+					location: 'Shingle Springs, CA',
+					region: 'Sierra Nevada',
+					type: 'Powwow',
+					types: ['Powwow'],
+					cost: 'Free / Sponsored',
+					startDate: '2026-09-19',
+					endDate: '2026-09-20',
+					hostOrg: 'Shingle Springs Band of Miwok Indians'
+				},
+				{
+					id: 'evt-7',
+					title: 'Tribal Enterprise Trade Show',
+					description:
+						'Vendor booths, procurement sessions, and B2B meetings for Native-owned businesses.',
+					location: 'Los Angeles, CA',
+					region: 'California',
+					type: 'Trade Show',
+					types: ['Trade Show'],
+					cost: 'Registration Fee Required',
+					startDate: '2026-10-08',
+					endDate: '2026-10-09',
+					hostOrg: 'Native Enterprise Network'
+				},
+				{
+					id: 'evt-8',
+					title: 'Winter Community Meeting on Water Justice',
+					description:
+						'A local planning meeting about watershed restoration and tribal access priorities.',
+					location: 'Tahoe City, CA',
+					region: 'Sierra Nevada',
+					type: 'Community Meeting',
+					types: ['Community Meeting'],
+					cost: 'Free / Sponsored',
+					startDate: '2026-12-03',
+					endDate: '2026-12-03',
+					hostOrg: 'Washoe Environmental Network'
+				}
+			];
+
+			const state = {
+				view: 'list',
+				searchQuery: '',
+				regionSelect: [],
+				typeSelect: [],
+				costFilter: [],
+				rangeStart: 0,
+				rangeEnd: 0,
+				sliderMin: 12,
+				sliderMax: 23,
+				activeDropdown: null
+			};
+
+			const refs = {
+				filterBar: document.getElementById('filterBar'),
+				searchInput: document.getElementById('searchInput'),
+				viewSwitcher: document.getElementById('viewSwitcher'),
+				histogram: document.getElementById('histogram'),
+				rangeFill: document.getElementById('rangeFill'),
+				rangeMin: document.getElementById('rangeMin'),
+				rangeMax: document.getElementById('rangeMax'),
+				rangeStartLabel: document.getElementById('rangeStartLabel'),
+				rangeEndLabel: document.getElementById('rangeEndLabel'),
+				costTriggerLabel: document.getElementById('costTriggerLabel'),
+				regionTriggerLabel: document.getElementById('regionTriggerLabel'),
+				costPanel: document.getElementById('costPanel'),
+				regionPanel: document.getElementById('regionPanel'),
+				typePanel: document.getElementById('typePanel'),
+				typeTrigger: document.getElementById('typeTrigger'),
+				typeChips: document.getElementById('typeChips'),
+				clearButton: document.getElementById('clearButton'),
+				resultCount: document.getElementById('resultCount'),
+				resultSummary: document.getElementById('resultSummary'),
+				resultsGrid: document.getElementById('resultsGrid'),
+				stateOutput: document.getElementById('stateOutput')
+			};
+
+			function normalizeTypes(event) {
+				return [
+					...new Set([...(event.types || []), ...(event.type ? [event.type] : [])].filter(Boolean))
+				];
+			}
+
+			function parseDate(value) {
+				if (!value) return null;
+				const time = new Date(value).getTime();
+				return Number.isNaN(time) ? null : time;
+			}
+
+			function formatDate(value) {
+				const date = new Date(value);
+				return `${String(date.getMonth() + 1).padStart(2, '0')}/${String(date.getDate()).padStart(2, '0')}/${date.getFullYear()}`;
+			}
+
+			function getDateBuckets() {
+				const now = new Date();
+				const buckets = [];
+				for (let offset = -12; offset < 12; offset += 1) {
+					const year = now.getFullYear();
+					const month = now.getMonth() + offset;
+					const start = new Date(year, month, 1).getTime();
+					const end = new Date(year, month + 1, 0, 23, 59, 59, 999).getTime();
+					const count = EVENTS.filter((event) => {
+						const eventStart = parseDate(event.startDate);
+						const eventEnd = parseDate(event.endDate) ?? eventStart;
+						if (eventStart == null || eventEnd == null) return false;
+						return eventStart <= end && eventEnd >= start;
+					}).length;
+					buckets.push({
+						label: new Date(year, month).toLocaleDateString('en-US', {
+							month: 'short',
+							year: '2-digit'
+						}),
+						start,
+						end,
+						count
+					});
+				}
+				return buckets;
+			}
+
+			const buckets = getDateBuckets();
+			state.rangeStart = buckets[state.sliderMin].start;
+			state.rangeEnd = buckets[state.sliderMax].end;
+
+			function getEventsInDateRange() {
+				return EVENTS.filter((event) => {
+					const eventStart = parseDate(event.startDate);
+					return (
+						eventStart != null && eventStart >= state.rangeStart && eventStart <= state.rangeEnd
+					);
+				});
+			}
+
+			function uniqueSorted(values) {
+				return [...new Set(values.filter(Boolean))].sort((a, b) => a.localeCompare(b));
+			}
+
+			function countBy(values) {
+				return values.reduce((acc, value) => {
+					acc[value] = (acc[value] || 0) + 1;
+					return acc;
+				}, {});
+			}
+
+			function getFilteredEvents() {
+				return EVENTS.filter((event) => {
+					const searchText = [
+						event.title,
+						event.description,
+						event.location,
+						event.region,
+						event.type,
+						...(event.types || []),
+						event.hostOrg
+					]
+						.filter(Boolean)
+						.join(' ')
+						.toLowerCase();
+					const matchesSearch =
+						!state.searchQuery.trim() ||
+						searchText.includes(state.searchQuery.trim().toLowerCase());
+					const matchesCost =
+						state.costFilter.length === 0 || state.costFilter.includes(event.cost || '');
+					const matchesRegion =
+						state.regionSelect.length === 0 || state.regionSelect.includes(event.region || '');
+					const matchesType =
+						state.typeSelect.length === 0 ||
+						state.typeSelect.some((tag) => normalizeTypes(event).includes(tag));
+					const eventStart = parseDate(event.startDate);
+					const matchesDate =
+						eventStart != null && eventStart >= state.rangeStart && eventStart <= state.rangeEnd;
+					return matchesSearch && matchesCost && matchesRegion && matchesType && matchesDate;
+				}).sort(
+					(a, b) =>
+						(parseDate(a.startDate) || Number.MAX_SAFE_INTEGER) -
+						(parseDate(b.startDate) || Number.MAX_SAFE_INTEGER)
+				);
+			}
+
+			function toggleInArray(list, value) {
+				return list.includes(value) ? list.filter((entry) => entry !== value) : [...list, value];
+			}
+
+			function updateRangeFromSlider() {
+				state.rangeStart = buckets[state.sliderMin].start;
+				state.rangeEnd = buckets[state.sliderMax].end;
+			}
+
+			function renderHistogram() {
+				const maxCount = Math.max(1, ...buckets.map((bucket) => bucket.count));
+				refs.histogram.innerHTML = '';
+				buckets.forEach((bucket, index) => {
+					const bar = document.createElement('div');
+					bar.className = 'histogram__bar';
+					if (index >= state.sliderMin && index <= state.sliderMax) bar.classList.add('is-active');
+					bar.style.height = `${Math.max(6, (bucket.count / maxCount) * 100)}%`;
+					bar.title = `${bucket.label}: ${bucket.count}`;
+					refs.histogram.appendChild(bar);
+				});
+			}
+
+			function renderRange() {
+				const maxIndex = buckets.length - 1;
+				const minPct = maxIndex > 0 ? (state.sliderMin / maxIndex) * 100 : 0;
+				const maxPct = maxIndex > 0 ? (state.sliderMax / maxIndex) * 100 : 100;
+				refs.rangeFill.style.left = `${minPct}%`;
+				refs.rangeFill.style.right = `${100 - maxPct}%`;
+				refs.rangeMin.value = String(state.sliderMin);
+				refs.rangeMax.value = String(state.sliderMax);
+				refs.rangeStartLabel.textContent = formatDate(state.rangeStart);
+				refs.rangeEndLabel.textContent = formatDate(state.rangeEnd);
+			}
+
+			function renderDropdown(dropdownName, panel, values, selectedValues, counts, onSelect) {
+				panel.innerHTML = '';
+				if (values.length === 0) {
+					const empty = document.createElement('p');
+					empty.className = 'dropdown__empty';
+					empty.textContent = `No ${dropdownName} filters in this range.`;
+					panel.appendChild(empty);
+					return;
+				}
+				values.forEach((value) => {
+					const button = document.createElement('button');
+					button.type = 'button';
+					button.className = 'dropdown__option';
+					if (selectedValues.includes(value)) button.classList.add('is-selected');
+					button.innerHTML = `<span>${value}</span>${counts[value] ? `<small>${counts[value]}</small>` : ''}`;
+					button.addEventListener('click', () => {
+						onSelect(value);
+						render();
+					});
+					panel.appendChild(button);
+				});
+			}
+
+			function renderTypeTrigger() {
+				refs.typeChips.innerHTML = '';
+				if (state.typeSelect.length === 0) {
+					const placeholder = document.createElement('span');
+					placeholder.className = 'type-trigger__placeholder';
+					placeholder.textContent = 'Search to add types...';
+					refs.typeChips.appendChild(placeholder);
+					return;
+				}
+				state.typeSelect.forEach((value) => {
+					const chip = document.createElement('span');
+					chip.className = 'type-chip';
+					chip.innerHTML = `<span>${value}</span>`;
+					const remove = document.createElement('button');
+					remove.type = 'button';
+					remove.setAttribute('aria-label', `Remove ${value}`);
+					remove.textContent = '×';
+					remove.addEventListener('click', (event) => {
+						event.stopPropagation();
+						state.typeSelect = state.typeSelect.filter((entry) => entry !== value);
+						render();
+					});
+					chip.appendChild(remove);
+					refs.typeChips.appendChild(chip);
+				});
+				const placeholder = document.createElement('span');
+				placeholder.className = 'type-trigger__placeholder';
+				placeholder.textContent = 'Add another...';
+				refs.typeChips.appendChild(placeholder);
+			}
+
+			function renderResults(filteredEvents) {
+				refs.resultsGrid.dataset.view = state.view;
+				refs.resultsGrid.innerHTML = '';
+				if (filteredEvents.length === 0) {
+					const empty = document.createElement('div');
+					empty.className = 'empty';
+					empty.textContent = 'No events match the current filter combination.';
+					refs.resultsGrid.appendChild(empty);
+					return;
+				}
+				filteredEvents.forEach((event) => {
+					const card = document.createElement('article');
+					card.className = 'event-card';
+					card.innerHTML = `
+					<div class="event-card__top">
+						<span class="pill">${event.type || 'Event'}</span>
+						<span class="pill">${event.region || 'Region'}</span>
+					</div>
+					<h2>${event.title}</h2>
+					<p>${event.description || ''}</p>
+					<div class="event-card__meta">
+						<div>
+							<span>Date</span>
+							<strong>${formatDate(parseDate(event.startDate))}</strong>
+						</div>
+						<div>
+							<span>Cost</span>
+							<strong>${event.cost || 'Unknown'}</strong>
+						</div>
+						<div>
+							<span>Location</span>
+							<strong>${event.location || 'TBA'}</strong>
+						</div>
+						<div>
+							<span>Host</span>
+							<strong>${event.hostOrg || 'Community Partner'}</strong>
+						</div>
+					</div>
+				`;
+					refs.resultsGrid.appendChild(card);
+				});
+			}
+
+			function renderStateOutput(filteredEvents) {
+				refs.stateOutput.textContent = JSON.stringify(
+					{
+						view: state.view,
+						searchQuery: state.searchQuery,
+						regionSelect: state.regionSelect,
+						typeSelect: state.typeSelect,
+						costFilter: state.costFilter,
+						rangeStart: new Date(state.rangeStart).toISOString(),
+						rangeEnd: new Date(state.rangeEnd).toISOString(),
+						filteredEventIds: filteredEvents.map((event) => event.id)
+					},
+					null,
+					2
+				);
+			}
+
+			function render() {
+				const eventsInDateRange = getEventsInDateRange();
+				const filteredEvents = getFilteredEvents();
+				const costCounts = countBy(eventsInDateRange.map((event) => event.cost).filter(Boolean));
+				const regionCounts = countBy(
+					eventsInDateRange.map((event) => event.region).filter(Boolean)
+				);
+				const costValues = uniqueSorted(
+					eventsInDateRange.map((event) => event.cost).concat(state.costFilter)
+				);
+				const regionValues = uniqueSorted(
+					eventsInDateRange.map((event) => event.region).concat(state.regionSelect)
+				);
+				const typeValues = TYPE_TAGS.filter((tag) => {
+					const count = eventsInDateRange.filter((event) =>
+						normalizeTypes(event).includes(tag)
+					).length;
+					return count > 0 || state.typeSelect.includes(tag);
+				});
+				const hasActiveFilters =
+					Boolean(state.searchQuery.trim()) ||
+					state.regionSelect.length > 0 ||
+					state.typeSelect.length > 0 ||
+					state.costFilter.length > 0;
+
+				document.querySelectorAll('.dropdown').forEach((dropdown) => {
+					dropdown.classList.toggle('is-open', dropdown.dataset.dropdown === state.activeDropdown);
+				});
+
+				document.querySelectorAll('#viewSwitcher button').forEach((button) => {
+					button.classList.toggle('is-active', button.dataset.view === state.view);
+				});
+
+				refs.costTriggerLabel.textContent =
+					state.costFilter.length === 0
+						? 'Any cost'
+						: state.costFilter.length === 1
+							? state.costFilter[0]
+							: `${state.costFilter.length} selected`;
+
+				refs.regionTriggerLabel.textContent =
+					state.regionSelect.length === 0
+						? 'Any geography'
+						: state.regionSelect.length === 1
+							? state.regionSelect[0]
+							: `${state.regionSelect.length} selected`;
+
+				refs.clearButton.hidden = !hasActiveFilters;
+				refs.resultCount.textContent = `${filteredEvents.length} events`;
+				refs.resultSummary.textContent = `View: ${state.view} · ${hasActiveFilters ? 'filtered' : 'all results'}`;
+
+				renderHistogram();
+				renderRange();
+				renderTypeTrigger();
+
+				renderDropdown(
+					'cost',
+					refs.costPanel,
+					costValues,
+					state.costFilter,
+					costCounts,
+					(value) => {
+						state.costFilter = toggleInArray(state.costFilter, value);
+					}
+				);
+
+				renderDropdown(
+					'region',
+					refs.regionPanel,
+					regionValues,
+					state.regionSelect,
+					regionCounts,
+					(value) => {
+						state.regionSelect = toggleInArray(state.regionSelect, value);
+					}
+				);
+
+				renderDropdown('type', refs.typePanel, typeValues, state.typeSelect, {}, (value) => {
+					state.typeSelect = toggleInArray(state.typeSelect, value);
+				});
+
+				renderResults(filteredEvents);
+				renderStateOutput(filteredEvents);
+			}
+
+			refs.searchInput.addEventListener('input', (event) => {
+				state.searchQuery = event.target.value;
+				render();
+			});
+
+			refs.viewSwitcher.addEventListener('click', (event) => {
+				const button = event.target.closest('button[data-view]');
+				if (!button) return;
+				state.view = button.dataset.view;
+				render();
+			});
+
+			refs.rangeMin.addEventListener('input', (event) => {
+				const next = Math.min(Number(event.target.value), state.sliderMax - 1);
+				state.sliderMin = next;
+				updateRangeFromSlider();
+				render();
+			});
+
+			refs.rangeMax.addEventListener('input', (event) => {
+				const next = Math.max(Number(event.target.value), state.sliderMin + 1);
+				state.sliderMax = next;
+				updateRangeFromSlider();
+				render();
+			});
+
+			refs.typeTrigger.addEventListener('click', () => {
+				state.activeDropdown = state.activeDropdown === 'type' ? null : 'type';
+				render();
+			});
+
+			refs.typeTrigger.addEventListener('keydown', (event) => {
+				if (event.key !== 'Enter' && event.key !== ' ') return;
+				event.preventDefault();
+				state.activeDropdown = state.activeDropdown === 'type' ? null : 'type';
+				render();
+			});
+
+			document.querySelectorAll('.dropdown__trigger').forEach((button) => {
+				button.addEventListener('click', (event) => {
+					const dropdown = event.currentTarget.closest('.dropdown');
+					const next = dropdown.dataset.dropdown;
+					state.activeDropdown = state.activeDropdown === next ? null : next;
+					render();
+				});
+			});
+
+			refs.clearButton.addEventListener('click', () => {
+				state.searchQuery = '';
+				state.regionSelect = [];
+				state.typeSelect = [];
+				state.costFilter = [];
+				refs.searchInput.value = '';
+				render();
+			});
+
+			document.addEventListener('click', (event) => {
+				if (!refs.filterBar.contains(event.target)) {
+					state.activeDropdown = null;
+					render();
+				}
+			});
+
+			render();
+		</script>
+	</body>
+</html>

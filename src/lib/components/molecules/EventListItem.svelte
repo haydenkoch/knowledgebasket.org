@@ -1,195 +1,127 @@
 <script lang="ts">
-	import { Badge } from '$lib/components/ui/badge/index.js';
-	import MapPinIcon from '@lucide/svelte/icons/map-pin';
 	import type { EventItem } from '$lib/data/kb';
-	import {
-		getPlaceholderImageSrcset,
-		DEFAULT_SIZES_CARD
-	} from '$lib/data/placeholders';
-	import { stripHtml, formatEventDateShort, getEventTypeTags } from '$lib/utils/format';
+	import { stripHtml } from '$lib/utils/format';
 
-	type Props = {
-		event: EventItem;
-		index?: number;
-		class?: string;
-	};
-
-	let { event, index = 0, class: className = '' }: Props = $props();
+	let { event, index = 0 }: { event: EventItem; index?: number } = $props();
 
 	const href = $derived(`/events/${event.slug ?? event.id}`);
-	const imgAttrs = $derived(
-		event.imageUrl
-			? { src: event.imageUrl }
-			: getPlaceholderImageSrcset(index, { sizes: DEFAULT_SIZES_CARD })
-	);
+
+	function formatDate(d?: string) {
+		if (!d) return '';
+		try {
+			return new Date(d).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+		} catch { return ''; }
+	}
+
+	const types = $derived(event.types?.length ? event.types : event.type ? [event.type] : []);
+	const plainDesc = $derived(event.description ? stripHtml(event.description).slice(0, 150) : '');
 </script>
 
-<a href={href} class="kb-elist-item kb-elist-item-eb {className}">
-	<div
-		class="kb-elist-photo"
-		style="background: linear-gradient(135deg, var(--color-lakebed-950), var(--color-lakebed-800))"
-	>
-		<img
-			src={imgAttrs.src}
-			srcset={imgAttrs.srcSet}
-			sizes={imgAttrs.sizes}
-			alt=""
-			class="kb-elist-photo-img"
-			loading={index < 2 ? 'eager' : 'lazy'}
-			decoding="async"
-		/>
-	</div>
+<a
+	{href}
+	class="kb-elist-item"
+	style="animation-delay: {index * 30}ms"
+>
+	{#if event.imageUrl}
+		<div class="kb-elist-img">
+			<img src={event.imageUrl} alt={event.title} loading="lazy" />
+		</div>
+	{:else}
+		<div class="kb-elist-img kb-elist-img--placeholder" aria-hidden="true">🗓</div>
+	{/if}
+
 	<div class="kb-elist-body">
-		<div class="kb-elist-tags">
-			{#if event.region}<Badge class="kb-badge-tag">{event.region}</Badge>{/if}
-			{#each getEventTypeTags(event) as tag (tag)}
-				<Badge class="kb-badge-tag kb-badge-tag--type">{tag}</Badge>
-			{/each}
+		<div class="kb-elist-meta">
+			{#if event.startDate}
+				<span class="kb-elist-date">{formatDate(event.startDate)}</span>
+			{/if}
+			{#if types.length}
+				<span class="kb-elist-type">{types[0]}</span>
+			{/if}
+			{#if event.region}
+				<span class="kb-elist-region">{event.region}</span>
+			{/if}
 		</div>
-		<div class="kb-elist-title">{event.title}</div>
-		{#if event.location}<div class="kb-elist-venue"><MapPinIcon class="kb-location-icon" /> {event.location}</div>{/if}
-		<div class="kb-elist-meta-row">
-			<span class="kb-elist-date">{formatEventDateShort(event.startDate, event.endDate)}</span>
-			{#if event.cost}<Badge class="kb-badge-cost">{event.cost}</Badge>{/if}
-		</div>
-		{#if event.description}<div class="kb-elist-desc">{stripHtml(String(event.description))}</div>{/if}
-		<span class="kb-elist-cta">View event</span>
+		<h3 class="kb-elist-title">{event.title}</h3>
+		{#if event.location}
+			<p class="kb-elist-location">📍 {event.location}</p>
+		{/if}
+		{#if plainDesc}
+			<p class="kb-elist-desc">{plainDesc}</p>
+		{/if}
 	</div>
 </a>
 
 <style>
-	.kb-elist-item {
-		display: flex;
-		align-items: stretch;
-		gap: 0;
-		min-height: 100px;
-		border-radius: 8px;
-		border: 1px solid var(--rule);
-		background: #ffffff;
-		text-decoration: none;
-		color: inherit;
-		overflow: hidden;
-		transition: border-color 0.12s ease, transform 0.12s ease;
-	}
-	.kb-elist-item:hover {
-		text-decoration: none;
-		border-color: var(--teal);
-		transform: translateX(2px);
-	}
-	.kb-elist-photo {
-		width: 220px;
-		min-width: 220px;
-		flex-shrink: 0;
-		position: relative;
-		overflow: hidden;
-	}
-	.kb-elist-photo-img {
-		position: absolute;
-		inset: 0;
-		width: 100%;
-		height: 100%;
-		object-fit: cover;
-	}
-	.kb-elist-body {
-		flex: 1;
-		min-width: 0;
-		padding: 10px 14px;
-		display: flex;
-		flex-direction: column;
-		gap: 4px;
-		justify-content: center;
-	}
-	.kb-elist-tags {
-		display: flex;
-		flex-wrap: wrap;
-		gap: 4px;
-		align-items: center;
-	}
-	.kb-elist-title {
-		font-family: var(--font-serif);
-		font-size: 15px;
-		font-weight: 600;
-		color: var(--dark);
-		line-height: 1.3;
-	}
-	.kb-elist-venue {
-		font-family: var(--font-sans);
-		font-size: 12px;
-		color: var(--muted-foreground);
-		display: flex;
-		align-items: center;
-		gap: 4px;
-	}
-	.kb-location-icon {
-		width: 14px;
-		height: 14px;
-		flex-shrink: 0;
-		color: inherit;
-	}
-	.kb-elist-meta-row {
-		display: flex;
-		flex-wrap: wrap;
-		align-items: center;
-		gap: 6px;
-	}
-	.kb-elist-date {
-		font-family: var(--font-sans);
-		font-size: 10px;
-		font-weight: 600;
-		letter-spacing: 0.06em;
-		text-transform: uppercase;
-		color: var(--muted-foreground);
-	}
-	.kb-elist-desc {
-		font-size: 12px;
-		line-height: 1.45;
-		color: var(--mid);
-		max-height: calc(1.45em * 2);
-		display: -webkit-box;
-		-webkit-box-orient: vertical;
-		-webkit-line-clamp: 2;
-		overflow: hidden;
-	}
-	.kb-elist-cta {
-		font-family: var(--font-sans);
-		font-size: 12px;
-		font-weight: 600;
-		color: var(--teal-dk);
-	}
-	:global(.kb-badge-cost) {
-		font-family: var(--font-sans) !important;
-		font-size: 11px !important;
-		font-weight: 600 !important;
-		background: var(--color-pinyon-600) !important;
-		color: #ffffff !important;
-		border: none !important;
-	}
-	:global(.kb-badge-tag) {
-		font-family: var(--font-sans) !important;
-		font-size: 11px !important;
-		font-weight: 600 !important;
-		background: var(--color-lakebed-100) !important;
-		color: var(--color-lakebed-900) !important;
-		border: 1px solid var(--color-lakebed-200) !important;
-	}
-	:global(.kb-badge-tag--type) {
-		background: var(--color-granite-100) !important;
-		color: var(--color-obsidian-800) !important;
-		border-color: var(--color-granite-200) !important;
-	}
-
-	@media (max-width: 640px) {
-		.kb-elist-item {
-			flex-direction: column;
-			min-height: 0;
-		}
-		.kb-elist-photo {
-			width: 100%;
-			min-width: 0;
-			height: 140px;
-		}
-		.kb-elist-body {
-			padding: 12px 14px;
-		}
-	}
+.kb-elist-item {
+	display: flex;
+	gap: 16px;
+	background: #fff;
+	border: 1px solid var(--rule, #e5e5e5);
+	border-radius: 8px;
+	padding: 14px;
+	text-decoration: none;
+	color: inherit;
+	transition: box-shadow 0.15s ease, transform 0.15s ease;
+}
+.kb-elist-item:hover {
+	box-shadow: var(--shh, 0 4px 16px rgba(0,0,0,0.12));
+	transform: translateY(-1px);
+}
+.kb-elist-img {
+	width: 80px;
+	height: 80px;
+	flex-shrink: 0;
+	border-radius: 6px;
+	overflow: hidden;
+	background: var(--color-lakebed-800, #1a3a4a);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+.kb-elist-img img { width: 100%; height: 100%; object-fit: cover; }
+.kb-elist-img--placeholder { font-size: 32px; }
+.kb-elist-body { flex: 1; min-width: 0; }
+.kb-elist-meta {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	align-items: center;
+	margin-bottom: 4px;
+}
+.kb-elist-date {
+	font-size: 11px;
+	font-weight: 700;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	color: var(--muted-foreground, #666);
+}
+.kb-elist-type, .kb-elist-region {
+	font-size: 11px;
+	background: var(--accent, #f4f4f2);
+	color: var(--muted-foreground, #666);
+	border-radius: 9999px;
+	padding: 1px 7px;
+}
+.kb-elist-title {
+	font-size: 15px;
+	font-weight: 600;
+	color: var(--dark, #1c1c1c);
+	margin: 0 0 3px;
+	line-height: 1.3;
+}
+.kb-elist-location {
+	font-size: 12px;
+	color: var(--muted-foreground, #666);
+	margin: 0 0 4px;
+}
+.kb-elist-desc {
+	font-size: 13px;
+	color: var(--mid, #555);
+	margin: 0;
+	overflow: hidden;
+	display: -webkit-box;
+	-webkit-box-orient: vertical;
+	-webkit-line-clamp: 2;
+}
 </style>

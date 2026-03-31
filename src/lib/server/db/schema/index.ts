@@ -1,0 +1,200 @@
+/**
+ * Schema barrel: re-exports all domain tables and defines all cross-domain relations.
+ * Relations are centralised here to avoid circular imports between domain files.
+ */
+import { relations } from 'drizzle-orm';
+
+// ── Re-export all tables ──────────────────────────────────
+
+export * from '../auth.schema';
+export * from './taxonomy';
+export * from './settings';
+export * from './organizations';
+export * from './venues';
+export * from './events';
+export * from './funding';
+export * from './red-pages';
+export * from './jobs';
+export * from './toolbox';
+export * from './content';
+
+// ── Import tables for relation definitions ────────────────
+
+import { user } from '../auth.schema';
+import { organizations } from './organizations';
+import { venues } from './venues';
+import { events, eventLists, eventListItems } from './events';
+import { funding } from './funding';
+import { redPagesBusinesses } from './red-pages';
+import { jobs, jobInterests } from './jobs';
+import { toolboxResources } from './toolbox';
+import {
+	userOrgMemberships,
+	orgFollows,
+	bookmarks,
+	notifications,
+	notificationPreferences,
+	contentLists,
+	contentListItems
+} from './content';
+
+// ── Relations ─────────────────────────────────────────────
+
+export const eventsRelations = relations(events, ({ one, many }) => ({
+	venue: one(venues, { fields: [events.venueId], references: [venues.id] }),
+	organization: one(organizations, { fields: [events.organizationId], references: [organizations.id] }),
+	parentEvent: one(events, {
+		fields: [events.parentEventId],
+		references: [events.id],
+		relationName: 'parentChild'
+	}),
+	childEvents: many(events, { relationName: 'parentChild' }),
+	submittedBy: one(user, {
+		fields: [events.submittedById],
+		references: [user.id],
+		relationName: 'submitter'
+	}),
+	reviewedBy: one(user, {
+		fields: [events.reviewedById],
+		references: [user.id],
+		relationName: 'reviewer'
+	})
+}));
+
+export const organizationsRelations = relations(organizations, ({ many }) => ({
+	events: many(events),
+	venues: many(venues),
+	funding: many(funding),
+	jobs: many(jobs),
+	redPagesListings: many(redPagesBusinesses),
+	toolboxResources: many(toolboxResources),
+	members: many(userOrgMemberships),
+	followers: many(orgFollows)
+}));
+
+export const venuesRelations = relations(venues, ({ one, many }) => ({
+	organization: one(organizations, {
+		fields: [venues.organizationId],
+		references: [organizations.id]
+	}),
+	events: many(events)
+}));
+
+export const eventListsRelations = relations(eventLists, ({ many }) => ({
+	items: many(eventListItems)
+}));
+
+export const eventListItemsRelations = relations(eventListItems, ({ one }) => ({
+	list: one(eventLists, { fields: [eventListItems.listId], references: [eventLists.id] }),
+	event: one(events, { fields: [eventListItems.eventId], references: [events.id] })
+}));
+
+export const fundingRelations = relations(funding, ({ one }) => ({
+	organization: one(organizations, {
+		fields: [funding.organizationId],
+		references: [organizations.id]
+	}),
+	submittedBy: one(user, {
+		fields: [funding.submittedById],
+		references: [user.id],
+		relationName: 'fundingSubmitter'
+	}),
+	reviewedBy: one(user, {
+		fields: [funding.reviewedById],
+		references: [user.id],
+		relationName: 'fundingReviewer'
+	})
+}));
+
+export const redPagesBusinessesRelations = relations(redPagesBusinesses, ({ one }) => ({
+	organization: one(organizations, {
+		fields: [redPagesBusinesses.organizationId],
+		references: [organizations.id]
+	}),
+	submittedBy: one(user, {
+		fields: [redPagesBusinesses.submittedById],
+		references: [user.id],
+		relationName: 'redPagesSubmitter'
+	}),
+	reviewedBy: one(user, {
+		fields: [redPagesBusinesses.reviewedById],
+		references: [user.id],
+		relationName: 'redPagesReviewer'
+	})
+}));
+
+export const jobsRelations = relations(jobs, ({ one, many }) => ({
+	organization: one(organizations, {
+		fields: [jobs.organizationId],
+		references: [organizations.id]
+	}),
+	submittedBy: one(user, {
+		fields: [jobs.submittedById],
+		references: [user.id],
+		relationName: 'jobSubmitter'
+	}),
+	reviewedBy: one(user, {
+		fields: [jobs.reviewedById],
+		references: [user.id],
+		relationName: 'jobReviewer'
+	}),
+	interests: many(jobInterests)
+}));
+
+export const jobInterestsRelations = relations(jobInterests, ({ one }) => ({
+	job: one(jobs, { fields: [jobInterests.jobId], references: [jobs.id] }),
+	user: one(user, { fields: [jobInterests.userId], references: [user.id] })
+}));
+
+export const toolboxResourcesRelations = relations(toolboxResources, ({ one }) => ({
+	organization: one(organizations, {
+		fields: [toolboxResources.organizationId],
+		references: [organizations.id]
+	}),
+	submittedBy: one(user, {
+		fields: [toolboxResources.submittedById],
+		references: [user.id],
+		relationName: 'toolboxSubmitter'
+	}),
+	reviewedBy: one(user, {
+		fields: [toolboxResources.reviewedById],
+		references: [user.id],
+		relationName: 'toolboxReviewer'
+	})
+}));
+
+export const userOrgMembershipsRelations = relations(userOrgMemberships, ({ one }) => ({
+	user: one(user, { fields: [userOrgMemberships.userId], references: [user.id] }),
+	organization: one(organizations, {
+		fields: [userOrgMemberships.organizationId],
+		references: [organizations.id]
+	})
+}));
+
+export const orgFollowsRelations = relations(orgFollows, ({ one }) => ({
+	user: one(user, { fields: [orgFollows.userId], references: [user.id] }),
+	organization: one(organizations, {
+		fields: [orgFollows.organizationId],
+		references: [organizations.id]
+	})
+}));
+
+export const bookmarksRelations = relations(bookmarks, ({ one }) => ({
+	user: one(user, { fields: [bookmarks.userId], references: [user.id] })
+}));
+
+export const notificationsRelations = relations(notifications, ({ one }) => ({
+	user: one(user, { fields: [notifications.userId], references: [user.id] })
+}));
+
+export const notificationPreferencesRelations = relations(notificationPreferences, ({ one }) => ({
+	user: one(user, { fields: [notificationPreferences.userId], references: [user.id] })
+}));
+
+export const contentListsRelations = relations(contentLists, ({ many }) => ({
+	items: many(contentListItems)
+}));
+
+export const contentListItemsRelations = relations(contentListItems, ({ one }) => ({
+	list: one(contentLists, { fields: [contentListItems.listId], references: [contentLists.id] })
+}));

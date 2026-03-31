@@ -38,6 +38,10 @@ Open the app (e.g. http://localhost:5173).
 
 Events list = DB events + iCal feed (News from Native California), merged in memory. Search uses Meilisearch (events only).
 
+## Design
+
+Component structure, theme, and styling are described in [docs/DESIGN_SYSTEM.md](docs/DESIGN_SYSTEM.md) (atoms, molecules, organisms, KB styles, and roadmap).
+
 ## Stubbed sections
 
 Funding, Red Pages, Job Board, and Toolbox are stubbed (empty data). Only Events are backed by Postgres and Meilisearch for now.

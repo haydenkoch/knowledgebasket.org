@@ -7,6 +7,17 @@ export const user = pgTable("user", {
   email: text("email").notNull().unique(),
   emailVerified: boolean("email_verified").default(false).notNull(),
   image: text("image"),
+  role: text("role").notNull().default("contributor"),
+
+  // Profile
+  bio: text("bio"),
+  avatarUrl: text("avatar_url"),
+  tribalAffiliation: text("tribal_affiliation"),
+  location: text("location"),
+
+  // Preferences
+  newsletterOptIn: boolean("newsletter_opt_in").default(false),
+
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at")
     .defaultNow()

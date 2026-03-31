@@ -50,51 +50,52 @@
 			btnBg: 'var(--slate)'
 		}
 	];
-	</script>
+</script>
 
-<div class="kb-coil kb-coil--home">
+{#snippet weaveHome()}
+	<defs>
+		<pattern id="wv-home" x="0" y="0" width="20" height="20" patternUnits="userSpaceOnUse">
+			<rect x="0" y="0" width="10" height="4" fill="white" />
+			<rect x="10" y="10" width="10" height="4" fill="white" />
+			<rect x="0" y="6" width="4" height="8" fill="white" opacity=".5" />
+		</pattern>
+	</defs>
+	<rect width="200" height="400" fill="url(#wv-home)" />
+{/snippet}
+
+<div>
 	<KbHero
-		heroClass="kb-hero--home"
+		coil="home"
 		eyebrow="Knowledge Basket"
 		title="Search the Knowledge Basket"
 		description="Find events, funding, Native-owned vendors, jobs, and tools that support Indigenous-led economies in the Sierra Nevada and beyond."
-	>
-		<svelte:fragment slot="weave">
-			<defs>
-				<pattern id="wv-home" x="0" y="0" width="20" height="20" patternUnits="userSpaceOnUse">
-					<rect x="0" y="0" width="10" height="4" fill="white" />
-					<rect x="10" y="10" width="10" height="4" fill="white" />
-					<rect x="0" y="6" width="4" height="8" fill="white" opacity=".5" />
-				</pattern>
-			</defs>
-			<rect width="200" height="400" fill="url(#wv-home)" />
-		</svelte:fragment>
-	</KbHero>
+		weave={weaveHome}
+	/>
 
-	<section class="kb-home-search-section" aria-labelledby="kb-home-search">
-		<div class="kb-home-search-inner">
+	<section class="px-10 py-5 pb-7 bg-[var(--color-alpine-100,var(--bone))] border-b border-[var(--rule)]" aria-labelledby="kb-home-search">
+		<div class="max-w-[720px] mx-auto">
 			<h2 id="kb-home-search" class="sr-only">Search Knowledge Basket</h2>
 			<KbSearch variant="light" />
-			<p class="kb-home-search-hint">Search events, funding, Red Pages vendors, jobs, and toolbox resources from one place.</p>
+			<p class="mt-2 font-sans text-[13px] text-[var(--muted-foreground)]">Search events, funding, Red Pages vendors, jobs, and toolbox resources from one place.</p>
 		</div>
 	</section>
 
-	<section class="kb-home-coils" aria-labelledby="kb-coils-heading">
-		<div class="kb-home-coils-inner">
-			<div class="kb-home-coils-header">
-				<h2 id="kb-coils-heading">Browse the five coils</h2>
-				<p>Jump straight into events, funding, Red Pages, jobs, or the toolbox.</p>
+	<section class="px-10 py-4 pb-12 border-t border-[var(--rule)] bg-[var(--color-alpine-100,var(--bone))]" aria-labelledby="kb-coils-heading">
+		<div class="max-w-[1080px] mx-auto">
+			<div class="flex justify-between items-center mb-4 flex-wrap gap-2">
+				<h2 id="kb-coils-heading" class="font-serif text-[22px] font-semibold text-[var(--dark)] m-0">Browse the five coils</h2>
+				<p class="font-sans text-xs text-[var(--muted-foreground)] m-0">Jump straight into events, funding, Red Pages, jobs, or the toolbox.</p>
 			</div>
-			<div class="kb-grid">
+			<div class="grid grid-cols-[repeat(auto-fill,minmax(310px,1fr))] gap-5">
 				{#each coils as { key, label, path, emoji, desc, gradient, btnBg }}
-					<a href={path} class="kb-card kb-card--home-coil">
-						<div class="kb-cimg" style="background: {gradient}">
-							<div class="kb-cimg-ico">{emoji}</div>
+					<a href={path} class="bg-white rounded-lg shadow-[var(--sh)] overflow-hidden flex flex-col transition-[transform,box-shadow] duration-150 cursor-pointer border border-[var(--rule)] no-underline hover:-translate-y-[3px] hover:shadow-[var(--shh)] hover:no-underline">
+						<div class="h-[148px] flex items-center justify-center relative overflow-hidden" style="background: {gradient}">
+							<div class="absolute text-[48px] opacity-[0.35]">{emoji}</div>
 						</div>
-						<div class="kb-cbody">
-							<div class="kb-ctit">{label}</div>
-							<div class="kb-cdesc">{desc}</div>
-							<span class="kb-ccta" style="background: {btnBg}">Browse {label}</span>
+						<div class="p-4 px-[18px] flex-1 min-h-0 flex flex-col">
+							<div class="font-serif text-base font-semibold text-[var(--dark)] leading-[1.35] mb-[5px]">{label}</div>
+							<div class="text-[13px] leading-[1.5] text-[var(--mid)] mb-[14px] flex-auto min-h-0 line-clamp-3">{desc}</div>
+							<span class="block flex-none text-center text-white font-sans text-[13px] font-bold py-[9px] rounded-[var(--radius)] no-underline tracking-[0.03em] transition-[filter] duration-150 mt-auto hover:brightness-110" style="background: {btnBg}">Browse {label}</span>
 						</div>
 					</a>
 				{/each}

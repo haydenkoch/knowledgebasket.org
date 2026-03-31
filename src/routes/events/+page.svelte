@@ -1,116 +1,56 @@
 <script lang="ts">
 	import 'temporal-polyfill/global';
-	import EventsViewTabs from '$lib/components/organisms/EventsViewTabs.svelte';
 	import KbHero from '$lib/components/organisms/KbHero.svelte';
-	import Input from '$lib/components/ui/input/input.svelte';
-	import SearchIcon from '@lucide/svelte/icons/search';
-	import ChevronLeftIcon from '@lucide/svelte/icons/chevron-left';
-	import ChevronRightIcon from '@lucide/svelte/icons/chevron-right';
-	import { CalendarDate } from '@internationalized/date';
+	import {
+		Pagination,
+		PaginationContent,
+		PaginationItem,
+		PaginationLink,
+		PaginationPrevious,
+		PaginationNext,
+		PaginationEllipsis
+	} from '$lib/components/ui/pagination/index.js';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
 	import { setContext } from 'svelte';
-	import { get } from 'svelte/store';
 	import type { EventItem } from '$lib/data/kb';
 	import type { CalendarApp } from '@schedule-x/calendar';
-	import EventsFilterBar from '$lib/components/organisms/EventsFilterBar.svelte';
 	import EventCard from '$lib/components/molecules/EventCard.svelte';
 	import EventListItem from '$lib/components/molecules/EventListItem.svelte';
 	import EventsToolbar from '$lib/components/molecules/EventsToolbar.svelte';
-	import EventsDateRangeFilter from '$lib/components/organisms/EventsDateRangeFilter.svelte';
+	import CoilTheme from '$lib/components/organisms/CoilTheme.svelte';
 	import EventsSidebar from '$lib/components/organisms/EventsSidebar.svelte';
 	import EventsCalendarView from '$lib/components/organisms/EventsCalendarView.svelte';
 	import EventsRightSidebar from '$lib/components/organisms/EventsRightSidebar.svelte';
-	import { tsToDateStr, dateStrToTs, tsToCalendarDate } from '$lib/utils/date.js';
+	import { tsToCalendarDate } from '$lib/utils/date.js';
 import {
-	matchSearch,
-	filterByFacets,
-	facetCounts,
 	parseEventStart,
 	formatEventTime,
 	eventCalendarParts,
 	eventCalendarDaysSpanned,
-	isMultiDayEvent,
-	eventMatchesTypeGroup,
-	eventTypeGroupCounts
+	isMultiDayEvent
 } from '$lib/utils/format';
-import { eventTypeGroups, eventTypeTags } from '$lib/data/formSchema';
-import { IsMobile } from '$lib/hooks/is-mobile.svelte';
+	import { eventTypeTags } from '$lib/data/formSchema';
+	import { IsMobile } from '$lib/hooks/is-mobile.svelte';
+	import { useEventsFilters } from '$lib/hooks/use-events-filters.svelte';
+	import { eventToSx } from '$lib/calendar/event-to-sx.js';
 
 	type EventView = 'cards' | 'list' | 'calendar';
 
-	const EVENTS_PAGE_SIZE = 12;
-
-	/** Schedule-X timezone (must match calendar config so week/day time grid is correct). */
-	const CALENDAR_TZ = 'America/Los_Angeles';
-
-	/**
-	 * Convert EventItem to Schedule-X event. Uses ZonedDateTime 9:00–17:00 so week/day views
-	 * show events in the time grid instead of only in the all-day row.
-	 */
-	function eventToSx(e: EventItem): {
-		id: string;
-		title: string;
-		start: Temporal.ZonedDateTime;
-		end: Temporal.ZonedDateTime;
-		description?: string;
-		location?: string;
-		cost?: string;
-	} | null {
-		const startTs = parseEventStart(e.startDate);
-		if (startTs == null) return null;
-		const startD = new Date(startTs);
-		let endD = new Date(startTs);
-		if (e.endDate?.trim()) {
-			const endTs = parseEventStart(e.endDate);
-			if (endTs != null) endD = new Date(endTs);
-		}
-		const start = Temporal.ZonedDateTime.from({
-			year: startD.getFullYear(),
-			month: startD.getMonth() + 1,
-			day: startD.getDate(),
-			hour: 9,
-			minute: 0,
-			second: 0,
-			timeZone: CALENDAR_TZ
-		});
-		const end = Temporal.ZonedDateTime.from({
-			year: endD.getFullYear(),
-			month: endD.getMonth() + 1,
-			day: endD.getDate(),
-			hour: 17,
-			minute: 0,
-			second: 0,
-			timeZone: CALENDAR_TZ
-		});
-		return {
-			id: e.id,
-			title: e.title ?? '',
-			start,
-			end,
-			description: e.description,
-			location: e.location,
-			cost: e.cost
-		};
-	}
-
 	let { data } = $props();
-	const events = $derived(data.events ?? []) as EventItem[];
+	const filters = useEventsFilters(() => data);
+
+	let pageBinding = $state(1);
+	$effect(() => { pageBinding = filters.currentPage; });
+	$effect(() => { if (pageBinding !== filters.currentPage) filters.pageBinding = pageBinding; });
+
+	const events = $derived((data.events ?? []) as EventItem[]);
 	const total = $derived(events.length);
 	const sierraCount = $derived(events.filter((e) => e.region === 'Sierra Nevada').length);
 
 	const now = new Date();
 	type CalendarViewMode = 'week' | 'month' | 'quarter';
 
-let searchQuery = $state('');
-let regionSelect = $state<string[]>([]);
-let typeSelect = $state<string[]>([]);
-let costFilter = $state<string[]>([]);
-	let costOpen = $state(false);
-	let regionOpen = $state(false);
-	let typeOpen = $state(false);
-	let startDateOpen = $state(false);
-	let endDateOpen = $state(false);
 	let eventView = $state<EventView>('list');
 	let calendarYear = $state(now.getFullYear());
 	let calendarMonth = $state(now.getMonth());
@@ -122,6 +62,8 @@ let costFilter = $state<string[]>([]);
 	let calendarSelectedId = $state<string | null>(null);
 	let eventDetailsOpen = $state(false);
 	const isMobile = new IsMobile();
+	/** Right sidebar: show at 960px+ to match CoilLayout three-column breakpoint (not 768px). */
+	const isDesktopLayout = new IsMobile(960);
 
 	/** Schedule-X calendar app (created when calendar view is active). Lazy-loaded with calendar bundle. */
 	let scheduleXApp = $state<CalendarApp | null>(null);
@@ -148,14 +90,16 @@ let costFilter = $state<string[]>([]);
 	/** Sync URL when user changes main view (Cards / List / Calendar). Defer so tab switch paints first. */
 	$effect(() => {
 		const v = eventView;
-		const p = get(page);
-		const url = new URL(p.url);
+		const url = new URL($page.url);
 		const current = url.searchParams.get('view');
 		if (current === v) return;
 		url.searchParams.set('view', v);
 		if (v !== 'calendar') {
 			url.searchParams.delete('mode');
 			url.searchParams.delete('date');
+		} else {
+			// Default calendar to monthly overview when switching to calendar tab
+			if (!url.searchParams.has('mode')) url.searchParams.set('mode', 'month');
 		}
 		const pathSearch = `${url.pathname}${url.search}`;
 		queueMicrotask(() => goto(pathSearch, { replaceState: true, noScroll: true }));
@@ -168,49 +112,30 @@ let costFilter = $state<string[]>([]);
 		if (calendarLoadStarted) return;
 		calendarLoadStarted = true;
 		const d = data as {
-			initialCalendarMode?: string;
 			initialCalendarYear?: number | null;
 			initialCalendarMonth?: number | null;
 			initialCalendarDay?: number | null;
 		};
+		// Use current client state so default is monthly overview when opening calendar tab
+		const mode = calendarViewMode;
 		import('$lib/calendar/calendar-loader.js').then((mod) => {
-			const mode = d.initialCalendarMode ?? 'month';
-			const defaultView =
-				mode === 'week' ? mod.viewWeek.name : mode === 'day' ? mod.viewDay.name : mod.viewMonthGrid.name;
-			const selected =
-				d.initialCalendarYear != null &&
-				d.initialCalendarMonth != null &&
-				d.initialCalendarDay != null
-					? Temporal.PlainDate.from({
-							year: d.initialCalendarYear,
-							month: d.initialCalendarMonth + 1,
-							day: d.initialCalendarDay
-						})
-					: Temporal.PlainDate.from(new Date().toISOString().slice(0, 10));
-			scheduleXApp = mod.createCalendar(
-				{
-					views: [mod.createViewMonthGrid(), mod.createViewWeek(), mod.createViewDay()],
-					events: [],
-					theme: 'shadcn',
-					timezone: CALENDAR_TZ,
-					firstDayOfWeek: 7,
-					defaultView,
-					selectedDate: selected,
-					callbacks: {
-						onEventClick(calEvent: { id: string | number }) {
-							const id = String(calEvent.id);
-							const match = filtered.find((e) => e.id === id);
-							if (!match) {
-								goto(`/events/${id}`);
-								return;
-							}
-							calendarSelectedId = id;
-							eventDetailsOpen = true;
-						}
+			mod.createScheduleXAppFromEvents(filters.filtered, {
+				initialCalendarMode: mode,
+				initialCalendarYear: d.initialCalendarYear ?? undefined,
+				initialCalendarMonth: d.initialCalendarMonth ?? undefined,
+				initialCalendarDay: d.initialCalendarDay ?? undefined,
+				onEventClick(id) {
+					const match = filters.filtered.find((e) => e.id === id);
+					if (!match) {
+						goto(`/events/${id}`);
+						return;
 					}
-				},
-				[mod.createEventsServicePlugin()]
-			);
+					calendarSelectedId = id;
+					eventDetailsOpen = true;
+				}
+			}).then((app) => {
+				scheduleXApp = app;
+			});
 		});
 	});
 
@@ -219,8 +144,7 @@ let costFilter = $state<string[]>([]);
 		if (eventView !== 'calendar') return;
 		setContext('kb-calendar-url-sync', {
 			updateUrl(mode: string, dateStr: string) {
-				const p = get(page);
-				const url = new URL(p.url);
+				const url = new URL($page.url);
 				url.searchParams.set('view', 'calendar');
 				url.searchParams.set('mode', mode);
 				url.searchParams.set('date', dateStr);
@@ -252,239 +176,36 @@ let costFilter = $state<string[]>([]);
 		if (!scheduleXApp || eventView !== 'calendar') return;
 		const service = (scheduleXApp as { eventsService?: { set: (events: unknown[]) => void } }).eventsService;
 		if (!service) return;
-		const sxEvents = filtered.map(eventToSx).filter((e): e is NonNullable<typeof e> => e != null);
+		const sxEvents = filters.filtered.map(eventToSx).filter((e): e is NonNullable<typeof e> => e != null);
 		service.set(sxEvents);
 	});
 
-	// Single source of truth: range as timestamps. Default: today → today + 12 months
-	function getDefaultRange() {
-		const d = new Date();
-		const start = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
-		const end = new Date(d.getFullYear(), d.getMonth() + 13, 0, 23, 59, 59, 999).getTime();
-		return { start, end };
-	}
-	const todayStart = $derived(new Date(new Date().setHours(0, 0, 0, 0)).getTime());
-	const defaultRangeEnd = $derived(
-		new Date(
-			new Date().getFullYear(),
-			new Date().getMonth() + 13,
-			0,
-			23,
-			59,
-			59,
-			999
-		).getTime()
-	);
-	const initialRange = getDefaultRange();
-	let rangeStart = $state(initialRange.start);
-	let rangeEnd = $state(initialRange.end);
-	let startDateDisplay = $state<CalendarDate>(tsToCalendarDate(initialRange.start));
-	let endDateDisplay = $state<CalendarDate>(tsToCalendarDate(initialRange.end));
-
-	// Keep calendar display in sync with range (slider, clear filters, etc.)
-	$effect(() => {
-		startDateDisplay = tsToCalendarDate(rangeStart);
-	});
-	$effect(() => {
-		endDateDisplay = tsToCalendarDate(rangeEnd);
-	});
-
-	// Fixed 24 month buckets from real events: 12 months back + 12 months forward from today.
-	// Each bar = count of events that overlap that month (start in or span into it).
-	const dateBuckets = $derived.by(() => {
-		const now = new Date();
-		const buckets: { label: string; start: number; end: number; count: number }[] = [];
-		const eventRanges = events
-			.map((e) => {
-				const startTs = parseEventStart(e.startDate);
-				if (startTs == null) return null;
-				const endTs = e.endDate?.trim() ? parseEventStart(e.endDate) ?? startTs : startTs;
-				const end = endTs >= startTs ? endTs : startTs;
-				return { start: startTs, end };
-			})
-			.filter((r): r is { start: number; end: number } => r != null);
-		for (let i = -12; i < 12; i++) {
-			const y = now.getFullYear();
-			const m = now.getMonth() + i;
-			const monthStart = new Date(y, m, 1).getTime();
-			const monthEnd = new Date(y, m + 1, 0, 23, 59, 59, 999).getTime();
-			const count = eventRanges.filter(
-				({ start, end }) => start <= monthEnd && end >= monthStart
-			).length;
-			buckets.push({
-				label: new Date(y, m).toLocaleDateString('en-US', { month: 'short', year: '2-digit' }),
-				start: monthStart,
-				end: monthEnd,
-				count
-			});
-		}
-		const maxCount = Math.max(1, ...buckets.map((b) => b.count));
-		return { buckets, maxCount };
-	});
-	const numBuckets = $derived(dateBuckets.buckets.length);
-
-	// Map range (timestamps) to bucket indices for slider
-	const dateRangeMinIx = $derived.by(() => {
-		if (numBuckets === 0) return 0;
-		const buckets = dateBuckets.buckets;
-		for (let i = 0; i < buckets.length; i++) {
-			if (rangeStart <= buckets[i].end) return i;
-		}
-		return numBuckets - 1;
-	});
-	const dateRangeMaxIx = $derived.by(() => {
-		if (numBuckets === 0) return 0;
-		const buckets = dateBuckets.buckets;
-		for (let i = buckets.length - 1; i >= 0; i--) {
-			if (rangeEnd >= buckets[i].start) return i;
-		}
-		return 0;
-	});
-
-	function setRangeFromIndices(minIx: number, maxIx: number) {
-		const buckets = dateBuckets.buckets;
-		if (!buckets.length) return;
-		const min = Math.max(0, Math.min(minIx, buckets.length - 1));
-		const max = Math.max(min, Math.min(maxIx, buckets.length - 1));
-		rangeStart = buckets[min].start;
-		rangeEnd = buckets[max].end;
-	}
-
-	// During drag, store indices here so thumb moves without recalculating filters; commit on release.
-	let sliderIndices = $state<[number, number] | null>(null);
-
-	function handleSliderChange(vals: number[]) {
-		if (!vals || vals.length === 0) return;
-		sliderIndices = [vals[0] ?? 0, vals.length > 1 ? vals[1] : vals[0]];
-	}
-
-	function handleSliderCommit(vals: number[]) {
-		if (!vals || vals.length === 0) return;
-		const minIx = vals[0] ?? 0;
-		const maxIx = vals.length > 1 ? vals[1] : minIx;
-		setRangeFromIndices(minIx, maxIx);
-		sliderIndices = null;
-	}
-
-	const sliderMinIx = $derived(sliderIndices?.[0] ?? dateRangeMinIx);
-	const sliderMaxIx = $derived(sliderIndices?.[1] ?? dateRangeMaxIx);
-
-	const regionCounts = $derived(facetCounts(events, 'region'));
-	const typeGroupCounts = $derived(eventTypeGroupCounts(events, eventTypeGroups));
-	const costCounts = $derived(facetCounts(events, 'cost'));
-	const regionValues = $derived(Object.keys(regionCounts).sort());
-	const costValues = $derived(Object.keys(costCounts).sort());
-
-	const searchFiltered = $derived(
-		events.filter((e) =>
-			matchSearch(e, searchQuery, ['location', 'region', 'type', 'title'])
-		)
-	);
-	const costFiltered = $derived(
-		searchFiltered.filter((e) => {
-			const cost = (e.cost ?? '').trim();
-			return !costFilter.length || (cost && costFilter.includes(cost));
-		})
-	);
-	const regionFiltered = $derived(
-		filterByFacets(costFiltered, { region: regionSelect })
-	);
-	/* typeSelect = selected tags (e.g. Conference, Big Time). Filter by groups that contain any selected tag. */
-	const typeGroupsForFilter = $derived(
-		eventTypeGroups.filter((g) => g.tags.some((tag) => typeSelect.includes(tag)))
-	);
-	const facetFiltered = $derived(
-		typeSelect.length === 0
-			? regionFiltered
-			: regionFiltered.filter((e) =>
-					typeGroupsForFilter.some((g) => eventMatchesTypeGroup(e, g.tags))
-			  )
-	);
-	const dateFiltered = $derived(
-		facetFiltered.filter((e) => {
-			const t = parseEventStart(e.startDate);
-			return t != null && t >= rangeStart && t <= rangeEnd;
-		})
-	);
-
-	/* Events in selected date range (search only) – for facet counts in dropdowns */
-	const eventsInDateRange = $derived(
-		searchFiltered.filter((e) => {
-			const t = parseEventStart(e.startDate);
-			return t != null && t >= rangeStart && t <= rangeEnd;
-		})
-	);
-	const costCountsInRange = $derived(facetCounts(eventsInDateRange, 'cost'));
-	const regionCountsInRange = $derived(facetCounts(eventsInDateRange, 'region'));
-	const typeGroupCountsInRange = $derived(eventTypeGroupCounts(eventsInDateRange, eventTypeGroups));
-	/* Show option if count > 0 in range OR user has it selected (keep selected even when 0) */
-	const costValuesVisible = $derived(
-		costValues.filter((c) => (costCountsInRange[c] ?? 0) > 0 || costFilter.includes(c))
-	);
-	const regionValuesVisible = $derived(
-		regionValues.filter((r) => (regionCountsInRange[r] ?? 0) > 0 || regionSelect.includes(r))
-	);
-	const typeTagsVisible = $derived.by(() => {
-		return eventTypeTags.filter((tag) => {
-			const group = eventTypeGroups.find((g) => (g.tags as readonly string[]).includes(tag));
-			const count = group ? (typeGroupCountsInRange[group.label] ?? 0) : 0;
-			return count > 0 || typeSelect.includes(tag);
-		});
-	});
-
-	const filtered = $derived(
-		[...dateFiltered].sort((a, b) => {
-			const ta = parseEventStart(a.startDate) ?? Infinity;
-			const tb = parseEventStart(b.startDate) ?? Infinity;
-			return ta - tb;
-		})
-	);
-	const filteredTotal = $derived(filtered.length);
-
-	const totalPages = $derived(Math.max(1, Math.ceil(filteredTotal / EVENTS_PAGE_SIZE)));
-	const currentPageFromUrl = $derived.by(() => {
-		const p = get(page).url.searchParams.get('page');
-		const n = parseInt(p ?? '1', 10);
-		return Number.isFinite(n) && n >= 1 ? n : 1;
-	});
-	const currentPage = $derived(Math.min(currentPageFromUrl, totalPages));
-	const paginatedList = $derived(
-		filtered.slice((currentPage - 1) * EVENTS_PAGE_SIZE, currentPage * EVENTS_PAGE_SIZE)
-	);
-
-	function goToPage(num: number) {
-		const url = new URL(get(page).url);
-		url.searchParams.set('page', String(num));
-		goto(url.pathname + url.search);
-	}
-
-
 	const calendarSelectedEvent = $derived(
-		calendarSelectedId ? filtered.find((e) => (e.slug ?? e.id) === calendarSelectedId) ?? null : null
+		calendarSelectedId ? filters.filtered.find((e) => (e.slug ?? e.id) === calendarSelectedId) ?? null : null
 	);
 
 	/** Sidebar feeds */
-	const sidebarFeatured = $derived(filtered.slice(0, 3));
+	const sidebarFeatured = $derived(filters.filtered.slice(0, 3));
 	const sidebarWeekUpcoming = $derived(
 		(() => {
-			const nowTs = todayStart;
+			const nowTs = filters.todayStart;
 			const weekEnd = nowTs + 7 * 24 * 60 * 60 * 1000;
-			return filtered.filter((e) => {
+			return filters.filtered.filter((e) => {
 				const t = parseEventStart(e.startDate);
 				return t != null && t >= nowTs && t <= weekEnd;
 			}).slice(0, 5);
 		})()
 	);
-	const sidebarCalendarInView = $derived(filtered.slice(0, 8));
+	const sidebarCalendarInView = $derived(filters.filtered.slice(0, 8));
 
-	const sidebarCalendarValue = $derived(tsToCalendarDate(rangeStart));
+	const sidebarCalendarValue = $derived(tsToCalendarDate(filters.rangeStart));
 
 	const daysInMonth = $derived(new Date(calendarYear, calendarMonth + 1, 0).getDate());
 	const firstDow = $derived(new Date(calendarYear, calendarMonth, 1).getDay());
 
 	function getEventsByDayForMonth(y: number, m: number): Record<number, EventItem[]> {
 		const map: Record<number, EventItem[]> = {};
-		for (const e of filtered) {
+		for (const e of filters.filtered) {
 			const days = eventCalendarDaysSpanned(e.startDate, e.endDate);
 			for (const { year, month, day } of days) {
 				if (year === y && month === m) {
@@ -520,7 +241,7 @@ let costFilter = $state<string[]>([]);
 			weeks.push({ days, segments: [] });
 		}
 		// Precompute multi-day event metadata for this month (days spanned within this month + weeks touched)
-		const multiDayEvents = filtered.filter((e) => isMultiDayEvent(e.startDate, e.endDate));
+		const multiDayEvents = filters.filtered.filter((e) => isMultiDayEvent(e.startDate, e.endDate));
 		type MonthMultiMeta = {
 			event: EventItem;
 			inMonth: { year: number; month: number; day: number }[];
@@ -587,7 +308,7 @@ let costFilter = $state<string[]>([]);
 	/** For week view: events keyed by YYYY-MM-DD. Multi-day events appear on every day (for panel); use singleDayEventsByDateKey for day cells. */
 	const eventsByDateKey = $derived.by(() => {
 		const map: Record<string, EventItem[]> = {};
-		for (const e of filtered) {
+		for (const e of filters.filtered) {
 			const days = eventCalendarDaysSpanned(e.startDate, e.endDate);
 			for (const { year, month, day } of days) {
 				const key = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
@@ -601,7 +322,7 @@ let costFilter = $state<string[]>([]);
 	/** Same-day events only, keyed by YYYY-MM-DD (for week day cells so multi-day don't repeat). */
 	const singleDayEventsByDateKey = $derived.by(() => {
 		const map: Record<string, EventItem[]> = {};
-		for (const e of filtered) {
+		for (const e of filters.filtered) {
 			if (isMultiDayEvent(e.startDate, e.endDate)) continue;
 			const p = eventCalendarParts(e.startDate);
 			if (!p) continue;
@@ -617,7 +338,7 @@ let costFilter = $state<string[]>([]);
 		const weekStart = weekStartDate.getTime();
 		const weekEnd = weekStart + 6 * 24 * 60 * 60 * 1000;
 		const segments: { event: EventItem; colStart: number; colSpan: number }[] = [];
-		for (const e of filtered) {
+		for (const e of filters.filtered) {
 			if (!isMultiDayEvent(e.startDate, e.endDate)) continue;
 			const startTs = parseEventStart(e.startDate) ?? 0;
 			const endTs = parseEventStart(e.endDate) ?? startTs;
@@ -692,30 +413,22 @@ let costFilter = $state<string[]>([]);
 		calendarMonth === todayMonth &&
 		day === todayDate;
 
-	function clearFilters() {
-		searchQuery = '';
-		regionSelect = [];
-		typeSelect = [];
-		costFilter = [];
-		rangeStart = todayStart;
-		rangeEnd = defaultRangeEnd;
+	function handleClearFilters() {
+		filters.clearFilters();
 		selectedDay = null;
 	}
-	function toggleMulti(arr: string[], value: string): string[] {
-		return arr.includes(value) ? arr.filter((x) => x !== value) : [...arr, value];
-	}
 	function removeType(label: string) {
-		typeSelect = typeSelect.filter((l) => l !== label);
+		filters.typeSelect = filters.typeSelect.filter((l) => l !== label);
 	}
 	function formatCostLabel() {
-		if (!costFilter.length) return 'Any cost';
-		return `${costFilter.length} selected`;
+		if (!filters.costFilter.length) return 'Any cost';
+		return `${filters.costFilter.length} selected`;
 	}
 	const regionTriggerLabel = $derived(
-		regionSelect.length ? `${regionSelect.length} selected` : 'Any geography'
+		filters.regionSelect.length ? `${filters.regionSelect.length} selected` : 'Any geography'
 	);
 	const typeTriggerLabel = $derived(
-		typeSelect.length ? `${typeSelect.length} selected` : 'Any type'
+		filters.typeSelect.length ? `${filters.typeSelect.length} selected` : 'Any type'
 	);
 	function calendarPrev() {
 		if (calendarViewMode === 'week') {
@@ -801,7 +514,7 @@ let costFilter = $state<string[]>([]);
 
 	/** Filtered events sorted by start date (for next/prev and upcoming) */
 	const filteredSortedByDate = $derived.by(() =>
-		[...filtered].sort((a, b) => (parseEventStart(a.startDate) ?? 0) - (parseEventStart(b.startDate) ?? 0))
+		[...filters.filtered].sort((a, b) => (parseEventStart(a.startDate) ?? 0) - (parseEventStart(b.startDate) ?? 0))
 	);
 
 	/** Next upcoming event (first after end of cursor day) */
@@ -872,125 +585,58 @@ let costFilter = $state<string[]>([]);
 	<meta name="description" content="Indigenous gatherings, trainings, and cultural events in the Sierra Nevada bioregion and California. Find and submit events." />
 </svelte:head>
 
-<div class="kb-coil kb-coil--events">
-	<KbHero
-		heroClass="kb-hero--events"
-		eyebrow="Knowledge Basket · Coil 1"
-		title="Events"
-		description="Indigenous gatherings, trainings, and cultural events across the Sierra Nevada bioregion and California."
-	>
-		<svelte:fragment slot="weave">
-			<defs>
-				<pattern id="wv-events" x="0" y="0" width="20" height="20" patternUnits="userSpaceOnUse">
-					<rect x="0" y="0" width="10" height="4" fill="white" />
-					<rect x="10" y="10" width="10" height="4" fill="white" />
-					<rect x="0" y="6" width="4" height="8" fill="white" opacity=".5" />
-				</pattern>
-			</defs>
-			<rect width="200" height="400" fill="url(#wv-events)" />
-		</svelte:fragment>
-		<svelte:fragment slot="stats">
-			<div class="kb-hstat"><strong>{total}</strong><span>Upcoming</span></div>
-			<div class="kb-hstat"><strong>{sierraCount}</strong><span>Sierra Nevada</span></div>
-		</svelte:fragment>
-	</KbHero>
-
-	<div class="kb-layout">
-		<EventsSidebar>
-			<div class="kb-search-wrap" role="search" aria-label="Search events">
-				<span class="kb-search-icon" aria-hidden="true">
-					<SearchIcon size={16} strokeWidth={1.8} aria-hidden="true" />
-				</span>
-				<Input
-					type="search"
-					placeholder="Search events…"
-					class="kb-search-input"
-					bind:value={searchQuery}
-					aria-label="Search events"
-				/>
+{#snippet weave()}
+	<defs>
+		<pattern id="wv-events" x="0" y="0" width="20" height="20" patternUnits="userSpaceOnUse">
+			<rect x="0" y="0" width="10" height="4" fill="white" />
+			<rect x="10" y="10" width="10" height="4" fill="white" />
+			<rect x="0" y="6" width="4" height="8" fill="white" opacity=".5" />
+		</pattern>
+	</defs>
+	<rect width="200" height="400" fill="url(#wv-events)" />
+{/snippet}
+{#snippet stats()}
+	<div class="font-sans text-white"><strong class="text-[28px] font-bold block leading-none">{total}</strong><span class="text-xs opacity-70">Upcoming</span></div>
+	<div class="font-sans text-white"><strong class="text-[28px] font-bold block leading-none">{sierraCount}</strong><span class="text-xs opacity-70">Sierra Nevada</span></div>
+{/snippet}
+{#snippet children()}
+	{#if (data.featuredEvents?.length ?? 0) > 0}
+		<section class="mb-8" aria-labelledby="featured-heading">
+			<h2 id="featured-heading" class="mb-4 text-lg font-semibold">Featured</h2>
+			<div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+				{#each (data.featuredEvents ?? []).filter((e): e is EventItem => e != null) as featuredEvent (featuredEvent.id)}
+					<EventCard event={featuredEvent} />
+				{/each}
 			</div>
-			<div class="kb-fg">
-				<div class="kb-flbl">View</div>
-				<EventsViewTabs bind:value={eventView} />
-			</div>
-
-			<EventsDateRangeFilter
-				{dateBuckets}
-				{numBuckets}
-				{sliderMinIx}
-				{sliderMaxIx}
-				{rangeStart}
-				{rangeEnd}
-				bind:startDateOpen
-				bind:endDateOpen
-				bind:startDateDisplay
-				bind:endDateDisplay
-				onSliderChange={handleSliderChange}
-				onSliderCommit={handleSliderCommit}
-				onRangeStartChange={(ts) => {
-					rangeStart = ts;
-					if (rangeStart > rangeEnd) rangeEnd = rangeStart;
-				}}
-				onRangeEndChange={(ts) => {
-					rangeEnd = ts;
-					if (rangeEnd < rangeStart) rangeStart = dateStrToTs(tsToDateStr(ts));
-				}}
-				onStartDateOpenChange={(open) => (startDateOpen = open)}
-				onEndDateOpenChange={(open) => (endDateOpen = open)}
-			/>
-
-			<!-- Facet filters -->
-			<EventsFilterBar
-				bind:costOpen
-				bind:regionOpen
-				bind:typeOpen
-				{costFilter}
-				{regionSelect}
-				{typeSelect}
-				{costValuesVisible}
-				{regionValuesVisible}
-				{typeTagsVisible}
-				{costCountsInRange}
-				{regionCountsInRange}
-				{typeGroupCountsInRange}
-				{eventTypeGroups}
-				{formatCostLabel}
-				{regionTriggerLabel}
-				onCostChange={(c: string) => (costFilter = toggleMulti(costFilter, c))}
-				onRegionChange={(r: string) => (regionSelect = toggleMulti(regionSelect, r))}
-				onTypeChange={(t: string) => (typeSelect = toggleMulti(typeSelect as string[], t))}
-				onTypeRemove={removeType}
-				onClear={clearFilters}
-			/>
-		</EventsSidebar>
-		<main class="kb-main">
-			<h2 class="sr-only">Upcoming events</h2>
-			<EventsToolbar filteredTotal={filteredTotal} />
+		</section>
+	{/if}
+	<h2 class="sr-only">Upcoming events</h2>
+			<EventsToolbar filteredTotal={filters.filteredTotal} />
 
 			{#if eventView === 'cards'}
-				{#if filtered.length === 0}
-					<div class="kb-empty-state" role="status">
-						<p class="kb-empty-state__message">No events match your filters.</p>
-						<button type="button" class="kb-empty-state__cta" onclick={clearFilters}>Clear filters</button>
+				{#if filters.filtered.length === 0}
+					<div class="text-center py-12 px-6 text-[var(--muted-foreground)]" role="status">
+						<p class="m-0 mb-4 text-base">No events match your filters.</p>
+						<button type="button" class="inline-block px-3 py-1.5 font-sans text-xs font-semibold text-[var(--foreground)] bg-transparent border border-[var(--border)] rounded-[var(--radius)] cursor-pointer hover:bg-[var(--color-mugwort-300)] hover:border-[var(--color-mugwort-300)] hover:text-white transition-colors" onclick={handleClearFilters}>Clear filters</button>
 					</div>
 				{:else}
-					<div class="kb-grid kb-event-cards">
-						{#each paginatedList as event, i (event.slug ?? event.id)}
-							<EventCard {event} index={i + (currentPage - 1) * EVENTS_PAGE_SIZE} />
+					<div class="grid grid-cols-[repeat(auto-fill,minmax(310px,1fr))] gap-5">
+						{#each filters.paginatedList as event, i (event.slug ?? event.id)}
+							<EventCard {event} index={i + (filters.currentPage - 1) * filters.EVENTS_PAGE_SIZE} />
 						{/each}
 					</div>
 				{/if}
 			{:else if eventView === 'list'}
-				{#if filtered.length === 0}
-					<div class="kb-empty-state" role="status">
-						<p class="kb-empty-state__message">No events match your filters.</p>
-						<button type="button" class="kb-empty-state__cta" onclick={clearFilters}>Clear filters</button>
+				{#if filters.filtered.length === 0}
+					<div class="text-center py-12 px-6 text-[var(--muted-foreground)]" role="status">
+						<p class="m-0 mb-4 text-base">No events match your filters.</p>
+						<button type="button" class="inline-block px-3 py-1.5 font-sans text-xs font-semibold text-[var(--foreground)] bg-transparent border border-[var(--border)] rounded-[var(--radius)] cursor-pointer hover:bg-[var(--color-mugwort-300)] hover:border-[var(--color-mugwort-300)] hover:text-white transition-colors" onclick={handleClearFilters}>Clear filters</button>
 					</div>
 				{:else}
-					<ul class="kb-elist kb-elist-eb">
-						{#each paginatedList as event, i (event.slug ?? event.id)}
+					<ul class="list-none m-0 p-0 flex flex-col gap-4">
+						{#each filters.paginatedList as event, i (event.slug ?? event.id)}
 							<li>
-								<EventListItem {event} index={i + (currentPage - 1) * EVENTS_PAGE_SIZE} />
+								<EventListItem {event} index={i + (filters.currentPage - 1) * filters.EVENTS_PAGE_SIZE} />
 							</li>
 						{/each}
 					</ul>
@@ -1003,63 +649,99 @@ let costFilter = $state<string[]>([]);
 					isMobile={isMobile}
 				/>
 			{/if}
-			{#if (eventView === 'cards' || eventView === 'list') && totalPages > 1}
-				<nav class="kb-pagi" aria-label="Events pagination">
-					<button
-						type="button"
-						class="kb-pbtn"
-						disabled={currentPage <= 1}
-						onclick={() => goToPage(currentPage - 1)}
-						aria-label="Previous page"
-					>
-						<ChevronLeftIcon class="size-4" aria-hidden="true" />
-					</button>
-					{#each Array.from({ length: totalPages }, (_, i) => i + 1) as pageNum}
-						<button
-							type="button"
-							class="kb-pbtn"
-							class:active={pageNum === currentPage}
-							aria-current={pageNum === currentPage ? 'page' : undefined}
-							onclick={() => goToPage(pageNum)}
-						>
-							{pageNum}
-						</button>
-					{/each}
-					<button
-						type="button"
-						class="kb-pbtn"
-						disabled={currentPage >= totalPages}
-						onclick={() => goToPage(currentPage + 1)}
-						aria-label="Next page"
-					>
-						<ChevronRightIcon class="size-4" aria-hidden="true" />
-					</button>
-				</nav>
+			{#if (eventView === 'cards' || eventView === 'list') && filters.totalPages > 1}
+				<Pagination
+					class="pt-6"
+					count={filters.filteredTotal}
+					perPage={filters.EVENTS_PAGE_SIZE}
+					bind:page={pageBinding}
+				>
+					{#snippet children({ pages, currentPage })}
+						<PaginationContent>
+							<PaginationItem>
+								<PaginationPrevious />
+							</PaginationItem>
+							{#each pages as p (p.key)}
+								{#if p.type === 'ellipsis'}
+									<PaginationItem>
+										<PaginationEllipsis />
+									</PaginationItem>
+								{:else}
+									<PaginationItem>
+										<PaginationLink page={p} isActive={currentPage === p.value}>
+											{p.value}
+										</PaginationLink>
+									</PaginationItem>
+								{/if}
+							{/each}
+							<PaginationItem>
+								<PaginationNext />
+							</PaginationItem>
+						</PaginationContent>
+					{/snippet}
+				</Pagination>
 			{/if}
-		</main>
+{/snippet}
+{#snippet sidebarRight()}
+	{#if !isDesktopLayout.current}
+				<EventsRightSidebar
+					calendarSelectedEvent={calendarSelectedEvent}
+					{eventView}
+					sidebarFeatured={sidebarFeatured}
+					sidebarCalendarValue={sidebarCalendarValue}
+					sidebarWeekUpcoming={sidebarWeekUpcoming}
+					sidebarCalendarInView={sidebarCalendarInView}
+					mapboxToken={data.mapboxToken ?? undefined}
+					onClose={() => {
+						calendarSelectedId = null;
+						eventDetailsOpen = false;
+					}}
+				/>
+			{/if}
+{/snippet}
 
-		{#if !isMobile.current}
-			<EventsRightSidebar
-				calendarSelectedEvent={calendarSelectedEvent}
-				{eventView}
-				sidebarFeatured={sidebarFeatured}
-				sidebarCalendarValue={sidebarCalendarValue}
-				sidebarWeekUpcoming={sidebarWeekUpcoming}
-				sidebarCalendarInView={sidebarCalendarInView}
-				mapboxToken={data.mapboxToken ?? undefined}
-				onClose={() => {
-					calendarSelectedId = null;
-					eventDetailsOpen = false;
-				}}
-			/>
-		{/if}
-	</div>
+<div>
+	<KbHero
+		coil="events"
+		eyebrow="Knowledge Basket · Coil 1"
+		title="Events"
+		description="Indigenous gatherings, trainings, and cultural events across the Sierra Nevada bioregion and California."
+		{weave}
+		{stats}
+	/>
 
-	<div class="kb-subbanner">
+	<CoilTheme coil="events">
+		<!-- Inline layout so left sidebar is a direct child (no snippet) – fixes interaction in filter bar -->
+		<div
+			class="coil-layout min-h-[calc(100vh-220px)] flex flex-col md:flex-row flex-nowrap w-full"
+			role="presentation"
+		>
+			<div class="coil-layout__left order-1 shrink-0 overflow-visible">
+				<EventsSidebar
+					{filters}
+					bind:eventView
+					formatCostLabel={formatCostLabel}
+					regionTriggerLabel={regionTriggerLabel}
+					onTypeRemove={removeType}
+					onClear={handleClearFilters}
+				/>
+			</div>
+			<aside
+				class="coil-layout__right order-3 shrink-0 w-full min-[960px]:w-[320px] min-[960px]:max-w-[320px] [&:empty]:hidden"
+			>
+				{@render sidebarRight?.()}
+			</aside>
+			<main class="coil-layout__main order-2 flex-1 min-w-0 p-7 md:p-8">
+				{@render children?.()}
+			</main>
+		</div>
+	</CoilTheme>
+
+	<div class="flex items-center justify-between gap-6 px-10 py-7 bg-[var(--granite-200,var(--slate-lt))] border-t-[3px] border-[var(--granite-200,var(--teal))] flex-wrap">
 		<div>
 			<h3>Know of an event we should list?</h3>
 			<p>Submit Indigenous-led and Indigenous-serving events for IFS staff review.</p>
 		</div>
-		<a href="/events/submit" class="kb-subbtn">Submit an Event</a>
+		<a href="/events/submit" class="font-sans text-sm font-bold bg-[var(--teal)] text-white rounded-[var(--radius)] px-[26px] py-3 whitespace-nowrap hover:brightness-110 transition-[filter] tracking-[0.03em] no-underline inline-flex items-center justify-center flex-none">Submit an Event</a>
 	</div>
 </div>

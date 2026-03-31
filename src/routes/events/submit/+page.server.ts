@@ -9,7 +9,7 @@ const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 const EXT_MAP: Record<string, string> = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' };
 
 export const actions: Actions = {
-	default: async ({ request }) => {
+	default: async ({ request, locals }) => {
 		const formData = await request.formData();
 		const event_name = (formData.get('event_name') as string)?.trim();
 		const host_org = (formData.get('host_org') as string)?.trim();
@@ -115,13 +115,18 @@ export const actions: Actions = {
 			lng: Number.isFinite(lng) ? lng : undefined,
 			type: event_type || undefined,
 			types: event_types.length > 0 ? event_types : undefined,
-			imageUrl
+			imageUrl,
+			contactName: contact_name || undefined,
+			contactEmail: email || undefined,
+			submittedById: locals.user?.id,
+			status: 'pending',
+			source: 'submission'
 		});
 
 		return {
 			success: true,
 			message:
-				'Thank you! Your event has been submitted and is now live. IFS staff may follow up within 3–5 business days.'
+				'Thank you! Your event has been submitted for review. Our moderation team will review it shortly.'
 		};
 	}
 };

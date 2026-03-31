@@ -1,3 +1,6 @@
+import { getPublishedResources } from '$lib/server/toolbox';
+
 export async function load() {
-	return { toolbox: [] };
+	const toolbox = await getPublishedResources();
+	return { toolbox };
 }

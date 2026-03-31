@@ -5,6 +5,7 @@
  */
 import ical from 'node-ical';
 import type { EventItem } from '$lib/data/kb';
+import { stripHtml } from '$lib/utils/format';
 
 const ICS_FEED_URL = 'https://newsfromnativecalifornia.com/events/list/?ical=1';
 
@@ -13,12 +14,6 @@ function toMMDDYYYY(d: Date): string {
 	const m = d.getMonth() + 1;
 	const day = d.getDate();
 	return `${String(m).padStart(2, '0')}/${String(day).padStart(2, '0')}/${d.getFullYear()}`;
-}
-
-/** Strip basic HTML for description */
-function stripHtml(s: string): string {
-	if (!s || typeof s !== 'string') return '';
-	return s.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
 }
 
 /** Source label for imported events */
@@ -60,6 +55,7 @@ export async function fetchEventsFromIcalFeed(
 
 			items.push({
 				id,
+				slug: id,
 				title: (ev.summary ?? 'Untitled event').trim(),
 				coil: 'events',
 				description: stripHtml(ev.description ?? ''),

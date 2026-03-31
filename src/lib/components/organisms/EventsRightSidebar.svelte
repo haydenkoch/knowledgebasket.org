@@ -1,23 +1,18 @@
 <script lang="ts">
-	import { Calendar } from '$lib/components/ui/calendar/index.js';
-	import EventCard from '$lib/components/molecules/EventCard.svelte';
-	import CaliforniaMap from '$lib/components/organisms/CaliforniaMap.svelte';
-	import { formatEventDateShort } from '$lib/utils/format';
 	import type { EventItem } from '$lib/data/kb';
-	import type { CalendarDate } from '@internationalized/date';
+	import EventCard from '$lib/components/molecules/EventCard.svelte';
+	import { formatEventTime } from '$lib/utils/format';
 
-	type EventView = 'cards' | 'list' | 'calendar';
-
-	type Props = {
-		calendarSelectedEvent: EventItem | null;
-		eventView: EventView;
+	interface Props {
+		calendarSelectedEvent: EventItem | null | undefined;
+		eventView: string;
 		sidebarFeatured: EventItem[];
-		sidebarCalendarValue: CalendarDate;
+		sidebarCalendarValue: unknown;
 		sidebarWeekUpcoming: EventItem[];
 		sidebarCalendarInView: EventItem[];
-		mapboxToken?: string | null;
+		mapboxToken?: string;
 		onClose: () => void;
-	};
+	}
 
 	let {
 		calendarSelectedEvent,
@@ -31,76 +26,136 @@
 	}: Props = $props();
 </script>
 
-<aside class="kb-sidebar kb-refine-sidebar kb-event-sidebar" aria-label="Event details and featured events">
+<div class="kb-right-sidebar">
 	{#if calendarSelectedEvent}
-		<button
-			type="button"
-			class="kb-event-sidebar__close"
-			onclick={onClose}
-			aria-label="Close event details"
-		>
-			Close
-		</button>
-	{/if}
-
-	{#if calendarSelectedEvent}
-		<div class="kb-event-sidebar__cards kb-event-sidebar__cards--vertical">
-			<EventCard event={calendarSelectedEvent} index={0} class="kb-event-sidebar__card" />
+		<!-- Event detail panel -->
+		<div class="kb-rsidebar-panel">
+			<div class="kb-rsidebar-header">
+				<h3 class="kb-rsidebar-title">Event Details</h3>
+				<button type="button" onclick={onClose} class="kb-rsidebar-close" aria-label="Close panel">×</button>
+			</div>
+			<div class="kb-rsidebar-body">
+				<h4 class="font-semibold text-base mb-1">{calendarSelectedEvent.title}</h4>
+				{#if calendarSelectedEvent.startDate}
+					<p class="text-sm text-muted-foreground mb-1">
+						{new Date(calendarSelectedEvent.startDate).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+						{#if calendarSelectedEvent.startDate}
+							· {formatEventTime(calendarSelectedEvent.startDate)}
+						{/if}
+					</p>
+				{/if}
+				{#if calendarSelectedEvent.location}
+					<p class="text-sm text-muted-foreground mb-3">📍 {calendarSelectedEvent.location}</p>
+				{/if}
+				{#if calendarSelectedEvent.slug}
+					<a href="/events/{calendarSelectedEvent.slug}" class="kb-rsidebar-cta">View event →</a>
+				{/if}
+			</div>
 		</div>
-	{:else}
-		{#if eventView === 'cards'}
-			<p class="kb-date-graph__label">Featured events</p>
-			{#if sidebarFeatured.length > 0}
-				<ul class="kb-event-sidebar__list">
-					{#each sidebarFeatured as ev (ev.id)}
+	{:else if eventView === 'cards' || eventView === 'list'}
+		<!-- Upcoming this week -->
+		{#if sidebarWeekUpcoming.length > 0}
+			<div class="kb-rsidebar-panel">
+				<div class="kb-rsidebar-header">
+					<h3 class="kb-rsidebar-title">This Week</h3>
+				</div>
+				<ul class="kb-rsidebar-list">
+					{#each sidebarWeekUpcoming as event}
 						<li>
-							<a href="/events/{ev.slug ?? ev.id}" class="kb-event-sidebar__list-item">
-								<span class="kb-event-sidebar__list-title">{ev.title}</span>
-								<span class="kb-event-sidebar__list-date">{formatEventDateShort(ev.startDate, ev.endDate)}</span>
+							<a href="/events/{event.slug}" class="kb-rsidebar-item">
+								<span class="kb-rsidebar-item-title">{event.title}</span>
+								{#if event.startDate}
+									<span class="kb-rsidebar-item-date">{new Date(event.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+								{/if}
 							</a>
 						</li>
 					{/each}
 				</ul>
-			{:else}
-				<p class="kb-event-sidebar__empty">No events in this range.</p>
-			{/if}
-		{:else if eventView === 'list'}
-			<p class="kb-date-graph__label">This week</p>
-			<Calendar
-				type="single"
-				value={sidebarCalendarValue}
-				class="kb-event-sidebar__calendar rounded-md border shadow-sm"
-				numberOfMonths={1}
-			/>
-			{#if sidebarWeekUpcoming.length > 0}
-				<div class="kb-event-sidebar__cards kb-event-sidebar__cards--vertical">
-					{#each sidebarWeekUpcoming as ev, i (ev.slug ?? ev.id)}
-						<EventCard event={ev} index={i} class="kb-event-sidebar__card" />
-					{/each}
-				</div>
-			{:else}
-				<p class="kb-event-sidebar__empty">No events in this range.</p>
-			{/if}
-			<div class="kb-event-sidebar__map">
-				<CaliforniaMap token={mapboxToken ?? undefined} />
 			</div>
-		{:else}
-			<p class="kb-date-graph__label">This calendar</p>
-			<Calendar
-				type="single"
-				value={sidebarCalendarValue}
-				class="kb-event-sidebar__calendar rounded-md border shadow-sm"
-				numberOfMonths={1}
-			/>
-			{#if sidebarCalendarInView.length > 0}
-				<div class="kb-event-sidebar__cards kb-event-sidebar__cards--vertical">
-					{#each sidebarCalendarInView as ev, i (ev.slug ?? ev.id)}
-						<EventCard event={ev} index={i} class="kb-event-sidebar__card" />
-					{/each}
+		{/if}
+	{:else if eventView === 'calendar'}
+		{#if sidebarCalendarInView.length > 0}
+			<div class="kb-rsidebar-panel">
+				<div class="kb-rsidebar-header">
+					<h3 class="kb-rsidebar-title">In View</h3>
 				</div>
-			{:else}
-				<p class="kb-event-sidebar__empty">No events in this range.</p>
-			{/if}
+				<ul class="kb-rsidebar-list">
+					{#each sidebarCalendarInView.slice(0, 6) as event}
+						<li>
+							<a href="/events/{event.slug}" class="kb-rsidebar-item">
+								<span class="kb-rsidebar-item-title">{event.title}</span>
+								{#if event.startDate}
+									<span class="kb-rsidebar-item-date">{new Date(event.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+								{/if}
+							</a>
+						</li>
+					{/each}
+				</ul>
+			</div>
 		{/if}
 	{/if}
-</aside>
+</div>
+
+<style>
+.kb-right-sidebar {
+	padding: 16px 14px;
+}
+.kb-rsidebar-panel {
+	margin-bottom: 20px;
+}
+.kb-rsidebar-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	margin-bottom: 10px;
+}
+.kb-rsidebar-title {
+	font-size: 11px;
+	font-weight: 700;
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+	color: var(--muted-foreground);
+	margin: 0;
+}
+.kb-rsidebar-close {
+	font-size: 18px;
+	border: none;
+	background: transparent;
+	cursor: pointer;
+	color: var(--muted-foreground);
+	line-height: 1;
+}
+.kb-rsidebar-body {
+	padding: 12px;
+	background: var(--card);
+	border: 1px solid var(--border);
+	border-radius: 8px;
+}
+.kb-rsidebar-cta {
+	font-size: 13px;
+	font-weight: 600;
+	color: var(--primary);
+	text-decoration: none;
+}
+.kb-rsidebar-list {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 1px;
+}
+.kb-rsidebar-item {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 6px 8px;
+	border-radius: 5px;
+	text-decoration: none;
+	color: var(--foreground);
+	gap: 8px;
+}
+.kb-rsidebar-item:hover { background: var(--accent); }
+.kb-rsidebar-item-title { font-size: 13px; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.kb-rsidebar-item-date { font-size: 11px; color: var(--muted-foreground); flex-shrink: 0; }
+</style>

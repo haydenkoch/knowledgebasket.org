@@ -221,6 +221,16 @@
   --color-kb-gold: var(--gold);
 }
 
+/* Coil theming: primary color per coil (Events = lakebed; future coils = other palette vars) */
+[data-coil="events"] {
+  --primary: var(--color-lakebed-950);
+  --primary-foreground: var(--color-alpine-snow-100);
+  --ring: color-mix(in srgb, var(--color-lakebed-950) 50%, transparent);
+  --sidebar-primary: var(--color-lakebed-950);
+  --sidebar-primary-foreground: var(--color-alpine-snow-100);
+  --sidebar-ring: color-mix(in srgb, var(--color-lakebed-950) 50%, transparent);
+}
+
 .dark {
   /* Primaries only */
   --background: var(--color-lakebed-950);

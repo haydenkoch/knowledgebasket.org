@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import { page } from '$app/stores';
-	import RichTextEditor from '$lib/components/RichTextEditor.svelte';
+	import RichTextEditor from '$lib/components/molecules/RichTextEditor.svelte';
 	import {
 		jobTypeOptions,
 		jobSectorOptions,

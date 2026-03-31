@@ -1,215 +1,83 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import { browser } from '$app/environment';
-	import { onMount, onDestroy } from 'svelte';
-	import { coilLabels, getCoilPath, type CoilKey, type BaseItem } from '$lib/data/kb';
-	import { Search } from '@lucide/svelte';
 
-	type SearchResults = Partial<Record<CoilKey, BaseItem[]>>;
-
-	/** 'light' = white box for hero/home (mockup style); 'dark' = pill for header */
-	let { variant = 'light' }: { variant?: 'light' | 'dark' } = $props();
+	let { variant = 'default' }: { variant?: 'default' | 'light' } = $props();
 
 	let query = $state('');
-	let results = $state<SearchResults | null>(null);
+	let results = $state<{ coil: string; title: string; slug: string; href: string }[]>([]);
 	let open = $state(false);
-	let containerEl: HTMLDivElement | undefined;
+	let loading = $state(false);
+	let timer: ReturnType<typeof setTimeout>;
 
-	const DEBOUNCE_MS = 180;
-	let debounceId: ReturnType<typeof setTimeout> | null = null;
+	const coilPaths: Record<string, string> = {
+		events: '/events',
+		funding: '/funding',
+		redpages: '/red-pages',
+		jobs: '/jobs',
+		toolbox: '/toolbox'
+	};
 
-	async function runSearch() {
-		if (debounceId) clearTimeout(debounceId);
-		debounceId = setTimeout(async () => {
-			debounceId = null;
-			const q = query.trim();
-			if (q.length < 2) {
-				results = null;
-				open = false;
-				return;
+	async function search(q: string) {
+		if (q.trim().length < 2) { results = []; open = false; return; }
+		loading = true;
+		try {
+			const res = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
+			const data = await res.json();
+			const flat: typeof results = [];
+			for (const [coil, items] of Object.entries(data)) {
+				for (const item of (items as { title: string; slug: string }[]).slice(0, 3)) {
+					flat.push({ coil, title: item.title, slug: item.slug, href: `${coilPaths[coil] ?? `/${coil}`}/${item.slug}` });
+				}
 			}
-			try {
-				const res = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
-				const data = await res.json();
-				results = data.results ?? null;
-			} catch {
-				results = null;
-			}
-			open = true;
-		}, DEBOUNCE_MS);
+			results = flat;
+			open = flat.length > 0;
+		} catch { /* ignore */ }
+		loading = false;
 	}
 
-	function onInput() {
-		runSearch();
+	function onInput(e: Event) {
+		query = (e.currentTarget as HTMLInputElement).value;
+		clearTimeout(timer);
+		timer = setTimeout(() => search(query), 280);
 	}
 
-	function goToItem(coil: CoilKey, slug: string) {
-		const path = getCoilPath(coil);
-		open = false;
-		query = '';
-		results = null;
-		goto(`/${path}/${slug}`);
+	function onSubmit(e: Event) {
+		e.preventDefault();
+		if (query.trim()) goto(`/events?q=${encodeURIComponent(query)}`);
 	}
-
-	function handleClickOutside(e: MouseEvent) {
-		if (containerEl && !containerEl.contains(e.target as Node)) open = false;
-	}
-
-	onMount(() => {
-		if (browser) document.addEventListener('click', handleClickOutside);
-	});
-	onDestroy(() => {
-		if (browser) document.removeEventListener('click', handleClickOutside);
-		if (debounceId) clearTimeout(debounceId);
-	});
-
-	const totalCount = $derived(
-		results ? Object.values(results).reduce((sum, arr) => sum + (arr?.length ?? 0), 0) : 0
-	);
 </script>
 
-<div class="kb-search-container kb-search-container--{variant}" bind:this={containerEl}>
-	<div class="kb-search-input-wrap">
-		<div class="kb-search-icon">
-			<Search class="size-4" aria-hidden="true" />
+<div class="relative">
+	<form onsubmit={onSubmit} role="search">
+		<label for="kb-global-search" class="sr-only">Search Knowledge Basket</label>
+		<div class="relative">
+			<svg class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true">
+				<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>
+			</svg>
+			<input
+				id="kb-global-search"
+				type="search"
+				placeholder="Search events, funding, businesses, jobs…"
+				value={query}
+				oninput={onInput}
+				onfocus={() => { if (results.length) open = true; }}
+				onblur={() => setTimeout(() => open = false, 150)}
+				class="w-full rounded-lg border border-input bg-background py-2 pl-10 pr-4 text-sm shadow-xs focus:outline-none focus:ring-2 focus:ring-ring {variant === 'light' ? 'bg-white/90' : ''}"
+				autocomplete="off"
+			/>
 		</div>
-		<input
-			type="search"
-			autocomplete="off"
-			role="combobox"
-			aria-expanded={open && totalCount > 0}
-			aria-haspopup="listbox"
-			aria-controls="kb-search-results"
-			bind:value={query}
-			oninput={onInput}
-			onfocus={() => query.length >= 2 && (open = true)}
-			placeholder="Search events, funding, Red Pages, jobs, and tools…"
-			class="kb-search-input"
-		/>
-	</div>
+	</form>
 
-	{#if open && (results || query.trim().length >= 2)}
-		<div
-			id="kb-search-results"
-			role="listbox"
-			class="kb-search-dropdown absolute left-0 right-0 top-full z-50 mt-2 max-h-[min(70vh,420px)] overflow-auto rounded-xl border border-[var(--color-kb-slate-light)] bg-white shadow-xl"
-		>
-			{#if results && Object.keys(results).length > 0}
-				{#each Object.entries(results) as [coilKey, items]}
-					{#if items && items.length}
-						<div class="border-b border-[var(--color-kb-slate-light)] last:border-b-0">
-							<div
-								class="sticky top-0 bg-[var(--color-kb-bone)] px-4 py-2 text-xs font-bold uppercase tracking-wider text-[var(--color-kb-slate)]"
-							>
-								{coilLabels[coilKey as CoilKey]}
-							</div>
-							<ul class="py-1">
-								{#each items as item (item.id)}
-									<li role="option" aria-selected="false">
-										<button
-											type="button"
-											class="flex w-full flex-col gap-0.5 px-4 py-2.5 text-left hover:bg-[var(--color-kb-teal-light)]/50 focus:bg-[var(--color-kb-teal-light)]/50 focus:outline-none"
-											onclick={() => goToItem(coilKey as CoilKey, item.id)}
-										>
-											<span class="font-semibold text-[var(--color-kb-navy)]">{item.title}</span>
-											{#if item.description}
-												<span class="line-clamp-1 text-xs text-[var(--color-kb-slate)]">
-													{item.description}
-												</span>
-											{/if}
-										</button>
-									</li>
-								{/each}
-							</ul>
-						</div>
-					{/if}
-				{/each}
-			{:else if query.trim().length >= 2}
-				<div class="px-4 py-6 text-center text-sm text-[var(--color-kb-slate)]">
-					No results for "{query}". Try different words or browse a coil below.
-				</div>
-			{/if}
-		</div>
+	{#if open && results.length}
+		<ul class="absolute z-50 mt-1 w-full rounded-md border border-border bg-popover text-popover-foreground shadow-md overflow-hidden">
+			{#each results as r}
+				<li>
+					<a href={r.href} class="flex items-center gap-2 px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground">
+						<span class="shrink-0 rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium uppercase text-muted-foreground">{r.coil}</span>
+						<span class="truncate">{r.title}</span>
+					</a>
+				</li>
+			{/each}
+		</ul>
 	{/if}
 </div>
-
-<style>
-	.kb-search-container {
-		position: relative;
-		width: 100%;
-	}
-	.kb-search-container--light {
-		max-width: 100%;
-	}
-	.kb-search-container--dark {
-		max-width: 32rem;
-	}
-	.kb-search-input-wrap {
-		position: relative;
-		display: flex;
-		align-items: center;
-		width: 100%;
-		overflow: hidden;
-	}
-	.kb-search-container--light .kb-search-input-wrap {
-		background: #fff;
-		border: 1px solid var(--rule);
-		border-radius: var(--r);
-		box-shadow: var(--sh);
-	}
-	.kb-search-container--dark .kb-search-input-wrap {
-		border-radius: 9999px;
-		border: 1px solid rgba(46, 107, 126, 0.4);
-		background: rgba(26, 43, 60, 0.6);
-		backdrop-filter: blur(8px);
-		box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
-	}
-	.kb-search-icon {
-		position: absolute;
-		left: 0;
-		top: 50%;
-		transform: translateY(-50%);
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		pointer-events: none;
-	}
-	.kb-search-container--light .kb-search-icon {
-		left: 14px;
-		color: var(--muted);
-	}
-	.kb-search-container--dark .kb-search-icon {
-		left: 1rem;
-		color: var(--color-kb-teal-light);
-	}
-	.kb-search-input {
-		width: 100%;
-		border: none;
-		background: transparent;
-		outline: none;
-		font-family: var(--font-sans);
-		font-size: 15px;
-	}
-	.kb-search-container--light .kb-search-input {
-		padding: 14px 18px 14px 44px;
-		color: var(--dark);
-	}
-	.kb-search-container--light .kb-search-input::placeholder {
-		color: var(--muted);
-	}
-	.kb-search-container--dark .kb-search-input {
-		padding: 12px 1rem 12px 2.75rem;
-		font-size: 14px;
-		color: #fff;
-	}
-	.kb-search-container--dark .kb-search-input::placeholder {
-		color: rgba(255, 255, 255, 0.5);
-	}
-	.kb-search-container--light .kb-search-input-wrap:focus-within {
-		border-color: var(--teal);
-		box-shadow: 0 0 0 2px rgba(46, 107, 126, 0.2);
-	}
-	.kb-search-dropdown {
-		scroll-behavior: smooth;
-	}
-</style>

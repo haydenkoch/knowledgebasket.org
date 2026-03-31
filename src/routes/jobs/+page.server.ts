@@ -1,3 +1,6 @@
+import { getPublishedJobs } from '$lib/server/jobs';
+
 export async function load() {
-	return { jobs: [] };
+	const jobs = await getPublishedJobs();
+	return { jobs };
 }

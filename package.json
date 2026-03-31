@@ -75,6 +75,7 @@
 		"mapbox-gl": "^3.19.1",
 		"meilisearch": "^0.55.0",
 		"node-ical": "^0.25.5",
-		"temporal-polyfill": "^0.3.2"
+		"temporal-polyfill": "^0.3.2",
+		"tinymce": "^8.3.2"
 	}
 }

@@ -1,9 +1,15 @@
-import { getEvents } from '$lib/server/events';
+import { getEvents, getEventById } from '$lib/server/events';
+import { getListBySlug, getListEventIds } from '$lib/server/event-lists';
 import { env } from '$env/dynamic/private';
 
 export async function load({ url }) {
 	const mapboxToken = env.MAPBOX_ACCESS_TOKEN ?? env.MAPBOX_TOKEN ?? null;
-	const events = await getEvents();
+	const [events, featuredList] = await Promise.all([getEvents(), getListBySlug('featured')]);
+	let featuredEvents: Awaited<ReturnType<typeof getEventById>>[] = [];
+	if (featuredList) {
+		const ids = await getListEventIds(featuredList.id);
+		featuredEvents = (await Promise.all(ids.map((id) => getEventById(id)))).filter(Boolean) as Awaited<ReturnType<typeof getEventById>>[];
+	}
 
 	const view = url.searchParams.get('view');
 	const mode = url.searchParams.get('mode');
@@ -29,6 +35,7 @@ export async function load({ url }) {
 
 	return {
 		events,
+		featuredEvents,
 		initialView,
 		initialCalendarMode,
 		initialCalendarYear,

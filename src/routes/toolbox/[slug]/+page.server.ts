@@ -1,5 +1,8 @@
-import type { ToolboxItem } from '$lib/data/kb';
+import { getResourceBySlug } from '$lib/server/toolbox';
+import { error } from '@sveltejs/kit';
 
-export async function load() {
-	return { item: null as ToolboxItem | null };
+export async function load({ params }) {
+	const item = await getResourceBySlug(params.slug);
+	if (!item) throw error(404, 'Resource not found');
+	return { item };
 }

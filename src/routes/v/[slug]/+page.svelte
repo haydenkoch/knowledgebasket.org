@@ -2,6 +2,7 @@
 	import EventCard from '$lib/components/molecules/EventCard.svelte';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import MapPinIcon from '@lucide/svelte/icons/map-pin';
+	import * as Breadcrumb from '$lib/components/ui/breadcrumb/index.js';
 
 	let { data } = $props();
 	const venue = $derived(data.venue);
@@ -25,12 +26,19 @@
 </svelte:head>
 
 <div class="kb-event-detail" style="--kb-accent: var(--teal)">
-	<nav class="kb-breadcrumb" aria-label="Breadcrumb">
-		<ol class="kb-breadcrumb-list">
-			<li><a href="/events">Events</a></li>
-			<li><span>{venue.name}</span></li>
-		</ol>
-	</nav>
+	<div class="kb-event-header-wrap">
+		<Breadcrumb.Root>
+			<Breadcrumb.List>
+				<Breadcrumb.Item>
+					<Breadcrumb.Link href="/events">Events</Breadcrumb.Link>
+				</Breadcrumb.Item>
+				<Breadcrumb.Separator />
+				<Breadcrumb.Item>
+					<Breadcrumb.Page>{venue.name}</Breadcrumb.Page>
+				</Breadcrumb.Item>
+			</Breadcrumb.List>
+		</Breadcrumb.Root>
+	</div>
 
 	<header class="kb-venue-header">
 		<h1 class="kb-venue-title">{venue.name}</h1>
@@ -70,19 +78,15 @@
 </div>
 
 <style>
-	.kb-breadcrumb-list {
-		display: flex;
-		flex-wrap: wrap;
-		list-style: none;
-		margin: 0;
-		padding: 0;
-		gap: 0.25rem;
-	}
-	.kb-breadcrumb li:not(:last-child)::after {
-		content: ' › ';
+	.kb-event-header-wrap {
+		max-width: 1200px;
+		margin: 0 auto;
+		padding: 1rem 1.5rem 0;
 	}
 	.kb-venue-header {
-		margin-bottom: 2rem;
+		max-width: 1200px;
+		margin: 0 auto;
+		padding: 1.5rem 1.5rem 0;
 	}
 	.kb-venue-title {
 		font-size: 1.75rem;
@@ -101,8 +105,16 @@
 	.kb-venue-website {
 		display: inline-block;
 		font-size: 0.875rem;
-		text-decoration: underline;
 		margin-right: 1rem;
+	}
+	.kb-venue-map-link:hover,
+	.kb-venue-website:hover {
+		text-decoration: underline;
+	}
+	.kb-venue-events {
+		max-width: 1200px;
+		margin: 0 auto;
+		padding: 0 1.5rem;
 	}
 	.kb-venue-events h2 {
 		font-size: 1.25rem;
@@ -120,6 +132,8 @@
 		color: var(--muted-foreground);
 	}
 	.kb-venue-back {
-		margin-top: 2rem;
+		max-width: 1200px;
+		margin: 1.5rem auto 2rem;
+		padding: 0 1.5rem;
 	}
 </style>

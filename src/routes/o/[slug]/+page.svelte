@@ -2,6 +2,7 @@
 	import EventCard from '$lib/components/molecules/EventCard.svelte';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
+	import * as Breadcrumb from '$lib/components/ui/breadcrumb/index.js';
 
 	let { data } = $props();
 	const organization = $derived(data.organization);
@@ -11,15 +12,26 @@
 <svelte:head>
 	<title>{organization.name} | Organizer | Knowledge Basket</title>
 	<meta name="description" content={organization.description ?? `Upcoming events from ${organization.name}.`} />
+	<meta property="og:title" content="{organization.name} | Organizer" />
+	<meta property="og:description" content={organization.description ?? `Upcoming events from ${organization.name}.`} />
+	{#if organization.logoUrl}<meta property="og:image" content={organization.logoUrl} />{/if}
+	<meta property="og:type" content="website" />
 </svelte:head>
 
 <div class="kb-event-detail" style="--kb-accent: var(--teal)">
-	<nav class="kb-breadcrumb" aria-label="Breadcrumb">
-		<ol class="kb-breadcrumb-list">
-			<li><a href="/events">Events</a></li>
-			<li><span>{organization.name}</span></li>
-		</ol>
-	</nav>
+	<div class="kb-event-header-wrap">
+		<Breadcrumb.Root>
+			<Breadcrumb.List>
+				<Breadcrumb.Item>
+					<Breadcrumb.Link href="/events">Events</Breadcrumb.Link>
+				</Breadcrumb.Item>
+				<Breadcrumb.Separator />
+				<Breadcrumb.Item>
+					<Breadcrumb.Page>{organization.name}</Breadcrumb.Page>
+				</Breadcrumb.Item>
+			</Breadcrumb.List>
+		</Breadcrumb.Root>
+	</div>
 
 	<header class="kb-org-header">
 		{#if organization.logoUrl}
@@ -53,19 +65,15 @@
 </div>
 
 <style>
-	.kb-breadcrumb-list {
-		display: flex;
-		flex-wrap: wrap;
-		list-style: none;
-		margin: 0;
-		padding: 0;
-		gap: 0.25rem;
-	}
-	.kb-breadcrumb li:not(:last-child)::after {
-		content: ' › ';
+	.kb-event-header-wrap {
+		max-width: 1200px;
+		margin: 0 auto;
+		padding: 1rem 1.5rem 0;
 	}
 	.kb-org-header {
-		margin-bottom: 2rem;
+		max-width: 1200px;
+		margin: 0 auto;
+		padding: 1.5rem 1.5rem 0;
 	}
 	.kb-org-logo {
 		width: 80px;
@@ -85,7 +93,14 @@
 	}
 	.kb-org-website {
 		font-size: 0.875rem;
+	}
+	.kb-org-website:hover {
 		text-decoration: underline;
+	}
+	.kb-org-events {
+		max-width: 1200px;
+		margin: 0 auto;
+		padding: 0 1.5rem;
 	}
 	.kb-org-events h2 {
 		font-size: 1.25rem;
@@ -103,6 +118,8 @@
 		color: var(--muted-foreground);
 	}
 	.kb-org-back {
-		margin-top: 2rem;
+		max-width: 1200px;
+		margin: 1.5rem auto 2rem;
+		padding: 0 1.5rem;
 	}
 </style>

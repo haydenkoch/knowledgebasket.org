@@ -6,6 +6,7 @@
 	import { Button } from '$lib/components/ui/button/index.js';
 	import * as ButtonGroup from '$lib/components/ui/button-group/index.js';
 	import EventCard from '$lib/components/molecules/EventCard.svelte';
+	import * as Breadcrumb from '$lib/components/ui/breadcrumb/index.js';
 
 	let { data } = $props();
 	let event = $derived(data.event as EventItem);
@@ -140,12 +141,19 @@
 </svelte:head>
 
 <div class="kb-event-detail" style="--kb-accent: var(--teal)">
-	<nav class="kb-breadcrumb" aria-label="Breadcrumb">
-		<ol class="kb-breadcrumb-list">
-			<li><a href="/events">Events</a></li>
-			<li><span>{event.title}</span></li>
-		</ol>
-	</nav>
+	<div class="kb-event-header-wrap">
+		<Breadcrumb.Root>
+			<Breadcrumb.List>
+				<Breadcrumb.Item>
+					<Breadcrumb.Link href="/events">Events</Breadcrumb.Link>
+				</Breadcrumb.Item>
+				<Breadcrumb.Separator />
+				<Breadcrumb.Item>
+					<Breadcrumb.Page>{event.title}</Breadcrumb.Page>
+				</Breadcrumb.Item>
+			</Breadcrumb.List>
+		</Breadcrumb.Root>
+	</div>
 
 	<!-- Hero (Ticketmaster-style: full-width, tall) -->
 	<header class="kb-event-hero">
@@ -180,7 +188,7 @@
 			<div class="kb-event-cta-bar-inner">
 				<div class="kb-event-cta-bar-info">
 					<span class="kb-event-cta-date">{formatEventDateRange(event.startDate, event.endDate)}</span>
-					{#if event.location}<span class="kb-event-cta-venue"><MapPinIcon class="kb-location-icon" /> {event.location}</span>{/if}
+					{#if event.location}<span class="kb-event-cta-venue"><MapPinIcon class="size-[14px] shrink-0" /> {event.location}</span>{/if}
 				</div>
 				<div class="kb-event-cta-btns">
 					{#if dualCtas}
@@ -363,10 +371,213 @@
 </div>
 
 <style>
+	/* ── Content containers ───────────────────────────────── */
+	.kb-event-header-wrap,
+	.kb-event-gallery-thumbs,
+	.kb-event-detail-grid {
+		max-width: 1200px;
+		margin-left: auto;
+		margin-right: auto;
+		padding-left: 1.5rem;
+		padding-right: 1.5rem;
+	}
+	.kb-event-header-wrap {
+		padding-top: 1rem;
+		padding-bottom: 0;
+	}
+
+	/* ── Hero: full-bleed image with overlay ──────────────── */
+	.kb-event-hero {
+		position: relative;
+		width: 100%;
+		height: 280px;
+		overflow: hidden;
+		background: var(--color-lakebed-950);
+		margin-top: 0.75rem;
+	}
+	@media (min-width: 640px) {
+		.kb-event-hero {
+			height: 360px;
+		}
+	}
+	@media (min-width: 1024px) {
+		.kb-event-hero {
+			height: 440px;
+		}
+	}
+	.kb-event-hero-img {
+		position: absolute;
+		inset: 0;
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+	}
+	.kb-event-hero-overlay {
+		position: absolute;
+		inset: 0;
+		background: linear-gradient(
+			to top,
+			rgba(0, 0, 0, 0.78) 0%,
+			rgba(0, 0, 0, 0.35) 50%,
+			rgba(0, 0, 0, 0.08) 100%
+		);
+	}
+	.kb-event-hero-content {
+		position: absolute;
+		bottom: 0;
+		left: 0;
+		right: 0;
+		padding: 1.5rem;
+		color: white;
+	}
+	@media (min-width: 1024px) {
+		.kb-event-hero-content {
+			max-width: 1200px;
+			margin: 0 auto;
+			padding: 2rem 1.5rem;
+		}
+	}
+	.kb-event-hero-tags {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.375rem;
+		margin-bottom: 0.625rem;
+	}
+	.kb-event-hero-tag {
+		display: inline-block;
+		padding: 0.2rem 0.5rem;
+		background: rgba(255, 255, 255, 0.18);
+		border-radius: 4px;
+		font-size: 0.6875rem;
+		font-weight: 700;
+		letter-spacing: 0.06em;
+		text-transform: uppercase;
+		backdrop-filter: blur(4px);
+		-webkit-backdrop-filter: blur(4px);
+	}
+	.kb-event-hero-title {
+		font-family: var(--font-serif);
+		font-size: clamp(1.375rem, 4vw, 2.25rem);
+		font-weight: 700;
+		line-height: 1.15;
+		margin: 0 0 0.375rem 0;
+		color: white;
+		text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+	}
+	.kb-event-hero-host {
+		font-size: 0.9rem;
+		opacity: 0.85;
+		margin: 0;
+	}
+
+	/* ── Sticky CTA bar ──────────────────────────────────── */
+	.kb-event-cta-bar {
+		position: sticky;
+		top: 60px;
+		z-index: 40;
+		background: var(--background);
+		border-bottom: 1px solid var(--border);
+		box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+	}
+	.kb-event-cta-bar-inner {
+		max-width: 1200px;
+		margin: 0 auto;
+		padding: 0.625rem 1.5rem;
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 0.75rem;
+		flex-wrap: wrap;
+	}
+	.kb-event-cta-bar-info {
+		display: flex;
+		align-items: center;
+		gap: 0.875rem;
+		flex-wrap: wrap;
+		min-width: 0;
+	}
+	.kb-event-cta-date {
+		font-weight: 600;
+		font-size: 0.9rem;
+		white-space: nowrap;
+	}
+	.kb-event-cta-venue {
+		display: flex;
+		align-items: center;
+		gap: 0.25rem;
+		font-size: 0.875rem;
+		color: var(--muted-foreground);
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		max-width: 240px;
+	}
+	.kb-event-cta-btns {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.5rem;
+		align-items: center;
+	}
+	.kb-event-cta-btn {
+		display: inline-flex;
+		align-items: center;
+		padding: 0.5rem 1.25rem;
+		background: var(--kb-accent, var(--teal));
+		color: white;
+		font-weight: 600;
+		font-size: 0.875rem;
+		border-radius: 6px;
+		text-decoration: none;
+		white-space: nowrap;
+		transition: opacity 0.15s;
+	}
+	.kb-event-cta-btn:hover {
+		opacity: 0.9;
+		text-decoration: none;
+	}
+	.kb-event-cta-btn-secondary {
+		background: transparent;
+		border: 1.5px solid var(--kb-accent, var(--teal));
+		color: var(--kb-accent, var(--teal));
+	}
+	.kb-event-cta-btn-secondary:hover {
+		background: var(--kb-accent, var(--teal));
+		color: white;
+	}
+
+	/* ── Gallery thumbnails ──────────────────────────────── */
+	.kb-event-gallery-thumbs {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.5rem;
+		padding-top: 0.75rem;
+		padding-bottom: 0;
+	}
+	.kb-event-gallery-thumb {
+		width: 64px;
+		height: 64px;
+		padding: 0;
+		border: 2px solid transparent;
+		border-radius: 4px;
+		overflow: hidden;
+		background: var(--muted);
+		cursor: pointer;
+	}
+	.kb-event-gallery-thumb.selected {
+		border-color: var(--kb-accent, var(--teal));
+	}
+	.kb-event-gallery-thumb img {
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+	}
+
+	/* ── Main content grid ───────────────────────────────── */
 	.kb-event-detail-grid {
 		display: grid;
 		gap: 1.5rem;
-		margin-top: 1rem;
+		margin-top: 1.25rem;
+		margin-bottom: 2rem;
 	}
 	@media (min-width: 1024px) {
 		.kb-event-detail-grid {
@@ -394,6 +605,8 @@
 		color: var(--muted-foreground);
 		margin: 0;
 	}
+
+	/* ── Sidebar info cards ──────────────────────────────── */
 	.kb-event-sidebar {
 		display: flex;
 		flex-direction: column;
@@ -422,12 +635,21 @@
 		font-size: 0.8125rem;
 		color: var(--muted-foreground);
 	}
+
+	/* Link styles: no permanent underline — hover only (matches global default) */
 	.kb-event-info-link {
 		display: inline-block;
 		margin-top: 0.5rem;
 		font-size: 0.875rem;
+	}
+	.kb-event-info-link-inline {
+		color: var(--teal);
+	}
+	.kb-event-info-link-inline:hover {
 		text-decoration: underline;
 	}
+
+	/* ── CTAs ────────────────────────────────────────────── */
 	.kb-event-primary-cta {
 		display: block;
 		text-align: center;
@@ -442,42 +664,7 @@
 	}
 	.kb-event-primary-cta:hover {
 		opacity: 0.9;
-	}
-	.kb-event-back {
-		display: inline-block;
-		margin-top: 1rem;
-		font-size: 0.875rem;
-		text-decoration: underline;
-		color: var(--muted-foreground);
-	}
-	.kb-event-back:hover {
-		color: var(--foreground);
-	}
-	.kb-breadcrumb-list {
-		display: flex;
-		flex-wrap: wrap;
-		list-style: none;
-		margin: 0;
-		padding: 0;
-		gap: 0.25rem;
-		font-size: 0.875rem;
-		color: var(--muted-foreground);
-	}
-	.kb-breadcrumb a:hover {
-		color: var(--foreground);
-	}
-	.kb-breadcrumb li:not(:last-child)::after {
-		content: ' › ';
-	}
-	.kb-event-cta-btns {
-		display: flex;
-		flex-wrap: wrap;
-		gap: 0.5rem;
-		align-items: center;
-	}
-	.kb-event-cta-btn-secondary {
-		background: transparent;
-		border: 1px solid currentColor;
+		text-decoration: none;
 	}
 	.kb-event-cta-group {
 		display: flex;
@@ -489,6 +676,21 @@
 		border: 1px solid var(--kb-accent, var(--teal));
 		color: var(--kb-accent, var(--teal));
 	}
+
+	/* Back link: navigation style, no underline */
+	.kb-event-back {
+		display: inline-block;
+		margin-top: 1rem;
+		font-size: 0.875rem;
+		color: var(--muted-foreground);
+		text-decoration: none;
+	}
+	.kb-event-back:hover {
+		color: var(--foreground);
+		text-decoration: none;
+	}
+
+	/* ── Calendar links ──────────────────────────────────── */
 	.kb-event-calendar-add-links {
 		display: flex;
 		flex-wrap: wrap;
@@ -497,11 +699,10 @@
 	}
 	.kb-event-calendar-add-link {
 		font-size: 0.875rem;
-		text-decoration: underline;
+		color: var(--teal);
 	}
-	.kb-event-info-link-inline {
-		text-decoration: underline;
-	}
+
+	/* ── Related events ──────────────────────────────────── */
 	.kb-event-related {
 		margin-top: 2rem;
 	}
@@ -516,29 +717,5 @@
 		display: grid;
 		grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
 		gap: 1rem;
-	}
-	.kb-event-gallery-thumbs {
-		display: flex;
-		flex-wrap: wrap;
-		gap: 0.5rem;
-		padding: 0.5rem 0;
-	}
-	.kb-event-gallery-thumb {
-		width: 64px;
-		height: 64px;
-		padding: 0;
-		border: 2px solid transparent;
-		border-radius: 4px;
-		overflow: hidden;
-		background: var(--muted);
-		cursor: pointer;
-	}
-	.kb-event-gallery-thumb.selected {
-		border-color: var(--kb-accent, var(--teal));
-	}
-	.kb-event-gallery-thumb img {
-		width: 100%;
-		height: 100%;
-		object-fit: cover;
 	}
 </style>

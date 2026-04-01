@@ -3,6 +3,7 @@
 	import KbHero from '$lib/components/organisms/KbHero.svelte';
 	import KbTwoColumnLayout from '$lib/components/organisms/KbTwoColumnLayout.svelte';
 	import KbFilterSection from '$lib/components/organisms/KbFilterSection.svelte';
+	import { Alert, AlertDescription, AlertTitle } from '$lib/components/ui/alert/index.js';
 	import {
 		Pagination,
 		PaginationContent,
@@ -30,7 +31,9 @@
 
 	const filtered = $derived(
 		filterByFacets(
-			redpages.filter((e) => matchSearch(e, searchQuery, ['tribalAffiliation', 'serviceType', 'region'])),
+			redpages.filter((e) =>
+				matchSearch(e, searchQuery, ['tribalAffiliation', 'serviceType', 'region'])
+			),
 			{
 				serviceType: serviceTypeFilter,
 				region: regionFilter
@@ -58,13 +61,15 @@
 		regionFilter = [];
 	}
 	function initials(title: string): string {
-		return title
-			.split(/\s+/)
-			.filter(Boolean)
-			.slice(0, 2)
-			.map((w) => w[0])
-			.join('')
-			.toUpperCase() || '?';
+		return (
+			title
+				.split(/\s+/)
+				.filter(Boolean)
+				.slice(0, 2)
+				.map((w) => w[0])
+				.join('')
+				.toUpperCase() || '?'
+		);
 	}
 	/** Split long serviceType (e.g. "A: x, y, z") into separate small tags */
 	function serviceTags(serviceType?: string): string[] {
@@ -89,12 +94,22 @@
 	<rect width="200" height="400" fill="url(#wv-redpages)" />
 {/snippet}
 {#snippet stats()}
-	<div class="font-sans text-white"><strong class="text-[28px] font-bold block leading-none">{total}</strong><span class="text-xs opacity-70">Listings</span></div>
-	<div class="font-sans text-white"><strong class="text-[28px] font-bold block leading-none">{serviceTypeValues.length}</strong><span class="text-xs opacity-70">Service Types</span></div>
+	<div class="font-sans text-white">
+		<strong class="block text-[28px] leading-none font-bold">{total}</strong><span
+			class="text-xs opacity-70">Listings</span
+		>
+	</div>
+	<div class="font-sans text-white">
+		<strong class="block text-[28px] leading-none font-bold">{serviceTypeValues.length}</strong
+		><span class="text-xs opacity-70">Service Types</span>
+	</div>
 {/snippet}
 {#snippet sidebar()}
 	<div class="relative mb-7">
-		<span class="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--muted-foreground)] text-[14px] flex items-center justify-center" aria-hidden="true">🔍</span>
+		<span
+			class="absolute top-1/2 left-3 flex -translate-y-1/2 items-center justify-center text-[14px] text-[var(--muted-foreground)]"
+			aria-hidden="true">🔍</span
+		>
 		<Input
 			type="search"
 			placeholder="Search Red Pages…"
@@ -104,7 +119,11 @@
 	</div>
 	<KbFilterSection
 		title="Service Type"
-		options={serviceTypeValues.map((t) => ({ value: t, label: t, count: serviceTypeCounts[t] ?? 0 }))}
+		options={serviceTypeValues.map((t) => ({
+			value: t,
+			label: t,
+			count: serviceTypeCounts[t] ?? 0
+		}))}
 		selected={serviceTypeFilter}
 		onToggle={(val) => (serviceTypeFilter = toggle(serviceTypeFilter, val))}
 		emptyLabel="No types"
@@ -116,7 +135,11 @@
 		onToggle={(val) => (regionFilter = toggle(regionFilter, val))}
 		emptyLabel="No regions"
 	/>
-	<button type="button" class="font-sans text-xs text-[var(--teal)] cursor-pointer underline bg-transparent border-none p-0 mt-2" onclick={clearFilters}>Clear all filters</button>
+	<button
+		type="button"
+		class="mt-2 cursor-pointer border-none bg-transparent p-0 font-sans text-xs text-[var(--teal)] underline"
+		onclick={clearFilters}>Clear all filters</button
+	>
 {/snippet}
 
 <div>
@@ -130,26 +153,51 @@
 	/>
 
 	{#if featured.length > 0}
-		<section class="px-10 pt-5 pb-3 bg-[var(--color-alpine-100,var(--bone))] border-b border-[var(--rule)]" aria-label="Featured vendors">
-			<div class="font-sans text-[11px] font-bold tracking-[0.12em] uppercase text-[var(--color-elderberry-950,var(--red))] mb-[10px]">Featured vendors</div>
+		<section
+			class="border-b border-[var(--rule)] bg-[var(--color-alpine-100,var(--bone))] px-10 pt-5 pb-3"
+			aria-label="Featured vendors"
+		>
+			<div
+				class="mb-[10px] font-sans text-[11px] font-bold tracking-[0.12em] text-[var(--color-elderberry-950,var(--red))] uppercase"
+			>
+				Featured vendors
+			</div>
 			<div class="flex flex-wrap gap-3">
 				{#each featured as v (v.id)}
 					{@const tags = serviceTags(v.serviceType).slice(0, 2)}
-					<a href="/red-pages/{v.slug ?? v.id}" class="flex gap-4 items-start bg-white border-2 border-[var(--color-salmonberry-100,var(--red-lt))] rounded-lg p-4 px-[18px] no-underline text-inherit shadow-[var(--sh)] transition-[box-shadow,border-color,transform] duration-150 hover:shadow-[var(--shh)] hover:translate-x-[3px] hover:border-[var(--color-salmonberry-900,var(--red))]">
-						<div class="w-16 h-16 rounded-full bg-[var(--red)] text-white font-sans text-[22px] font-bold flex items-center justify-center flex-none">{initials(v.title)}</div>
-						<div class="flex-1 min-w-0 flex flex-col gap-1">
-							<span class="font-sans text-[11px] font-bold tracking-[0.08em] uppercase py-0.5 px-2 rounded-full bg-[var(--color-salmonberry-900,var(--red))] text-white mb-1 inline-flex items-center gap-1">★ Featured</span>
-							<div class="font-serif text-base font-semibold text-[var(--dark)] mb-1">{v.title}</div>
+					<a
+						href="/red-pages/{v.slug ?? v.id}"
+						class="flex items-start gap-4 rounded-lg border-2 border-[var(--color-salmonberry-100,var(--red-lt))] bg-white p-4 px-[18px] text-inherit no-underline shadow-[var(--sh)] transition-[box-shadow,border-color,transform] duration-150 hover:translate-x-[3px] hover:border-[var(--color-salmonberry-900,var(--red))] hover:shadow-[var(--shh)]"
+					>
+						<div
+							class="flex h-16 w-16 flex-none items-center justify-center rounded-full bg-[var(--red)] font-sans text-[22px] font-bold text-white"
+						>
+							{initials(v.title)}
+						</div>
+						<div class="flex min-w-0 flex-1 flex-col gap-1">
+							<span
+								class="mb-1 inline-flex items-center gap-1 rounded-full bg-[var(--color-salmonberry-900,var(--red))] px-2 py-0.5 font-sans text-[11px] font-bold tracking-[0.08em] text-white uppercase"
+								>★ Featured</span
+							>
+							<div class="mb-1 font-serif text-base font-semibold text-[var(--dark)]">
+								{v.title}
+							</div>
 							{#if v.tribalAffiliation}
-								<div class="text-sm text-[var(--muted-foreground)] mb-1">{v.tribalAffiliation}</div>
+								<div class="mb-1 text-sm text-[var(--muted-foreground)]">{v.tribalAffiliation}</div>
 							{/if}
 							{#if tags.length || v.region}
-								<div class="flex flex-wrap gap-1.5 my-1.5">
+								<div class="my-1.5 flex flex-wrap gap-1.5">
 									{#if tags.length}
-										<span class="text-[11px] font-semibold px-2 py-0.5 rounded bg-[var(--muted)] text-[var(--muted-foreground)]">{tags.join(', ')}</span>
+										<span
+											class="rounded bg-[var(--muted)] px-2 py-0.5 text-[11px] font-semibold text-[var(--muted-foreground)]"
+											>{tags.join(', ')}</span
+										>
 									{/if}
 									{#if v.region}
-										<span class="text-[11px] font-semibold px-2 py-0.5 rounded bg-[var(--muted)] text-[var(--muted-foreground)]">{v.region}</span>
+										<span
+											class="rounded bg-[var(--muted)] px-2 py-0.5 text-[11px] font-semibold text-[var(--muted-foreground)]"
+											>{v.region}</span
+										>
 									{/if}
 								</div>
 							{/if}
@@ -162,32 +210,81 @@
 
 	<KbTwoColumnLayout {sidebar}>
 		{#snippet children()}
-		<div class="flex items-center justify-between mb-[22px] pb-4 border-b border-[var(--rule)]">
-				<div class="font-sans text-[14px] text-[var(--muted-foreground)]">Showing <strong class="text-[var(--dark)]">{filteredTotal}</strong> listings</div>
-				<select class="text-sm border border-[var(--border)] rounded px-2 py-1 bg-[var(--card)] text-[var(--foreground)]" aria-label="Sort">
+			{#if data.dataUnavailable}
+				<Alert class="mb-6 border-amber-300 bg-amber-50 text-amber-950">
+					<AlertTitle>Live Red Pages data is unavailable</AlertTitle>
+					<AlertDescription>
+						The page is showing a safe fallback because the local database connection failed. Check
+						`DATABASE_URL`, start local services, and run `pnpm db:push` if the schema is missing.
+					</AlertDescription>
+				</Alert>
+			{/if}
+			<div class="mb-[22px] flex items-center justify-between border-b border-[var(--rule)] pb-4">
+				<div class="font-sans text-[14px] text-[var(--muted-foreground)]">
+					Showing <strong class="text-[var(--dark)]">{filteredTotal}</strong> listings
+				</div>
+				<select
+					class="rounded border border-[var(--border)] bg-[var(--card)] px-2 py-1 text-sm text-[var(--foreground)]"
+					aria-label="Sort"
+				>
 					<option>A–Z</option>
 					<option>Recently added</option>
 				</select>
 			</div>
 			<div class="flex flex-col gap-3">
 				{#each paginatedList as vendor (vendor.id)}
-					<a href="/red-pages/{vendor.slug ?? vendor.id}" class="flex gap-4 items-start bg-white border border-[var(--rule)] rounded-lg p-4 px-[18px] no-underline text-inherit shadow-[var(--sh)] transition-[box-shadow,transform] duration-150 hover:shadow-[var(--shh)] hover:translate-x-[3px]">
-						<div class="w-16 h-16 rounded-full bg-[var(--red)] text-white font-sans text-[22px] font-bold flex items-center justify-center flex-none">{initials(vendor.title)}</div>
-						<div class="flex-1 min-w-0 flex flex-col gap-1">
-							<div class="font-serif text-base font-semibold text-[var(--dark)]">{vendor.title}</div>
-							{#if vendor.tribalAffiliation}<div class="text-sm text-[var(--muted-foreground)] mb-1">{vendor.tribalAffiliation}</div>{/if}
+					<a
+						href="/red-pages/{vendor.slug ?? vendor.id}"
+						class="flex items-start gap-4 rounded-lg border border-[var(--rule)] bg-white p-4 px-[18px] text-inherit no-underline shadow-[var(--sh)] transition-[box-shadow,transform] duration-150 hover:translate-x-[3px] hover:shadow-[var(--shh)]"
+					>
+						<div
+							class="flex h-16 w-16 flex-none items-center justify-center rounded-full bg-[var(--red)] font-sans text-[22px] font-bold text-white"
+						>
+							{initials(vendor.title)}
+						</div>
+						<div class="flex min-w-0 flex-1 flex-col gap-1">
+							<div class="font-serif text-base font-semibold text-[var(--dark)]">
+								{vendor.title}
+							</div>
+							{#if vendor.tribalAffiliation}<div
+									class="mb-1 text-sm text-[var(--muted-foreground)]"
+								>
+									{vendor.tribalAffiliation}
+								</div>{/if}
 							<div class="flex flex-wrap gap-1.5">
-								<span class="text-[11px] font-semibold px-2 py-0.5 rounded bg-[var(--muted)] text-[var(--muted-foreground)]">Native-owned</span>
-								{#if vendor.region}<span class="text-[11px] font-semibold px-2 py-0.5 rounded bg-[var(--muted)] text-[var(--muted-foreground)]">{vendor.region}</span>{/if}
+								<span
+									class="rounded bg-[var(--muted)] px-2 py-0.5 text-[11px] font-semibold text-[var(--muted-foreground)]"
+									>Native-owned</span
+								>
+								{#if vendor.region}<span
+										class="rounded bg-[var(--muted)] px-2 py-0.5 text-[11px] font-semibold text-[var(--muted-foreground)]"
+										>{vendor.region}</span
+									>{/if}
 								{#each serviceTags(vendor.serviceType) as tag}
-									<span class="text-[11px] font-semibold px-2 py-0.5 rounded bg-[var(--muted)] text-[var(--muted-foreground)]">{tag}</span>
+									<span
+										class="rounded bg-[var(--muted)] px-2 py-0.5 text-[11px] font-semibold text-[var(--muted-foreground)]"
+										>{tag}</span
+									>
 								{/each}
 							</div>
 							{#if vendor.region || vendor.serviceType}
-								<div class="font-sans text-xs text-[var(--muted-foreground)] mb-[6px] flex items-center gap-1">{vendor.region}{#if vendor.region && vendor.serviceType} · {/if}{vendor.serviceType}</div>
+								<div
+									class="mb-[6px] flex items-center gap-1 font-sans text-xs text-[var(--muted-foreground)]"
+								>
+									{vendor.region}{#if vendor.region && vendor.serviceType}
+										·
+									{/if}{vendor.serviceType}
+								</div>
 							{/if}
-							{#if vendor.description}<div class="text-[13px] leading-[1.5] text-[var(--mid)] mb-[14px] flex-auto min-h-0 line-clamp-3">{stripHtml(String(vendor.description))}</div>{/if}
-							<span class="block flex-none text-center bg-[var(--teal)] text-white font-sans text-[13px] font-bold py-[9px] rounded-[var(--radius)] no-underline tracking-[0.03em] transition-[filter] duration-150 mt-auto hover:brightness-110">View Profile</span>
+							{#if vendor.description}<div
+									class="mb-[14px] line-clamp-3 min-h-0 flex-auto text-[13px] leading-[1.5] text-[var(--mid)]"
+								>
+									{stripHtml(String(vendor.description))}
+								</div>{/if}
+							<span
+								class="mt-auto block flex-none rounded-[var(--radius)] bg-[var(--teal)] py-[9px] text-center font-sans text-[13px] font-bold tracking-[0.03em] text-white no-underline transition-[filter] duration-150 hover:brightness-110"
+								>View Profile</span
+							>
 						</div>
 					</a>
 				{/each}
@@ -210,10 +307,7 @@
 									</PaginationItem>
 								{:else}
 									<PaginationItem>
-										<PaginationLink
-											page={pageItem}
-											isActive={pageItem.value === currentPage}
-										>
+										<PaginationLink page={pageItem} isActive={pageItem.value === currentPage}>
 											{pageItem.value}
 										</PaginationLink>
 									</PaginationItem>
@@ -227,11 +321,15 @@
 		{/snippet}
 	</KbTwoColumnLayout>
 
-	<div class="flex items-center justify-between gap-6 px-10 py-8 flex-wrap">
+	<div class="flex flex-wrap items-center justify-between gap-6 px-10 py-8">
 		<div>
 			<h3>Add your business</h3>
 			<p>Submit your Native-owned business or service for IFS staff review.</p>
 		</div>
-		<a href="/red-pages/submit" class="inline-block px-6 py-3 rounded text-white font-sans font-semibold text-sm no-underline flex-none">Add your business</a>
+		<a
+			href="/red-pages/submit"
+			class="inline-block flex-none rounded px-6 py-3 font-sans text-sm font-semibold text-white no-underline"
+			>Add your business</a
+		>
 	</div>
 </div>

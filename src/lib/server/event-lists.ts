@@ -23,7 +23,11 @@ export async function getListById(id: string): Promise<EventListRow | null> {
 	return rows[0] ?? null;
 }
 
-export async function createList(data: { slug: string; title: string; sortOrder?: number }): Promise<EventListRow> {
+export async function createList(data: {
+	slug: string;
+	title: string;
+	sortOrder?: number;
+}): Promise<EventListRow> {
 	const [row] = await db
 		.insert(eventLists)
 		.values({
@@ -45,8 +49,11 @@ export async function updateList(
 }
 
 export async function deleteList(id: string): Promise<boolean> {
-	const result = await db.delete(eventLists).where(eq(eventLists.id, id));
-	return (result.rowCount ?? 0) > 0;
+	const deleted = await db
+		.delete(eventLists)
+		.where(eq(eventLists.id, id))
+		.returning({ id: eventLists.id });
+	return deleted.length > 0;
 }
 
 /** Get event IDs in a list (ordered). */
@@ -73,7 +80,11 @@ export async function getListEvents(listId: string) {
 	return rows.filter((r) => r.event.status === 'published').map((r) => r.event);
 }
 
-export async function addEventToList(listId: string, eventId: string, sortOrder?: number): Promise<EventListItemRow | null> {
+export async function addEventToList(
+	listId: string,
+	eventId: string,
+	sortOrder?: number
+): Promise<EventListItemRow | null> {
 	const [row] = await db
 		.insert(eventListItems)
 		.values({
@@ -86,10 +97,11 @@ export async function addEventToList(listId: string, eventId: string, sortOrder?
 }
 
 export async function removeEventFromList(listId: string, eventId: string): Promise<boolean> {
-	const result = await db
+	const deleted = await db
 		.delete(eventListItems)
-		.where(and(eq(eventListItems.listId, listId), eq(eventListItems.eventId, eventId)));
-	return (result.rowCount ?? 0) > 0;
+		.where(and(eq(eventListItems.listId, listId), eq(eventListItems.eventId, eventId)))
+		.returning({ eventId: eventListItems.eventId });
+	return deleted.length > 0;
 }
 
 export async function setListEventOrder(listId: string, eventIds: string[]): Promise<void> {

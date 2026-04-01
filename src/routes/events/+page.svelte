@@ -22,14 +22,15 @@
 	import EventsSidebar from '$lib/components/organisms/EventsSidebar.svelte';
 	import EventsCalendarView from '$lib/components/organisms/EventsCalendarView.svelte';
 	import EventsRightSidebar from '$lib/components/organisms/EventsRightSidebar.svelte';
+	import { Alert, AlertDescription, AlertTitle } from '$lib/components/ui/alert/index.js';
 	import { tsToCalendarDate } from '$lib/utils/date.js';
-import {
-	parseEventStart,
-	formatEventTime,
-	eventCalendarParts,
-	eventCalendarDaysSpanned,
-	isMultiDayEvent
-} from '$lib/utils/format';
+	import {
+		parseEventStart,
+		formatEventTime,
+		eventCalendarParts,
+		eventCalendarDaysSpanned,
+		isMultiDayEvent
+	} from '$lib/utils/format';
 	import { eventTypeTags } from '$lib/data/formSchema';
 	import { IsMobile } from '$lib/hooks/is-mobile.svelte';
 	import { useEventsFilters } from '$lib/hooks/use-events-filters.svelte';
@@ -41,8 +42,12 @@ import {
 	const filters = useEventsFilters(() => data);
 
 	let pageBinding = $state(1);
-	$effect(() => { pageBinding = filters.currentPage; });
-	$effect(() => { if (pageBinding !== filters.currentPage) filters.pageBinding = pageBinding; });
+	$effect(() => {
+		pageBinding = filters.currentPage;
+	});
+	$effect(() => {
+		if (pageBinding !== filters.currentPage) filters.pageBinding = pageBinding;
+	});
 
 	const events = $derived((data.events ?? []) as EventItem[]);
 	const total = $derived(events.length);
@@ -80,7 +85,11 @@ import {
 		};
 		if (d.initialView === 'cards' || d.initialView === 'list' || d.initialView === 'calendar')
 			eventView = d.initialView;
-		if (d.initialCalendarMode === 'week' || d.initialCalendarMode === 'month' || d.initialCalendarMode === 'quarter')
+		if (
+			d.initialCalendarMode === 'week' ||
+			d.initialCalendarMode === 'month' ||
+			d.initialCalendarMode === 'quarter'
+		)
 			calendarViewMode = d.initialCalendarMode as CalendarViewMode;
 		if (d.initialCalendarYear != null) calendarYear = d.initialCalendarYear;
 		if (d.initialCalendarMonth != null) calendarMonth = d.initialCalendarMonth;
@@ -119,23 +128,25 @@ import {
 		// Use current client state so default is monthly overview when opening calendar tab
 		const mode = calendarViewMode;
 		import('$lib/calendar/calendar-loader.js').then((mod) => {
-			mod.createScheduleXAppFromEvents(filters.filtered, {
-				initialCalendarMode: mode,
-				initialCalendarYear: d.initialCalendarYear ?? undefined,
-				initialCalendarMonth: d.initialCalendarMonth ?? undefined,
-				initialCalendarDay: d.initialCalendarDay ?? undefined,
-				onEventClick(id) {
-					const match = filters.filtered.find((e) => e.id === id);
-					if (!match) {
-						goto(`/events/${id}`);
-						return;
+			mod
+				.createScheduleXAppFromEvents(filters.filtered, {
+					initialCalendarMode: mode,
+					initialCalendarYear: d.initialCalendarYear ?? undefined,
+					initialCalendarMonth: d.initialCalendarMonth ?? undefined,
+					initialCalendarDay: d.initialCalendarDay ?? undefined,
+					onEventClick(id) {
+						const match = filters.filtered.find((e) => e.id === id);
+						if (!match) {
+							goto(`/events/${id}`);
+							return;
+						}
+						calendarSelectedId = id;
+						eventDetailsOpen = true;
 					}
-					calendarSelectedId = id;
-					eventDetailsOpen = true;
-				}
-			}).then((app) => {
-				scheduleXApp = app;
-			});
+				})
+				.then((app) => {
+					scheduleXApp = app;
+				});
 		});
 	});
 
@@ -174,14 +185,19 @@ import {
 	/** Sync filtered events into Schedule-X when calendar is visible. */
 	$effect(() => {
 		if (!scheduleXApp || eventView !== 'calendar') return;
-		const service = (scheduleXApp as { eventsService?: { set: (events: unknown[]) => void } }).eventsService;
+		const service = (scheduleXApp as { eventsService?: { set: (events: unknown[]) => void } })
+			.eventsService;
 		if (!service) return;
-		const sxEvents = filters.filtered.map(eventToSx).filter((e): e is NonNullable<typeof e> => e != null);
+		const sxEvents = filters.filtered
+			.map(eventToSx)
+			.filter((e): e is NonNullable<typeof e> => e != null);
 		service.set(sxEvents);
 	});
 
 	const calendarSelectedEvent = $derived(
-		calendarSelectedId ? filters.filtered.find((e) => (e.slug ?? e.id) === calendarSelectedId) ?? null : null
+		calendarSelectedId
+			? (filters.filtered.find((e) => (e.slug ?? e.id) === calendarSelectedId) ?? null)
+			: null
 	);
 
 	/** Sidebar feeds */
@@ -190,10 +206,12 @@ import {
 		(() => {
 			const nowTs = filters.todayStart;
 			const weekEnd = nowTs + 7 * 24 * 60 * 60 * 1000;
-			return filters.filtered.filter((e) => {
-				const t = parseEventStart(e.startDate);
-				return t != null && t >= nowTs && t <= weekEnd;
-			}).slice(0, 5);
+			return filters.filtered
+				.filter((e) => {
+					const t = parseEventStart(e.startDate);
+					return t != null && t >= nowTs && t <= weekEnd;
+				})
+				.slice(0, 5);
 		})()
 	);
 	const sidebarCalendarInView = $derived(filters.filtered.slice(0, 8));
@@ -295,9 +313,10 @@ import {
 			weekSegs.sort((a, b) => a.colStart - b.colStart || b.colSpan - a.colSpan);
 			// Assign rows (greedy)
 			const rowSlots: number[] = new Array(8).fill(0);
-			weeks[w].segments = weekSegs.map(seg => {
+			weeks[w].segments = weekSegs.map((seg) => {
 				let row = 0;
-				for (let c = seg.colStart; c < seg.colStart + seg.colSpan; c++) row = Math.max(row, rowSlots[c] ?? 0);
+				for (let c = seg.colStart; c < seg.colStart + seg.colSpan; c++)
+					row = Math.max(row, rowSlots[c] ?? 0);
 				for (let c = seg.colStart; c < seg.colStart + seg.colSpan; c++) rowSlots[c] = row + 1;
 				return { ...seg, row };
 			});
@@ -358,7 +377,8 @@ import {
 		const rows: number[] = new Array(8).fill(0);
 		const withRow = segments.map((seg) => {
 			let row = 0;
-			for (let c = seg.colStart; c < seg.colStart + seg.colSpan; c++) row = Math.max(row, rows[c] ?? 0);
+			for (let c = seg.colStart; c < seg.colStart + seg.colSpan; c++)
+				row = Math.max(row, rows[c] ?? 0);
 			for (let c = seg.colStart; c < seg.colStart + seg.colSpan; c++) rows[c] = row + 1;
 			return { ...seg, row };
 		});
@@ -396,7 +416,10 @@ import {
 	});
 
 	const monthLabel = $derived(
-		new Date(calendarYear, calendarMonth).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+		new Date(calendarYear, calendarMonth).toLocaleDateString('en-US', {
+			month: 'long',
+			year: 'numeric'
+		})
 	);
 	const selectedDayEvents = $derived.by(() => {
 		if (selectedDay == null || !eventsByDay[selectedDay]) return [];
@@ -504,17 +527,25 @@ import {
 			: ''
 	);
 	const calendarTitle = $derived(
-		calendarViewMode === 'week' ? weekLabel : calendarViewMode === 'quarter' ? quarterLabel : monthLabel
+		calendarViewMode === 'week'
+			? weekLabel
+			: calendarViewMode === 'quarter'
+				? quarterLabel
+				: monthLabel
 	);
 
 	/** Current focus date (selected day or today) for next/prev event and day stepping */
 	const cursorDate = $derived(new Date(calendarYear, calendarMonth, selectedDay ?? todayDate));
 	const cursorStartTs = $derived(cursorDate.getTime());
-	const cursorEndOfDayTs = $derived(new Date(calendarYear, calendarMonth, selectedDay ?? todayDate, 23, 59, 59, 999).getTime());
+	const cursorEndOfDayTs = $derived(
+		new Date(calendarYear, calendarMonth, selectedDay ?? todayDate, 23, 59, 59, 999).getTime()
+	);
 
 	/** Filtered events sorted by start date (for next/prev and upcoming) */
 	const filteredSortedByDate = $derived.by(() =>
-		[...filters.filtered].sort((a, b) => (parseEventStart(a.startDate) ?? 0) - (parseEventStart(b.startDate) ?? 0))
+		[...filters.filtered].sort(
+			(a, b) => (parseEventStart(a.startDate) ?? 0) - (parseEventStart(b.startDate) ?? 0)
+		)
 	);
 
 	/** Next upcoming event (first after end of cursor day) */
@@ -539,9 +570,7 @@ import {
 	/** Next 7 upcoming events (from today when no day selected, else from selected day) */
 	const upcomingEvents = $derived.by(() => {
 		const fromTs =
-			selectedDay != null
-				? cursorStartTs
-				: new Date(todayYear, todayMonth, todayDate).getTime();
+			selectedDay != null ? cursorStartTs : new Date(todayYear, todayMonth, todayDate).getTime();
 		const out: EventItem[] = [];
 		for (const e of filteredSortedByDate) {
 			const t = parseEventStart(e.startDate);
@@ -572,17 +601,19 @@ import {
 	const selectedDaySummary = $derived.by(() => {
 		if (selectedDay == null || selectedDayEvents.length === 0) return null;
 		const withTime = selectedDayEvents.filter((e) => formatEventTime(e.startDate)).length;
-		if (selectedDayEvents.length === 1)
-			return withTime ? '1 event with time' : '1 event';
+		if (selectedDayEvents.length === 1) return withTime ? '1 event with time' : '1 event';
 		return withTime > 0
 			? `${selectedDayEvents.length} events · ${withTime} with times`
 			: `${selectedDayEvents.length} events`;
 	});
-	</script>
+</script>
 
 <svelte:head>
 	<title>Events | Knowledge Basket</title>
-	<meta name="description" content="Indigenous gatherings, trainings, and cultural events in the Sierra Nevada bioregion and California. Find and submit events." />
+	<meta
+		name="description"
+		content="Indigenous gatherings, trainings, and cultural events in the Sierra Nevada bioregion and California. Find and submit events."
+	/>
 </svelte:head>
 
 {#snippet weave()}
@@ -596,10 +627,28 @@ import {
 	<rect width="200" height="400" fill="url(#wv-events)" />
 {/snippet}
 {#snippet stats()}
-	<div class="font-sans text-white"><strong class="text-[28px] font-bold block leading-none">{total}</strong><span class="text-xs opacity-70">Upcoming</span></div>
-	<div class="font-sans text-white"><strong class="text-[28px] font-bold block leading-none">{sierraCount}</strong><span class="text-xs opacity-70">Sierra Nevada</span></div>
+	<div class="font-sans text-white">
+		<strong class="block text-[28px] leading-none font-bold">{total}</strong><span
+			class="text-xs opacity-70">Upcoming</span
+		>
+	</div>
+	<div class="font-sans text-white">
+		<strong class="block text-[28px] leading-none font-bold">{sierraCount}</strong><span
+			class="text-xs opacity-70">Sierra Nevada</span
+		>
+	</div>
 {/snippet}
 {#snippet children()}
+	{#if data.dataUnavailable}
+		<Alert class="mb-6 border-amber-300 bg-amber-50 text-amber-950">
+			<AlertTitle>Live event data is unavailable</AlertTitle>
+			<AlertDescription>
+				The page is running in fallback mode because the local database could not be reached. Check
+				`DATABASE_URL`, make sure Docker services are running, and run `pnpm db:push` if your schema
+				has not been applied yet.
+			</AlertDescription>
+		</Alert>
+	{/if}
 	{#if (data.featuredEvents?.length ?? 0) > 0}
 		<section class="mb-8" aria-labelledby="featured-heading">
 			<h2 id="featured-heading" class="mb-4 text-lg font-semibold">Featured</h2>
@@ -611,93 +660,99 @@ import {
 		</section>
 	{/if}
 	<h2 class="sr-only">Upcoming events</h2>
-			<EventsToolbar filteredTotal={filters.filteredTotal} />
+	<EventsToolbar filteredTotal={filters.filteredTotal} />
 
-			{#if eventView === 'cards'}
-				{#if filters.filtered.length === 0}
-					<div class="text-center py-12 px-6 text-[var(--muted-foreground)]" role="status">
-						<p class="m-0 mb-4 text-base">No events match your filters.</p>
-						<button type="button" class="inline-block px-3 py-1.5 font-sans text-xs font-semibold text-[var(--foreground)] bg-transparent border border-[var(--border)] rounded-[var(--radius)] cursor-pointer hover:bg-[var(--color-mugwort-300)] hover:border-[var(--color-mugwort-300)] hover:text-white transition-colors" onclick={handleClearFilters}>Clear filters</button>
-					</div>
-				{:else}
-					<div class="grid grid-cols-[repeat(auto-fill,minmax(310px,1fr))] gap-5">
-						{#each filters.paginatedList as event, i (event.slug ?? event.id)}
-							<EventCard {event} index={i + (filters.currentPage - 1) * filters.EVENTS_PAGE_SIZE} />
-						{/each}
-					</div>
-				{/if}
-			{:else if eventView === 'list'}
-				{#if filters.filtered.length === 0}
-					<div class="text-center py-12 px-6 text-[var(--muted-foreground)]" role="status">
-						<p class="m-0 mb-4 text-base">No events match your filters.</p>
-						<button type="button" class="inline-block px-3 py-1.5 font-sans text-xs font-semibold text-[var(--foreground)] bg-transparent border border-[var(--border)] rounded-[var(--radius)] cursor-pointer hover:bg-[var(--color-mugwort-300)] hover:border-[var(--color-mugwort-300)] hover:text-white transition-colors" onclick={handleClearFilters}>Clear filters</button>
-					</div>
-				{:else}
-					<ul class="list-none m-0 p-0 flex flex-col gap-4">
-						{#each filters.paginatedList as event, i (event.slug ?? event.id)}
-							<li>
-								<EventListItem {event} index={i + (filters.currentPage - 1) * filters.EVENTS_PAGE_SIZE} />
-							</li>
-						{/each}
-					</ul>
-				{/if}
-			{:else}
-				<EventsCalendarView
-					scheduleXApp={scheduleXApp}
-					calendarSelectedEvent={calendarSelectedEvent}
-					bind:eventDetailsOpen
-					isMobile={isMobile}
-				/>
-			{/if}
-			{#if (eventView === 'cards' || eventView === 'list') && filters.totalPages > 1}
-				<Pagination
-					class="pt-6"
-					count={filters.filteredTotal}
-					perPage={filters.EVENTS_PAGE_SIZE}
-					bind:page={pageBinding}
+	{#if eventView === 'cards'}
+		{#if filters.filtered.length === 0}
+			<div class="px-6 py-12 text-center text-[var(--muted-foreground)]" role="status">
+				<p class="m-0 mb-4 text-base">No events match your filters.</p>
+				<button
+					type="button"
+					class="inline-block cursor-pointer rounded-[var(--radius)] border border-[var(--border)] bg-transparent px-3 py-1.5 font-sans text-xs font-semibold text-[var(--foreground)] transition-colors hover:border-[var(--color-mugwort-300)] hover:bg-[var(--color-mugwort-300)] hover:text-white"
+					onclick={handleClearFilters}>Clear filters</button
 				>
-					{#snippet children({ pages, currentPage })}
-						<PaginationContent>
+			</div>
+		{:else}
+			<div class="grid grid-cols-[repeat(auto-fill,minmax(310px,1fr))] gap-5">
+				{#each filters.paginatedList as event, i (event.slug ?? event.id)}
+					<EventCard {event} index={i + (filters.currentPage - 1) * filters.EVENTS_PAGE_SIZE} />
+				{/each}
+			</div>
+		{/if}
+	{:else if eventView === 'list'}
+		{#if filters.filtered.length === 0}
+			<div class="px-6 py-12 text-center text-[var(--muted-foreground)]" role="status">
+				<p class="m-0 mb-4 text-base">No events match your filters.</p>
+				<button
+					type="button"
+					class="inline-block cursor-pointer rounded-[var(--radius)] border border-[var(--border)] bg-transparent px-3 py-1.5 font-sans text-xs font-semibold text-[var(--foreground)] transition-colors hover:border-[var(--color-mugwort-300)] hover:bg-[var(--color-mugwort-300)] hover:text-white"
+					onclick={handleClearFilters}>Clear filters</button
+				>
+			</div>
+		{:else}
+			<ul class="m-0 flex list-none flex-col gap-4 p-0">
+				{#each filters.paginatedList as event, i (event.slug ?? event.id)}
+					<li>
+						<EventListItem
+							{event}
+							index={i + (filters.currentPage - 1) * filters.EVENTS_PAGE_SIZE}
+						/>
+					</li>
+				{/each}
+			</ul>
+		{/if}
+	{:else}
+		<EventsCalendarView {scheduleXApp} {calendarSelectedEvent} bind:eventDetailsOpen {isMobile} />
+	{/if}
+	{#if (eventView === 'cards' || eventView === 'list') && filters.totalPages > 1}
+		<Pagination
+			class="pt-6"
+			count={filters.filteredTotal}
+			perPage={filters.EVENTS_PAGE_SIZE}
+			bind:page={pageBinding}
+		>
+			{#snippet children({ pages, currentPage })}
+				<PaginationContent>
+					<PaginationItem>
+						<PaginationPrevious />
+					</PaginationItem>
+					{#each pages as p (p.key)}
+						{#if p.type === 'ellipsis'}
 							<PaginationItem>
-								<PaginationPrevious />
+								<PaginationEllipsis />
 							</PaginationItem>
-							{#each pages as p (p.key)}
-								{#if p.type === 'ellipsis'}
-									<PaginationItem>
-										<PaginationEllipsis />
-									</PaginationItem>
-								{:else}
-									<PaginationItem>
-										<PaginationLink page={p} isActive={currentPage === p.value}>
-											{p.value}
-										</PaginationLink>
-									</PaginationItem>
-								{/if}
-							{/each}
+						{:else}
 							<PaginationItem>
-								<PaginationNext />
+								<PaginationLink page={p} isActive={currentPage === p.value}>
+									{p.value}
+								</PaginationLink>
 							</PaginationItem>
-						</PaginationContent>
-					{/snippet}
-				</Pagination>
-			{/if}
+						{/if}
+					{/each}
+					<PaginationItem>
+						<PaginationNext />
+					</PaginationItem>
+				</PaginationContent>
+			{/snippet}
+		</Pagination>
+	{/if}
 {/snippet}
 {#snippet sidebarRight()}
 	{#if !isDesktopLayout.current}
-				<EventsRightSidebar
-					calendarSelectedEvent={calendarSelectedEvent}
-					{eventView}
-					sidebarFeatured={sidebarFeatured}
-					sidebarCalendarValue={sidebarCalendarValue}
-					sidebarWeekUpcoming={sidebarWeekUpcoming}
-					sidebarCalendarInView={sidebarCalendarInView}
-					mapboxToken={data.mapboxToken ?? undefined}
-					onClose={() => {
-						calendarSelectedId = null;
-						eventDetailsOpen = false;
-					}}
-				/>
-			{/if}
+		<EventsRightSidebar
+			{calendarSelectedEvent}
+			{eventView}
+			{sidebarFeatured}
+			{sidebarCalendarValue}
+			{sidebarWeekUpcoming}
+			{sidebarCalendarInView}
+			mapboxToken={data.mapboxToken ?? undefined}
+			onClose={() => {
+				calendarSelectedId = null;
+				eventDetailsOpen = false;
+			}}
+		/>
+	{/if}
 {/snippet}
 
 <div>
@@ -713,35 +768,41 @@ import {
 	<CoilTheme coil="events">
 		<!-- Inline layout so left sidebar is a direct child (no snippet) – fixes interaction in filter bar -->
 		<div
-			class="coil-layout min-h-[calc(100vh-220px)] flex flex-col md:flex-row flex-nowrap w-full"
+			class="coil-layout flex min-h-[calc(100vh-220px)] w-full flex-col flex-nowrap md:flex-row"
 			role="presentation"
 		>
 			<div class="coil-layout__left order-1 shrink-0 overflow-visible">
 				<EventsSidebar
 					{filters}
 					bind:eventView
-					formatCostLabel={formatCostLabel}
-					regionTriggerLabel={regionTriggerLabel}
+					{formatCostLabel}
+					{regionTriggerLabel}
 					onTypeRemove={removeType}
 					onClear={handleClearFilters}
 				/>
 			</div>
 			<aside
-				class="coil-layout__right order-3 shrink-0 w-full min-[960px]:w-[320px] min-[960px]:max-w-[320px] [&:empty]:hidden"
+				class="coil-layout__right order-3 w-full shrink-0 min-[960px]:w-[320px] min-[960px]:max-w-[320px] [&:empty]:hidden"
 			>
 				{@render sidebarRight?.()}
 			</aside>
-			<main class="coil-layout__main order-2 flex-1 min-w-0 p-7 md:p-8">
+			<main class="coil-layout__main order-2 min-w-0 flex-1 p-7 md:p-8">
 				{@render children?.()}
 			</main>
 		</div>
 	</CoilTheme>
 
-	<div class="flex items-center justify-between gap-6 px-10 py-7 bg-[var(--granite-200,var(--slate-lt))] border-t-[3px] border-[var(--granite-200,var(--teal))] flex-wrap">
+	<div
+		class="flex flex-wrap items-center justify-between gap-6 border-t-[3px] border-[var(--granite-200,var(--teal))] bg-[var(--granite-200,var(--slate-lt))] px-10 py-7"
+	>
 		<div>
 			<h3>Know of an event we should list?</h3>
 			<p>Submit Indigenous-led and Indigenous-serving events for IFS staff review.</p>
 		</div>
-		<a href="/events/submit" class="font-sans text-sm font-bold bg-[var(--teal)] text-white rounded-[var(--radius)] px-[26px] py-3 whitespace-nowrap hover:brightness-110 transition-[filter] tracking-[0.03em] no-underline inline-flex items-center justify-center flex-none">Submit an Event</a>
+		<a
+			href="/events/submit"
+			class="inline-flex flex-none items-center justify-center rounded-[var(--radius)] bg-[var(--teal)] px-[26px] py-3 font-sans text-sm font-bold tracking-[0.03em] whitespace-nowrap text-white no-underline transition-[filter] hover:brightness-110"
+			>Submit an Event</a
+		>
 	</div>
 </div>

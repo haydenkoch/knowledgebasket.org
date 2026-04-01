@@ -21,13 +21,14 @@ function getDefaultRange() {
 	return { start, end };
 }
 
-export type EventsFiltersData = { events?: EventItem[] };
+export type EventsFiltersData = { events?: EventItem[]; initialSearchQuery?: string | null };
 
-export function useEventsFilters(
-	data: EventsFiltersData | (() => EventsFiltersData)
-) {
+export function useEventsFilters(data: EventsFiltersData | (() => EventsFiltersData)) {
 	const events = $derived(
 		((typeof data === 'function' ? data() : data).events ?? []) as EventItem[]
+	);
+	const initialSearchQuery = $derived(
+		((typeof data === 'function' ? data() : data).initialSearchQuery ?? '').trim()
 	);
 
 	let searchQuery = $state('');
@@ -39,17 +40,13 @@ export function useEventsFilters(
 	let sliderIndices = $state<[number, number] | null>(null);
 	let pageBinding = $state(1);
 
+	$effect(() => {
+		searchQuery = initialSearchQuery;
+	});
+
 	const todayStart = $derived(new Date(new Date().setHours(0, 0, 0, 0)).getTime());
 	const defaultRangeEnd = $derived(
-		new Date(
-			new Date().getFullYear(),
-			new Date().getMonth() + 13,
-			0,
-			23,
-			59,
-			59,
-			999
-		).getTime()
+		new Date(new Date().getFullYear(), new Date().getMonth() + 13, 0, 23, 59, 59, 999).getTime()
 	);
 
 	const dateBuckets = $derived.by(() => {
@@ -59,7 +56,7 @@ export function useEventsFilters(
 			.map((e) => {
 				const startTs = parseEventStart(e.startDate);
 				if (startTs == null) return null;
-				const endTs = e.endDate?.trim() ? parseEventStart(e.endDate) ?? startTs : startTs;
+				const endTs = e.endDate?.trim() ? (parseEventStart(e.endDate) ?? startTs) : startTs;
 				const end = endTs >= startTs ? endTs : startTs;
 				return { start: startTs, end };
 			})
@@ -111,9 +108,7 @@ export function useEventsFilters(
 	const costValues = $derived(Object.keys(costCounts).sort());
 
 	const searchFiltered = $derived(
-		events.filter((e) =>
-			matchSearch(e, searchQuery, ['location', 'region', 'type', 'title'])
-		)
+		events.filter((e) => matchSearch(e, searchQuery, ['location', 'region', 'type', 'title']))
 	);
 	const costFiltered = $derived(
 		searchFiltered.filter((e) => {
@@ -121,9 +116,7 @@ export function useEventsFilters(
 			return !costFilter.length || (cost && costFilter.includes(cost));
 		})
 	);
-	const regionFiltered = $derived(
-		filterByFacets(costFiltered, { region: regionSelect })
-	);
+	const regionFiltered = $derived(filterByFacets(costFiltered, { region: regionSelect }));
 	const typeGroupsForFilter = $derived(
 		eventTypeGroups.filter((g) => g.tags.some((tag) => typeSelect.includes(tag)))
 	);
@@ -132,7 +125,7 @@ export function useEventsFilters(
 			? regionFiltered
 			: regionFiltered.filter((e) =>
 					typeGroupsForFilter.some((g) => eventMatchesTypeGroup(e, g.tags))
-			  )
+				)
 	);
 	const dateFiltered = $derived(
 		facetFiltered.filter((e) => {
@@ -218,50 +211,138 @@ export function useEventsFilters(
 	}
 
 	return {
-		get searchQuery() { return searchQuery; },
-		set searchQuery(v: string) { searchQuery = v; },
-		get regionSelect() { return regionSelect; },
-		set regionSelect(v: string[]) { regionSelect = v; },
-		get typeSelect() { return typeSelect; },
-		set typeSelect(v: string[]) { typeSelect = v; },
-		get costFilter() { return costFilter; },
-		set costFilter(v: string[]) { costFilter = v; },
-		get rangeStart() { return rangeStart; },
-		set rangeStart(v: number) { rangeStart = v; },
-		get rangeEnd() { return rangeEnd; },
-		set rangeEnd(v: number) { rangeEnd = v; },
-		get pageBinding() { return pageBinding; },
-		set pageBinding(v: number) { pageBinding = v; },
-		get todayStart() { return todayStart; },
-		get defaultRangeEnd() { return defaultRangeEnd; },
-		get dateBuckets() { return dateBuckets; },
-		get numBuckets() { return numBuckets; },
-		get dateRangeMinIx() { return dateRangeMinIx; },
-		get dateRangeMaxIx() { return dateRangeMaxIx; },
-		get sliderMinIx() { return sliderMinIx; },
-		get sliderMaxIx() { return sliderMaxIx; },
-		get regionCounts() { return regionCounts; },
-		get typeGroupCounts() { return typeGroupCounts; },
-		get costCounts() { return costCounts; },
-		get regionValues() { return regionValues; },
-		get costValues() { return costValues; },
-		get searchFiltered() { return searchFiltered; },
-		get costFiltered() { return costFiltered; },
-		get regionFiltered() { return regionFiltered; },
-		get facetFiltered() { return facetFiltered; },
-		get dateFiltered() { return dateFiltered; },
-		get eventsInDateRange() { return eventsInDateRange; },
-		get costCountsInRange() { return costCountsInRange; },
-		get regionCountsInRange() { return regionCountsInRange; },
-		get typeGroupCountsInRange() { return typeGroupCountsInRange; },
-		get costValuesVisible() { return costValuesVisible; },
-		get regionValuesVisible() { return regionValuesVisible; },
-		get typeTagsVisible() { return typeTagsVisible; },
-		get filtered() { return filtered; },
-		get filteredTotal() { return filteredTotal; },
-		get totalPages() { return totalPages; },
-		get currentPage() { return currentPage; },
-		get paginatedList() { return paginatedList; },
+		get searchQuery() {
+			return searchQuery;
+		},
+		set searchQuery(v: string) {
+			searchQuery = v;
+		},
+		get regionSelect() {
+			return regionSelect;
+		},
+		set regionSelect(v: string[]) {
+			regionSelect = v;
+		},
+		get typeSelect() {
+			return typeSelect;
+		},
+		set typeSelect(v: string[]) {
+			typeSelect = v;
+		},
+		get costFilter() {
+			return costFilter;
+		},
+		set costFilter(v: string[]) {
+			costFilter = v;
+		},
+		get rangeStart() {
+			return rangeStart;
+		},
+		set rangeStart(v: number) {
+			rangeStart = v;
+		},
+		get rangeEnd() {
+			return rangeEnd;
+		},
+		set rangeEnd(v: number) {
+			rangeEnd = v;
+		},
+		get pageBinding() {
+			return pageBinding;
+		},
+		set pageBinding(v: number) {
+			pageBinding = v;
+		},
+		get todayStart() {
+			return todayStart;
+		},
+		get defaultRangeEnd() {
+			return defaultRangeEnd;
+		},
+		get dateBuckets() {
+			return dateBuckets;
+		},
+		get numBuckets() {
+			return numBuckets;
+		},
+		get dateRangeMinIx() {
+			return dateRangeMinIx;
+		},
+		get dateRangeMaxIx() {
+			return dateRangeMaxIx;
+		},
+		get sliderMinIx() {
+			return sliderMinIx;
+		},
+		get sliderMaxIx() {
+			return sliderMaxIx;
+		},
+		get regionCounts() {
+			return regionCounts;
+		},
+		get typeGroupCounts() {
+			return typeGroupCounts;
+		},
+		get costCounts() {
+			return costCounts;
+		},
+		get regionValues() {
+			return regionValues;
+		},
+		get costValues() {
+			return costValues;
+		},
+		get searchFiltered() {
+			return searchFiltered;
+		},
+		get costFiltered() {
+			return costFiltered;
+		},
+		get regionFiltered() {
+			return regionFiltered;
+		},
+		get facetFiltered() {
+			return facetFiltered;
+		},
+		get dateFiltered() {
+			return dateFiltered;
+		},
+		get eventsInDateRange() {
+			return eventsInDateRange;
+		},
+		get costCountsInRange() {
+			return costCountsInRange;
+		},
+		get regionCountsInRange() {
+			return regionCountsInRange;
+		},
+		get typeGroupCountsInRange() {
+			return typeGroupCountsInRange;
+		},
+		get costValuesVisible() {
+			return costValuesVisible;
+		},
+		get regionValuesVisible() {
+			return regionValuesVisible;
+		},
+		get typeTagsVisible() {
+			return typeTagsVisible;
+		},
+		get filtered() {
+			return filtered;
+		},
+		get filteredTotal() {
+			return filteredTotal;
+		},
+		get totalPages() {
+			return totalPages;
+		},
+		get currentPage() {
+			return currentPage;
+		},
+		get paginatedList() {
+			return paginatedList;
+		},
 		setRangeFromIndices,
 		handleSliderChange,
 		handleSliderCommit,

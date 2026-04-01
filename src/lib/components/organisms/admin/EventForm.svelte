@@ -33,9 +33,14 @@
 	}: Props = $props();
 
 	let submitting = $state(false);
-	let descriptionHtml = $state(event?.description ?? '');
+	let descriptionHtml = $state('');
 
-	const selectCls = 'flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring';
+	$effect(() => {
+		descriptionHtml = event?.description ?? '';
+	});
+
+	const selectCls =
+		'flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring';
 </script>
 
 <form
@@ -46,7 +51,8 @@
 		return ({ result, update }) => {
 			submitting = false;
 			if (result.type === 'success') toast.success('Saved');
-			else if (result.type === 'failure') toast.error((result.data as { error?: string })?.error ?? 'Error saving');
+			else if (result.type === 'failure')
+				toast.error((result.data as { error?: string })?.error ?? 'Error saving');
 			update();
 		};
 	}}
@@ -54,9 +60,15 @@
 >
 	<!-- Core fields -->
 	<div class="grid gap-4 sm:grid-cols-2">
-		<div class="sm:col-span-2 space-y-1.5">
+		<div class="space-y-1.5 sm:col-span-2">
 			<Label for="title">Title *</Label>
-			<Input id="title" name="title" required value={event?.title ?? ''} placeholder="Event title" />
+			<Input
+				id="title"
+				name="title"
+				required
+				value={event?.title ?? ''}
+				placeholder="Event title"
+			/>
 		</div>
 		<div class="space-y-1.5">
 			<Label for="slug">Slug</Label>
@@ -80,19 +92,34 @@
 	<div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
 		<div class="space-y-1.5">
 			<Label for="startDate">Start date</Label>
-			<Input id="startDate" name="startDate" type="datetime-local" value={event?.startDate ? event.startDate.slice(0,16) : ''} />
+			<Input
+				id="startDate"
+				name="startDate"
+				type="datetime-local"
+				value={event?.startDate ? event.startDate.slice(0, 16) : ''}
+			/>
 		</div>
 		<div class="space-y-1.5">
 			<Label for="endDate">End date</Label>
-			<Input id="endDate" name="endDate" type="datetime-local" value={event?.endDate ? event.endDate.slice(0,16) : ''} />
+			<Input
+				id="endDate"
+				name="endDate"
+				type="datetime-local"
+				value={event?.endDate ? event.endDate.slice(0, 16) : ''}
+			/>
 		</div>
 		<div class="space-y-1.5">
 			<Label for="timezone">Timezone</Label>
 			<Input id="timezone" name="timezone" value={event?.timezone ?? 'America/Los_Angeles'} />
 		</div>
-		<div class="sm:col-span-2 space-y-1.5">
+		<div class="space-y-1.5 sm:col-span-2">
 			<Label for="location">Location / city</Label>
-			<Input id="location" name="location" value={event?.location ?? ''} placeholder="Placerville, CA" />
+			<Input
+				id="location"
+				name="location"
+				value={event?.location ?? ''}
+				placeholder="Placerville, CA"
+			/>
 		</div>
 		<div class="space-y-1.5">
 			<Label for="region">Region</Label>
@@ -143,7 +170,12 @@
 		</div>
 		<div class="space-y-1.5">
 			<Label for="eventFormat">Format</Label>
-			<select id="eventFormat" name="eventFormat" class={selectCls} value={event?.eventFormat ?? ''}>
+			<select
+				id="eventFormat"
+				name="eventFormat"
+				class={selectCls}
+				value={event?.eventFormat ?? ''}
+			>
 				<option value="">— Select —</option>
 				<option value="in_person">In Person</option>
 				<option value="online">Online</option>
@@ -152,11 +184,23 @@
 		</div>
 		<div class="space-y-1.5">
 			<Label for="eventUrl">Event URL</Label>
-			<Input id="eventUrl" name="eventUrl" type="url" value={event?.eventUrl ?? ''} placeholder="https://…" />
+			<Input
+				id="eventUrl"
+				name="eventUrl"
+				type="url"
+				value={event?.eventUrl ?? ''}
+				placeholder="https://…"
+			/>
 		</div>
 		<div class="space-y-1.5">
 			<Label for="registrationUrl">Registration URL</Label>
-			<Input id="registrationUrl" name="registrationUrl" type="url" value={event?.registrationUrl ?? ''} placeholder="https://…" />
+			<Input
+				id="registrationUrl"
+				name="registrationUrl"
+				type="url"
+				value={event?.registrationUrl ?? ''}
+				placeholder="https://…"
+			/>
 		</div>
 	</div>
 
@@ -165,13 +209,23 @@
 	<!-- Description -->
 	<div class="space-y-1.5">
 		<Label>Description</Label>
-		<RichTextEditor bind:value={descriptionHtml} name="description" initialValue={event?.description ?? ''} />
+		<RichTextEditor
+			bind:value={descriptionHtml}
+			name="description"
+			initialValue={event?.description ?? ''}
+		/>
 	</div>
 
 	<!-- Image -->
 	<div class="space-y-1.5">
 		<Label for="imageUrl">Image URL</Label>
-		<Input id="imageUrl" name="imageUrl" type="url" value={event?.imageUrl ?? ''} placeholder="https://…" />
+		<Input
+			id="imageUrl"
+			name="imageUrl"
+			type="url"
+			value={event?.imageUrl ?? ''}
+			placeholder="https://…"
+		/>
 	</div>
 
 	<Separator />
@@ -180,7 +234,12 @@
 	<div class="grid gap-4 sm:grid-cols-2">
 		<div class="space-y-1.5">
 			<Label for="organizationId">Organization</Label>
-			<select id="organizationId" name="organizationId" class={selectCls} value={event?.organizationId ?? ''}>
+			<select
+				id="organizationId"
+				name="organizationId"
+				class={selectCls}
+				value={event?.organizationId ?? ''}
+			>
 				<option value="">— None —</option>
 				{#each organizations as org}
 					<option value={org.id}>{org.name}</option>
@@ -201,17 +260,35 @@
 	<!-- Admin notes -->
 	<div class="space-y-1.5">
 		<Label for="adminNotes">Admin notes</Label>
-		<Textarea id="adminNotes" name="adminNotes" rows={3} value={event?.adminNotes ?? ''} placeholder="Internal notes (not shown publicly)" />
+		<Textarea
+			id="adminNotes"
+			name="adminNotes"
+			rows={3}
+			value={event?.adminNotes ?? ''}
+			placeholder="Internal notes (not shown publicly)"
+		/>
 	</div>
 
 	<!-- Featured / unlisted -->
 	<div class="flex gap-6">
-		<label class="flex items-center gap-2 text-sm font-medium cursor-pointer">
-			<input type="checkbox" name="featured" value="true" checked={event?.featured ?? false} class="h-4 w-4 rounded border-input" />
+		<label class="flex cursor-pointer items-center gap-2 text-sm font-medium">
+			<input
+				type="checkbox"
+				name="featured"
+				value="true"
+				checked={event?.featured ?? false}
+				class="h-4 w-4 rounded border-input"
+			/>
 			Featured
 		</label>
-		<label class="flex items-center gap-2 text-sm font-medium cursor-pointer">
-			<input type="checkbox" name="unlisted" value="true" checked={event?.unlisted ?? false} class="h-4 w-4 rounded border-input" />
+		<label class="flex cursor-pointer items-center gap-2 text-sm font-medium">
+			<input
+				type="checkbox"
+				name="unlisted"
+				value="true"
+				checked={event?.unlisted ?? false}
+				class="h-4 w-4 rounded border-input"
+			/>
 			Unlisted
 		</label>
 	</div>

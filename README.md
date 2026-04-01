@@ -1,24 +1,36 @@
-# Knowledge Basket (site)
+# Knowledge Basket
 
-SvelteKit app for the Knowledge Basket — events, and (stubbed) funding, red pages, jobs, toolbox.
+Knowledge Basket is a SvelteKit product that brings together five public "coils":
 
-## Backend (Docker)
+- Events
+- Funding
+- Red Pages
+- Jobs
+- Toolbox
 
-From the **repo root** (parent of `site/`), start Postgres, MinIO, Meilisearch, and Redis:
+This is an in-progress product, not a greenfield starter. The codebase already includes meaningful public and admin implementation work, but only Events is currently close to full end-to-end operations. Funding, Red Pages, Jobs, and Toolbox should be treated as curated beta surfaces until shared submission, moderation, and admin tooling is completed.
 
-```sh
-docker compose up -d
-```
+## Source Of Truth
 
-Then in `site/.env` set `DATABASE_URL` to point at the Docker Postgres, e.g.:
+The code is canonical.
 
-```
-DATABASE_URL="postgres://kb:kbdev@localhost:5432/kb"
-```
+- Product behavior: `src/routes/**`
+- Shared UI and interaction patterns: `src/lib/components/**`
+- Server/data behavior: `src/lib/server/**`
+- Theme tokens: `src/lib/theme/theme.css`
 
-See `site/.env.example` for all optional env vars (MinIO, Meilisearch, Redis, Mapbox, etc.).
+Docs in `docs/` are there to explain the current implementation and intended direction, but if a doc conflicts with route or server code, trust the code first and update the doc.
 
-## Developing
+## Current State
+
+- Public surfaces exist for all five coils.
+- Public organization and venue pages exist.
+- Admin tools are strongest for Events: review/edit flows, event lists, iCal import, duplicate merge, branding, and search settings.
+- Event submission is live and writes pending records.
+- Non-event submit pages currently exist as UI but still return `503` from their server actions.
+- Global search is available, but multi-coil results depend on Meilisearch indexing. Without Meilisearch, fallback search is events-only.
+
+## Local Development
 
 From the `site/` directory:
 
@@ -27,28 +39,69 @@ pnpm install
 pnpm dev
 ```
 
-Open the app (e.g. http://localhost:5173).
+Open the app at [http://localhost:5173](http://localhost:5173).
 
-## Database
+## Local Services
 
-- **Push schema:** `pnpm run db:push` (after `docker compose up` and `DATABASE_URL` set).
-- **Seed events from CSV:** `pnpm run db:seed` (run from `site/`; script reads CSV from `../data/` or `data/`).
-- **Reindex search:** After seeding, POST to `http://localhost:5173/api/reindex` to sync events into Meilisearch (or start the app and call it once).
-- **Auth schema:** If you use better-auth, run `pnpm run auth:schema` then `pnpm run db:push` so auth tables exist.
-
-Events list = DB events + iCal feed (News from Native California), merged in memory. Search uses Meilisearch (events only).
-
-## Design
-
-Component structure, theme, and styling are described in [docs/DESIGN_SYSTEM.md](docs/DESIGN_SYSTEM.md) (atoms, molecules, organisms, KB styles, and roadmap).
-
-## Stubbed sections
-
-Funding, Red Pages, Job Board, and Toolbox are stubbed (empty data). Only Events are backed by Postgres and Meilisearch for now.
-
-## Building
+From the repo root, start supporting services:
 
 ```sh
-pnpm run build
-pnpm run preview
+docker compose up -d
 ```
+
+Common local dependencies:
+
+- Postgres
+- Meilisearch
+- MinIO
+- Redis
+
+Set `DATABASE_URL` in `site/.env`. See `.env.example` for the rest of the optional configuration.
+
+## Database And Search
+
+Useful scripts:
+
+```sh
+pnpm db:push
+pnpm db:generate
+pnpm db:migrate
+pnpm db:studio
+pnpm db:seed
+pnpm auth:schema
+```
+
+Notes:
+
+- `pnpm db:seed` currently seeds events from CSV.
+- Search indexing uses Meilisearch when configured.
+- `POST /api/reindex` is protected in production. Use an admin/moderator session or send `x-reindex-secret` matching `REINDEX_SECRET`.
+- The admin UI also exposes search reindexing at `/admin/settings/search`.
+
+## Quality Status
+
+As of the current takeover baseline:
+
+- `pnpm check` should pass.
+- `pnpm build` should pass, though bundle-size and deployment follow-up work remains.
+- `pnpm lint` still reflects broad formatting drift in the repo and should be handled intentionally rather than piecemeal.
+- There is no established automated test suite yet.
+
+## Key Docs
+
+- `docs/TAKEOVER_AUDIT.md`
+- `docs/ADR-001-source-of-truth.md`
+- `docs/ADR-002-curated-beta-coils.md`
+- `docs/DESIGN_SYSTEM.md`
+- `docs/PERFORMANCE.md`
+- `docs/ops-content-workflows.md`
+
+## Short-Term Direction
+
+The current implementation direction is:
+
+1. Stabilize the existing product.
+2. Preserve the current events filter-bar interaction model.
+3. Keep shadcn-svelte as the primary UI foundation.
+4. Standardize public/admin patterns instead of rewriting from scratch.
+5. Bring Funding and Jobs to operational parity before pushing the other non-event coils further.

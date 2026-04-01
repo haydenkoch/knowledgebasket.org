@@ -1,72 +1,139 @@
-# Knowledge Basket design system
+# Knowledge Basket UI System
 
-## Atomic design
+## Foundation
 
-- **Atoms** — `site/src/lib/components/ui/` (shadcn-svelte / bits-ui primitives: Button, Input, Tabs, Popover, Command, Badge, Calendar, etc.). Themed via `site/src/lib/theme/theme.css` and Tailwind. Do not edit these files manually — managed by the shadcn-svelte CLI.
-- **Molecules** — `site/src/lib/components/molecules/`: small composites used within organisms or pages.
-  - `EventCard.svelte` — grid card for an event (image, title, date, location, CTA)
-  - `EventListItem.svelte` — horizontal list row for an event
-  - `EventsToolbar.svelte` — count display above an event list
-  - `RichTextEditor.svelte` — TinyMCE wrapper for HTML description editing
-- **Organisms** — `site/src/lib/components/organisms/`: section-level composites.
-  - `CoilTheme.svelte` — sets `data-coil` attribute for per-coil CSS variable overrides
-  - `EventsCalendarView.svelte` — Schedule-X calendar wrapper with event rendering
-  - `EventsRightSidebar.svelte` — upcoming events sidebar for event detail pages
-  - `EventsSidebar.svelte` — search + filter sidebar for the events list page
-  - `KbFilterSection.svelte` — reusable filter checklist section (title + option list)
-  - `KbHeader.svelte` — site header with nav and mobile menu
-  - `KbHero.svelte` — coil hero banner (gradient bg, eyebrow, title, stats, weave pattern)
-  - `KbSearch.svelte` — global search input with Meilisearch integration
-  - `KbTwoColumnLayout.svelte` — sidebar + main content two-column layout
-  - `admin/EventForm.svelte` — full event create/edit form for the admin area
-  - `admin/StatusBadge.svelte` — coloured status pill (published / pending / draft / rejected)
-- **Pages** — Route-level composition in `site/src/routes/`; they import from molecules and organisms and own page-level state.
+Knowledge Basket should keep using `shadcn-svelte` primitives as the primary UI foundation.
 
-## Styling
+- Prefer `src/lib/components/ui/**` first.
+- Build thin KB wrappers and composites around those primitives when a pattern repeats.
+- Do not grow a parallel custom design system unless a product-specific interaction truly requires it.
 
-- **Tailwind only** — no new CSS files. All component styles use Tailwind utility classes directly on elements.
-- **Theme** — Single source: `site/src/lib/theme/theme.css` (brand palettes, semantic tokens, and `--color-kb-*` aliases). Tailwind maps to these via `@theme inline` in `site/src/routes/layout.css`.
-- **Scoped `<style>` blocks** — allowed for third-party library overrides (Schedule-X calendar, TinyMCE) that require targeting generated class names outside the component tree. Use `:global()` when the class is passed as a prop to a child Svelte component.
-- **No new global CSS files** — `site/src/lib/styles/kb.css` and `site/src/lib/styles/kb/` were deleted; all styles are either Tailwind utilities or scoped `<style>` blocks.
+## What To Preserve
 
-## Tokens
+### Events filter bar
 
-Use semantic tokens from `theme.css` in preference to raw palette values:
+The current events filter bar is one of the strongest product-specific interactions in the app. It combines:
 
-| Purpose | Token |
-|---------|-------|
-| Page background | `var(--background)` |
-| Default text | `var(--foreground)` |
-| Muted text | `var(--muted-foreground)` |
-| Card / panel bg | `var(--card)` |
-| Subtle divider | `var(--rule)` |
-| Border | `var(--border)` |
-| Brand primary | `var(--primary)` |
-| Teal action | `var(--teal)` |
-| Red / alert | `var(--red)` |
-| Gold | `var(--gold)` |
-| Forest green | `var(--forest)` |
-| Border radius | `var(--radius)` |
-| Card shadow | `var(--sh)` |
-| Hover shadow | `var(--shh)` |
+- inline search
+- view switching
+- date exploration
+- facet refinement
 
-Brand aliases (`--color-kb-teal`, `--color-kb-navy`, etc.) are also available and resolve to the same values — use either form.
+That interaction model should be preserved. Improve it by tightening focus states, URL persistence, popover consistency, mobile containment, and slider performance. Do not replace it with a different navigation pattern unless there is a critical product reason.
 
-## New component checklist
+### shadcn-svelte base
 
-Before adding a new component:
+Stay close to the base components for:
 
-1. Can a shadcn-svelte primitive from `ui/` do it instead? Check `$lib/components/ui/` first.
-2. Is it reused in more than one place? If not, keep the markup inline in the route.
-3. **Molecule or organism?** Molecule = small, single-purpose composite (one card, one row). Organism = section of a page (sidebar, hero, filter bar).
-4. Use `$props()`, `$derived`, `$state` — no `export let`, `$:`, or stores unless global shared state is truly needed.
-5. Tailwind utilities first. Scoped `<style>` only for third-party library overrides.
-6. No new global `.kb-*` class names.
+- buttons
+- inputs
+- selects
+- tabs
+- popovers
+- command menus
+- dialogs
+- cards
+- tables
+- field structure
 
-## Per-coil theming
+Customize through tokens, composition, and small wrappers before reaching for bespoke markup or one-off CSS.
 
-`CoilTheme.svelte` wraps pages in `<div data-coil="{coil}">`. CSS variable overrides in `theme.css` under `[data-coil="events"]` etc. allow per-coil colour adjustments without duplicating component styles.
+## Current Reality
 
-## Admin components
+The app currently mixes:
 
-Admin-only components live in `organisms/admin/` and are only imported by routes under `routes/admin/`. They are full organisms (forms, badges) rather than atoms, so they belong in the organism layer rather than a flat `admin/` directory.
+- shadcn-svelte primitives
+- route-local Tailwind
+- scoped component CSS
+- KB-specific classes such as `.kb-*`
+
+That is already the real implementation. Older guidance that says the app is "Tailwind only" or forbids new KB classes no longer matches the repo. Going forward:
+
+- prefer utility classes and shadcn primitives by default
+- keep scoped CSS for third-party overrides or highly specific product interactions
+- avoid introducing new global style layers unless a shared pattern genuinely needs one
+
+## Layout And Spacing
+
+Standardize around a small set of shared layout patterns:
+
+- one public page max width
+- one content gutter rhythm
+- one card density scale
+- one list-row density scale
+- one detail-page sidebar pattern
+- one form section rhythm
+
+The current product feels inconsistent mainly because spacing, grouping, and page structure change too much between coils.
+
+## Typography
+
+Use a clear consumer-facing hierarchy:
+
+- hero / page title
+- section title
+- body copy
+- support metadata
+- micro labels
+
+Avoid mixing warm public pages with dense admin-like typography unless the page is truly an admin workflow.
+
+## Navigation
+
+Standardize toward:
+
+- one primary public shell
+- one clear mobile navigation behavior
+- one consistent coil navigation strategy
+- no duplicated navigation blocks competing with each other
+
+The goal is to make the product feel like one app, not five adjacent route trees.
+
+## Lists, Cards, And Detail Pages
+
+Shared patterns should exist for:
+
+- hero headers
+- featured cards
+- list rows
+- metadata groups
+- action blocks
+- related-content sidebars
+- empty states
+- loading states
+- error states
+
+Coils can still have different voice and content, but they should not each reinvent hierarchy and spacing.
+
+## Forms
+
+Submission and admin forms should share:
+
+- common section shells
+- consistent labels/help text
+- predictable button placement
+- consistent success/error messaging
+- a warmer tone than the current scaffold/admin feel
+
+Event submission is the current reference point, but the tone and information architecture still need refinement before the same patterns should be copied everywhere.
+
+## Visual Direction
+
+The product should move toward:
+
+- polished
+- warm
+- trustworthy
+- visual
+- intuitive
+
+It should move away from:
+
+- developer-scaffold feel
+- admin-panel feel
+- flat text-heavy layouts
+- awkward spacing
+- duplicated navigation
+- inconsistent responsive behavior
+
+Use imagery, logos, map surfaces, badges, and grouped metadata intentionally so pages feel human and informative rather than database-like.

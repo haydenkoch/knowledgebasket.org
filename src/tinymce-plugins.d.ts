@@ -1,6 +1,13 @@
 declare module 'tinymce/icons/default/icons.min.js';
+declare module 'tinymce/icons/default';
 declare module 'tinymce/themes/silver/theme.min.js';
+declare module 'tinymce/themes/silver';
 declare module 'tinymce/models/dom/model.min.js';
 declare module 'tinymce/plugins/lists/plugin.min.js';
+declare module 'tinymce/plugins/lists';
 declare module 'tinymce/plugins/link/plugin.min.js';
+declare module 'tinymce/plugins/link';
 declare module 'tinymce/plugins/autolink/plugin.min.js';
+declare module 'tinymce/plugins/autolink';
+declare module 'tinymce/plugins/image';
+declare module 'tinymce/plugins/code';

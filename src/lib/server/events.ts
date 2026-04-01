@@ -17,6 +17,11 @@ import type { EventItem, PricingTier } from '$lib/data/kb';
 
 export type EventRow = typeof eventsTable.$inferSelect;
 export type EventInsert = typeof eventsTable.$inferInsert;
+export type AdminEventListItem = EventItem & {
+	createdAt?: Date | string | null;
+	submitterName?: string;
+	submitterEmail?: string;
+};
 
 function formatDateForItem(d: Date | null): string | undefined {
 	if (!d) return undefined;
@@ -28,7 +33,12 @@ function formatDateForItem(d: Date | null): string | undefined {
 
 function rowToEventItem(
 	row: EventRow,
-	extra?: { organizationName?: string; venueName?: string; organizationSlug?: string; venueSlug?: string }
+	extra?: {
+		organizationName?: string;
+		venueName?: string;
+		organizationSlug?: string;
+		venueSlug?: string;
+	}
 ): EventItem {
 	return {
 		id: row.id,
@@ -230,7 +240,9 @@ export async function getEventById(id: string): Promise<EventItem | null> {
 /**
  * Get upcoming published events for an organization (DB only), limit 20.
  */
-export async function getUpcomingEventsByOrganizationId(organizationId: string): Promise<EventItem[]> {
+export async function getUpcomingEventsByOrganizationId(
+	organizationId: string
+): Promise<EventItem[]> {
 	const rows = await db
 		.select()
 		.from(eventsTable)
@@ -283,10 +295,7 @@ export async function getRelatedEvents(
 	];
 	const sameOrgOrVenue =
 		organizationId && venueId
-			? or(
-					eq(eventsTable.organizationId, organizationId),
-					eq(eventsTable.venueId, venueId)
-				)
+			? or(eq(eventsTable.organizationId, organizationId), eq(eventsTable.venueId, venueId))
 			: organizationId
 				? eq(eventsTable.organizationId, organizationId)
 				: venueId
@@ -360,7 +369,7 @@ export async function getEventsForAdmin(opts: {
 	limit?: number;
 	sort?: 'updated' | 'start' | 'title';
 	order?: 'asc' | 'desc';
-}): Promise<{ events: EventItem[]; total: number }> {
+}): Promise<{ events: AdminEventListItem[]; total: number }> {
 	const page = opts.page ?? 1;
 	const limit = opts.limit ?? 25;
 	const offset = (page - 1) * limit;
@@ -413,7 +422,7 @@ export async function getEventsForAdmin(opts: {
 		.limit(limit)
 		.offset(offset);
 
-	const items = rows.map((r) => {
+	const items: AdminEventListItem[] = rows.map((r) => {
 		const item = rowToEventItem(r.event, {
 			organizationName: r.orgName ?? undefined,
 			venueName: r.venueName ?? undefined
@@ -749,9 +758,7 @@ export async function findDuplicates(
 	const rows = await db
 		.select()
 		.from(eventsTable)
-		.where(
-			or(eq(eventsTable.status, 'published'), eq(eventsTable.status, 'pending'))!
-		)
+		.where(or(eq(eventsTable.status, 'published'), eq(eventsTable.status, 'pending'))!)
 		.orderBy(eventsTable.startDate);
 
 	const items = rows.map((r) => rowToEventItem(r));
@@ -791,21 +798,11 @@ export async function findDuplicates(
 	return groups;
 }
 
-export async function mergeEvents(
-	keeperId: string,
-	mergeIds: string[]
-): Promise<EventItem | null> {
-	const [keeper] = await db
-		.select()
-		.from(eventsTable)
-		.where(eq(eventsTable.id, keeperId))
-		.limit(1);
+export async function mergeEvents(keeperId: string, mergeIds: string[]): Promise<EventItem | null> {
+	const [keeper] = await db.select().from(eventsTable).where(eq(eventsTable.id, keeperId)).limit(1);
 	if (!keeper) return null;
 
-	const mergeable = await db
-		.select()
-		.from(eventsTable)
-		.where(inArray(eventsTable.id, mergeIds));
+	const mergeable = await db.select().from(eventsTable).where(inArray(eventsTable.id, mergeIds));
 
 	const merged: Partial<EventInsert> = {};
 	for (const row of mergeable) {

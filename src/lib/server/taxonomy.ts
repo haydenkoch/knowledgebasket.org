@@ -19,7 +19,10 @@ function slugify(label: string): string {
 
 // ── Tags ───────────────────────────────────────────────────
 export async function getTags(filters?: { group?: string }): Promise<TaxonomyTag[]> {
-	let q = db.select().from(taxonomyTags).orderBy(asc(taxonomyTags.sortOrder), asc(taxonomyTags.label));
+	let q = db
+		.select()
+		.from(taxonomyTags)
+		.orderBy(asc(taxonomyTags.sortOrder), asc(taxonomyTags.label));
 	if (filters?.group) {
 		q = q.where(eq(taxonomyTags.group, filters.group)) as typeof q;
 	}
@@ -40,7 +43,11 @@ async function uniqueTagSlug(base: string): Promise<string> {
 	let slug = base.slice(0, 100);
 	let n = 0;
 	for (;;) {
-		const existing = await db.select().from(taxonomyTags).where(eq(taxonomyTags.slug, slug)).limit(1);
+		const existing = await db
+			.select()
+			.from(taxonomyTags)
+			.where(eq(taxonomyTags.slug, slug))
+			.limit(1);
 		if (existing.length === 0) return slug;
 		n += 1;
 		slug = `${base.slice(0, 90)}-${n}`;
@@ -71,8 +78,11 @@ export async function updateTag(
 }
 
 export async function deleteTag(id: string): Promise<boolean> {
-	const result = await db.delete(taxonomyTags).where(eq(taxonomyTags.id, id));
-	return (result.rowCount ?? 0) > 0;
+	const deleted = await db
+		.delete(taxonomyTags)
+		.where(eq(taxonomyTags.id, id))
+		.returning({ id: taxonomyTags.id });
+	return deleted.length > 0;
 }
 
 // ── Options (region, audience, cost) ─────────────────────
@@ -85,7 +95,10 @@ export async function getOptions(key: string): Promise<TaxonomyOption[]> {
 }
 
 export async function getAllOptions(): Promise<TaxonomyOption[]> {
-	return db.select().from(taxonomyOptions).orderBy(asc(taxonomyOptions.key), asc(taxonomyOptions.sortOrder));
+	return db
+		.select()
+		.from(taxonomyOptions)
+		.orderBy(asc(taxonomyOptions.key), asc(taxonomyOptions.sortOrder));
 }
 
 export async function getOptionById(id: string): Promise<TaxonomyOption | null> {
@@ -105,11 +118,18 @@ export async function updateOption(
 	id: string,
 	data: Partial<Omit<TaxonomyOptionInsert, 'id' | 'createdAt' | 'updatedAt'>>
 ): Promise<TaxonomyOption | null> {
-	const [row] = await db.update(taxonomyOptions).set(data).where(eq(taxonomyOptions.id, id)).returning();
+	const [row] = await db
+		.update(taxonomyOptions)
+		.set(data)
+		.where(eq(taxonomyOptions.id, id))
+		.returning();
 	return row ?? null;
 }
 
 export async function deleteOption(id: string): Promise<boolean> {
-	const result = await db.delete(taxonomyOptions).where(eq(taxonomyOptions.id, id));
-	return (result.rowCount ?? 0) > 0;
+	const deleted = await db
+		.delete(taxonomyOptions)
+		.where(eq(taxonomyOptions.id, id))
+		.returning({ id: taxonomyOptions.id });
+	return deleted.length > 0;
 }

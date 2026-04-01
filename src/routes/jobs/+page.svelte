@@ -3,6 +3,7 @@
 	import KbHero from '$lib/components/organisms/KbHero.svelte';
 	import KbTwoColumnLayout from '$lib/components/organisms/KbTwoColumnLayout.svelte';
 	import KbFilterSection from '$lib/components/organisms/KbFilterSection.svelte';
+	import { Alert, AlertDescription, AlertTitle } from '$lib/components/ui/alert/index.js';
 	import {
 		Pagination,
 		PaginationContent,
@@ -36,7 +37,9 @@
 
 	const filtered = $derived(
 		filterByFacets(
-			jobs.filter((e) => matchSearch(e, searchQuery, ['employerName', 'location', 'jobType', 'sector'])),
+			jobs.filter((e) =>
+				matchSearch(e, searchQuery, ['employerName', 'location', 'jobType', 'sector'])
+			),
 			{
 				jobType: typeFilter,
 				sector: sectorFilter,
@@ -80,13 +83,17 @@
 	function deadlinePill(deadline?: string): { label: string; kind: 'urgent' | 'ok' | 'rolling' } {
 		if (!deadline?.trim()) return { label: 'Open until filled', kind: 'rolling' };
 		const lower = deadline.toLowerCase();
-		if (lower.includes('rolling') || lower.includes('open until')) return { label: 'Open until filled', kind: 'rolling' };
+		if (lower.includes('rolling') || lower.includes('open until'))
+			return { label: 'Open until filled', kind: 'rolling' };
 		const short = deadline.slice(0, 50);
 		const inDays = (d: Date) => Math.ceil((d.getTime() - Date.now()) / (24 * 60 * 60 * 1000));
 		const parsed = new Date(deadline);
 		if (isNaN(parsed.getTime())) return { label: short, kind: 'ok' };
 		const days = inDays(parsed);
-		const label = days <= 7 ? `Closes ${parsed.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}` : short;
+		const label =
+			days <= 7
+				? `Closes ${parsed.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`
+				: short;
 		return { label, kind: days <= 7 ? 'urgent' : 'ok' };
 	}
 </script>
@@ -102,17 +109,19 @@
 	<rect width="200" height="400" fill="url(#wv-jobs)" />
 {/snippet}
 {#snippet stats()}
-	<div class="font-sans text-white"><strong class="text-[28px] font-bold block leading-none">{total}</strong><span class="text-xs opacity-70">Open positions</span></div>
+	<div class="font-sans text-white">
+		<strong class="block text-[28px] leading-none font-bold">{total}</strong><span
+			class="text-xs opacity-70">Open positions</span
+		>
+	</div>
 {/snippet}
 {#snippet sidebar()}
 	<div class="relative mb-7">
-		<span class="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--muted-foreground)] text-[14px] flex items-center justify-center" aria-hidden="true">🔍</span>
-		<Input
-			type="search"
-			placeholder="Search jobs…"
-			class="pl-[38px]"
-			bind:value={searchQuery}
-		/>
+		<span
+			class="absolute top-1/2 left-3 flex -translate-y-1/2 items-center justify-center text-[14px] text-[var(--muted-foreground)]"
+			aria-hidden="true">🔍</span
+		>
+		<Input type="search" placeholder="Search jobs…" class="pl-[38px]" bind:value={searchQuery} />
 	</div>
 	<KbFilterSection
 		title="Job Type"
@@ -137,12 +146,20 @@
 	/>
 	<KbFilterSection
 		title="Work arrangement"
-		options={workArrangementValues.map((w) => ({ value: w, label: w, count: workArrangementCounts[w] ?? 0 }))}
+		options={workArrangementValues.map((w) => ({
+			value: w,
+			label: w,
+			count: workArrangementCounts[w] ?? 0
+		}))}
 		selected={workArrangementFilter}
 		onToggle={(val) => (workArrangementFilter = toggle(workArrangementFilter, val))}
 		emptyLabel="None"
 	/>
-	<button type="button" class="font-sans text-xs text-[var(--teal)] cursor-pointer underline bg-transparent border-none p-0 mt-2" onclick={clearFilters}>Clear all filters</button>
+	<button
+		type="button"
+		class="mt-2 cursor-pointer border-none bg-transparent p-0 font-sans text-xs text-[var(--teal)] underline"
+		onclick={clearFilters}>Clear all filters</button
+	>
 {/snippet}
 
 <div>
@@ -157,9 +174,23 @@
 
 	<KbTwoColumnLayout {sidebar}>
 		{#snippet children()}
-		<div class="flex items-center justify-between mb-[22px] pb-4 border-b border-[var(--rule)]">
-				<div class="font-sans text-[14px] text-[var(--muted-foreground)]">Showing <strong class="text-[var(--dark)]">{filteredTotal}</strong> jobs</div>
-				<select class="text-sm border border-[var(--border)] rounded px-2 py-1 bg-[var(--card)] text-[var(--foreground)]" aria-label="Sort">
+			{#if data.dataUnavailable}
+				<Alert class="mb-6 border-amber-300 bg-amber-50 text-amber-950">
+					<AlertTitle>Live job data is unavailable</AlertTitle>
+					<AlertDescription>
+						The page is showing a safe fallback because the local database connection failed. Check
+						`DATABASE_URL`, start local services, and run `pnpm db:push` if the schema is missing.
+					</AlertDescription>
+				</Alert>
+			{/if}
+			<div class="mb-[22px] flex items-center justify-between border-b border-[var(--rule)] pb-4">
+				<div class="font-sans text-[14px] text-[var(--muted-foreground)]">
+					Showing <strong class="text-[var(--dark)]">{filteredTotal}</strong> jobs
+				</div>
+				<select
+					class="rounded border border-[var(--border)] bg-[var(--card)] px-2 py-1 text-sm text-[var(--foreground)]"
+					aria-label="Sort"
+				>
 					<option>Recently posted</option>
 					<option>Deadline</option>
 				</select>
@@ -167,17 +198,36 @@
 			<div class="flex flex-col gap-3">
 				{#each paginatedList as job (job.id)}
 					{@const pill = deadlinePill(job.applicationDeadline)}
-					<a href="/jobs/{job.slug ?? job.id}" class="flex gap-4 items-start bg-white border border-[var(--rule)] rounded-lg p-4 no-underline text-inherit transition-[box-shadow,transform] duration-150 hover:shadow-[var(--shh)] hover:translate-x-[3px]">
-						<div class="w-12 h-12 rounded-full bg-[var(--forest,#2d6a4f)] text-white font-sans text-lg font-bold flex items-center justify-center flex-none">{initials(job.employerName ?? job.title)}</div>
-						<div class="flex-1 min-w-0 flex flex-col gap-1">
+					<a
+						href="/jobs/{job.slug ?? job.id}"
+						class="flex items-start gap-4 rounded-lg border border-[var(--rule)] bg-white p-4 text-inherit no-underline transition-[box-shadow,transform] duration-150 hover:translate-x-[3px] hover:shadow-[var(--shh)]"
+					>
+						<div
+							class="flex h-12 w-12 flex-none items-center justify-center rounded-full bg-[var(--forest,#2d6a4f)] font-sans text-lg font-bold text-white"
+						>
+							{initials(job.employerName ?? job.title)}
+						</div>
+						<div class="flex min-w-0 flex-1 flex-col gap-1">
 							{#if job.indigenousPriority}
-								<span class="text-[11px] font-bold text-[var(--teal)] uppercase tracking-[0.06em]">★ Indigenous Hires Prioritized</span>
+								<span class="text-[11px] font-bold tracking-[0.06em] text-[var(--teal)] uppercase"
+									>★ Indigenous Hires Prioritized</span
+								>
 							{/if}
-							<div class="font-serif text-base font-semibold text-[var(--dark)] leading-[1.3]">{job.title}</div>
-							{#if job.employerName}<div class="text-sm text-[var(--muted-foreground)]">{job.employerName}</div>{/if}
-							<div class="flex flex-wrap gap-[5px] mb-2">
-								{#if job.sector}<span class="text-[11px] font-semibold px-2 py-0.5 rounded bg-[var(--muted)] text-[var(--muted-foreground)]">{job.sector}</span>{/if}
-								{#if job.jobType}<span class="text-[11px] font-semibold px-2 py-0.5 rounded bg-[var(--muted)] text-[var(--muted-foreground)]">{job.jobType}</span>{/if}
+							<div class="font-serif text-base leading-[1.3] font-semibold text-[var(--dark)]">
+								{job.title}
+							</div>
+							{#if job.employerName}<div class="text-sm text-[var(--muted-foreground)]">
+									{job.employerName}
+								</div>{/if}
+							<div class="mb-2 flex flex-wrap gap-[5px]">
+								{#if job.sector}<span
+										class="rounded bg-[var(--muted)] px-2 py-0.5 text-[11px] font-semibold text-[var(--muted-foreground)]"
+										>{job.sector}</span
+									>{/if}
+								{#if job.jobType}<span
+										class="rounded bg-[var(--muted)] px-2 py-0.5 text-[11px] font-semibold text-[var(--muted-foreground)]"
+										>{job.jobType}</span
+									>{/if}
 							</div>
 							{#if job.location || job.seniority}
 								<div class="flex flex-wrap gap-1.5 text-xs text-[var(--muted-foreground)]">
@@ -186,8 +236,12 @@
 								</div>
 							{/if}
 						</div>
-						<div class="flex flex-col items-end gap-2 flex-none">
-							<span class="text-[11px] font-semibold px-2 py-0.5 rounded-full {pill.kind === 'urgent' ? 'bg-red-100 text-red-700' : 'bg-[var(--muted)] text-[var(--muted-foreground)]'}">{pill.label}</span>
+						<div class="flex flex-none flex-col items-end gap-2">
+							<span
+								class="rounded-full px-2 py-0.5 text-[11px] font-semibold {pill.kind === 'urgent'
+									? 'bg-red-100 text-red-700'
+									: 'bg-[var(--muted)] text-[var(--muted-foreground)]'}">{pill.label}</span
+							>
 							<span class="text-sm font-semibold text-[var(--teal)] underline">View Job</span>
 						</div>
 					</a>
@@ -211,10 +265,7 @@
 									</PaginationItem>
 								{:else}
 									<PaginationItem>
-										<PaginationLink
-											page={pageItem}
-											isActive={pageItem.value === currentPage}
-										>
+										<PaginationLink page={pageItem} isActive={pageItem.value === currentPage}>
 											{pageItem.value}
 										</PaginationLink>
 									</PaginationItem>
@@ -228,11 +279,15 @@
 		{/snippet}
 	</KbTwoColumnLayout>
 
-	<div class="flex items-center justify-between gap-6 px-10 py-8 flex-wrap">
+	<div class="flex flex-wrap items-center justify-between gap-6 px-10 py-8">
 		<div>
 			<h3>Post a job</h3>
 			<p>Submit career opportunities for IFS staff review.</p>
 		</div>
-		<a href="/jobs/submit" class="inline-block px-6 py-3 rounded text-white font-sans font-semibold text-sm no-underline flex-none">Post a job</a>
+		<a
+			href="/jobs/submit"
+			class="inline-block flex-none rounded px-6 py-3 font-sans text-sm font-semibold text-white no-underline"
+			>Post a job</a
+		>
 	</div>
 </div>

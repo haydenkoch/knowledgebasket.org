@@ -3,6 +3,7 @@
 	import KbHero from '$lib/components/organisms/KbHero.svelte';
 	import KbTwoColumnLayout from '$lib/components/organisms/KbTwoColumnLayout.svelte';
 	import KbFilterSection from '$lib/components/organisms/KbFilterSection.svelte';
+	import { Alert, AlertDescription, AlertTitle } from '$lib/components/ui/alert/index.js';
 	import {
 		Pagination,
 		PaginationContent,
@@ -31,7 +32,9 @@
 
 	const filtered = $derived(
 		filterByFacets(
-			funding.filter((e) => matchSearch(e, searchQuery, ['funderName', 'amountDescription', 'title'])),
+			funding.filter((e) =>
+				matchSearch(e, searchQuery, ['funderName', 'amountDescription', 'title'])
+			),
 			{
 				fundingType: typeFilter,
 				applicationStatus: statusFilter
@@ -39,7 +42,10 @@
 		)
 	);
 	const filteredTotal = $derived(filtered.length);
-	const openCount = $derived(funding.filter((f) => f.applicationStatus === 'open' || f.applicationStatus === 'rolling').length);
+	const openCount = $derived(
+		funding.filter((f) => f.applicationStatus === 'open' || f.applicationStatus === 'rolling')
+			.length
+	);
 	const rollingCount = $derived(funding.filter((f) => f.applicationStatus === 'rolling').length);
 
 	function toggle(arr: string[], val: string) {
@@ -76,18 +82,24 @@
 	<rect width="200" height="400" fill="url(#wv-funding)" />
 {/snippet}
 {#snippet stats()}
-	<div class="font-sans text-white"><strong class="text-[28px] font-bold block leading-none">{total}</strong><span class="text-xs opacity-70">Total</span></div>
-	<div class="font-sans text-white"><strong class="text-[28px] font-bold block leading-none">{openCount}</strong><span class="text-xs opacity-70">Open</span></div>
+	<div class="font-sans text-white">
+		<strong class="block text-[28px] leading-none font-bold">{total}</strong><span
+			class="text-xs opacity-70">Total</span
+		>
+	</div>
+	<div class="font-sans text-white">
+		<strong class="block text-[28px] leading-none font-bold">{openCount}</strong><span
+			class="text-xs opacity-70">Open</span
+		>
+	</div>
 {/snippet}
 {#snippet sidebar()}
 	<div class="relative mb-7">
-		<span class="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--muted-foreground)] text-[14px] flex items-center justify-center" aria-hidden="true">🔍</span>
-		<Input
-			type="search"
-			placeholder="Search funding…"
-			class="pl-[38px]"
-			bind:value={searchQuery}
-		/>
+		<span
+			class="absolute top-1/2 left-3 flex -translate-y-1/2 items-center justify-center text-[14px] text-[var(--muted-foreground)]"
+			aria-hidden="true">🔍</span
+		>
+		<Input type="search" placeholder="Search funding…" class="pl-[38px]" bind:value={searchQuery} />
 	</div>
 	<KbFilterSection
 		title="Type"
@@ -103,7 +115,11 @@
 		onToggle={(val) => (statusFilter = toggle(statusFilter, val))}
 		emptyLabel="No statuses"
 	/>
-	<button type="button" class="font-sans text-xs text-[var(--teal)] cursor-pointer underline bg-transparent border-none p-0 mt-2" onclick={clearFilters}>Clear all filters</button>
+	<button
+		type="button"
+		class="mt-2 cursor-pointer border-none bg-transparent p-0 font-sans text-xs text-[var(--teal)] underline"
+		onclick={clearFilters}>Clear all filters</button
+	>
 {/snippet}
 
 <div>
@@ -116,47 +132,109 @@
 		{stats}
 	/>
 
-	<div class="flex items-center gap-4 px-10 py-2 bg-[var(--card)] border-b border-[var(--rule)] text-[13px] font-sans flex-wrap">
-		<div class="flex items-center gap-1.5 text-[13px] text-[var(--foreground)]"><span class="inline-block w-2 h-2 rounded-full bg-[var(--green,#22c55e)]"></span> {openCount} Open</div>
-		<div class="flex items-center gap-1.5 text-[13px] text-[var(--foreground)]"><span class="inline-block w-2 h-2 rounded-full bg-[var(--gold)]"></span> {rollingCount} Rolling</div>
+	<div
+		class="flex flex-wrap items-center gap-4 border-b border-[var(--rule)] bg-[var(--card)] px-10 py-2 font-sans text-[13px]"
+	>
+		<div class="flex items-center gap-1.5 text-[13px] text-[var(--foreground)]">
+			<span class="inline-block h-2 w-2 rounded-full bg-[var(--green,#22c55e)]"></span>
+			{openCount} Open
+		</div>
+		<div class="flex items-center gap-1.5 text-[13px] text-[var(--foreground)]">
+			<span class="inline-block h-2 w-2 rounded-full bg-[var(--gold)]"></span>
+			{rollingCount} Rolling
+		</div>
 		<div class="ml-auto text-[11px] text-[var(--muted-foreground)]">Updated regularly</div>
 	</div>
 
 	<KbTwoColumnLayout {sidebar}>
 		{#snippet children()}
-		<div class="flex items-center justify-between mb-[22px] pb-4 border-b border-[var(--rule)]">
-				<div class="font-sans text-[14px] text-[var(--muted-foreground)]">Showing <strong class="text-[var(--dark)]">{filteredTotal}</strong> opportunities</div>
-				<select class="text-sm border border-[var(--border)] rounded px-2 py-1 bg-[var(--card)] text-[var(--foreground)]" aria-label="Sort">
+			{#if data.dataUnavailable}
+				<Alert class="mb-6 border-amber-300 bg-amber-50 text-amber-950">
+					<AlertTitle>Live funding data is unavailable</AlertTitle>
+					<AlertDescription>
+						The page is showing a safe fallback because the local database connection failed. Check
+						`DATABASE_URL`, start local services, and run `pnpm db:push` if the schema is missing.
+					</AlertDescription>
+				</Alert>
+			{/if}
+			<div class="mb-[22px] flex items-center justify-between border-b border-[var(--rule)] pb-4">
+				<div class="font-sans text-[14px] text-[var(--muted-foreground)]">
+					Showing <strong class="text-[var(--dark)]">{filteredTotal}</strong> opportunities
+				</div>
+				<select
+					class="rounded border border-[var(--border)] bg-[var(--card)] px-2 py-1 text-sm text-[var(--foreground)]"
+					aria-label="Sort"
+				>
 					<option>Soonest deadline</option>
 					<option>Recently added</option>
 				</select>
 			</div>
 			<div class="grid grid-cols-[repeat(auto-fill,minmax(310px,1fr))] gap-5">
 				{#each paginatedList as item, i (item.id)}
-					<a href="/funding/{item.slug ?? item.id}" class="bg-white rounded-lg shadow-[var(--sh)] overflow-hidden flex flex-col transition-[transform,box-shadow] duration-150 cursor-pointer border border-[var(--rule)] no-underline hover:-translate-y-[3px] hover:shadow-[var(--shh)] hover:no-underline">
-						<div class="h-[148px] flex items-center justify-center relative overflow-hidden">
+					<a
+						href="/funding/{item.slug ?? item.id}"
+						class="flex cursor-pointer flex-col overflow-hidden rounded-lg border border-[var(--rule)] bg-white no-underline shadow-[var(--sh)] transition-[transform,box-shadow] duration-150 hover:-translate-y-[3px] hover:no-underline hover:shadow-[var(--shh)]"
+					>
+						<div class="relative flex h-[148px] items-center justify-center overflow-hidden">
 							{#if item.imageUrl}
-								<img src={item.imageUrl} alt={item.title} class="w-full h-full object-cover" loading="lazy" />
+								<img
+									src={item.imageUrl}
+									alt={item.title}
+									class="h-full w-full object-cover"
+									loading="lazy"
+								/>
 							{:else}
 								<span class="absolute text-[48px] opacity-[0.35]" aria-hidden="true">💰</span>
 							{/if}
 							{#if item.applicationStatus}
-								<span class="absolute bottom-2 left-3 text-[11px] font-bold tracking-[0.05em] uppercase text-white/90 bg-black/30 px-2 py-0.5 rounded">{item.applicationStatus}</span>
+								<span
+									class="absolute bottom-2 left-3 rounded bg-black/30 px-2 py-0.5 text-[11px] font-bold tracking-[0.05em] text-white/90 uppercase"
+									>{item.applicationStatus}</span
+								>
 							{/if}
 						</div>
-						<div class="p-4 px-[18px] flex-1 min-h-0 flex flex-col">
-							<div class="flex flex-wrap gap-[5px] mb-2">
-								{#if item.applicationStatus}<span class="text-[11px] font-semibold px-2 py-0.5 rounded bg-[var(--muted)] text-[var(--muted-foreground)]">{item.applicationStatus}</span>{/if}
-								{#if item.fundingType}<span class="text-[11px] font-semibold px-2 py-0.5 rounded bg-[var(--muted)] text-[var(--muted-foreground)]">{item.fundingType}</span>{/if}
+						<div class="flex min-h-0 flex-1 flex-col p-4 px-[18px]">
+							<div class="mb-2 flex flex-wrap gap-[5px]">
+								{#if item.applicationStatus}<span
+										class="rounded bg-[var(--muted)] px-2 py-0.5 text-[11px] font-semibold text-[var(--muted-foreground)]"
+										>{item.applicationStatus}</span
+									>{/if}
+								{#if item.fundingType}<span
+										class="rounded bg-[var(--muted)] px-2 py-0.5 text-[11px] font-semibold text-[var(--muted-foreground)]"
+										>{item.fundingType}</span
+									>{/if}
 							</div>
-							<div class="font-serif text-base font-semibold text-[var(--dark)] leading-[1.35] mb-[5px]">{item.title}</div>
+							<div
+								class="mb-[5px] font-serif text-base leading-[1.35] font-semibold text-[var(--dark)]"
+							>
+								{item.title}
+							</div>
 							{#if item.amountDescription}
-								<div class="font-sans text-xs text-[var(--muted-foreground)] mb-[6px] flex items-center gap-1">💵 {item.amountDescription}</div>
+								<div
+									class="mb-[6px] flex items-center gap-1 font-sans text-xs text-[var(--muted-foreground)]"
+								>
+									💵 {item.amountDescription}
+								</div>
 							{/if}
-							{#if item.funderName}<div class="font-sans text-xs text-[var(--muted-foreground)] mb-[6px] flex items-center gap-1">🏛 {item.funderName}</div>{/if}
-							{#if item.deadline}<div class="font-sans text-xs text-[var(--muted-foreground)] mb-[6px] flex items-center gap-1">📅 Deadline: {item.deadline}</div>{/if}
-							{#if item.description}<div class="text-[13px] leading-[1.5] text-[var(--mid)] mb-[14px] flex-auto min-h-0 line-clamp-3">{stripHtml(String(item.description))}</div>{/if}
-							<span class="block flex-none text-center bg-[var(--teal)] text-white font-sans text-[13px] font-bold py-[9px] rounded-[var(--radius)] no-underline tracking-[0.03em] transition-[filter] duration-150 mt-auto hover:brightness-110">View Opportunity</span>
+							{#if item.funderName}<div
+									class="mb-[6px] flex items-center gap-1 font-sans text-xs text-[var(--muted-foreground)]"
+								>
+									🏛 {item.funderName}
+								</div>{/if}
+							{#if item.deadline}<div
+									class="mb-[6px] flex items-center gap-1 font-sans text-xs text-[var(--muted-foreground)]"
+								>
+									📅 Deadline: {item.deadline}
+								</div>{/if}
+							{#if item.description}<div
+									class="mb-[14px] line-clamp-3 min-h-0 flex-auto text-[13px] leading-[1.5] text-[var(--mid)]"
+								>
+									{stripHtml(String(item.description))}
+								</div>{/if}
+							<span
+								class="mt-auto block flex-none rounded-[var(--radius)] bg-[var(--teal)] py-[9px] text-center font-sans text-[13px] font-bold tracking-[0.03em] text-white no-underline transition-[filter] duration-150 hover:brightness-110"
+								>View Opportunity</span
+							>
 						</div>
 					</a>
 				{/each}
@@ -179,10 +257,7 @@
 									</PaginationItem>
 								{:else}
 									<PaginationItem>
-										<PaginationLink
-											page={pageItem}
-											isActive={pageItem.value === currentPage}
-										>
+										<PaginationLink page={pageItem} isActive={pageItem.value === currentPage}>
 											{pageItem.value}
 										</PaginationLink>
 									</PaginationItem>
@@ -196,11 +271,18 @@
 		{/snippet}
 	</KbTwoColumnLayout>
 
-	<div class="flex items-center justify-between gap-6 px-10 py-8 flex-wrap" style="background: var(--gold-lt); border-top-color: var(--gold)">
+	<div
+		class="flex flex-wrap items-center justify-between gap-6 px-10 py-8"
+		style="background: var(--gold-lt); border-top-color: var(--gold)"
+	>
 		<div>
 			<h3 style="color: var(--gold)">Know of a funding opportunity?</h3>
 			<p>Submit grants, loans, fellowships, and contracts for IFS staff review.</p>
 		</div>
-		<a href="/funding/submit" class="inline-block px-6 py-3 rounded text-white font-sans font-semibold text-sm no-underline flex-none" style="background: var(--gold)">Submit Funding Opportunity</a>
+		<a
+			href="/funding/submit"
+			class="inline-block flex-none rounded px-6 py-3 font-sans text-sm font-semibold text-white no-underline"
+			style="background: var(--gold)">Submit Funding Opportunity</a
+		>
 	</div>
 </div>

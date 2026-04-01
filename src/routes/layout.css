@@ -1,97 +1,96 @@
 /* Typekit loaded async in +layout.svelte to avoid blocking; if blocked by content blocker, fallbacks below apply */
 @import '../lib/theme/theme.css';
 
-/* Base (only global resets and typography; component styles live in lib/styles) */
+/* Base global styles only; component styles now live alongside routes/components. */
 body {
-  margin: 0;
-  font-family: var(--font-sans);
-  background: var(--background);
-  color: var(--foreground);
-  font-size: 16px;
-  line-height: 1.65;
-  min-height: 100vh;
+	margin: 0;
+	font-family: var(--font-sans);
+	background: var(--background);
+	color: var(--foreground);
+	font-size: 16px;
+	line-height: 1.65;
+	min-height: 100vh;
 }
 
 a {
-  color: var(--primary);
-  text-decoration: none;
+	color: var(--primary);
+	text-decoration: none;
 }
 
 a:hover {
-  text-decoration: underline;
+	text-decoration: underline;
 }
 
 /* Skip link: visible on focus for keyboard/screen reader users */
 .skip-link {
-  position: absolute;
-  left: -9999px;
-  z-index: 9999;
-  padding: 0.75rem 1rem;
-  background: var(--background);
-  color: var(--foreground);
-  font-weight: 500;
-  border: 2px solid var(--ring);
-  border-radius: var(--radius-md);
+	position: absolute;
+	left: -9999px;
+	z-index: 9999;
+	padding: 0.75rem 1rem;
+	background: var(--background);
+	color: var(--foreground);
+	font-weight: 500;
+	border: 2px solid var(--ring);
+	border-radius: var(--radius-md);
 }
 .skip-link:focus {
-  left: 1rem;
-  top: 1rem;
+	left: 1rem;
+	top: 1rem;
 }
 
 /* Tailwind + shadcn-svelte (theming uses vars from theme.css) */
-@import "tailwindcss";
-@import "tw-animate-css";
+@import 'tailwindcss';
+@import 'tw-animate-css';
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --color-card: var(--card);
-  --color-card-foreground: var(--card-foreground);
-  --color-popover: var(--popover);
-  --color-popover-foreground: var(--popover-foreground);
-  --color-primary: var(--primary);
-  --color-primary-foreground: var(--primary-foreground);
-  --color-secondary: var(--secondary);
-  --color-secondary-foreground: var(--secondary-foreground);
-  --color-muted: var(--muted);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-accent: var(--accent);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-destructive: var(--destructive);
-  --color-border: var(--border);
-  --color-input: var(--input);
-  --color-ring: var(--ring);
-  --color-chart-1: var(--chart-1);
-  --color-chart-2: var(--chart-2);
-  --color-chart-3: var(--chart-3);
-  --color-chart-4: var(--chart-4);
-  --color-chart-5: var(--chart-5);
-  --color-sidebar: var(--sidebar);
-  --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-sidebar-primary: var(--sidebar-primary);
-  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-  --color-sidebar-accent: var(--sidebar-accent);
-  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-  --color-sidebar-border: var(--sidebar-border);
-  --color-sidebar-ring: var(--sidebar-ring);
-  /* KB layout / refine (from theme.css --bone, --rule) */
-  --color-bone: var(--bone);
-  --color-rule: var(--rule);
-  /* Sidebar width: single token for layout (280px) */
-  --width-sidebar: 17.5rem;
+	--radius-sm: calc(var(--radius) - 4px);
+	--radius-md: calc(var(--radius) - 2px);
+	--radius-lg: var(--radius);
+	--radius-xl: calc(var(--radius) + 4px);
+	--color-background: var(--background);
+	--color-foreground: var(--foreground);
+	--color-card: var(--card);
+	--color-card-foreground: var(--card-foreground);
+	--color-popover: var(--popover);
+	--color-popover-foreground: var(--popover-foreground);
+	--color-primary: var(--primary);
+	--color-primary-foreground: var(--primary-foreground);
+	--color-secondary: var(--secondary);
+	--color-secondary-foreground: var(--secondary-foreground);
+	--color-muted: var(--muted);
+	--color-muted-foreground: var(--muted-foreground);
+	--color-accent: var(--accent);
+	--color-accent-foreground: var(--accent-foreground);
+	--color-destructive: var(--destructive);
+	--color-border: var(--border);
+	--color-input: var(--input);
+	--color-ring: var(--ring);
+	--color-chart-1: var(--chart-1);
+	--color-chart-2: var(--chart-2);
+	--color-chart-3: var(--chart-3);
+	--color-chart-4: var(--chart-4);
+	--color-chart-5: var(--chart-5);
+	--color-sidebar: var(--sidebar);
+	--color-sidebar-foreground: var(--sidebar-foreground);
+	--color-sidebar-primary: var(--sidebar-primary);
+	--color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+	--color-sidebar-accent: var(--sidebar-accent);
+	--color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+	--color-sidebar-border: var(--sidebar-border);
+	--color-sidebar-ring: var(--sidebar-ring);
+	/* KB layout / refine (from theme.css --bone, --rule) */
+	--color-bone: var(--bone);
+	--color-rule: var(--rule);
+	/* Sidebar width: single token for layout (280px) */
+	--width-sidebar: 17.5rem;
 }
 
 @layer base {
-  * {
-    @apply border-border outline-ring/50;
-  }
-  body {
-    @apply bg-background text-foreground;
-  }
+	* {
+		@apply border-border outline-ring/50;
+	}
+	body {
+		@apply bg-background text-foreground;
+	}
 }
-

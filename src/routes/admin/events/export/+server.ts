@@ -7,7 +7,10 @@ function escapeCsv(s: string): string {
 }
 
 function toIcalDate(d: Date): string {
-	return d.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+	return d
+		.toISOString()
+		.replace(/[-:]/g, '')
+		.replace(/\.\d{3}/, '');
 }
 
 export const GET: RequestHandler = async ({ url, locals }) => {
@@ -40,12 +43,8 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 			'cost',
 			'eventUrl',
 			'contactEmail'
-		];
-		const rows = events.map((e) =>
-			headers
-				.map((h) => escapeCsv(String((e as Record<string, unknown>)[h] ?? '')))
-				.join(',')
-		);
+		] as const;
+		const rows = events.map((e) => headers.map((h) => escapeCsv(String(e[h] ?? ''))).join(','));
 		const body = [headers.join(','), ...rows].join('\n');
 		return new Response(body, {
 			headers: {

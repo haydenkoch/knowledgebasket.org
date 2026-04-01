@@ -5,7 +5,6 @@
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
 	import { Label } from '$lib/components/ui/label/index.js';
-	import * as Field from '$lib/components/ui/field/index.js';
 	import * as Empty from '$lib/components/ui/empty/index.js';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog/index.js';
 
@@ -50,13 +49,17 @@
 		<Card.Header class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
 			<Card.Title>Events in this list</Card.Title>
 			<form method="POST" action="?/addEvent" use:enhance class="flex flex-wrap items-end gap-2">
-				<Field.Field>
-					<Field.Label for="eventId" class="sr-only">Event ID</Field.Label>
-					<Field.Description class="sr-only">Paste an event UUID from the event edit URL</Field.Description>
-					<Field.Content>
-						<Input id="eventId" name="eventId" placeholder="Event UUID" class="w-64" />
-					</Field.Content>
-				</Field.Field>
+				<div class="flex flex-col gap-1.5">
+					<Label for="eventId" class="sr-only">Event ID</Label>
+					<p id="eventId-help" class="sr-only">Paste an event UUID from the event edit URL</p>
+					<Input
+						id="eventId"
+						name="eventId"
+						placeholder="Event UUID"
+						class="w-64"
+						aria-describedby="eventId-help"
+					/>
+				</div>
 				<Button type="submit">Add event</Button>
 			</form>
 		</Card.Header>
@@ -65,7 +68,9 @@
 				<Empty.Root>
 					<Empty.Header>
 						<Empty.Title>No events in this list</Empty.Title>
-						<Empty.Description>Add events by pasting an event UUID above (find it from the event edit URL).</Empty.Description>
+						<Empty.Description
+							>Add events by pasting an event UUID above (find it from the event edit URL).</Empty.Description
+						>
 					</Empty.Header>
 				</Empty.Root>
 			{:else}
@@ -84,13 +89,19 @@
 								<Table.Cell class="text-muted-foreground">{ev.slug}</Table.Cell>
 								<Table.Cell>
 									<span class="flex items-center gap-2">
-										<a href="/admin/events/{ev.id}" class="text-sm text-primary hover:underline">Edit</a>
+										<a href="/admin/events/{ev.id}" class="text-sm text-primary hover:underline"
+											>Edit</a
+										>
 										<AlertDialog.Root>
-											<AlertDialog.Trigger class="text-sm text-red-600 hover:underline">Remove</AlertDialog.Trigger>
+											<AlertDialog.Trigger class="text-sm text-red-600 hover:underline"
+												>Remove</AlertDialog.Trigger
+											>
 											<AlertDialog.Content>
 												<AlertDialog.Header>
 													<AlertDialog.Title>Remove from list</AlertDialog.Title>
-													<AlertDialog.Description>Remove this event from the list? The event itself is not deleted.</AlertDialog.Description>
+													<AlertDialog.Description
+														>Remove this event from the list? The event itself is not deleted.</AlertDialog.Description
+													>
 												</AlertDialog.Header>
 												<AlertDialog.Footer>
 													<AlertDialog.Cancel>Cancel</AlertDialog.Cancel>

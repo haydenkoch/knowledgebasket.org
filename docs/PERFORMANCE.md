@@ -1,49 +1,57 @@
-# Performance audit guide
+# Performance Notes
 
-How to find and fix UI lag, sluggish buttons, glitchy sliders, and scroll jank on the events page (and elsewhere).
+## Current Hotspots
 
-## 1. Chrome DevTools – Performance tab
+The largest performance risks in the current app are:
 
-**Goal:** Find long tasks and layout thrash.
+- the events page derived-filter chain
+- the events calendar bundle
+- large route-level components
+- bundle size on the client build
 
-1. Open **DevTools → Performance**.
-2. Click **Record**, interact with the page (switch views, drag the date slider, scroll, click filters), then stop.
-3. In the **Main** thread flame chart:
-   - **Long yellow blocks** (> ~50 ms) = long tasks that can block clicks and cause lag. Click to see which function (often `$effect`, `flush`, or a filter/sort).
-   - **Purple “Layout” / “Recalc Style”** right after script = layout thrash (DOM reads/writes forcing reflows).
-4. **Summary:** If “Scripting” or “Rendering” time is high during a simple click or drag, that action is doing too much work.
+The events experience should stay fast without losing the current filter-bar interaction model.
 
-## 2. Chrome DevTools – Rendering
+## What Has Already Been Done
 
-1. **DevTools → More tools → Rendering**.
-2. Enable **“Layout Shift Regions”** (blue flash) to see CLS; **“Frame Rendering Stats”** to see FPS.
-3. Scroll and interact: if FPS drops a lot or you see many blue flashes, track down which components or effects run on scroll/resize.
+- Calendar loading is deferred until the calendar view is opened.
+- URL sync behavior on the events page has already been softened to reduce jarring view switches.
+- The events filter system already separates slider drag state from committed date-range state.
 
-## 3. Svelte reactivity
+## What To Improve Next
 
-The events page has a long **$derived** chain (search → cost → region → type → date → filtered). Each dependency change can recompute the chain.
+### Perceived performance
 
-- **Audit:** Add a temporary `console.log` or breakpoint inside a `$derived` or `$effect` and see how often it runs when you move the slider or click a tab.
-- **Improvements:** Prefer computing once and passing data down; throttle or batch updates (e.g. slider: update list only on commit, not every drag tick); avoid reading `page` or other stores inside effects that run on every view change if you can.
+Prioritize the places users will actually feel:
 
-## 4. What to fix first
+- global search responsiveness
+- events search/filter responsiveness
+- slider drag and commit behavior
+- calendar view switches
+- image loading on list/detail pages
+- heavy admin editor loads
 
-| Symptom | Likely cause | Where to look |
-|--------|----------------|----------------|
-| Buttons lag on click | Heavy work in `$effect` after state change (e.g. URL sync, re-renders) | URL sync effect, view tab handler |
-| Slider feels glitchy | Too many state updates per frame during drag; full filter chain re-running | `onValueChange` → `sliderIndices` → derived chain; date histogram re-render |
-| Scroll → content disappears/snaps | Layout reflow, conditional rendering on scroll/resize, or too many DOM nodes | Sidebar/main layout; `IsMobile` / media queries; long lists without virtualization |
-| Tabs feel slow | `goto()` or load running synchronously right after tab change | URL sync effect calling `goto` immediately |
+### Real performance
 
-## 5. Quick wins applied in code
+Prioritize:
 
-- **URL sync:** Deferred to next tick so the tab UI updates before navigation.
-- **Slider:** Throttled parent updates during drag so the histogram and derived state don’t re-run every pointer move.
-- **Calendar:** Lazy-loaded; recreated when returning to calendar view so it doesn’t reuse a detached instance.
+- splitting large route files by behavior
+- code-splitting heavy editor/calendar paths
+- reducing oversized client chunks
+- avoiding repeated filtering/sorting work during drag interactions
+- keeping route data lean
 
-## 6. Further improvements
+## Profiling Workflow
 
-- **Virtualize long lists:** If the events list grows large, render only visible items (e.g. `svelte-virtual-list` or a custom windowing component).
-- **Reduce derived chain:** Consider one memoized “filtered events” that only recomputes when search/filters/date actually change, and avoid re-running on slider drag (use local drag state for thumbs only).
-- **Profile with Svelte DevTools:** If available for Svelte 5, inspect component re-renders and effect runs.
-- **Lighthouse:** Run Performance + Diagnostics for LCP, TBT, and “Avoid long main-thread tasks” and fix the worst offenders.
+Use this order:
+
+1. Browser Performance panel for long tasks and layout thrash.
+2. Lighthouse for bundle and main-thread diagnostics.
+3. Svelte warnings and build output.
+4. Targeted instrumentation inside the events filter chain when interaction lag is suspected.
+
+## Performance Rules
+
+- Preserve the existing filter-bar interaction model.
+- Avoid premature rewrites.
+- Improve shared patterns before micro-optimizing one-off pages.
+- Treat route decomposition as both a maintainability and performance investment.

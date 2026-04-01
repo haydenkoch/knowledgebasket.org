@@ -1,19 +1,45 @@
 import { getEvents, getEventById } from '$lib/server/events';
 import { getListBySlug, getListEventIds } from '$lib/server/event-lists';
 import { env } from '$env/dynamic/private';
+import { withPublicDataFallback } from '$lib/server/public-load';
 
 export async function load({ url }) {
 	const mapboxToken = env.MAPBOX_ACCESS_TOKEN ?? env.MAPBOX_TOKEN ?? null;
-	const [events, featuredList] = await Promise.all([getEvents(), getListBySlug('featured')]);
+	const [
+		{ data: events, unavailable: eventsUnavailable },
+		{ data: featuredList, unavailable: featuredListUnavailable }
+	] = await Promise.all([
+		withPublicDataFallback('events collection', () => getEvents(), []),
+		withPublicDataFallback('featured event list', () => getListBySlug('featured'), null)
+	]);
 	let featuredEvents: Awaited<ReturnType<typeof getEventById>>[] = [];
+	let dataUnavailable = eventsUnavailable || featuredListUnavailable;
 	if (featuredList) {
-		const ids = await getListEventIds(featuredList.id);
-		featuredEvents = (await Promise.all(ids.map((id) => getEventById(id)))).filter(Boolean) as Awaited<ReturnType<typeof getEventById>>[];
+		const { data: ids, unavailable: idsUnavailable } = await withPublicDataFallback(
+			'featured event ids',
+			() => getListEventIds(featuredList.id),
+			[]
+		);
+		dataUnavailable = dataUnavailable || idsUnavailable;
+		if (ids.length > 0) {
+			const { data: featured, unavailable: featuredEventsUnavailable } =
+				await withPublicDataFallback(
+					'featured events',
+					async () =>
+						(await Promise.all(ids.map((id) => getEventById(id)))).filter(Boolean) as Awaited<
+							ReturnType<typeof getEventById>
+						>[],
+					[]
+				);
+			featuredEvents = featured;
+			dataUnavailable = dataUnavailable || featuredEventsUnavailable;
+		}
 	}
 
 	const view = url.searchParams.get('view');
 	const mode = url.searchParams.get('mode');
 	const dateParam = url.searchParams.get('date');
+	const initialSearchQuery = url.searchParams.get('q')?.trim() ?? '';
 
 	let initialView: 'cards' | 'list' | 'calendar' = 'list';
 	if (view === 'cards' || view === 'list' || view === 'calendar') initialView = view;
@@ -41,6 +67,8 @@ export async function load({ url }) {
 		initialCalendarYear,
 		initialCalendarMonth,
 		initialCalendarDay,
-		mapboxToken
+		initialSearchQuery,
+		mapboxToken,
+		dataUnavailable
 	};
 }

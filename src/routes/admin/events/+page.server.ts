@@ -1,5 +1,10 @@
 import type { PageServerLoad, Actions } from './$types';
-import { getEventsForAdmin, bulkApproveEvents, bulkRejectEvents, bulkDeleteEvents } from '$lib/server/events';
+import {
+	getEventsForAdmin,
+	bulkApproveEvents,
+	bulkRejectEvents,
+	bulkDeleteEvents
+} from '$lib/server/events';
 
 export const load: PageServerLoad = async ({ url }) => {
 	const status = url.searchParams.get('status') ?? 'all';
@@ -8,8 +13,23 @@ export const load: PageServerLoad = async ({ url }) => {
 	const sort = (url.searchParams.get('sort') ?? 'updated') as 'updated' | 'start' | 'title';
 	const order = (url.searchParams.get('order') ?? 'desc') as 'asc' | 'desc';
 
-	const { events, total } = await getEventsForAdmin({ status, search, page, limit: 25, sort, order });
-	return { events, total, currentStatus: status, currentSearch: search, currentPage: page, currentSort: sort, currentOrder: order };
+	const { events, total } = await getEventsForAdmin({
+		status,
+		search,
+		page,
+		limit: 25,
+		sort,
+		order
+	});
+	return {
+		events,
+		total,
+		currentStatus: status,
+		currentSearch: search,
+		currentPage: page,
+		currentSort: sort,
+		currentOrder: order
+	};
 };
 
 export const actions: Actions = {
@@ -28,7 +48,7 @@ export const actions: Actions = {
 		const count = await bulkRejectEvents(ids, locals.user!.id, reason ?? undefined);
 		return { success: true, count };
 	},
-	bulkDelete: async ({ request, locals }) => {
+	bulkDelete: async ({ request }) => {
 		const formData = await request.formData();
 		const ids = formData.getAll('ids') as string[];
 		if (ids.length === 0) return { success: false };

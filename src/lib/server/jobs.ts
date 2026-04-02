@@ -2,7 +2,7 @@
  * Jobs data layer: CRUD, moderation, interest tracking, search indexing.
  */
 import { eq, desc, asc, ilike, or, and, sql } from 'drizzle-orm';
-import { db } from '$lib/server/db';
+import { db, type DbExecutor } from '$lib/server/db';
 import {
 	jobs as jobsTable,
 	jobInterests,
@@ -19,7 +19,12 @@ export type JobInsert = typeof jobsTable.$inferInsert;
 
 function rowToItem(
 	row: JobRow,
-	extra?: { organizationName?: string; organizationSlug?: string; interestCount?: number; userInterested?: boolean }
+	extra?: {
+		organizationName?: string;
+		organizationSlug?: string;
+		interestCount?: number;
+		userInterested?: boolean;
+	}
 ): JobItem {
 	return {
 		id: row.id,
@@ -107,7 +112,6 @@ function slugify(title: string): string {
 async function uniqueSlug(base: string): Promise<string> {
 	let slug = base.slice(0, 100);
 	let n = 0;
-	// eslint-disable-next-line no-constant-condition
 	while (true) {
 		const existing = await db
 			.select({ id: jobsTable.id })
@@ -131,10 +135,7 @@ export async function getPublishedJobs(): Promise<JobItem[]> {
 	return rows.map((r) => rowToItem(r));
 }
 
-export async function getJobBySlug(
-	slug: string,
-	userId?: string
-): Promise<JobItem | null> {
+export async function getJobBySlug(slug: string, userId?: string): Promise<JobItem | null> {
 	const rows = await db
 		.select({
 			job: jobsTable,
@@ -191,10 +192,7 @@ export async function getJobsByOrganizationId(orgId: string): Promise<JobItem[]>
 
 // ── Interest tracking ─────────────────────────────────────
 
-export async function toggleJobInterest(
-	jobId: string,
-	userId: string
-): Promise<boolean> {
+export async function toggleJobInterest(jobId: string, userId: string): Promise<boolean> {
 	const [existing] = await db
 		.select({ id: jobInterests.id })
 		.from(jobInterests)
@@ -267,9 +265,7 @@ export async function getJobsForAdmin(opts: {
 		.limit(limit)
 		.offset(offset);
 
-	const items = rows.map((r) =>
-		rowToItem(r.job, { organizationName: r.orgName ?? undefined })
-	);
+	const items = rows.map((r) => rowToItem(r.job, { organizationName: r.orgName ?? undefined }));
 	return { items, total };
 }
 
@@ -286,10 +282,11 @@ export async function getJobStatusCounts(): Promise<Record<string, number>> {
 // ── Create / Update / Delete ──────────────────────────────
 
 export async function createJob(
-	data: Omit<JobInsert, 'id' | 'slug' | 'createdAt' | 'updatedAt'>
+	data: Omit<JobInsert, 'id' | 'slug' | 'createdAt' | 'updatedAt'>,
+	database: DbExecutor = db
 ): Promise<JobRow> {
 	const slug = await uniqueSlug(slugify(data.title));
-	const [row] = await db
+	const [row] = await database
 		.insert(jobsTable)
 		.values({ ...data, slug })
 		.returning();
@@ -302,9 +299,10 @@ export async function createJob(
 
 export async function updateJob(
 	id: string,
-	data: Partial<Omit<JobInsert, 'id' | 'createdAt'>>
+	data: Partial<Omit<JobInsert, 'id' | 'createdAt'>>,
+	database: DbExecutor = db
 ): Promise<JobRow | null> {
-	const [row] = await db
+	const [row] = await database
 		.update(jobsTable)
 		.set(data)
 		.where(eq(jobsTable.id, id))

@@ -32,7 +32,10 @@
 				<AlertDialog.Footer>
 					<AlertDialog.Cancel>Cancel</AlertDialog.Cancel>
 					<form method="POST" action="?/deleteVenue" use:enhance>
-						<AlertDialog.Action type="submit" class="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+						<AlertDialog.Action
+							type="submit"
+							class="text-destructive-foreground bg-destructive hover:bg-destructive/90"
+						>
 							Delete
 						</AlertDialog.Action>
 					</form>
@@ -41,15 +44,22 @@
 		</AlertDialog.Root>
 	</div>
 
-	<form method="POST" action="?/updateVenue" enctype="multipart/form-data" use:enhance={() => {
-		submitting = true;
-		return ({ result, update }) => {
-			submitting = false;
-			if (result.type === 'success') toast.success('Venue updated');
-			else if (result.type === 'failure') toast.error((result.data as { error?: string })?.error ?? 'Update failed');
-			update();
-		};
-	}} class="space-y-6">
+	<form
+		method="POST"
+		action="?/updateVenue"
+		enctype="multipart/form-data"
+		use:enhance={() => {
+			submitting = true;
+			return ({ result, update }) => {
+				submitting = false;
+				if (result.type === 'success') toast.success('Venue updated');
+				else if (result.type === 'failure')
+					toast.error((result.data as { error?: string })?.error ?? 'Update failed');
+				update();
+			};
+		}}
+		class="space-y-6"
+	>
 		<Card.Root>
 			<Card.Header>
 				<Card.Title>Details</Card.Title>
@@ -60,20 +70,39 @@
 					<Field.Field>
 						<Field.Label for="name">Name *</Field.Label>
 						<Field.Content>
-							<Input id="name" name="name" type="text" required value={data.venue.name} class="w-full" />
+							<Input
+								id="name"
+								name="name"
+								type="text"
+								required
+								value={data.venue.name}
+								class="w-full"
+							/>
 						</Field.Content>
 					</Field.Field>
 					<Field.Field>
 						<Field.Label for="venueType">Type</Field.Label>
 						<Field.Content>
-							<Input id="venueType" name="venueType" type="text" value={data.venue.venueType ?? ''} class="w-full" />
+							<Input
+								id="venueType"
+								name="venueType"
+								type="text"
+								value={data.venue.venueType ?? ''}
+								class="w-full"
+							/>
 						</Field.Content>
 					</Field.Field>
 				</div>
 				<Field.Field>
 					<Field.Label for="description">Description</Field.Label>
 					<Field.Content>
-						<Textarea id="description" name="description" rows={3} value={data.venue.description ?? ''} class="w-full" />
+						<Textarea
+							id="description"
+							name="description"
+							rows={3}
+							value={data.venue.description ?? ''}
+							class="w-full"
+						/>
 					</Field.Content>
 				</Field.Field>
 			</Card.Content>
@@ -89,19 +118,37 @@
 					<Field.Field>
 						<Field.Label for="address">Address</Field.Label>
 						<Field.Content>
-							<Input id="address" name="address" type="text" value={data.venue.address ?? ''} class="w-full" />
+							<Input
+								id="address"
+								name="address"
+								type="text"
+								value={data.venue.address ?? ''}
+								class="w-full"
+							/>
 						</Field.Content>
 					</Field.Field>
 					<Field.Field>
 						<Field.Label for="city">City</Field.Label>
 						<Field.Content>
-							<Input id="city" name="city" type="text" value={data.venue.city ?? ''} class="w-full" />
+							<Input
+								id="city"
+								name="city"
+								type="text"
+								value={data.venue.city ?? ''}
+								class="w-full"
+							/>
 						</Field.Content>
 					</Field.Field>
 					<Field.Field>
 						<Field.Label for="state">State</Field.Label>
 						<Field.Content>
-							<Input id="state" name="state" type="text" value={data.venue.state ?? ''} class="w-full" />
+							<Input
+								id="state"
+								name="state"
+								type="text"
+								value={data.venue.state ?? ''}
+								class="w-full"
+							/>
 						</Field.Content>
 					</Field.Field>
 				</div>
@@ -115,7 +162,13 @@
 					<Field.Field>
 						<Field.Label for="website">Website</Field.Label>
 						<Field.Content>
-							<Input id="website" name="website" type="url" value={data.venue.website ?? ''} class="w-full" />
+							<Input
+								id="website"
+								name="website"
+								type="url"
+								value={data.venue.website ?? ''}
+								class="w-full"
+							/>
 						</Field.Content>
 					</Field.Field>
 				</div>
@@ -131,7 +184,12 @@
 				<Field.Field>
 					<Field.Label for="organizationId">Organization</Field.Label>
 					<Field.Content>
-						<NativeSelect.Root id="organizationId" name="organizationId" value={data.venue.organizationId ?? ''} class="w-full">
+						<NativeSelect.Root
+							id="organizationId"
+							name="organizationId"
+							value={data.venue.organizationId ?? ''}
+							class="w-full"
+						>
 							<NativeSelect.Option value="">None</NativeSelect.Option>
 							{#each data.organizations as org}
 								<NativeSelect.Option value={org.id}>{org.name}</NativeSelect.Option>
@@ -145,10 +203,16 @@
 						{#if data.venue.imageUrl}
 							<div class="mb-2 flex items-center gap-3">
 								<img src={data.venue.imageUrl} alt="" class="h-20 w-20 rounded object-cover" />
-								<span class="text-muted-foreground text-sm">Replace by choosing a new file.</span>
+								<span class="text-sm text-muted-foreground">Replace by choosing a new file.</span>
 							</div>
 						{/if}
-						<Input id="image" name="image" type="file" accept="image/jpeg,image/png,image/webp" class="w-full" />
+						<Input
+							id="image"
+							name="image"
+							type="file"
+							accept="image/jpeg,image/png,image/webp"
+							class="w-full"
+						/>
 					</Field.Content>
 				</Field.Field>
 			</Card.Content>

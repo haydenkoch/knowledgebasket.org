@@ -3,7 +3,7 @@
  * Supports both hosted content (articles/guides) and external links.
  */
 import { eq, desc, asc, ilike, or, and, sql } from 'drizzle-orm';
-import { db } from '$lib/server/db';
+import { db, type DbExecutor } from '$lib/server/db';
 import {
 	toolboxResources as tbTable,
 	organizations,
@@ -88,7 +88,6 @@ function slugify(title: string): string {
 async function uniqueSlug(base: string): Promise<string> {
 	let slug = base.slice(0, 100);
 	let n = 0;
-	// eslint-disable-next-line no-constant-condition
 	while (true) {
 		const existing = await db
 			.select({ id: tbTable.id })
@@ -166,10 +165,7 @@ export async function getResourcesForAdmin(opts: {
 	}
 	if (opts.search) {
 		conditions.push(
-			or(
-				ilike(tbTable.title, `%${opts.search}%`),
-				ilike(tbTable.sourceName, `%${opts.search}%`)
-			)!
+			or(ilike(tbTable.title, `%${opts.search}%`), ilike(tbTable.sourceName, `%${opts.search}%`))!
 		);
 	}
 
@@ -217,10 +213,11 @@ export async function getResourceStatusCounts(): Promise<Record<string, number>>
 // ── Create / Update / Delete ──────────────────────────────
 
 export async function createResource(
-	data: Omit<ToolboxInsert, 'id' | 'slug' | 'createdAt' | 'updatedAt'>
+	data: Omit<ToolboxInsert, 'id' | 'slug' | 'createdAt' | 'updatedAt'>,
+	database: DbExecutor = db
 ): Promise<ToolboxRow> {
 	const slug = await uniqueSlug(slugify(data.title));
-	const [row] = await db
+	const [row] = await database
 		.insert(tbTable)
 		.values({ ...data, slug })
 		.returning();
@@ -233,9 +230,10 @@ export async function createResource(
 
 export async function updateResource(
 	id: string,
-	data: Partial<Omit<ToolboxInsert, 'id' | 'createdAt'>>
+	data: Partial<Omit<ToolboxInsert, 'id' | 'createdAt'>>,
+	database: DbExecutor = db
 ): Promise<ToolboxRow | null> {
-	const [row] = await db
+	const [row] = await database
 		.update(tbTable)
 		.set(data)
 		.where(eq(tbTable.id, id))
@@ -257,10 +255,7 @@ export async function deleteResource(id: string): Promise<boolean> {
 
 // ── Moderation ────────────────────────────────────────────
 
-export async function approveResource(
-	id: string,
-	reviewerId: string
-): Promise<ToolboxRow | null> {
+export async function approveResource(id: string, reviewerId: string): Promise<ToolboxRow | null> {
 	return updateResource(id, {
 		status: 'published',
 		publishedAt: new Date(),

@@ -13,7 +13,7 @@
 </svelte:head>
 
 <div class="flex min-h-[50vh] items-center justify-center p-6">
-	<Card.Root class="max-w-md w-full">
+	<Card.Root class="w-full max-w-md">
 		<Card.Header>
 			<Card.Title>{is404 ? 'Not found' : 'Something went wrong'}</Card.Title>
 			<Card.Description>{message}</Card.Description>

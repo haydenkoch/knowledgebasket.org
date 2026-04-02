@@ -32,13 +32,17 @@
 			</Card.Content>
 		</Card.Root>
 	{:else}
-		<p class="text-sm text-muted-foreground">{data.groups.length} potential duplicate group(s) found.</p>
+		<p class="text-sm text-muted-foreground">
+			{data.groups.length} potential duplicate group(s) found.
+		</p>
 
 		{#each data.groups as group, gi}
 			<Card.Root>
 				<Card.Header>
 					<Card.Title>Group {gi + 1} — {group.group.length} events</Card.Title>
-					<Card.Description>Choose one event to keep. The others will be merged into it and then removed.</Card.Description>
+					<Card.Description
+						>Choose one event to keep. The others will be merged into it and then removed.</Card.Description
+					>
 				</Card.Header>
 				<Card.Content>
 					<form method="POST" action="?/merge" use:enhance>
@@ -49,16 +53,19 @@
 										<input type="radio" name="keeperId" value={event.id} class="h-4 w-4" />
 										<input type="hidden" name="mergeIds" value={event.id} />
 										<span class="font-medium">{event.title}</span>
-										<span class="text-xs text-muted-foreground">{event.startDate ?? 'No date'}</span>
+										<span class="text-xs text-muted-foreground">{event.startDate ?? 'No date'}</span
+										>
 									</Label>
 									<StatusBadge status={event.status ?? 'unknown'} />
-									<Button href="/admin/events/{event.id}" variant="ghost" size="sm">
-										Edit
-									</Button>
+									<Button href="/admin/events/{event.id}" variant="ghost" size="sm">Edit</Button>
 								</div>
 							{/each}
 						</div>
-						<Button type="submit" variant="secondary" class="mt-4 bg-amber-100 text-amber-800 hover:bg-amber-200">
+						<Button
+							type="submit"
+							variant="secondary"
+							class="mt-4 bg-amber-100 text-amber-800 hover:bg-amber-200"
+						>
 							Merge into selected
 						</Button>
 					</form>

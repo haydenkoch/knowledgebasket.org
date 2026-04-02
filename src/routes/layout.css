@@ -12,13 +12,9 @@ body {
 	min-height: 100vh;
 }
 
-a {
-	color: var(--primary);
-	text-decoration: none;
-}
-
-a:hover {
-	text-decoration: underline;
+button {
+	touch-action: manipulation;
+	-webkit-tap-highlight-color: transparent;
 }
 
 /* Skip link: visible on focus for keyboard/screen reader users */
@@ -36,6 +32,18 @@ a:hover {
 .skip-link:focus {
 	left: 1rem;
 	top: 1rem;
+}
+
+/* Reduced motion: disable all animations/transitions for users who prefer it */
+@media (prefers-reduced-motion: reduce) {
+	*,
+	*::before,
+	*::after {
+		animation-duration: 0.01ms !important;
+		animation-iteration-count: 1 !important;
+		transition-duration: 0.01ms !important;
+		scroll-behavior: auto !important;
+	}
 }
 
 /* Tailwind + shadcn-svelte (theming uses vars from theme.css) */
@@ -92,5 +100,14 @@ a:hover {
 	}
 	body {
 		@apply bg-background text-foreground;
+	}
+	a {
+		color: var(--primary);
+		text-decoration: none;
+		touch-action: manipulation;
+		-webkit-tap-highlight-color: transparent;
+	}
+	a:hover {
+		text-decoration: underline;
 	}
 }

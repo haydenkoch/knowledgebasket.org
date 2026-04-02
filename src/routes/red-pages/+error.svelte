@@ -4,13 +4,18 @@
 </script>
 
 <svelte:head>
-	<title>{is404 ? 'Listing not found' : 'Something went wrong'} | Red Pages | Knowledge Basket</title>
+	<title
+		>{is404 ? 'Listing not found' : 'Something went wrong'} | Red Pages | Knowledge Basket</title
+	>
 </svelte:head>
 
 <div class="kb-error">
 	{#if is404}
 		<h1>Listing not found</h1>
-		<p>We couldn't find the Red Pages listing you're looking for. It may have been removed or the link might be incorrect.</p>
+		<p>
+			We couldn't find the Red Pages listing you're looking for. It may have been removed or the
+			link might be incorrect.
+		</p>
 	{:else}
 		<h1>Something went wrong</h1>
 		<p>{error?.message ?? 'An error occurred while loading this page.'}</p>

@@ -30,7 +30,11 @@
 	const options = $derived((data?.options ?? []) as Option[]);
 
 	const optionsByKey = $derived(
-		optionKeys.map((k) => ({ key: k.value, label: k.label, items: options.filter((o) => o.key === k.value) }))
+		optionKeys.map((k) => ({
+			key: k.value,
+			label: k.label,
+			items: options.filter((o) => o.key === k.value)
+		}))
 	);
 </script>
 
@@ -40,10 +44,13 @@
 
 <div class="space-y-6">
 	<h1 class="text-2xl font-bold">Taxonomies</h1>
-	<p class="text-muted-foreground">Manage tags (event types, topics) and dropdown options (region, audience, cost) used in event forms.</p>
+	<p class="text-muted-foreground">
+		Manage tags (event types, topics) and dropdown options (region, audience, cost) used in event
+		forms.
+	</p>
 
 	<Tabs.Root value="tags" class="w-full">
-		<Tabs.List class="grid w-full grid-cols-2 max-w-md">
+		<Tabs.List class="grid w-full max-w-md grid-cols-2">
 			<Tabs.Trigger value="tags">Tags</Tabs.Trigger>
 			<Tabs.Trigger value="options">Options</Tabs.Trigger>
 		</Tabs.List>
@@ -54,7 +61,12 @@
 						<Card.Title>Tags</Card.Title>
 						<Card.Description>Event types and topics for tagging events.</Card.Description>
 					</div>
-					<form method="POST" action="?/createTag" use:enhance class="flex flex-wrap items-end gap-2">
+					<form
+						method="POST"
+						action="?/createTag"
+						use:enhance
+						class="flex flex-wrap items-end gap-2"
+					>
 						<Field.Field class="flex-row items-end gap-2">
 							<Field.Label for="new-tag-label" class="sr-only">New tag label</Field.Label>
 							<Field.Content>
@@ -90,13 +102,17 @@
 									<Table.Cell>{tag.group}</Table.Cell>
 									<Table.Cell>
 										<AlertDialog.Root>
-											<AlertDialog.Trigger class="inline-flex h-8 items-center rounded border border-red-200 px-2 text-sm text-red-700 hover:bg-red-50">
+											<AlertDialog.Trigger
+												class="inline-flex h-8 items-center rounded border border-red-200 px-2 text-sm text-red-700 hover:bg-red-50"
+											>
 												Delete
 											</AlertDialog.Trigger>
 											<AlertDialog.Content>
 												<AlertDialog.Header>
 													<AlertDialog.Title>Delete tag</AlertDialog.Title>
-													<AlertDialog.Description>Remove “{tag.label}”? This does not remove it from existing events.</AlertDialog.Description>
+													<AlertDialog.Description
+														>Remove “{tag.label}”? This does not remove it from existing events.</AlertDialog.Description
+													>
 												</AlertDialog.Header>
 												<AlertDialog.Footer>
 													<AlertDialog.Cancel>Cancel</AlertDialog.Cancel>
@@ -113,7 +129,9 @@
 						</Table.Body>
 					</Table.Root>
 					{#if tags.length === 0}
-						<p class="py-4 text-sm text-muted-foreground">No tags yet. Add one above or refresh to seed from defaults.</p>
+						<p class="py-4 text-sm text-muted-foreground">
+							No tags yet. Add one above or refresh to seed from defaults.
+						</p>
 					{/if}
 				</Card.Content>
 			</Card.Root>
@@ -124,9 +142,16 @@
 					<Card.Header class="flex flex-row flex-wrap items-end justify-between gap-4">
 						<div>
 							<Card.Title>{label}</Card.Title>
-							<Card.Description>Options for the {label.toLowerCase()} dropdown in event forms.</Card.Description>
+							<Card.Description
+								>Options for the {label.toLowerCase()} dropdown in event forms.</Card.Description
+							>
 						</div>
-						<form method="POST" action="?/createOption" use:enhance class="flex flex-wrap items-end gap-2">
+						<form
+							method="POST"
+							action="?/createOption"
+							use:enhance
+							class="flex flex-wrap items-end gap-2"
+						>
 							<input type="hidden" name="key" value={key} />
 							<Field.Field class="flex-row items-end gap-2">
 								<Field.Label for="opt-value-{key}" class="sr-only">Value</Field.Label>
@@ -135,7 +160,12 @@
 								</Field.Content>
 								<Field.Label for="opt-label-{key}" class="sr-only">Label</Field.Label>
 								<Field.Content>
-									<Input id="opt-label-{key}" name="label" placeholder="Label (optional)" class="w-40" />
+									<Input
+										id="opt-label-{key}"
+										name="label"
+										placeholder="Label (optional)"
+										class="w-40"
+									/>
 								</Field.Content>
 							</Field.Field>
 							<Button type="submit">Add</Button>
@@ -157,13 +187,17 @@
 										<Table.Cell>{opt.label}</Table.Cell>
 										<Table.Cell>
 											<AlertDialog.Root>
-												<AlertDialog.Trigger class="inline-flex h-8 items-center rounded border border-red-200 px-2 text-sm text-red-700 hover:bg-red-50">
+												<AlertDialog.Trigger
+													class="inline-flex h-8 items-center rounded border border-red-200 px-2 text-sm text-red-700 hover:bg-red-50"
+												>
 													Delete
 												</AlertDialog.Trigger>
 												<AlertDialog.Content>
 													<AlertDialog.Header>
 														<AlertDialog.Title>Delete option</AlertDialog.Title>
-														<AlertDialog.Description>Remove “{opt.label}” from {label}?</AlertDialog.Description>
+														<AlertDialog.Description
+															>Remove “{opt.label}” from {label}?</AlertDialog.Description
+														>
 													</AlertDialog.Header>
 													<AlertDialog.Footer>
 														<AlertDialog.Cancel>Cancel</AlertDialog.Cancel>
@@ -180,7 +214,9 @@
 							</Table.Body>
 						</Table.Root>
 						{#if items.length === 0}
-							<p class="py-4 text-sm text-muted-foreground">No options. Add one above or refresh to seed from defaults.</p>
+							<p class="py-4 text-sm text-muted-foreground">
+								No options. Add one above or refresh to seed from defaults.
+							</p>
 						{/if}
 					</Card.Content>
 				</Card.Root>

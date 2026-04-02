@@ -46,7 +46,7 @@
 		</div>
 		<h3 class="kb-elist-title">{event.title}</h3>
 		{#if event.location}
-			<p class="kb-elist-location">📍 {event.location}</p>
+			<p class="kb-elist-location" title={event.location}>📍 {event.location}</p>
 		{/if}
 		{#if plainDesc}
 			<p class="kb-elist-desc">{plainDesc}</p>
@@ -71,6 +71,11 @@
 	.kb-elist-item:hover {
 		box-shadow: var(--shh, 0 4px 16px rgba(0, 0, 0, 0.12));
 		transform: translateY(-1px);
+		text-decoration: none;
+	}
+	.kb-elist-item:focus-visible {
+		outline: 2px solid var(--ring);
+		outline-offset: -2px;
 	}
 	.kb-elist-img {
 		width: 80px;
@@ -112,7 +117,7 @@
 	.kb-elist-type,
 	.kb-elist-region {
 		font-size: 11px;
-		background: var(--accent, #f4f4f2);
+		background: var(--muted);
 		color: var(--muted-foreground, #666);
 		border-radius: 9999px;
 		padding: 1px 7px;
@@ -128,6 +133,9 @@
 		font-size: 12px;
 		color: var(--muted-foreground, #666);
 		margin: 0 0 4px;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
 	}
 	.kb-elist-desc {
 		font-size: 13px;

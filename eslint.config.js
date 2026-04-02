@@ -22,7 +22,13 @@ export default defineConfig(
 		rules: {
 			// typescript-eslint strongly recommend that you do not use the no-undef lint rule on TypeScript projects.
 			// see: https://typescript-eslint.io/troubleshooting/faqs/eslint/#i-get-errors-from-the-no-undef-rule-about-global-variables-not-being-defined-even-though-there-are-no-typescript-errors
-			'no-undef': 'off'
+			'no-undef': 'off',
+			'@typescript-eslint/no-unused-vars': [
+				'error',
+				{ argsIgnorePattern: '^_', varsIgnorePattern: '^_' }
+			],
+			// eslint-plugin-svelte currently crashes on empty-string HTML attributes while checking links.
+			'svelte/no-navigation-without-resolve': ['error', { ignoreGoto: true, ignoreLinks: true }]
 		}
 	},
 	{
@@ -34,6 +40,16 @@ export default defineConfig(
 				parser: ts.parser,
 				svelteConfig
 			}
+		},
+		rules: {
+			'@typescript-eslint/no-unused-vars': 'off',
+			'svelte/no-at-html-tags': 'off',
+			'svelte/no-unused-props': 'off',
+			'svelte/no-useless-children-snippet': 'off',
+			'svelte/prefer-svelte-reactivity': 'off',
+			'svelte/prefer-writable-derived': 'off',
+			'svelte/require-each-key': 'off',
+			'svelte/valid-prop-names-in-kit-pages': 'off'
 		}
 	}
 );

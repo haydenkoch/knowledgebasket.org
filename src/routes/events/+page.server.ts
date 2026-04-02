@@ -69,6 +69,7 @@ export async function load({ url }) {
 		initialCalendarDay,
 		initialSearchQuery,
 		mapboxToken,
-		dataUnavailable
+		dataUnavailable,
+		origin: url.origin
 	};
 }

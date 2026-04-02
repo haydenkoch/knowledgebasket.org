@@ -14,8 +14,8 @@ export const geographyOptions = [
 ] as const;
 
 /** Geography for events (subset) */
-export const eventGeographyOptions = geographyOptions.filter(
-	(r) => ['', 'California', 'Sierra Nevada', 'National'].includes(r.value)
+export const eventGeographyOptions = geographyOptions.filter((r) =>
+	['', 'California', 'Sierra Nevada', 'National'].includes(r.value)
 );
 
 /** Individual tags for event type (multi-select on submit). */
@@ -41,13 +41,37 @@ export type EventTypeTag = (typeof eventTypeTags)[number];
 
 /** Groups for filter UI: selecting a group shows events with any of its tags. */
 export const eventTypeGroups = [
-	{ id: 'art-performance', label: 'Art Exhibit / Performance', tags: ['Art Exhibit', 'Performance'] },
-	{ id: 'community-forum', label: 'Community Meeting / Forum', tags: ['Community Meeting', 'Forum'] },
-	{ id: 'conference-summit', label: 'Conference / Summit / Symposium', tags: ['Conference', 'Summit', 'Symposium'] },
-	{ id: 'festival-celebration', label: 'Festival / Celebration', tags: ['Festival', 'Celebration'] },
-	{ id: 'film-screening', label: 'Film Screening / Festival', tags: ['Film Screening', 'Festival'] },
+	{
+		id: 'art-performance',
+		label: 'Art Exhibit / Performance',
+		tags: ['Art Exhibit', 'Performance']
+	},
+	{
+		id: 'community-forum',
+		label: 'Community Meeting / Forum',
+		tags: ['Community Meeting', 'Forum']
+	},
+	{
+		id: 'conference-summit',
+		label: 'Conference / Summit / Symposium',
+		tags: ['Conference', 'Summit', 'Symposium']
+	},
+	{
+		id: 'festival-celebration',
+		label: 'Festival / Celebration',
+		tags: ['Festival', 'Celebration']
+	},
+	{
+		id: 'film-screening',
+		label: 'Film Screening / Festival',
+		tags: ['Film Screening', 'Festival']
+	},
 	{ id: 'powwow-bigtime', label: 'Powwow / Big Time', tags: ['Powwow', 'Big Time'] },
-	{ id: 'trade-marketplace', label: 'Trade Show / Marketplace', tags: ['Trade Show', 'Marketplace'] },
+	{
+		id: 'trade-marketplace',
+		label: 'Trade Show / Marketplace',
+		tags: ['Trade Show', 'Marketplace']
+	},
 	{ id: 'other', label: 'Other', tags: ['Other'] }
 ] as const;
 
@@ -120,15 +144,16 @@ export const redPagesServiceTypeOptions = [
 	{ value: 'News Media', label: 'News Media' },
 	{ value: 'Nonprofit', label: 'Nonprofit' },
 	{ value: 'Organizational Consulting', label: 'Organizational Consulting' },
-	{ value: 'Traditional Arts (Beadwork / Basketry / Regalia)', label: 'Traditional Arts (Beadwork / Basketry / Regalia)' },
+	{
+		value: 'Traditional Arts (Beadwork / Basketry / Regalia)',
+		label: 'Traditional Arts (Beadwork / Basketry / Regalia)'
+	},
 	{ value: 'Web Design & Development', label: 'Web Design & Development' },
 	{ value: 'Other', label: 'Other' }
 ] as const;
 
 /** Red Pages service area = geography subset */
-export const redPagesAreaOptions = geographyOptions.filter(
-	(r) => r.value !== 'No Restriction'
-);
+export const redPagesAreaOptions = geographyOptions.filter((r) => r.value !== 'No Restriction');
 
 /** Job type */
 export const jobTypeOptions = [

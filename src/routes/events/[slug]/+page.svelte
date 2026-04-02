@@ -1,7 +1,15 @@
 <script lang="ts">
 	import type { EventItem } from '$lib/data/kb';
 	import { getPlaceholderImageSrcset, DEFAULT_SIZES_HERO } from '$lib/data/placeholders';
-	import { formatEventDateRange, formatEventTime, getEventTypeTags, eventDateForCalendarUrl, eventGoogleCalendarUrl, stripHtml, parseEventStart } from '$lib/utils/format';
+	import {
+		formatEventDateRange,
+		formatEventTime,
+		getEventTypeTags,
+		eventDateForCalendarUrl,
+		eventGoogleCalendarUrl,
+		stripHtml,
+		parseEventStart
+	} from '$lib/utils/format';
 	import MapPinIcon from '@lucide/svelte/icons/map-pin';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import * as ButtonGroup from '$lib/components/ui/button-group/index.js';
@@ -27,18 +35,33 @@
 	const hasEventUrl = $derived(!!event.eventUrl?.trim());
 	const hasRegistrationUrl = $derived(!!event.registrationUrl?.trim());
 	const dualCtas = $derived(hasEventUrl && hasRegistrationUrl);
-	const singleCtaUrl = $derived(hasEventUrl ? event.eventUrl! : event.registrationUrl ?? null);
+	const singleCtaUrl = $derived(hasEventUrl ? event.eventUrl! : (event.registrationUrl ?? null));
 	const singleCtaLabel = $derived(
-		event.cost === 'Free/Sponsored' ? 'Register' : event.cost === 'Registration Fee Required' ? 'Get tickets' : 'Learn more'
+		event.cost === 'Free/Sponsored'
+			? 'Register'
+			: event.cost === 'Registration Fee Required'
+				? 'Get tickets'
+				: 'Learn more'
 	);
 	const singleCtaLabelLong = $derived(
-		event.cost === 'Free/Sponsored' ? 'Register for free' : event.cost === 'Registration Fee Required' ? 'Get tickets' : 'Learn more & register'
+		event.cost === 'Free/Sponsored'
+			? 'Register for free'
+			: event.cost === 'Registration Fee Required'
+				? 'Get tickets'
+				: 'Learn more & register'
 	);
 	const formatLabel = $derived(
-		event.eventFormat === 'online' ? 'Online event' : event.eventFormat === 'hybrid' ? 'Hybrid' : event.eventFormat === 'in_person' ? 'In person' : null
+		event.eventFormat === 'online'
+			? 'Online event'
+			: event.eventFormat === 'hybrid'
+				? 'Hybrid'
+				: event.eventFormat === 'in_person'
+					? 'In person'
+					: null
 	);
 	const joinOnlineUrl = $derived(
-		(event.eventFormat === 'online' || event.eventFormat === 'hybrid') && (event.virtualEventUrl ?? event.eventUrl)
+		(event.eventFormat === 'online' || event.eventFormat === 'hybrid') &&
+			(event.virtualEventUrl ?? event.eventUrl)
 			? (event.virtualEventUrl ?? event.eventUrl)!
 			: null
 	);
@@ -67,11 +90,15 @@
 	const origin = $derived(data.origin ?? '');
 	const canonicalUrl = $derived(event.slug ? `${origin}/events/${event.slug}` : origin + '/events');
 	const metaDescription = $derived(
-		event.description ? stripHtml(String(event.description)).slice(0, 160) : `${event.title}. ${event.region ?? ''} ${formatEventDateRange(event.startDate, event.endDate)}.`
+		event.description
+			? stripHtml(String(event.description)).slice(0, 160)
+			: `${event.title}. ${event.region ?? ''} ${formatEventDateRange(event.startDate, event.endDate)}.`
 	);
 	const ogImage = $derived(
 		event.imageUrl
-			? (event.imageUrl.startsWith('http') ? event.imageUrl : `${origin}${event.imageUrl.startsWith('/') ? '' : '/'}${event.imageUrl}`)
+			? event.imageUrl.startsWith('http')
+				? event.imageUrl
+				: `${origin}${event.imageUrl.startsWith('/') ? '' : '/'}${event.imageUrl}`
 			: ''
 	);
 
@@ -90,7 +117,11 @@
 						...(event.address && { address: event.address }),
 						...(event.lat != null &&
 							event.lng != null && {
-								geo: { '@type': 'GeoCoordinates' as const, latitude: event.lat, longitude: event.lng }
+								geo: {
+									'@type': 'GeoCoordinates' as const,
+									latitude: event.lat,
+									longitude: event.lng
+								}
 							})
 					}
 				: undefined;
@@ -117,6 +148,13 @@
 			...(eventUrl && eventUrl !== canonicalUrl && { offers: { '@type': 'Offer', url: eventUrl } })
 		};
 	});
+	const jsonLdScript = $derived.by(() =>
+		[
+			'<script type="application/ld+json">',
+			JSON.stringify(jsonLd).replaceAll('<', '\\u003c'),
+			'</scr' + 'ipt>'
+		].join('')
+	);
 </script>
 
 <svelte:head>
@@ -137,7 +175,7 @@
 	<meta name="twitter:description" content={metaDescription} />
 	{#if ogImage}<meta name="twitter:image" content={ogImage} />{/if}
 	<!-- JSON-LD Event -->
-	{@html `<script type="application/ld+json">${JSON.stringify(jsonLd).replace(/<\/script>/g, '<\\/script>')}</script>`}
+	{@html jsonLdScript}
 </svelte:head>
 
 <div class="kb-event-detail" style="--kb-accent: var(--teal)">
@@ -187,17 +225,34 @@
 		<div class="kb-event-cta-bar">
 			<div class="kb-event-cta-bar-inner">
 				<div class="kb-event-cta-bar-info">
-					<span class="kb-event-cta-date">{formatEventDateRange(event.startDate, event.endDate)}</span>
-					{#if event.location}<span class="kb-event-cta-venue"><MapPinIcon class="size-[14px] shrink-0" /> {event.location}</span>{/if}
+					<span class="kb-event-cta-date"
+						>{formatEventDateRange(event.startDate, event.endDate)}</span
+					>
+					{#if event.location}<span class="kb-event-cta-venue"
+							><MapPinIcon class="size-[14px] shrink-0" /> {event.location}</span
+						>{/if}
 				</div>
 				<div class="kb-event-cta-btns">
 					{#if dualCtas}
-						<a href={event.eventUrl!} target="_blank" rel="noopener" class="kb-event-cta-btn">Event page</a>
-						<a href={event.registrationUrl!} target="_blank" rel="noopener" class="kb-event-cta-btn kb-event-cta-btn-secondary">
-							{event.cost === 'Free/Sponsored' ? 'Register' : event.cost === 'Registration Fee Required' ? 'Get tickets' : 'Register'}
+						<a href={event.eventUrl!} target="_blank" rel="noopener" class="kb-event-cta-btn"
+							>Event page</a
+						>
+						<a
+							href={event.registrationUrl!}
+							target="_blank"
+							rel="noopener"
+							class="kb-event-cta-btn kb-event-cta-btn-secondary"
+						>
+							{event.cost === 'Free/Sponsored'
+								? 'Register'
+								: event.cost === 'Registration Fee Required'
+									? 'Get tickets'
+									: 'Register'}
 						</a>
 					{:else if singleCtaUrl}
-						<a href={singleCtaUrl} target="_blank" rel="noopener" class="kb-event-cta-btn">{singleCtaLabel}</a>
+						<a href={singleCtaUrl} target="_blank" rel="noopener" class="kb-event-cta-btn"
+							>{singleCtaLabel}</a
+						>
 					{/if}
 				</div>
 			</div>
@@ -267,7 +322,13 @@
 			{#if event.capacity != null || event.soldOut}
 				<div class="kb-event-info-card">
 					<h3>Capacity</h3>
-					<p class="kb-event-info-value">{event.soldOut ? 'Sold out' : event.capacity != null ? `Limited to ${event.capacity}` : ''}</p>
+					<p class="kb-event-info-value">
+						{event.soldOut
+							? 'Sold out'
+							: event.capacity != null
+								? `Limited to ${event.capacity}`
+								: ''}
+					</p>
 				</div>
 			{/if}
 			{#if event.ageRestriction}
@@ -280,13 +341,19 @@
 				<div class="kb-event-info-card">
 					<h3>Location</h3>
 					{#if event.venueSlug}
-						<p class="kb-event-info-value"><a href="/v/{event.venueSlug}" class="kb-event-info-link-inline">{event.venueName ?? event.location ?? 'Venue'}</a></p>
+						<p class="kb-event-info-value">
+							<a href="/v/{event.venueSlug}" class="kb-event-info-link-inline"
+								>{event.venueName ?? event.location ?? 'Venue'}</a
+							>
+						</p>
 					{/if}
 					{#if event.location && (!event.venueName || event.location !== event.venueName)}
 						<p class="kb-event-info-value">{event.location}</p>
 					{/if}
 					{#if directionsUrl}
-						<a href={directionsUrl} target="_blank" rel="noopener" class="kb-event-info-link">Get directions →</a>
+						<a href={directionsUrl} target="_blank" rel="noopener" class="kb-event-info-link"
+							>Get directions →</a
+						>
 					{/if}
 				</div>
 			{/if}
@@ -304,14 +371,20 @@
 			{/if}
 			{#if joinOnlineUrl}
 				<div class="kb-event-info-card">
-					<a href={joinOnlineUrl} target="_blank" rel="noopener" class="kb-event-info-link">Join online →</a>
+					<a href={joinOnlineUrl} target="_blank" rel="noopener" class="kb-event-info-link"
+						>Join online →</a
+					>
 				</div>
 			{/if}
 			{#if event.hostOrg}
 				<div class="kb-event-info-card">
 					<h3>{isIcalEvent ? 'Source' : 'Host'}</h3>
 					{#if !isIcalEvent && event.organizationSlug}
-						<p class="kb-event-info-value"><a href="/o/{event.organizationSlug}" class="kb-event-info-link-inline">{event.hostOrg}</a></p>
+						<p class="kb-event-info-value">
+							<a href="/o/{event.organizationSlug}" class="kb-event-info-link-inline"
+								>{event.hostOrg}</a
+							>
+						</p>
 					{:else}
 						<p class="kb-event-info-value">{event.hostOrg}</p>
 					{/if}
@@ -319,7 +392,9 @@
 			{/if}
 			{#if event.soldOut && event.waitlistUrl}
 				<div class="kb-event-info-card">
-					<a href={event.waitlistUrl} target="_blank" rel="noopener" class="kb-event-primary-cta">Join waitlist</a>
+					<a href={event.waitlistUrl} target="_blank" rel="noopener" class="kb-event-primary-cta"
+						>Join waitlist</a
+					>
 				</div>
 			{/if}
 			{#if event.accessibilityNotes}
@@ -330,13 +405,26 @@
 			{/if}
 			{#if dualCtas}
 				<div class="kb-event-cta-group">
-					<a href={event.eventUrl!} target="_blank" rel="noopener" class="kb-event-primary-cta">Event page</a>
-					<a href={event.registrationUrl!} target="_blank" rel="noopener" class="kb-event-primary-cta kb-event-cta-secondary">
-						{event.cost === 'Free/Sponsored' ? 'Register for free' : event.cost === 'Registration Fee Required' ? 'Get tickets' : 'Register'}
+					<a href={event.eventUrl!} target="_blank" rel="noopener" class="kb-event-primary-cta"
+						>Event page</a
+					>
+					<a
+						href={event.registrationUrl!}
+						target="_blank"
+						rel="noopener"
+						class="kb-event-primary-cta kb-event-cta-secondary"
+					>
+						{event.cost === 'Free/Sponsored'
+							? 'Register for free'
+							: event.cost === 'Registration Fee Required'
+								? 'Get tickets'
+								: 'Register'}
 					</a>
 				</div>
 			{:else if singleCtaUrl}
-				<a href={singleCtaUrl} target="_blank" rel="noopener" class="kb-event-primary-cta">{singleCtaLabelLong}</a>
+				<a href={singleCtaUrl} target="_blank" rel="noopener" class="kb-event-primary-cta"
+					>{singleCtaLabelLong}</a
+				>
 			{/if}
 			{#if event.startDate}
 				<div class="kb-event-info-card kb-event-add-to-calendar">
@@ -344,13 +432,24 @@
 					<p class="kb-event-info-note">Download or add to your calendar.</p>
 					<div class="kb-event-calendar-add-links">
 						{#if event.slug}
-							<a href="/events/{event.slug}/feed.ics" class="kb-event-calendar-add-link" download="event.ics">Download .ics</a>
+							<a
+								href="/events/{event.slug}/feed.ics"
+								class="kb-event-calendar-add-link"
+								download="event.ics">Download .ics</a
+							>
 						{/if}
 						{#if googleCalendarUrl}
-							<a href={googleCalendarUrl} target="_blank" rel="noopener" class="kb-event-calendar-add-link">Google Calendar</a>
+							<a
+								href={googleCalendarUrl}
+								target="_blank"
+								rel="noopener"
+								class="kb-event-calendar-add-link">Google Calendar</a
+							>
 						{/if}
 						{#if event.slug}
-							<a href="/events/{event.slug}/feed.ics" class="kb-event-calendar-add-link">Apple Calendar / Outlook</a>
+							<a href="/events/{event.slug}/feed.ics" class="kb-event-calendar-add-link"
+								>Apple Calendar / Outlook</a
+							>
 						{/if}
 					</div>
 				</div>

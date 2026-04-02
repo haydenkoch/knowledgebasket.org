@@ -36,10 +36,17 @@ export const actions: Actions = {
 		try {
 			const raw = fd.get('pricingTiers') as string;
 			if (raw) pricingTiers = JSON.parse(raw);
-		} catch { /* ignore */ }
+		} catch {
+			/* ignore */
+		}
 
 		const tagsRaw = fd.getAll('tags');
-		const tags = Array.isArray(tagsRaw) ? (tagsRaw as string[]).filter(Boolean) : (fd.get('tags') as string || '').split(',').map((t) => t.trim()).filter(Boolean);
+		const tags = Array.isArray(tagsRaw)
+			? (tagsRaw as string[]).filter(Boolean)
+			: ((fd.get('tags') as string) || '')
+					.split(',')
+					.map((t) => t.trim())
+					.filter(Boolean);
 
 		let imageUrl: string | undefined;
 		const image = fd.get('image') as File | null;
@@ -62,29 +69,32 @@ export const actions: Actions = {
 		const capacityNum = capacityStr ? parseInt(capacityStr, 10) : undefined;
 		const imageUrlsRaw = (fd.get('imageUrls') as string) ?? '';
 		const imageUrls = imageUrlsRaw
-			? imageUrlsRaw.split(/\r?\n/).map((s) => s.trim()).filter(Boolean)
+			? imageUrlsRaw
+					.split(/\r?\n/)
+					.map((s) => s.trim())
+					.filter(Boolean)
 			: [];
 
 		const event = await createEvent({
 			title,
-			description: fd.get('description') as string || undefined,
-			location: fd.get('location') as string || undefined,
-			address: fd.get('address') as string || undefined,
-			region: fd.get('region') as string || undefined,
+			description: (fd.get('description') as string) || undefined,
+			location: (fd.get('location') as string) || undefined,
+			address: (fd.get('address') as string) || undefined,
+			region: (fd.get('region') as string) || undefined,
 			lat: Number.isFinite(lat) ? lat : undefined,
 			lng: Number.isFinite(lng) ? lng : undefined,
-			audience: fd.get('audience') as string || undefined,
-			cost: fd.get('cost') as string || undefined,
-			eventUrl: fd.get('eventUrl') as string || undefined,
-			startDate: fd.get('startDate') as string || undefined,
-			endDate: fd.get('endDate') as string || undefined,
-			hostOrg: fd.get('hostOrg') as string || undefined,
-			type: fd.get('type') as string || undefined,
-			organizationId: fd.get('organizationId') as string || undefined,
-			venueId: fd.get('venueId') as string || undefined,
-			parentEventId: fd.get('parentEventId') as string || undefined,
-			registrationUrl: fd.get('registrationUrl') as string || undefined,
-			registrationDeadline: fd.get('registrationDeadline') as string || undefined,
+			audience: (fd.get('audience') as string) || undefined,
+			cost: (fd.get('cost') as string) || undefined,
+			eventUrl: (fd.get('eventUrl') as string) || undefined,
+			startDate: (fd.get('startDate') as string) || undefined,
+			endDate: (fd.get('endDate') as string) || undefined,
+			hostOrg: (fd.get('hostOrg') as string) || undefined,
+			type: (fd.get('type') as string) || undefined,
+			organizationId: (fd.get('organizationId') as string) || undefined,
+			venueId: (fd.get('venueId') as string) || undefined,
+			parentEventId: (fd.get('parentEventId') as string) || undefined,
+			registrationUrl: (fd.get('registrationUrl') as string) || undefined,
+			registrationDeadline: (fd.get('registrationDeadline') as string) || undefined,
 			eventFormat: (fd.get('eventFormat') as string) || undefined,
 			timezone: (fd.get('timezone') as string) || undefined,
 			doorsOpenAt: (fd.get('doorsOpenAt') as string) || undefined,
@@ -95,10 +105,10 @@ export const actions: Actions = {
 			virtualEventUrl: (fd.get('virtualEventUrl') as string) || undefined,
 			waitlistUrl: (fd.get('waitlistUrl') as string) || undefined,
 			imageUrls: imageUrls.length > 0 ? imageUrls : undefined,
-			contactEmail: fd.get('contactEmail') as string || undefined,
-			contactName: fd.get('contactName') as string || undefined,
-			contactPhone: fd.get('contactPhone') as string || undefined,
-			adminNotes: fd.get('adminNotes') as string || undefined,
+			contactEmail: (fd.get('contactEmail') as string) || undefined,
+			contactName: (fd.get('contactName') as string) || undefined,
+			contactPhone: (fd.get('contactPhone') as string) || undefined,
+			adminNotes: (fd.get('adminNotes') as string) || undefined,
 			tags: tags.length > 0 ? tags : undefined,
 			isAllDay: fd.has('isAllDay'),
 			pricingTiers,

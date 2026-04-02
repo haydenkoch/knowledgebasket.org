@@ -3,4 +3,4 @@
 	let { children }: { children?: Snippet } = $props();
 </script>
 
-<h3 class="text-lg font-semibold text-foreground mb-1">{@render children?.()}</h3>
+<h3 class="mb-1 text-lg font-semibold text-foreground">{@render children?.()}</h3>

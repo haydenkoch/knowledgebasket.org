@@ -5,10 +5,7 @@ import { getAllOrganizations } from '$lib/server/organizations';
 
 export const load: PageServerLoad = async ({ url }) => {
 	const search = url.searchParams.get('search') ?? '';
-	const [venueResult, orgs] = await Promise.all([
-		getVenues({ search }),
-		getAllOrganizations()
-	]);
+	const [venueResult, orgs] = await Promise.all([getVenues({ search }), getAllOrganizations()]);
 	return {
 		venues: venueResult.venues,
 		total: venueResult.total,
@@ -25,14 +22,14 @@ export const actions: Actions = {
 
 		await createVenue({
 			name,
-			description: fd.get('description') as string || undefined,
-			address: fd.get('address') as string || undefined,
-			city: fd.get('city') as string || undefined,
-			state: fd.get('state') as string || undefined,
-			zip: fd.get('zip') as string || undefined,
-			website: fd.get('website') as string || undefined,
-			venueType: fd.get('venueType') as string || undefined,
-			organizationId: fd.get('organizationId') as string || undefined
+			description: (fd.get('description') as string) || undefined,
+			address: (fd.get('address') as string) || undefined,
+			city: (fd.get('city') as string) || undefined,
+			state: (fd.get('state') as string) || undefined,
+			zip: (fd.get('zip') as string) || undefined,
+			website: (fd.get('website') as string) || undefined,
+			venueType: (fd.get('venueType') as string) || undefined,
+			organizationId: (fd.get('organizationId') as string) || undefined
 		});
 
 		return { success: true };

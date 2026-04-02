@@ -24,27 +24,38 @@
 	const bgGradient = $derived(gradients[coil] ?? gradients.home);
 </script>
 
-<section class="relative overflow-hidden pt-14 pb-12 px-10 flex flex-col justify-end">
-	<div class="absolute inset-0" style="background: {bgGradient}"></div>
+<section
+	class="relative flex flex-col justify-end overflow-hidden px-4 pt-14 pb-12 sm:px-6 lg:px-10"
+>
+	<div class="pointer-events-none absolute inset-0" style="background: {bgGradient}"></div>
 
 	{#if weave}
-		<div class="absolute top-0 right-0 w-[340px] h-full opacity-[0.12]" aria-hidden="true">
+		<div
+			class="pointer-events-none absolute top-0 right-0 h-full w-[340px] opacity-[0.12]"
+			aria-hidden="true"
+		>
 			{@render weave()}
 		</div>
 	{/if}
 
 	<div class="relative z-[1] max-w-[680px]">
 		{#if eyebrow}
-			<p class="font-sans text-[11px] font-bold tracking-[0.12em] uppercase text-white opacity-90 mb-[10px]">{eyebrow}</p>
+			<p
+				class="mb-[10px] font-sans text-[11px] font-bold tracking-[0.12em] text-white uppercase opacity-90"
+			>
+				{eyebrow}
+			</p>
 		{/if}
 		{#if title}
-			<h1 class="font-display text-[42px] font-bold text-white leading-[1.15] mt-0 mb-3">{title}</h1>
+			<h1 class="font-display mt-0 mb-3 text-[42px] leading-[1.15] font-bold text-white">
+				{title}
+			</h1>
 		{/if}
 		{#if description}
-			<p class="text-base text-white/95 max-w-[520px] leading-relaxed">{description}</p>
+			<p class="max-w-[520px] text-base leading-relaxed text-white/95">{description}</p>
 		{/if}
 		{#if stats}
-			<div class="flex gap-8 mt-6">
+			<div class="mt-6 flex gap-8">
 				{@render stats()}
 			</div>
 		{/if}

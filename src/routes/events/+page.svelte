@@ -39,6 +39,7 @@
 	type EventView = 'cards' | 'list' | 'calendar';
 
 	let { data } = $props();
+	const canonicalUrl = $derived(`${data.origin ?? ''}/events`);
 	const filters = useEventsFilters(() => data);
 
 	let pageBinding = $state(1);
@@ -111,7 +112,7 @@
 			if (!url.searchParams.has('mode')) url.searchParams.set('mode', 'month');
 		}
 		const pathSearch = `${url.pathname}${url.search}`;
-		queueMicrotask(() => goto(pathSearch, { replaceState: true, noScroll: true }));
+		queueMicrotask(() => goto(url, { replaceState: true, noScroll: true }));
 	});
 
 	/** Create Schedule-X calendar when user switches to calendar view (lazy-loads calendar bundle). */
@@ -137,7 +138,7 @@
 					onEventClick(id) {
 						const match = filters.filtered.find((e) => e.id === id);
 						if (!match) {
-							goto(`/events/${id}`);
+							goto(new URL(`/events/${id}`, $page.url.origin));
 							return;
 						}
 						calendarSelectedId = id;
@@ -160,7 +161,7 @@
 				url.searchParams.set('mode', mode);
 				url.searchParams.set('date', dateStr);
 				// Keep scroll position when toggling calendar modes/dates to avoid jarring jumps.
-				goto(`${url.pathname}${url.search}`, { replaceState: true, noScroll: true });
+				goto(url, { replaceState: true, noScroll: true });
 			}
 		});
 	});
@@ -614,6 +615,7 @@
 		name="description"
 		content="Indigenous gatherings, trainings, and cultural events in the Sierra Nevada bioregion and California. Find and submit events."
 	/>
+	<link rel="canonical" href={canonicalUrl} />
 </svelte:head>
 
 {#snippet weave()}
@@ -643,9 +645,8 @@
 		<Alert class="mb-6 border-amber-300 bg-amber-50 text-amber-950">
 			<AlertTitle>Live event data is unavailable</AlertTitle>
 			<AlertDescription>
-				The page is running in fallback mode because the local database could not be reached. Check
-				`DATABASE_URL`, make sure Docker services are running, and run `pnpm db:push` if your schema
-				has not been applied yet.
+				Some live event data is temporarily unavailable, so you may be seeing limited results right
+				now. Please try again in a little while.
 			</AlertDescription>
 		</Alert>
 	{/if}
@@ -771,7 +772,9 @@
 			class="coil-layout flex min-h-[calc(100vh-220px)] w-full flex-col flex-nowrap md:flex-row"
 			role="presentation"
 		>
-			<div class="coil-layout__left order-1 shrink-0 overflow-visible">
+			<div
+				class="coil-layout__left order-1 w-full flex-none overflow-hidden overflow-y-auto border-b border-[var(--rule)] bg-[var(--color-alpine-50,#fafaf8)] p-3 md:w-[272px] md:border-r md:border-b-0 md:px-3 md:py-5"
+			>
 				<EventsSidebar
 					{filters}
 					bind:eventView
@@ -786,14 +789,14 @@
 			>
 				{@render sidebarRight?.()}
 			</aside>
-			<main class="coil-layout__main order-2 min-w-0 flex-1 p-7 md:p-8">
+			<main class="coil-layout__main order-2 min-w-0 flex-1 p-4 md:p-6 md:pl-7">
 				{@render children?.()}
 			</main>
 		</div>
 	</CoilTheme>
 
 	<div
-		class="flex flex-wrap items-center justify-between gap-6 border-t-[3px] border-[var(--granite-200,var(--teal))] bg-[var(--granite-200,var(--slate-lt))] px-10 py-7"
+		class="flex flex-wrap items-center justify-between gap-6 border-t-[3px] border-[var(--granite-200,var(--teal))] bg-[var(--granite-200,var(--slate-lt))] px-4 py-7 sm:px-6 lg:px-10"
 	>
 		<div>
 			<h3>Know of an event we should list?</h3>

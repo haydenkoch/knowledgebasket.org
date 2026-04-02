@@ -18,7 +18,10 @@ function getResourcesDir(): string {
 
 export async function GET({ params }) {
 	const pathSegments = params.path || '';
-	const decoded = pathSegments.split('/').map((s) => decodeURIComponent(s)).join('/');
+	const decoded = pathSegments
+		.split('/')
+		.map((s) => decodeURIComponent(s))
+		.join('/');
 	if (!decoded || decoded.includes('..')) {
 		throw error(400, 'Invalid path');
 	}

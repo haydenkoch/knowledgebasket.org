@@ -11,9 +11,15 @@
 
 <svelte:head>
 	<title>{organization.name} | Organizer | Knowledge Basket</title>
-	<meta name="description" content={organization.description ?? `Upcoming events from ${organization.name}.`} />
+	<meta
+		name="description"
+		content={organization.description ?? `Upcoming events from ${organization.name}.`}
+	/>
 	<meta property="og:title" content="{organization.name} | Organizer" />
-	<meta property="og:description" content={organization.description ?? `Upcoming events from ${organization.name}.`} />
+	<meta
+		property="og:description"
+		content={organization.description ?? `Upcoming events from ${organization.name}.`}
+	/>
 	{#if organization.logoUrl}<meta property="og:image" content={organization.logoUrl} />{/if}
 	<meta property="og:type" content="website" />
 </svelte:head>
@@ -42,7 +48,9 @@
 			<p class="kb-org-description">{organization.description}</p>
 		{/if}
 		{#if organization.website}
-			<a href={organization.website} target="_blank" rel="noopener" class="kb-org-website">Visit website →</a>
+			<a href={organization.website} target="_blank" rel="noopener" class="kb-org-website"
+				>Visit website →</a
+			>
 		{/if}
 	</header>
 
@@ -51,7 +59,7 @@
 		{#if events.length > 0}
 			<ul class="kb-org-event-grid">
 				{#each events as event, i}
-					<li><EventCard event={event} index={i} /></li>
+					<li><EventCard {event} index={i} /></li>
 				{/each}
 			</ul>
 		{:else}

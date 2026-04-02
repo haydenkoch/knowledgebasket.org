@@ -8,12 +8,14 @@
 	let item = $derived(data.item as FundingItem | null);
 	const origin = $derived(data.origin ?? '');
 
-	const canonicalUrl = $derived(item?.slug ? `${origin}/funding/${item.slug}` : `${origin}/funding`);
+	const canonicalUrl = $derived(
+		item?.slug ? `${origin}/funding/${item.slug}` : `${origin}/funding`
+	);
 	const metaDescription = $derived(
 		item
-			? (item.description
+			? item.description
 				? stripHtml(String(item.description)).slice(0, 160)
-				: `${item.title}${item.funderName ? ` from ${item.funderName}` : ''}${item.amountDescription ? `. ${item.amountDescription}` : ''}.`)
+				: `${item.title}${item.funderName ? ` from ${item.funderName}` : ''}${item.amountDescription ? `. ${item.amountDescription}` : ''}.`
 			: ''
 	);
 
@@ -21,7 +23,11 @@
 		item?.fundingTypes?.length ? item.fundingTypes : item?.fundingType ? [item.fundingType] : []
 	);
 	const eligibilityDisplay = $derived(
-		item?.eligibilityTypes?.length ? item.eligibilityTypes : item?.eligibilityType ? [item.eligibilityType] : []
+		item?.eligibilityTypes?.length
+			? item.eligibilityTypes
+			: item?.eligibilityType
+				? [item.eligibilityType]
+				: []
 	);
 
 	const cycleLabel = $derived(() => {
@@ -31,7 +37,11 @@
 </script>
 
 <svelte:head>
-	<title>{item ? `${item.title} | Funding | Knowledge Basket` : 'Opportunity not found | Knowledge Basket'}</title>
+	<title
+		>{item
+			? `${item.title} | Funding | Knowledge Basket`
+			: 'Opportunity not found | Knowledge Basket'}</title
+	>
 	{#if item}
 		<meta name="description" content={metaDescription} />
 		<link rel="canonical" href={canonicalUrl} />
@@ -53,156 +63,220 @@
 		<Button variant="outline" href="/funding" class="mt-4">← Back to Funding</Button>
 	</div>
 {:else}
-<div class="mx-auto max-w-3xl px-4 py-6 sm:px-6">
+	<div class="mx-auto max-w-3xl px-4 py-6 sm:px-6">
+		<Breadcrumb.Root class="mb-5">
+			<Breadcrumb.List>
+				<Breadcrumb.Item>
+					<Breadcrumb.Link href="/funding">Funding</Breadcrumb.Link>
+				</Breadcrumb.Item>
+				<Breadcrumb.Separator />
+				<Breadcrumb.Item>
+					<Breadcrumb.Page>{item.title}</Breadcrumb.Page>
+				</Breadcrumb.Item>
+			</Breadcrumb.List>
+		</Breadcrumb.Root>
 
-	<Breadcrumb.Root class="mb-5">
-		<Breadcrumb.List>
-			<Breadcrumb.Item>
-				<Breadcrumb.Link href="/funding">Funding</Breadcrumb.Link>
-			</Breadcrumb.Item>
-			<Breadcrumb.Separator />
-			<Breadcrumb.Item>
-				<Breadcrumb.Page>{item.title}</Breadcrumb.Page>
-			</Breadcrumb.Item>
-		</Breadcrumb.List>
-	</Breadcrumb.Root>
-
-	<!-- Hero header -->
-	<div class="kb-funding-hero">
-		<div class="kb-funding-hero-badges">
-			{#if item.applicationStatus}
-				<span class="kb-funding-badge kb-funding-badge--status">{item.applicationStatus}</span>
+		<!-- Hero header -->
+		<div class="kb-funding-hero">
+			<div class="kb-funding-hero-badges">
+				{#if item.applicationStatus}
+					<span class="kb-funding-badge kb-funding-badge--status">{item.applicationStatus}</span>
+				{/if}
+				{#each fundingTypesDisplay as ft}
+					<span class="kb-funding-badge">{ft}</span>
+				{/each}
+			</div>
+			{#if item.amountDescription}
+				<p class="kb-funding-amount">{item.amountDescription}</p>
 			{/if}
-			{#each fundingTypesDisplay as ft}
-				<span class="kb-funding-badge">{ft}</span>
-			{/each}
-		</div>
-		{#if item.amountDescription}
-			<p class="kb-funding-amount">{item.amountDescription}</p>
-		{/if}
-		<h1 class="kb-funding-title">{item.title}</h1>
-		{#if item.funderName}
-			<p class="kb-funding-funder">{item.funderName}</p>
-		{/if}
-	</div>
-
-	<div class="mt-8 grid gap-8 lg:grid-cols-[1fr_280px]">
-		<!-- Main content -->
-		<div class="min-w-0">
-			{#if item.description}
-				<section class="kb-funding-section">
-					<h2 class="kb-funding-section-title">About this opportunity</h2>
-					<div class="prose prose-sm text-[var(--muted-foreground)] [&_a]:text-[var(--teal)] [&_a]:no-underline [&_a:hover]:underline">{@html item.description}</div>
-				</section>
-			{/if}
-
-			{#if item.focusAreas?.length}
-				<section class="kb-funding-section">
-					<h2 class="kb-funding-section-title">Focus areas</h2>
-					<div class="flex flex-wrap gap-1.5">
-						{#each item.focusAreas as area}
-							<span class="inline-block px-2.5 py-1 text-xs font-medium rounded-full bg-[var(--muted)] text-[var(--muted-foreground)]">{area}</span>
-						{/each}
-					</div>
-				</section>
+			<h1 class="kb-funding-title">{item.title}</h1>
+			{#if item.funderName}
+				<p class="kb-funding-funder">{item.funderName}</p>
 			{/if}
 		</div>
 
-		<!-- Sidebar -->
-		<aside class="flex flex-col gap-4">
-			{#if item.applyUrl}
-				<Button href={item.applyUrl} target="_blank" rel="noopener" class="w-full">
-					Apply Now →
-				</Button>
-			{/if}
+		<div class="mt-8 grid gap-8 lg:grid-cols-[1fr_280px]">
+			<!-- Main content -->
+			<div class="min-w-0">
+				{#if item.description}
+					<section class="kb-funding-section">
+						<h2 class="kb-funding-section-title">About this opportunity</h2>
+						<div
+							class="prose prose-sm text-[var(--muted-foreground)] [&_a]:text-[var(--teal)] [&_a]:no-underline [&_a:hover]:underline"
+						>
+							{@html item.description}
+						</div>
+					</section>
+				{/if}
 
-			<div class="rounded-xl border border-[var(--border)] bg-[var(--card)] p-5">
-				<h3 class="font-sans text-xs font-bold uppercase tracking-wider text-[var(--muted-foreground)] mb-3">Details</h3>
-				<dl class="flex flex-col gap-3 text-sm">
-					{#if item.amountDescription}
-						<div>
-							<dt class="font-semibold text-[var(--muted-foreground)] text-[11px] uppercase tracking-[0.06em]">Amount</dt>
-							<dd class="text-[var(--foreground)] mt-0.5 font-medium">{item.amountDescription}</dd>
+				{#if item.focusAreas?.length}
+					<section class="kb-funding-section">
+						<h2 class="kb-funding-section-title">Focus areas</h2>
+						<div class="flex flex-wrap gap-1.5">
+							{#each item.focusAreas as area}
+								<span
+									class="inline-block rounded-full bg-[var(--muted)] px-2.5 py-1 text-xs font-medium text-[var(--muted-foreground)]"
+									>{area}</span
+								>
+							{/each}
 						</div>
-					{/if}
-					{#if item.applicationStatus}
-						<div>
-							<dt class="font-semibold text-[var(--muted-foreground)] text-[11px] uppercase tracking-[0.06em]">Status</dt>
-							<dd class="text-[var(--foreground)] mt-0.5 capitalize">{item.applicationStatus}</dd>
-						</div>
-					{/if}
-					{#if item.funderName}
-						<div>
-							<dt class="font-semibold text-[var(--muted-foreground)] text-[11px] uppercase tracking-[0.06em]">Funder</dt>
-							<dd class="text-[var(--foreground)] mt-0.5">{item.funderName}</dd>
-						</div>
-					{/if}
-					{#if item.openDate}
-						<div>
-							<dt class="font-semibold text-[var(--muted-foreground)] text-[11px] uppercase tracking-[0.06em]">Opens</dt>
-							<dd class="text-[var(--foreground)] mt-0.5">{item.openDate}</dd>
-						</div>
-					{/if}
-					{#if item.deadline}
-						<div>
-							<dt class="font-semibold text-[var(--muted-foreground)] text-[11px] uppercase tracking-[0.06em]">Deadline</dt>
-							<dd class="text-[var(--foreground)] mt-0.5 font-medium">{item.deadline}</dd>
-							{#if item.fundingCycleNotes}
-								<dd class="text-[var(--muted-foreground)] text-xs mt-0.5">{item.fundingCycleNotes}</dd>
-							{/if}
-						</div>
-					{/if}
-					{#if cycleLabel()}
-						<div>
-							<dt class="font-semibold text-[var(--muted-foreground)] text-[11px] uppercase tracking-[0.06em]">Cycle</dt>
-							<dd class="text-[var(--foreground)] mt-0.5">{cycleLabel()}</dd>
-						</div>
-					{/if}
-					{#if fundingTypesDisplay.length}
-						<div>
-							<dt class="font-semibold text-[var(--muted-foreground)] text-[11px] uppercase tracking-[0.06em]">Funding type</dt>
-							<dd class="text-[var(--foreground)] mt-0.5">{fundingTypesDisplay.join(', ')}</dd>
-						</div>
-					{/if}
-					{#if eligibilityDisplay.length}
-						<div>
-							<dt class="font-semibold text-[var(--muted-foreground)] text-[11px] uppercase tracking-[0.06em]">Eligibility</dt>
-							<dd class="text-[var(--foreground)] mt-0.5">{eligibilityDisplay.join(', ')}</dd>
-						</div>
-					{/if}
-					{#if item.region}
-						<div>
-							<dt class="font-semibold text-[var(--muted-foreground)] text-[11px] uppercase tracking-[0.06em]">Region</dt>
-							<dd class="text-[var(--foreground)] mt-0.5">{item.region}</dd>
-						</div>
-					{/if}
-					{#if item.geographicRestrictions}
-						<div>
-							<dt class="font-semibold text-[var(--muted-foreground)] text-[11px] uppercase tracking-[0.06em]">Geographic restrictions</dt>
-							<dd class="text-[var(--foreground)] mt-0.5">{item.geographicRestrictions}</dd>
-						</div>
-					{/if}
-					{#if item.contactEmail}
-						<div>
-							<dt class="font-semibold text-[var(--muted-foreground)] text-[11px] uppercase tracking-[0.06em]">Contact</dt>
-							<dd class="mt-0.5">
-								<a href="mailto:{item.contactEmail}" class="text-[var(--teal)] text-sm">{item.contactEmail}</a>
-							</dd>
-						</div>
-					{/if}
-				</dl>
+					</section>
+				{/if}
 			</div>
 
-			<Button variant="outline" href="/funding" class="w-full">← Back to Funding</Button>
-		</aside>
+			<!-- Sidebar -->
+			<aside class="flex flex-col gap-4">
+				{#if item.applyUrl}
+					<Button href={item.applyUrl} target="_blank" rel="noopener" class="w-full">
+						Apply Now →
+					</Button>
+				{/if}
+
+				<div class="rounded-xl border border-[var(--border)] bg-[var(--card)] p-5">
+					<h3
+						class="mb-3 font-sans text-xs font-bold tracking-wider text-[var(--muted-foreground)] uppercase"
+					>
+						Details
+					</h3>
+					<dl class="flex flex-col gap-3 text-sm">
+						{#if item.amountDescription}
+							<div>
+								<dt
+									class="text-[11px] font-semibold tracking-[0.06em] text-[var(--muted-foreground)] uppercase"
+								>
+									Amount
+								</dt>
+								<dd class="mt-0.5 font-medium text-[var(--foreground)]">
+									{item.amountDescription}
+								</dd>
+							</div>
+						{/if}
+						{#if item.applicationStatus}
+							<div>
+								<dt
+									class="text-[11px] font-semibold tracking-[0.06em] text-[var(--muted-foreground)] uppercase"
+								>
+									Status
+								</dt>
+								<dd class="mt-0.5 text-[var(--foreground)] capitalize">{item.applicationStatus}</dd>
+							</div>
+						{/if}
+						{#if item.funderName}
+							<div>
+								<dt
+									class="text-[11px] font-semibold tracking-[0.06em] text-[var(--muted-foreground)] uppercase"
+								>
+									Funder
+								</dt>
+								<dd class="mt-0.5 text-[var(--foreground)]">{item.funderName}</dd>
+							</div>
+						{/if}
+						{#if item.openDate}
+							<div>
+								<dt
+									class="text-[11px] font-semibold tracking-[0.06em] text-[var(--muted-foreground)] uppercase"
+								>
+									Opens
+								</dt>
+								<dd class="mt-0.5 text-[var(--foreground)]">{item.openDate}</dd>
+							</div>
+						{/if}
+						{#if item.deadline}
+							<div>
+								<dt
+									class="text-[11px] font-semibold tracking-[0.06em] text-[var(--muted-foreground)] uppercase"
+								>
+									Deadline
+								</dt>
+								<dd class="mt-0.5 font-medium text-[var(--foreground)]">{item.deadline}</dd>
+								{#if item.fundingCycleNotes}
+									<dd class="mt-0.5 text-xs text-[var(--muted-foreground)]">
+										{item.fundingCycleNotes}
+									</dd>
+								{/if}
+							</div>
+						{/if}
+						{#if cycleLabel()}
+							<div>
+								<dt
+									class="text-[11px] font-semibold tracking-[0.06em] text-[var(--muted-foreground)] uppercase"
+								>
+									Cycle
+								</dt>
+								<dd class="mt-0.5 text-[var(--foreground)]">{cycleLabel()}</dd>
+							</div>
+						{/if}
+						{#if fundingTypesDisplay.length}
+							<div>
+								<dt
+									class="text-[11px] font-semibold tracking-[0.06em] text-[var(--muted-foreground)] uppercase"
+								>
+									Funding type
+								</dt>
+								<dd class="mt-0.5 text-[var(--foreground)]">{fundingTypesDisplay.join(', ')}</dd>
+							</div>
+						{/if}
+						{#if eligibilityDisplay.length}
+							<div>
+								<dt
+									class="text-[11px] font-semibold tracking-[0.06em] text-[var(--muted-foreground)] uppercase"
+								>
+									Eligibility
+								</dt>
+								<dd class="mt-0.5 text-[var(--foreground)]">{eligibilityDisplay.join(', ')}</dd>
+							</div>
+						{/if}
+						{#if item.region}
+							<div>
+								<dt
+									class="text-[11px] font-semibold tracking-[0.06em] text-[var(--muted-foreground)] uppercase"
+								>
+									Region
+								</dt>
+								<dd class="mt-0.5 text-[var(--foreground)]">{item.region}</dd>
+							</div>
+						{/if}
+						{#if item.geographicRestrictions}
+							<div>
+								<dt
+									class="text-[11px] font-semibold tracking-[0.06em] text-[var(--muted-foreground)] uppercase"
+								>
+									Geographic restrictions
+								</dt>
+								<dd class="mt-0.5 text-[var(--foreground)]">{item.geographicRestrictions}</dd>
+							</div>
+						{/if}
+						{#if item.contactEmail}
+							<div>
+								<dt
+									class="text-[11px] font-semibold tracking-[0.06em] text-[var(--muted-foreground)] uppercase"
+								>
+									Contact
+								</dt>
+								<dd class="mt-0.5">
+									<a href="mailto:{item.contactEmail}" class="text-sm text-[var(--teal)]"
+										>{item.contactEmail}</a
+									>
+								</dd>
+							</div>
+						{/if}
+					</dl>
+				</div>
+
+				<Button variant="outline" href="/funding" class="w-full">← Back to Funding</Button>
+			</aside>
+		</div>
 	</div>
-</div>
 {/if}
 
 <style>
 	.kb-funding-hero {
 		border-radius: 12px;
-		background: linear-gradient(135deg, var(--color-flicker-900, #461404), var(--color-flicker-700, #ca4404));
+		background: linear-gradient(
+			135deg,
+			var(--color-flicker-900, #461404),
+			var(--color-flicker-700, #ca4404)
+		);
 		padding: 1.5rem;
 		color: white;
 	}
@@ -215,7 +289,7 @@
 	.kb-funding-badge {
 		display: inline-block;
 		padding: 0.2rem 0.5rem;
-		background: rgba(255,255,255,0.18);
+		background: rgba(255, 255, 255, 0.18);
 		border-radius: 4px;
 		font-size: 0.6875rem;
 		font-weight: 700;
@@ -223,7 +297,7 @@
 		text-transform: uppercase;
 	}
 	.kb-funding-badge--status {
-		background: rgba(255,255,255,0.28);
+		background: rgba(255, 255, 255, 0.28);
 	}
 	.kb-funding-amount {
 		font-family: var(--font-serif);

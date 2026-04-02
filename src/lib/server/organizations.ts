@@ -18,7 +18,6 @@ function slugify(name: string): string {
 async function uniqueSlug(base: string): Promise<string> {
 	let slug = base.slice(0, 100);
 	let n = 0;
-	// eslint-disable-next-line no-constant-condition
 	while (true) {
 		const existing = await db
 			.select({ id: organizations.id })

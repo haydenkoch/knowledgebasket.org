@@ -7,7 +7,11 @@ import { randomUUID } from 'crypto';
 
 export const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5 MB
 export const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
-const EXT_MAP: Record<string, string> = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' };
+const EXT_MAP: Record<string, string> = {
+	'image/jpeg': 'jpg',
+	'image/png': 'png',
+	'image/webp': 'webp'
+};
 
 export type UploadScope =
 	| 'events'

@@ -1,6 +1,10 @@
 import type { PageServerLoad, Actions } from './$types';
 import { error, fail, redirect } from '@sveltejs/kit';
-import { getOrganizationById, updateOrganization, deleteOrganization } from '$lib/server/organizations';
+import {
+	getOrganizationById,
+	updateOrganization,
+	deleteOrganization
+} from '$lib/server/organizations';
 import { uploadImage } from '$lib/server/upload';
 
 export const load: PageServerLoad = async ({ params }) => {
@@ -27,12 +31,12 @@ export const actions: Actions = {
 
 		await updateOrganization(params.id, {
 			name,
-			description: fd.get('description') as string || null,
-			website: fd.get('website') as string || null,
-			email: fd.get('email') as string || null,
-			phone: fd.get('phone') as string || null,
-			orgType: fd.get('orgType') as string || null,
-			region: fd.get('region') as string || null,
+			description: (fd.get('description') as string) || null,
+			website: (fd.get('website') as string) || null,
+			email: (fd.get('email') as string) || null,
+			phone: (fd.get('phone') as string) || null,
+			orgType: (fd.get('orgType') as string) || null,
+			region: (fd.get('region') as string) || null,
 			...(logoUrl && { logoUrl })
 		});
 

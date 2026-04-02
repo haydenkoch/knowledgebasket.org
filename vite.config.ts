@@ -36,6 +36,11 @@ function tinymceSelfHosted(): Plugin {
 
 export default defineConfig({
 	plugins: [tailwindcss(), sveltekit(), tinymceSelfHosted()],
+	test: {
+		environment: 'node',
+		testTimeout: 120000,
+		hookTimeout: 120000
+	},
 	build: {
 		rollupOptions: {
 			output: {

@@ -6,258 +6,258 @@
 
 /* ── Brand palette (IFS collection, Mode 1) ───────────────────────────────── */
 :root {
-  /* Lakebed */
-  --color-lakebed-50: #ffffff;
-  --color-lakebed-100: #ddedfc;
-  --color-lakebed-200: #c2e0fb;
-  --color-lakebed-300: #99cdf7;
-  --color-lakebed-400: #68b1f2;
-  --color-lakebed-500: #4592ec;
-  --color-lakebed-600: #2f76e1;
-  --color-lakebed-700: #2761ce;
-  --color-lakebed-800: #264fa7;
-  --color-lakebed-900: #244584;
-  --color-lakebed-950: #172647;
+	/* Lakebed */
+	--color-lakebed-50: #ffffff;
+	--color-lakebed-100: #ddedfc;
+	--color-lakebed-200: #c2e0fb;
+	--color-lakebed-300: #99cdf7;
+	--color-lakebed-400: #68b1f2;
+	--color-lakebed-500: #4592ec;
+	--color-lakebed-600: #2f76e1;
+	--color-lakebed-700: #2761ce;
+	--color-lakebed-800: #264fa7;
+	--color-lakebed-900: #244584;
+	--color-lakebed-950: #172647;
 
-  /* Obsidian */
-  --color-obsidian-50: #f6f6f6;
-  --color-obsidian-100: #e7e7e7;
-  --color-obsidian-200: #d1d1d1;
-  --color-obsidian-300: #b0b0b0;
-  --color-obsidian-400: #888888;
-  --color-obsidian-500: #6d6d6d;
-  --color-obsidian-600: #5d5d5d;
-  --color-obsidian-700: #4f4f4f;
-  --color-obsidian-800: #454545;
-  --color-obsidian-900: #3d3d3d;
-  --color-obsidian-950: #252525;
+	/* Obsidian */
+	--color-obsidian-50: #f6f6f6;
+	--color-obsidian-100: #e7e7e7;
+	--color-obsidian-200: #d1d1d1;
+	--color-obsidian-300: #b0b0b0;
+	--color-obsidian-400: #888888;
+	--color-obsidian-500: #6d6d6d;
+	--color-obsidian-600: #5d5d5d;
+	--color-obsidian-700: #4f4f4f;
+	--color-obsidian-800: #454545;
+	--color-obsidian-900: #3d3d3d;
+	--color-obsidian-950: #252525;
 
-  /* Pinyon */
-  --color-pinyon-50: #f4f9f6;
-  --color-pinyon-100: #dcebe1;
-  --color-pinyon-200: #b9d6c2;
-  --color-pinyon-300: #8eba9e;
-  --color-pinyon-400: #669b7b;
-  --color-pinyon-500: #4c8061;
-  --color-pinyon-600: #3b664e;
-  --color-pinyon-700: #325340;
-  --color-pinyon-800: #2b4336;
-  --color-pinyon-900: #273a30;
-  --color-pinyon-950: #13201a;
+	/* Pinyon */
+	--color-pinyon-50: #f4f9f6;
+	--color-pinyon-100: #dcebe1;
+	--color-pinyon-200: #b9d6c2;
+	--color-pinyon-300: #8eba9e;
+	--color-pinyon-400: #669b7b;
+	--color-pinyon-500: #4c8061;
+	--color-pinyon-600: #3b664e;
+	--color-pinyon-700: #325340;
+	--color-pinyon-800: #2b4336;
+	--color-pinyon-900: #273a30;
+	--color-pinyon-950: #13201a;
 
-  /* Elderberry */
-  --color-elderberry-50: #fdf4f3;
-  --color-elderberry-100: #fce7e7;
-  --color-elderberry-200: #f8d3d4;
-  --color-elderberry-300: #f2afb0;
-  --color-elderberry-400: #ea8286;
-  --color-elderberry-500: #dd565f;
-  --color-elderberry-600: #c93547;
-  --color-elderberry-700: #a9273a;
-  --color-elderberry-800: #8d2436;
-  --color-elderberry-900: #792234;
-  --color-elderberry-950: #3f0d16;
+	/* Elderberry */
+	--color-elderberry-50: #fdf4f3;
+	--color-elderberry-100: #fce7e7;
+	--color-elderberry-200: #f8d3d4;
+	--color-elderberry-300: #f2afb0;
+	--color-elderberry-400: #ea8286;
+	--color-elderberry-500: #dd565f;
+	--color-elderberry-600: #c93547;
+	--color-elderberry-700: #a9273a;
+	--color-elderberry-800: #8d2436;
+	--color-elderberry-900: #792234;
+	--color-elderberry-950: #3f0d16;
 
-  /* Salmonberry */
-  --color-salmonberry-50: #fcf4f4;
-  --color-salmonberry-100: #f9e7e8;
-  --color-salmonberry-200: #f4d4d5;
-  --color-salmonberry-300: #ebb6b8;
-  --color-salmonberry-400: #de8b8e;
-  --color-salmonberry-500: #ce6568;
-  --color-salmonberry-600: #b9494d;
-  --color-salmonberry-700: #9b3a3d;
-  --color-salmonberry-800: #813336;
-  --color-salmonberry-900: #6f3133;
-  --color-salmonberry-950: #3a1516;
+	/* Salmonberry */
+	--color-salmonberry-50: #fcf4f4;
+	--color-salmonberry-100: #f9e7e8;
+	--color-salmonberry-200: #f4d4d5;
+	--color-salmonberry-300: #ebb6b8;
+	--color-salmonberry-400: #de8b8e;
+	--color-salmonberry-500: #ce6568;
+	--color-salmonberry-600: #b9494d;
+	--color-salmonberry-700: #9b3a3d;
+	--color-salmonberry-800: #813336;
+	--color-salmonberry-900: #6f3133;
+	--color-salmonberry-950: #3a1516;
 
-  /* Ember */
-  --color-ember-50: #fef2f2;
-  --color-ember-100: #ffe1e2;
-  --color-ember-200: #ffc9ca;
-  --color-ember-300: #fea3a5;
-  --color-ember-400: #fb6e71;
-  --color-ember-500: #f24145;
-  --color-ember-600: #df2327;
-  --color-ember-700: #bc191d;
-  --color-ember-800: #9b191c;
-  --color-ember-900: #72181a;
-  --color-ember-950: #47080a;
+	/* Ember */
+	--color-ember-50: #fef2f2;
+	--color-ember-100: #ffe1e2;
+	--color-ember-200: #ffc9ca;
+	--color-ember-300: #fea3a5;
+	--color-ember-400: #fb6e71;
+	--color-ember-500: #f24145;
+	--color-ember-600: #df2327;
+	--color-ember-700: #bc191d;
+	--color-ember-800: #9b191c;
+	--color-ember-900: #72181a;
+	--color-ember-950: #47080a;
 
-  /* Mugwort */
-  --color-mugwort-50: #f3f6f3;
-  --color-mugwort-100: #e4e9e2;
-  --color-mugwort-200: #c9d4c6;
-  --color-mugwort-300: #728b6e;
-  --color-mugwort-400: #587455;
-  --color-mugwort-500: #587455;
-  --color-mugwort-600: #435b40;
-  --color-mugwort-700: #344834;
-  --color-mugwort-800: #2b3b2a;
-  --color-mugwort-900: #243123;
-  --color-mugwort-950: #131b13;
+	/* Mugwort */
+	--color-mugwort-50: #f3f6f3;
+	--color-mugwort-100: #e4e9e2;
+	--color-mugwort-200: #c9d4c6;
+	--color-mugwort-300: #728b6e;
+	--color-mugwort-400: #587455;
+	--color-mugwort-500: #587455;
+	--color-mugwort-600: #435b40;
+	--color-mugwort-700: #344834;
+	--color-mugwort-800: #2b3b2a;
+	--color-mugwort-900: #243123;
+	--color-mugwort-950: #131b13;
 
-  /* Flicker */
-  --color-flicker-50: #fff8ec;
-  --color-flicker-100: #ffefd3;
-  --color-flicker-200: #ffdaa6;
-  --color-flicker-300: #ffbf6e;
-  --color-flicker-400: #ff9933;
-  --color-flicker-500: #ff7a0c;
-  --color-flicker-600: #f45e02;
-  --color-flicker-700: #ca4404;
-  --color-flicker-800: #a0370c;
-  --color-flicker-900: #762b0c;
-  --color-flicker-950: #461404;
+	/* Flicker */
+	--color-flicker-50: #fff8ec;
+	--color-flicker-100: #ffefd3;
+	--color-flicker-200: #ffdaa6;
+	--color-flicker-300: #ffbf6e;
+	--color-flicker-400: #ff9933;
+	--color-flicker-500: #ff7a0c;
+	--color-flicker-600: #f45e02;
+	--color-flicker-700: #ca4404;
+	--color-flicker-800: #a0370c;
+	--color-flicker-900: #762b0c;
+	--color-flicker-950: #461404;
 
-  /* Granite */
-  --color-granite-50: #f7f7f7;
-  --color-granite-100: #ececed;
-  --color-granite-200: #d8d8da;
-  --color-granite-300: #c7c7c9;
-  --color-granite-400: #ababaf;
-  --color-granite-500: #96969b;
-  --color-granite-600: #86858b;
-  --color-granite-700: #79787d;
-  --color-granite-800: #666568;
-  --color-granite-900: #545355;
-  --color-granite-950: #353536;
+	/* Granite */
+	--color-granite-50: #f7f7f7;
+	--color-granite-100: #ececed;
+	--color-granite-200: #d8d8da;
+	--color-granite-300: #c7c7c9;
+	--color-granite-400: #ababaf;
+	--color-granite-500: #96969b;
+	--color-granite-600: #86858b;
+	--color-granite-700: #79787d;
+	--color-granite-800: #666568;
+	--color-granite-900: #545355;
+	--color-granite-950: #353536;
 
-  /* Alpine Snow */
-  --color-alpine-snow-50: #f8f6f4;
-  --color-alpine-snow-100: #edeae5;
-  --color-alpine-snow-200: #dcd6cc;
-  --color-alpine-snow-300: #c5baac;
-  --color-alpine-snow-400: #ad9c8a;
-  --color-alpine-snow-500: #9c8673;
-  --color-alpine-snow-600: #8f7767;
-  --color-alpine-snow-700: #786256;
-  --color-alpine-snow-800: #62514a;
-  --color-alpine-snow-900: #51433d;
-  --color-alpine-snow-950: #2a2320;
+	/* Alpine Snow */
+	--color-alpine-snow-50: #f8f6f4;
+	--color-alpine-snow-100: #edeae5;
+	--color-alpine-snow-200: #dcd6cc;
+	--color-alpine-snow-300: #c5baac;
+	--color-alpine-snow-400: #ad9c8a;
+	--color-alpine-snow-500: #9c8673;
+	--color-alpine-snow-600: #8f7767;
+	--color-alpine-snow-700: #786256;
+	--color-alpine-snow-800: #62514a;
+	--color-alpine-snow-900: #51433d;
+	--color-alpine-snow-950: #2a2320;
 
-  /* ── Semantic / shadcn tokens — PRIMARIES from brand colors.json (8–19) ────
+	/* ── Semantic / shadcn tokens — PRIMARIES from brand colors.json (8–19) ────
    * Primaries: Lakebed 950, Obsidian 950, Pinyon 800, Elderberry 950,
    * Salmonberry 900, Ember 900, Mugwort 300, Flicker 900, Granite 200, Alpine Snow 100.
    * Other scale steps used only where necessary (e.g. white, hover).
    */
-  --radius: 6px;
-  --r: 6px;
-  --sh: 0 2px 12px rgba(0, 0, 0, 0.08);
-  --shh: 0 6px 24px rgba(0, 0, 0, 0.14);
+	--radius: 6px;
+	--r: 6px;
+	--sh: 0 2px 12px rgba(0, 0, 0, 0.08);
+	--shh: 0 6px 24px rgba(0, 0, 0, 0.14);
 
-  --font-sans: josefin-sans, sans-serif;
-  --font-serif: lora, serif;
-  --font-display: bodoni-std, serif;
+	--font-sans: josefin-sans, sans-serif;
+	--font-serif: lora, serif;
+	--font-display: bodoni-std, serif;
 
-  /* Main UI: primaries + contrast (no light-on-light) */
-  --background: var(--color-alpine-snow-50);
-  --foreground: var(--color-obsidian-950);
-  --card: var(--color-lakebed-50);
-  --card-foreground: var(--color-obsidian-950);
-  --popover: var(--color-lakebed-50);
-  --popover-foreground: var(--color-obsidian-950);
-  --primary: var(--color-lakebed-950);
-  --primary-foreground: var(--color-alpine-snow-100);
-  --secondary: var(--color-alpine-snow-200);
-  --secondary-foreground: var(--color-obsidian-950);
-  --muted: var(--color-alpine-snow-200);
-  --muted-foreground: var(--color-obsidian-700);
-  --accent: var(--color-flicker-900);
-  --accent-foreground: var(--color-alpine-snow-100);
-  --destructive: var(--color-ember-900);
-  --destructive-foreground: var(--color-alpine-snow-100);
-  --border: color-mix(in srgb, var(--color-granite-400) 50%, transparent);
-  --input: color-mix(in srgb, var(--color-granite-400) 50%, transparent);
-  --ring: color-mix(in srgb, var(--color-lakebed-950) 50%, transparent);
-  --chart-1: var(--color-flicker-900);
-  --chart-2: var(--color-lakebed-950);
-  --chart-3: var(--color-pinyon-800);
-  --chart-4: var(--color-ember-900);
-  --chart-5: var(--color-granite-600);
-  --sidebar: var(--color-alpine-snow-200);
-  --sidebar-foreground: var(--color-obsidian-950);
-  --sidebar-primary: var(--color-lakebed-950);
-  --sidebar-primary-foreground: var(--color-alpine-snow-100);
-  --sidebar-accent: var(--color-alpine-snow-300);
-  --sidebar-accent-foreground: var(--color-obsidian-950);
-  --sidebar-border: color-mix(in srgb, var(--color-granite-400) 50%, transparent);
-  --sidebar-ring: color-mix(in srgb, var(--color-lakebed-950) 50%, transparent);
+	/* Main UI: primaries + contrast (no light-on-light) */
+	--background: var(--color-alpine-snow-50);
+	--foreground: var(--color-obsidian-950);
+	--card: var(--color-lakebed-50);
+	--card-foreground: var(--color-obsidian-950);
+	--popover: var(--color-lakebed-50);
+	--popover-foreground: var(--color-obsidian-950);
+	--primary: var(--color-lakebed-950);
+	--primary-foreground: var(--color-alpine-snow-100);
+	--secondary: var(--color-alpine-snow-200);
+	--secondary-foreground: var(--color-obsidian-950);
+	--muted: var(--color-alpine-snow-200);
+	--muted-foreground: var(--color-obsidian-800);
+	--accent: var(--color-flicker-900);
+	--accent-foreground: var(--color-alpine-snow-100);
+	--destructive: var(--color-ember-900);
+	--destructive-foreground: var(--color-alpine-snow-100);
+	--border: color-mix(in srgb, var(--color-granite-400) 50%, transparent);
+	--input: color-mix(in srgb, var(--color-granite-400) 50%, transparent);
+	--ring: color-mix(in srgb, var(--color-lakebed-950) 50%, transparent);
+	--chart-1: var(--color-flicker-900);
+	--chart-2: var(--color-lakebed-950);
+	--chart-3: var(--color-pinyon-800);
+	--chart-4: var(--color-ember-900);
+	--chart-5: var(--color-granite-600);
+	--sidebar: var(--color-alpine-snow-200);
+	--sidebar-foreground: var(--color-obsidian-950);
+	--sidebar-primary: var(--color-lakebed-950);
+	--sidebar-primary-foreground: var(--color-alpine-snow-100);
+	--sidebar-accent: var(--color-alpine-snow-300);
+	--sidebar-accent-foreground: var(--color-obsidian-950);
+	--sidebar-border: color-mix(in srgb, var(--color-granite-400) 50%, transparent);
+	--sidebar-ring: color-mix(in srgb, var(--color-lakebed-950) 50%, transparent);
 
-  /* Aliases: primaries mainly; other steps only where needed */
-  --navy: var(--color-lakebed-950);
-  --teal: var(--color-lakebed-950);
-  --teal-dk: var(--color-lakebed-950);
-  --teal-lt: var(--color-lakebed-100);
-  --red: var(--color-ember-900);
-  --red-lt: var(--color-ember-100);
-  --gold: var(--color-flicker-900);
-  --gold-lt: var(--color-flicker-100);
-  --forest: var(--color-pinyon-800);
-  --forest-lt: var(--color-pinyon-200);
-  --slate: var(--color-obsidian-950);
-  --slate-lt: var(--color-granite-200);
-  --sand: var(--color-alpine-snow-100);
-  --bone: var(--color-alpine-snow-100);
-  --dark: var(--color-obsidian-950);
-  --mid: var(--color-obsidian-700);
-  --rule: color-mix(in srgb, var(--color-granite-400) 50%, transparent);
-  --white: var(--color-lakebed-50);
-  /* Hero gradients: primaries (Salmonberry 900, Flicker 900, Pinyon 800, etc.) */
-  --color-glacier-600: var(--color-lakebed-950);
-  --color-glacier-200: var(--color-granite-200);
-  /* Tailwind utilities / layout that reference color-kb-* */
-  --color-kb-sand: var(--sand);
-  --color-kb-bone: var(--bone);
-  --color-kb-teal: var(--teal);
-  --color-kb-teal-light: var(--teal-lt);
-  --color-kb-teal-dark: var(--teal-dk);
-  --color-kb-slate: var(--slate);
-  --color-kb-slate-light: var(--slate-lt);
-  --color-kb-navy: var(--navy);
-  --color-kb-red: var(--red);
-  --color-kb-forest: var(--forest);
-  --color-kb-forest-light: var(--forest-lt);
-  --color-kb-gold: var(--gold);
+	/* Aliases: primaries mainly; other steps only where needed */
+	--navy: var(--color-lakebed-950);
+	--teal: var(--color-lakebed-950);
+	--teal-dk: var(--color-lakebed-950);
+	--teal-lt: var(--color-lakebed-100);
+	--red: var(--color-ember-900);
+	--red-lt: var(--color-ember-100);
+	--gold: var(--color-flicker-900);
+	--gold-lt: var(--color-flicker-100);
+	--forest: var(--color-pinyon-800);
+	--forest-lt: var(--color-pinyon-200);
+	--slate: var(--color-obsidian-950);
+	--slate-lt: var(--color-granite-200);
+	--sand: var(--color-alpine-snow-100);
+	--bone: var(--color-alpine-snow-100);
+	--dark: var(--color-obsidian-950);
+	--mid: var(--color-obsidian-700);
+	--rule: color-mix(in srgb, var(--color-granite-400) 50%, transparent);
+	--white: var(--color-lakebed-50);
+	/* Hero gradients: primaries (Salmonberry 900, Flicker 900, Pinyon 800, etc.) */
+	--color-glacier-600: var(--color-lakebed-950);
+	--color-glacier-200: var(--color-granite-200);
+	/* Tailwind utilities / layout that reference color-kb-* */
+	--color-kb-sand: var(--sand);
+	--color-kb-bone: var(--bone);
+	--color-kb-teal: var(--teal);
+	--color-kb-teal-light: var(--teal-lt);
+	--color-kb-teal-dark: var(--teal-dk);
+	--color-kb-slate: var(--slate);
+	--color-kb-slate-light: var(--slate-lt);
+	--color-kb-navy: var(--navy);
+	--color-kb-red: var(--red);
+	--color-kb-forest: var(--forest);
+	--color-kb-forest-light: var(--forest-lt);
+	--color-kb-gold: var(--gold);
 }
 
 /* Coil theming: primary color per coil (Events = lakebed; future coils = other palette vars) */
-[data-coil="events"] {
-  --primary: var(--color-lakebed-950);
-  --primary-foreground: var(--color-alpine-snow-100);
-  --ring: color-mix(in srgb, var(--color-lakebed-950) 50%, transparent);
-  --sidebar-primary: var(--color-lakebed-950);
-  --sidebar-primary-foreground: var(--color-alpine-snow-100);
-  --sidebar-ring: color-mix(in srgb, var(--color-lakebed-950) 50%, transparent);
+[data-coil='events'] {
+	--primary: var(--color-lakebed-950);
+	--primary-foreground: var(--color-alpine-snow-100);
+	--ring: color-mix(in srgb, var(--color-lakebed-950) 50%, transparent);
+	--sidebar-primary: var(--color-lakebed-950);
+	--sidebar-primary-foreground: var(--color-alpine-snow-100);
+	--sidebar-ring: color-mix(in srgb, var(--color-lakebed-950) 50%, transparent);
 }
 
 .dark {
-  /* Primaries only */
-  --background: var(--color-lakebed-950);
-  --foreground: var(--color-alpine-snow-100);
-  --card: var(--color-obsidian-950);
-  --card-foreground: var(--color-alpine-snow-100);
-  --popover: var(--color-obsidian-950);
-  --popover-foreground: var(--color-alpine-snow-100);
-  --primary: var(--color-alpine-snow-100);
-  --primary-foreground: var(--color-lakebed-950);
-  --secondary: var(--color-granite-200);
-  --secondary-foreground: var(--color-alpine-snow-100);
-  --muted: var(--color-granite-200);
-  --muted-foreground: var(--color-alpine-snow-100);
-  --accent: var(--color-flicker-900);
-  --accent-foreground: var(--color-alpine-snow-100);
-  --destructive: var(--color-ember-900);
-  --destructive-foreground: var(--color-alpine-snow-100);
-  --border: color-mix(in srgb, var(--color-granite-200) 50%, transparent);
-  --input: color-mix(in srgb, var(--color-granite-200) 50%, transparent);
-  --ring: color-mix(in srgb, var(--color-alpine-snow-100) 50%, transparent);
-  --sidebar: var(--color-lakebed-950);
-  --sidebar-foreground: var(--color-alpine-snow-100);
-  --sidebar-primary: var(--color-alpine-snow-100);
-  --sidebar-primary-foreground: var(--color-lakebed-950);
-  --sidebar-accent: var(--color-granite-200);
-  --sidebar-accent-foreground: var(--color-alpine-snow-100);
-  --sidebar-border: color-mix(in srgb, var(--color-granite-200) 50%, transparent);
-  --sidebar-ring: color-mix(in srgb, var(--color-alpine-snow-100) 50%, transparent);
+	/* Primaries only */
+	--background: var(--color-lakebed-950);
+	--foreground: var(--color-alpine-snow-100);
+	--card: var(--color-obsidian-950);
+	--card-foreground: var(--color-alpine-snow-100);
+	--popover: var(--color-obsidian-950);
+	--popover-foreground: var(--color-alpine-snow-100);
+	--primary: var(--color-alpine-snow-100);
+	--primary-foreground: var(--color-lakebed-950);
+	--secondary: var(--color-granite-200);
+	--secondary-foreground: var(--color-alpine-snow-100);
+	--muted: var(--color-granite-200);
+	--muted-foreground: var(--color-alpine-snow-100);
+	--accent: var(--color-flicker-900);
+	--accent-foreground: var(--color-alpine-snow-100);
+	--destructive: var(--color-ember-900);
+	--destructive-foreground: var(--color-alpine-snow-100);
+	--border: color-mix(in srgb, var(--color-granite-200) 50%, transparent);
+	--input: color-mix(in srgb, var(--color-granite-200) 50%, transparent);
+	--ring: color-mix(in srgb, var(--color-alpine-snow-100) 50%, transparent);
+	--sidebar: var(--color-lakebed-950);
+	--sidebar-foreground: var(--color-alpine-snow-100);
+	--sidebar-primary: var(--color-alpine-snow-100);
+	--sidebar-primary-foreground: var(--color-lakebed-950);
+	--sidebar-accent: var(--color-granite-200);
+	--sidebar-accent-foreground: var(--color-alpine-snow-100);
+	--sidebar-border: color-mix(in srgb, var(--color-granite-200) 50%, transparent);
+	--sidebar-ring: color-mix(in srgb, var(--color-alpine-snow-100) 50%, transparent);
 }

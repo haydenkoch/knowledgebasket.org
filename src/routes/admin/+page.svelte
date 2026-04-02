@@ -8,15 +8,40 @@
 
 	const statusCards = [
 		{ label: 'Pending', key: 'pending', icon: Clock, color: 'text-amber-600 bg-amber-50' },
-		{ label: 'Published', key: 'published', icon: CheckCircle, color: 'text-green-600 bg-green-50' },
+		{
+			label: 'Published',
+			key: 'published',
+			icon: CheckCircle,
+			color: 'text-green-600 bg-green-50'
+		},
 		{ label: 'Rejected', key: 'rejected', icon: XCircle, color: 'text-red-600 bg-red-50' },
-		{ label: 'Cancelled', key: 'cancelled', icon: AlertTriangle, color: 'text-muted-foreground bg-muted' }
+		{
+			label: 'Cancelled',
+			key: 'cancelled',
+			icon: AlertTriangle,
+			color: 'text-muted-foreground bg-muted'
+		}
 	];
 
 	const quickLinks = [
-		{ href: '/admin/events', label: 'Manage Events', description: 'Review, edit, approve/reject events', icon: List },
-		{ href: '/admin/events/import', label: 'Import iCal', description: 'Import from iCal feeds', icon: FileDown },
-		{ href: '/admin/events/duplicates', label: 'Find Duplicates', description: 'Detect and merge duplicate events', icon: Copy }
+		{
+			href: '/admin/events',
+			label: 'Manage Events',
+			description: 'Review, edit, approve/reject events',
+			icon: List
+		},
+		{
+			href: '/admin/events/import',
+			label: 'Import iCal',
+			description: 'Import from iCal feeds',
+			icon: FileDown
+		},
+		{
+			href: '/admin/events/duplicates',
+			label: 'Find Duplicates',
+			description: 'Detect and merge duplicate events',
+			icon: Copy
+		}
 	];
 </script>
 
@@ -25,7 +50,10 @@
 
 	<div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
 		{#each statusCards as card}
-			<a href="/admin/events?status={card.key}" class="block transition-shadow hover:shadow-md rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+			<a
+				href="/admin/events?status={card.key}"
+				class="block rounded-lg transition-shadow hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+			>
 				<Card.Root>
 					<Card.Content class="flex flex-row items-center gap-3 pt-6">
 						<div class="rounded-md p-2 {card.color}">
@@ -51,8 +79,11 @@
 					<ul class="space-y-2 text-sm">
 						{#each data.recentPending as event}
 							<li class="flex items-center justify-between gap-2">
-								<a href="/admin/events/{event.id}" class="font-medium text-primary hover:underline truncate">{event.title}</a>
-								<span class="text-muted-foreground shrink-0">
+								<a
+									href="/admin/events/{event.id}"
+									class="truncate font-medium text-primary hover:underline">{event.title}</a
+								>
+								<span class="shrink-0 text-muted-foreground">
 									{#if event.createdAt}
 										{new Date(event.createdAt).toLocaleDateString()}
 									{:else}
@@ -62,7 +93,11 @@
 							</li>
 						{/each}
 					</ul>
-					<a href="/admin/events?status=pending" class="mt-3 inline-block text-sm font-medium text-primary hover:underline">View all pending →</a>
+					<a
+						href="/admin/events?status=pending"
+						class="mt-3 inline-block text-sm font-medium text-primary hover:underline"
+						>View all pending →</a
+					>
 				</Card.Content>
 			</Card.Root>
 		</div>

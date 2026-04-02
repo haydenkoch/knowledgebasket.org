@@ -3,9 +3,8 @@
  * future events in KB EventItem shape. Used to merge external calendar events
  * into the events list.
  */
-import ical from 'node-ical';
 import type { EventItem } from '$lib/data/kb';
-import { stripHtml } from '$lib/utils/format';
+import { parseIcalEvents } from '$lib/server/ingestion/adapters/ical-shared';
 
 const ICS_FEED_URL = 'https://newsfromnativecalifornia.com/events/list/?ical=1';
 
@@ -31,24 +30,25 @@ export async function fetchEventsFromIcalFeed(
 	const to = options?.to ?? new Date(Date.now() + 2 * 365 * 24 * 60 * 60 * 1000);
 
 	try {
-		const raw = await ical.async.fromURL(url, {
+		const response = await fetch(url, {
 			signal: options?.signal,
-			headers: { 'User-Agent': 'KB-Events-Importer/1.0' }
+			headers: { 'User-Agent': 'KB-Events-Importer/1.0', Accept: 'text/calendar, text/plain;q=0.9,*/*;q=0.5' }
 		});
-		const data = (raw ?? {}) as Record<string, unknown>;
+		if (!response.ok) {
+			throw new Error(`HTTP ${response.status} while fetching ICS feed`);
+		}
 
+		const rawContent = await response.text();
+		const data = parseIcalEvents(rawContent);
 		const items: EventItem[] = [];
 		const seenIds = new Set<string>();
 
-		for (const key of Object.keys(data)) {
-			const ev = data[key] as { type?: string; start?: Date; end?: Date; summary?: string; description?: string; location?: string; uid?: string; url?: string; rrule?: unknown } | undefined;
-			if (!ev || ev.type !== 'VEVENT' || !ev.start) continue;
-
-			const start = ev.start instanceof Date ? ev.start : new Date(ev.start);
-			const end = ev.end instanceof Date ? ev.end : start;
+		for (const ev of data) {
+			const start = ev.start;
+			const end = ev.end ?? start;
 			if (start < from || start > to) continue;
 
-			const uid = (ev.uid ?? key).replace(/[^a-zA-Z0-9-_]/g, '_');
+			const uid = ev.uid.replace(/[^a-zA-Z0-9-_]/g, '_');
 			const id = `ical-${uid}`;
 			if (seenIds.has(id)) continue;
 			seenIds.add(id);
@@ -56,10 +56,10 @@ export async function fetchEventsFromIcalFeed(
 			items.push({
 				id,
 				slug: id,
-				title: (ev.summary ?? 'Untitled event').trim(),
+				title: ev.summary,
 				coil: 'events',
-				description: stripHtml(ev.description ?? ''),
-				location: ev.location?.trim() || undefined,
+				description: ev.description ?? '',
+				location: ev.location ?? undefined,
 				region: SOURCE_LABEL,
 				startDate: toMMDDYYYY(start),
 				endDate: end.getTime() !== start.getTime() ? toMMDDYYYY(end) : undefined,

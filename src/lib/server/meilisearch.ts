@@ -22,6 +22,8 @@ const SEARCHABLE_ATTRIBUTES: Record<CoilKey, string[]> = {
 	toolbox: ['title', 'description', 'body', 'sourceName', 'author', 'category']
 };
 
+const MEILISEARCH_TIMEOUT_MS = 1500;
+
 function getClient(): MeiliSearch | null {
 	const host = env.MEILISEARCH_HOST;
 	if (!host) return null;
@@ -29,6 +31,15 @@ function getClient(): MeiliSearch | null {
 		host,
 		apiKey: env.MEILISEARCH_API_KEY || undefined
 	});
+}
+
+async function withTimeout<T>(promise: Promise<T>, label: string): Promise<T> {
+	return await Promise.race([
+		promise,
+		new Promise<never>((_, reject) => {
+			setTimeout(() => reject(new Error(`${label} timed out`)), MEILISEARCH_TIMEOUT_MS);
+		})
+	]);
 }
 
 // ── Search document types ─────────────────────────────────
@@ -100,10 +111,7 @@ export type ToolboxSearchDoc = SearchDoc & {
 
 // ── Index settings ────────────────────────────────────────
 
-async function ensureIndexSettings(
-	client: MeiliSearch,
-	coil: CoilKey
-): Promise<void> {
+async function ensureIndexSettings(client: MeiliSearch, coil: CoilKey): Promise<void> {
 	try {
 		const index = client.index(INDEXES[coil]);
 		await index.updateSearchableAttributes(SEARCHABLE_ATTRIBUTES[coil]);
@@ -141,10 +149,13 @@ export async function searchCoil(
 	if (!client || !q || q.trim().length < 2) return [];
 	try {
 		const index = client.index(INDEXES[coil]);
-		const res = await index.search(q.trim(), {
-			limit: opts?.limit ?? 50,
-			filter: opts?.filter
-		});
+		const res = await withTimeout(
+			index.search(q.trim(), {
+				limit: opts?.limit ?? 50,
+				filter: opts?.filter
+			}),
+			`${coil} search`
+		);
 		return res.hits as SearchDoc[];
 	} catch (err) {
 		console.warn(`[meilisearch] search failed for ${coil}:`, err);
@@ -169,13 +180,16 @@ export async function searchAll(
 	if (!client || !q || q.trim().length < 2) return empty;
 
 	try {
-		const results = await client.multiSearch({
-			queries: Object.entries(INDEXES).map(([coil, indexUid]) => ({
-				indexUid,
-				q: q.trim(),
-				limit: opts?.limit ?? 10
-			}))
-		});
+		const results = await withTimeout(
+			client.multiSearch({
+				queries: Object.entries(INDEXES).map(([_coil, indexUid]) => ({
+					indexUid,
+					q: q.trim(),
+					limit: opts?.limit ?? 10
+				}))
+			}),
+			'multi-search'
+		);
 
 		const coilKeys = Object.keys(INDEXES) as CoilKey[];
 		for (let i = 0; i < results.results.length; i++) {

@@ -1,7 +1,7 @@
 import type { LayoutServerLoad } from './$types';
 import { getSetting, BRAND_LOGO_KEY, BRAND_FAVICON_KEY } from '$lib/server/settings';
 
-export const load: LayoutServerLoad = async () => {
+export const load: LayoutServerLoad = async ({ locals }) => {
 	let brandLogoUrl: string | null = null;
 	let brandFaviconUrl: string | null = null;
 	try {
@@ -12,5 +12,5 @@ export const load: LayoutServerLoad = async () => {
 	} catch {
 		// site_settings table may not exist yet (run pnpm db:push); use defaults
 	}
-	return { brandLogoUrl, brandFaviconUrl };
+	return { brandLogoUrl, brandFaviconUrl, user: locals.user ?? null };
 };

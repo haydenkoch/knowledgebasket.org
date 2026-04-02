@@ -18,14 +18,16 @@ const sql = postgres(process.env.DATABASE_URL);
 
 function slugify(text) {
 	if (!text || typeof text !== 'string') return 'item';
-	return text
-		.trim()
-		.toLowerCase()
-		.replace(/\s+/g, '-')
-		.replace(/[^a-z0-9-]/g, '')
-		.replace(/-+/g, '-')
-		.replace(/^-|-$/g, '')
-		.slice(0, 100) || 'item';
+	return (
+		text
+			.trim()
+			.toLowerCase()
+			.replace(/\s+/g, '-')
+			.replace(/[^a-z0-9-]/g, '')
+			.replace(/-+/g, '-')
+			.replace(/^-|-$/g, '')
+			.slice(0, 100) || 'item'
+	);
 }
 
 function uniqueSlug(base, seen) {
@@ -44,33 +46,49 @@ function parseCSV(content) {
 	for (let i = 0; i < content.length; i++) {
 		const c = content[i];
 		if (inQuotes) {
-			if (c === '"' && content[i + 1] === '"') { field += '"'; i++; }
-			else if (c === '"') inQuotes = false;
+			if (c === '"' && content[i + 1] === '"') {
+				field += '"';
+				i++;
+			} else if (c === '"') inQuotes = false;
 			else field += c;
 		} else {
 			if (c === '"') inQuotes = true;
 			else if (c === ',' || c === '\n') {
 				row.push(field.trim());
 				field = '';
-				if (c === '\n') { rows.push(row); row = []; }
+				if (c === '\n') {
+					rows.push(row);
+					row = [];
+				}
 			} else field += c;
 		}
 	}
-	if (field || row.length) { row.push(field.trim()); rows.push(row); }
+	if (field || row.length) {
+		row.push(field.trim());
+		rows.push(row);
+	}
 	return rows;
 }
 
 // ── Red Pages ─────────────────────────────────────────────────────────────────
 async function seedRedPages() {
-	const csvPath = existsSync(join(process.cwd(), '..', 'data', 'The Red Pages - Native Vendors - Knowledge Basket.csv'))
+	const csvPath = existsSync(
+		join(process.cwd(), '..', 'data', 'The Red Pages - Native Vendors - Knowledge Basket.csv')
+	)
 		? join(process.cwd(), '..', 'data', 'The Red Pages - Native Vendors - Knowledge Basket.csv')
 		: join(process.cwd(), 'data', 'The Red Pages - Native Vendors - Knowledge Basket.csv');
 
-	if (!existsSync(csvPath)) { console.log('Red Pages CSV not found, skipping.'); return; }
+	if (!existsSync(csvPath)) {
+		console.log('Red Pages CSV not found, skipping.');
+		return;
+	}
 
 	const rows = parseCSV(readFileSync(csvPath, 'utf-8'));
 	const headers = rows[0] || [];
-	const col = (row, name) => { const i = headers.indexOf(name); return i >= 0 ? (row[i] || '').trim() : ''; };
+	const col = (row, name) => {
+		const i = headers.indexOf(name);
+		return i >= 0 ? (row[i] || '').trim() : '';
+	};
 
 	const seen = new Set();
 	let count = 0;
@@ -85,7 +103,12 @@ async function seedRedPages() {
 		const description = col(row, 'Desription') || null;
 		const tribalAffiliation = col(row, 'Native Identity') || null;
 		const website = col(row, 'Link or Contact') || null;
-		const ownershipArr = ownership ? ownership.split(',').map(s => s.trim()).filter(Boolean) : [];
+		const ownershipArr = ownership
+			? ownership
+					.split(',')
+					.map((s) => s.trim())
+					.filter(Boolean)
+			: [];
 
 		await sql`
 			INSERT INTO red_pages_businesses (id, slug, name, description, service_type, region, tribal_affiliation, website, ownership_identity, status, source, published_at)
@@ -114,11 +137,12 @@ async function seedFunding() {
 			amountMin: 50000,
 			amountMax: 500000,
 			amountDescription: '$50,000 – $500,000',
-			description: '<p>The Tribal Community Development Block Grant (ICDBG) program provides assistance for the development of viable tribal communities. Eligible activities include housing rehabilitation, public facilities, and economic development.</p>',
+			description:
+				'<p>The Tribal Community Development Block Grant (ICDBG) program provides assistance for the development of viable tribal communities. Eligible activities include housing rehabilitation, public facilities, and economic development.</p>',
 			applyUrl: 'https://www.hud.gov/program_offices/public_indian_housing/ih/grants/icdbg',
 			eligibilityType: 'tribal_gov',
 			eligibilityTypes: ['tribal_gov'],
-			deadline: new Date('2026-06-30'),
+			deadline: new Date('2026-06-30')
 		},
 		{
 			title: 'First Nations Development Institute Native Agriculture and Food Systems Initiative',
@@ -130,11 +154,12 @@ async function seedFunding() {
 			amountMin: 25000,
 			amountMax: 75000,
 			amountDescription: '$25,000 – $75,000',
-			description: '<p>Supports Native-led efforts to reclaim control over food systems, revitalize traditional agriculture, and address food sovereignty issues in Native communities.</p>',
+			description:
+				'<p>Supports Native-led efforts to reclaim control over food systems, revitalize traditional agriculture, and address food sovereignty issues in Native communities.</p>',
 			applyUrl: 'https://www.firstnations.org',
 			eligibilityType: 'nonprofit',
 			eligibilityTypes: ['nonprofit', 'tribal_gov'],
-			deadline: new Date('2026-05-15'),
+			deadline: new Date('2026-05-15')
 		},
 		{
 			title: 'Administration for Native Americans Social and Economic Development Strategies',
@@ -146,13 +171,14 @@ async function seedFunding() {
 			amountMin: 100000,
 			amountMax: 400000,
 			amountDescription: 'Up to $400,000',
-			description: '<p>SEDS grants support social and economic development strategies for Native American communities, including projects that strengthen tribal governance, economic self-sufficiency, and community well-being.</p>',
+			description:
+				'<p>SEDS grants support social and economic development strategies for Native American communities, including projects that strengthen tribal governance, economic self-sufficiency, and community well-being.</p>',
 			applyUrl: 'https://www.acf.hhs.gov/ana',
 			eligibilityType: 'tribal_gov',
 			eligibilityTypes: ['tribal_gov', 'nonprofit'],
 			deadline: new Date('2026-07-01'),
 			isRecurring: true,
-			recurringSchedule: 'Annual',
+			recurringSchedule: 'Annual'
 		},
 		{
 			title: 'Native Arts and Cultures Foundation Catalyst Grant',
@@ -164,10 +190,11 @@ async function seedFunding() {
 			amountMin: 10000,
 			amountMax: 50000,
 			amountDescription: '$10,000 – $50,000',
-			description: '<p>The Catalyst Grant supports emerging and established Native artists and arts organizations. Projects should be rooted in Indigenous cultural practices and contribute to the vitality of Native arts and cultures.</p>',
+			description:
+				'<p>The Catalyst Grant supports emerging and established Native artists and arts organizations. Projects should be rooted in Indigenous cultural practices and contribute to the vitality of Native arts and cultures.</p>',
 			applyUrl: 'https://www.nativeartsandcultures.org',
 			eligibilityType: 'individual',
-			eligibilityTypes: ['individual', 'nonprofit'],
+			eligibilityTypes: ['individual', 'nonprofit']
 		},
 		{
 			title: 'Indigenous Language Institute Endangered Language Fund',
@@ -179,11 +206,12 @@ async function seedFunding() {
 			amountMin: 5000,
 			amountMax: 30000,
 			amountDescription: '$5,000 – $30,000',
-			description: '<p>Supports documentation, revitalization, and education programs for endangered Indigenous languages. Projects may include language nests, master-apprentice programs, digital archiving, or curriculum development.</p>',
+			description:
+				'<p>Supports documentation, revitalization, and education programs for endangered Indigenous languages. Projects may include language nests, master-apprentice programs, digital archiving, or curriculum development.</p>',
 			applyUrl: 'https://www.indigenous-language.org',
 			eligibilityType: 'nonprofit',
 			eligibilityTypes: ['nonprofit', 'tribal_gov', 'individual'],
-			deadline: new Date('2026-04-15'),
+			deadline: new Date('2026-04-15')
 		},
 		{
 			title: 'USDA Forest Service Tribal Agreements Program',
@@ -195,10 +223,11 @@ async function seedFunding() {
 			amountMin: 0,
 			amountMax: 250000,
 			amountDescription: 'Varies by project scope',
-			description: '<p>The Forest Service enters into agreements with tribes for stewardship, restoration, and resource management projects on National Forest lands with tribal cultural significance. California tribes are especially encouraged to apply for Sierra Nevada projects.</p>',
+			description:
+				'<p>The Forest Service enters into agreements with tribes for stewardship, restoration, and resource management projects on National Forest lands with tribal cultural significance. California tribes are especially encouraged to apply for Sierra Nevada projects.</p>',
 			applyUrl: 'https://www.fs.usda.gov/managing-land/tribal-relations',
 			eligibilityType: 'tribal_gov',
-			eligibilityTypes: ['tribal_gov'],
+			eligibilityTypes: ['tribal_gov']
 		},
 		{
 			title: 'EPA Indian Environmental General Assistance Program',
@@ -210,12 +239,13 @@ async function seedFunding() {
 			amountMin: 30000,
 			amountMax: 100000,
 			amountDescription: '$30,000 – $100,000',
-			description: '<p>GAP grants provide funding to build capacity at tribal environmental programs, including developing infrastructure for environmental management, solid and hazardous waste, water quality, and air programs.</p>',
+			description:
+				'<p>GAP grants provide funding to build capacity at tribal environmental programs, including developing infrastructure for environmental management, solid and hazardous waste, water quality, and air programs.</p>',
 			applyUrl: 'https://www.epa.gov/tribal/indian-environmental-general-assistance-program-gap',
 			eligibilityType: 'tribal_gov',
 			eligibilityTypes: ['tribal_gov'],
 			deadline: new Date('2026-08-31'),
-			isRecurring: true,
+			isRecurring: true
 		},
 		{
 			title: 'First Peoples Worldwide Indigenous Rights Fellowship',
@@ -227,11 +257,12 @@ async function seedFunding() {
 			amountMin: 15000,
 			amountMax: 15000,
 			amountDescription: '$15,000 stipend',
-			description: '<p>The Indigenous Rights Fellowship supports early-career Indigenous advocates working on human rights, free, prior and informed consent, and indigenous rights in extractive industry contexts. Applications for the current cycle are closed.</p>',
+			description:
+				'<p>The Indigenous Rights Fellowship supports early-career Indigenous advocates working on human rights, free, prior and informed consent, and indigenous rights in extractive industry contexts. Applications for the current cycle are closed.</p>',
 			applyUrl: 'https://www.firstpeoples.org',
 			eligibilityType: 'individual',
-			eligibilityTypes: ['individual'],
-		},
+			eligibilityTypes: ['individual']
+		}
 	];
 
 	const seen = new Set();
@@ -274,14 +305,16 @@ async function seedJobs() {
 			workArrangement: 'in_office',
 			location: 'Nevada City, CA',
 			region: 'Sierra Nevada',
-			description: '<p>Oversee tribal historic preservation programs including Section 106 consultation, tribal cultural resource surveys, NHPA compliance, and development of the tribal historic preservation plan. Work closely with federal and state agencies.</p>',
-			qualifications: '<ul><li>Bachelor\'s degree in archaeology, anthropology, history, or related field</li><li>5+ years THPO or cultural resource management experience</li><li>Knowledge of Section 106 consultation process</li><li>Familiarity with Sierra Nevada tribal cultures preferred</li></ul>',
+			description:
+				'<p>Oversee tribal historic preservation programs including Section 106 consultation, tribal cultural resource surveys, NHPA compliance, and development of the tribal historic preservation plan. Work closely with federal and state agencies.</p>',
+			qualifications:
+				"<ul><li>Bachelor's degree in archaeology, anthropology, history, or related field</li><li>5+ years THPO or cultural resource management experience</li><li>Knowledge of Section 106 consultation process</li><li>Familiarity with Sierra Nevada tribal cultures preferred</li></ul>",
 			applyUrl: '#',
 			indigenousPriority: true,
 			applicationDeadline: new Date('2026-05-01'),
 			compensationMin: 65000,
 			compensationMax: 85000,
-			compensationDescription: '$65,000–$85,000 DOE',
+			compensationDescription: '$65,000–$85,000 DOE'
 		},
 		{
 			title: 'Native American Community Health Worker',
@@ -292,14 +325,16 @@ async function seedJobs() {
 			workArrangement: 'hybrid',
 			location: 'Sacramento, CA',
 			region: 'California',
-			description: '<p>Serve as a bridge between community members and healthcare providers. Conduct outreach, provide health education, assist with care coordination, and connect community members to social services. Bilingual preferred.</p>',
-			qualifications: '<ul><li>High school diploma or GED required; Associate\'s degree preferred</li><li>Experience working in Native American communities</li><li>Community health worker certification preferred</li><li>Valid CA driver\'s license</li></ul>',
+			description:
+				'<p>Serve as a bridge between community members and healthcare providers. Conduct outreach, provide health education, assist with care coordination, and connect community members to social services. Bilingual preferred.</p>',
+			qualifications:
+				"<ul><li>High school diploma or GED required; Associate's degree preferred</li><li>Experience working in Native American communities</li><li>Community health worker certification preferred</li><li>Valid CA driver's license</li></ul>",
 			applyUrl: 'https://www.ihs.gov',
 			indigenousPriority: true,
 			applicationDeadline: new Date('2026-04-20'),
 			compensationMin: 42000,
 			compensationMax: 55000,
-			compensationDescription: '$42,000–$55,000 + federal benefits',
+			compensationDescription: '$42,000–$55,000 + federal benefits'
 		},
 		{
 			title: 'Language Revitalization Program Coordinator',
@@ -310,14 +345,16 @@ async function seedJobs() {
 			workArrangement: 'hybrid',
 			location: 'Davis, CA',
 			region: 'California',
-			description: '<p>Coordinate language documentation and revitalization projects for California Indian languages. Manage relationships with tribal language speakers and communities, oversee apprenticeship programs, support digital archiving efforts.</p>',
-			qualifications: '<ul><li>MA in linguistics, anthropology, or Native American studies preferred</li><li>Experience with language documentation or revitalization</li><li>Knowledge of California Indian languages a plus</li><li>Strong project management skills</li></ul>',
+			description:
+				'<p>Coordinate language documentation and revitalization projects for California Indian languages. Manage relationships with tribal language speakers and communities, oversee apprenticeship programs, support digital archiving efforts.</p>',
+			qualifications:
+				'<ul><li>MA in linguistics, anthropology, or Native American studies preferred</li><li>Experience with language documentation or revitalization</li><li>Knowledge of California Indian languages a plus</li><li>Strong project management skills</li></ul>',
 			applyUrl: '#',
 			indigenousPriority: true,
 			applicationDeadline: new Date('2026-06-01'),
 			compensationMin: 55000,
 			compensationMax: 70000,
-			compensationDescription: '$55,000–$70,000',
+			compensationDescription: '$55,000–$70,000'
 		},
 		{
 			title: 'Environmental Scientist – Tribal Lands',
@@ -328,14 +365,16 @@ async function seedJobs() {
 			workArrangement: 'in_office',
 			location: 'Placerville, CA',
 			region: 'Sierra Nevada',
-			description: '<p>Conduct environmental assessments on Eldorado National Forest lands with tribal cultural significance. Collaborate with tribal liaisons, prepare NEPA documentation, and support tribal co-management initiatives.</p>',
-			qualifications: '<ul><li>Bachelor\'s in environmental science, ecology, or related field</li><li>2+ years federal or state environmental work</li><li>Experience with tribal consultation preferred</li><li>Knowledge of Sierra Nevada ecosystems</li></ul>',
+			description:
+				'<p>Conduct environmental assessments on Eldorado National Forest lands with tribal cultural significance. Collaborate with tribal liaisons, prepare NEPA documentation, and support tribal co-management initiatives.</p>',
+			qualifications:
+				"<ul><li>Bachelor's in environmental science, ecology, or related field</li><li>2+ years federal or state environmental work</li><li>Experience with tribal consultation preferred</li><li>Knowledge of Sierra Nevada ecosystems</li></ul>",
 			applyUrl: 'https://www.usajobs.gov',
 			indigenousPriority: false,
 			applicationDeadline: new Date('2026-04-30'),
 			compensationMin: 60000,
 			compensationMax: 80000,
-			compensationDescription: 'GS-9/11 scale ($60,000–$80,000)',
+			compensationDescription: 'GS-9/11 scale ($60,000–$80,000)'
 		},
 		{
 			title: 'Web Developer – Native Nonprofit',
@@ -346,14 +385,16 @@ async function seedJobs() {
 			workArrangement: 'remote',
 			location: 'Remote',
 			region: 'California',
-			description: '<p>Build and maintain web properties for IFS, including the Knowledge Basket platform. Experience with SvelteKit, PostgreSQL, and Tailwind CSS preferred. This is a part-time contract position with potential for full-time.</p>',
-			qualifications: '<ul><li>2+ years web development experience</li><li>Proficiency in JavaScript/TypeScript</li><li>Experience with SvelteKit or similar frameworks</li><li>Understanding of accessibility (WCAG 2.1)</li></ul>',
+			description:
+				'<p>Build and maintain web properties for IFS, including the Knowledge Basket platform. Experience with SvelteKit, PostgreSQL, and Tailwind CSS preferred. This is a part-time contract position with potential for full-time.</p>',
+			qualifications:
+				'<ul><li>2+ years web development experience</li><li>Proficiency in JavaScript/TypeScript</li><li>Experience with SvelteKit or similar frameworks</li><li>Understanding of accessibility (WCAG 2.1)</li></ul>',
 			applyUrl: '#',
 			indigenousPriority: true,
 			applicationDeadline: new Date('2026-05-15'),
 			compensationMin: 50,
 			compensationMax: 80,
-			compensationDescription: '$50–$80/hr contract',
+			compensationDescription: '$50–$80/hr contract'
 		},
 		{
 			title: 'Traditional Ecological Knowledge Coordinator',
@@ -364,15 +405,17 @@ async function seedJobs() {
 			workArrangement: 'hybrid',
 			location: 'Merced, CA',
 			region: 'Sierra Nevada',
-			description: '<p>Facilitate integration of Traditional Ecological Knowledge (TEK) into research and land management practices. Build relationships with tribal communities, document TEK with community consent, and co-design research protocols.</p>',
-			qualifications: '<ul><li>Graduate degree in ecology, Native American studies, or related field</li><li>Experience in community-based participatory research</li><li>Demonstrated relationships with Indigenous communities</li></ul>',
+			description:
+				'<p>Facilitate integration of Traditional Ecological Knowledge (TEK) into research and land management practices. Build relationships with tribal communities, document TEK with community consent, and co-design research protocols.</p>',
+			qualifications:
+				'<ul><li>Graduate degree in ecology, Native American studies, or related field</li><li>Experience in community-based participatory research</li><li>Demonstrated relationships with Indigenous communities</li></ul>',
 			applyUrl: '#',
 			indigenousPriority: true,
 			applicationDeadline: new Date('2026-06-15'),
 			compensationMin: 58000,
 			compensationMax: 72000,
-			compensationDescription: '$58,000–$72,000',
-		},
+			compensationDescription: '$58,000–$72,000'
+		}
 	];
 
 	const seen = new Set();
@@ -415,7 +458,8 @@ async function seedToolbox() {
 			category: 'Tribal Governance',
 			contentMode: 'link',
 			externalUrl: 'https://www.ncai.org/tribal-governance',
-			description: 'Comprehensive resource covering tribal sovereignty, governance structures, federal Indian law, and practical tools for tribal government operations.',
+			description:
+				'Comprehensive resource covering tribal sovereignty, governance structures, federal Indian law, and practical tools for tribal government operations.'
 		},
 		{
 			title: 'Native Language Preservation Toolkit',
@@ -425,7 +469,8 @@ async function seedToolbox() {
 			category: 'Language Revitalization',
 			contentMode: 'link',
 			externalUrl: 'https://fpcc.ca/resource/language-revitalization-resources/',
-			description: 'Practical toolkit for communities undertaking language revitalization work, including community assessment tools, program models, and best practices.',
+			description:
+				'Practical toolkit for communities undertaking language revitalization work, including community assessment tools, program models, and best practices.'
 		},
 		{
 			title: 'Indigenous Data Sovereignty: A Guide for Tribes',
@@ -435,7 +480,8 @@ async function seedToolbox() {
 			category: 'Data Sovereignty',
 			contentMode: 'link',
 			externalUrl: 'https://usindigenousdata.org/',
-			description: 'An introduction to Indigenous data sovereignty principles and practical guidance for tribes asserting governance over their data.',
+			description:
+				'An introduction to Indigenous data sovereignty principles and practical guidance for tribes asserting governance over their data.'
 		},
 		{
 			title: 'Tribal Historic Preservation Program Manual',
@@ -444,8 +490,10 @@ async function seedToolbox() {
 			mediaType: 'text',
 			category: 'Cultural Preservation',
 			contentMode: 'link',
-			externalUrl: 'https://www.nps.gov/subjects/nationalregister/tribal-historic-preservation-programs.htm',
-			description: 'Step-by-step guidance for establishing and operating a Tribal Historic Preservation Officer program under the National Historic Preservation Act.',
+			externalUrl:
+				'https://www.nps.gov/subjects/nationalregister/tribal-historic-preservation-programs.htm',
+			description:
+				'Step-by-step guidance for establishing and operating a Tribal Historic Preservation Officer program under the National Historic Preservation Act.'
 		},
 		{
 			title: 'Traditional Ecological Knowledge and Climate Adaptation',
@@ -455,7 +503,8 @@ async function seedToolbox() {
 			category: 'Environmental Stewardship',
 			contentMode: 'link',
 			externalUrl: 'https://www.fs.usda.gov/treesearch/',
-			description: 'Research report examining how Traditional Ecological Knowledge can inform climate adaptation strategies for forest management in the Sierra Nevada.',
+			description:
+				'Research report examining how Traditional Ecological Knowledge can inform climate adaptation strategies for forest management in the Sierra Nevada.'
 		},
 		{
 			title: 'Grant Writing for Tribal Organizations: A Step-by-Step Guide',
@@ -465,7 +514,8 @@ async function seedToolbox() {
 			category: 'Funding & Grants',
 			contentMode: 'link',
 			externalUrl: 'https://www.firstnations.org/publications/',
-			description: 'Practical guide covering all aspects of grant writing for tribal organizations, from identifying funders to crafting compelling narratives and managing reporting requirements.',
+			description:
+				'Practical guide covering all aspects of grant writing for tribal organizations, from identifying funders to crafting compelling narratives and managing reporting requirements.'
 		},
 		{
 			title: 'Native Business Development Resources',
@@ -475,7 +525,8 @@ async function seedToolbox() {
 			category: 'Economic Development',
 			contentMode: 'link',
 			externalUrl: 'https://www.acf.hhs.gov/ana/resource/native-business',
-			description: 'Curated resources for Native entrepreneurs and Native-owned businesses, including access to capital, certification programs, and technical assistance.',
+			description:
+				'Curated resources for Native entrepreneurs and Native-owned businesses, including access to capital, certification programs, and technical assistance.'
 		},
 		{
 			title: 'Free, Prior and Informed Consent: A Practical Guide',
@@ -484,9 +535,11 @@ async function seedToolbox() {
 			mediaType: 'text',
 			category: 'Indigenous Rights',
 			contentMode: 'link',
-			externalUrl: 'https://www.culturalsurvival.org/publications/cultural-survival-quarterly/free-prior-and-informed-consent',
-			description: 'Explains FPIC principles, their legal basis, and practical applications for Indigenous communities facing development projects on or near their territories.',
-		},
+			externalUrl:
+				'https://www.culturalsurvival.org/publications/cultural-survival-quarterly/free-prior-and-informed-consent',
+			description:
+				'Explains FPIC principles, their legal basis, and practical applications for Indigenous communities facing development projects on or near their territories.'
+		}
 	];
 
 	const seen = new Set();

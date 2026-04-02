@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
+	import type { Editor as TinyMCEEditor, TinyMCE } from 'tinymce';
 
 	interface Props {
 		value?: string;
@@ -7,18 +8,32 @@
 		placeholder?: string;
 		minHeight?: string;
 		initialValue?: string;
+		mode?: 'rich' | 'plain';
 	}
 
-	let { value = $bindable(''), name = 'body', placeholder = 'Write here...', minHeight = '220px', initialValue = '' }: Props = $props();
+	let {
+		value = $bindable(''),
+		name = 'body',
+		placeholder = 'Write here...',
+		minHeight = '220px',
+		initialValue = '',
+		mode = 'rich'
+	}: Props = $props();
 
-	let container: HTMLDivElement;
-	let editorId = `rte-${Math.random().toString(36).slice(2)}`;
-	let editor: unknown;
+	let container = $state<HTMLDivElement | undefined>(undefined);
+	let editor: TinyMCEEditor | undefined;
+
+	$effect(() => {
+		if (mode === 'plain' && !value && initialValue) {
+			value = initialValue;
+		}
+	});
 
 	onMount(async () => {
+		if (mode === 'plain') return;
 		const content = initialValue || value || '';
 		try {
-			const { default: tinymce } = await import('tinymce/tinymce');
+			const { default: tinymce } = (await import('tinymce/tinymce')) as { default: TinyMCE };
 			await Promise.all([
 				import('tinymce/themes/silver'),
 				import('tinymce/plugins/autolink'),
@@ -28,7 +43,7 @@
 				import('tinymce/plugins/code'),
 				import('tinymce/icons/default')
 			]);
-			const [inst] = await (tinymce as any).init({
+			const [inst] = await tinymce.init({
 				target: container,
 				height: minHeight,
 				menubar: false,
@@ -37,23 +52,35 @@
 				plugins: 'autolink link lists image code',
 				toolbar: 'bold italic | bullist numlist | link | code',
 				placeholder,
-				setup(ed: any) {
-					ed.on('input Change', () => { value = ed.getContent(); });
+				setup(ed: TinyMCEEditor) {
+					ed.on('input Change', () => {
+						value = ed.getContent();
+					});
 				}
 			});
 			editor = inst;
-			if (content) (inst as any)?.setContent(content);
+			if (content) inst.setContent(content);
 		} catch {
 			// TinyMCE not available — fall back to plain textarea
 		}
 	});
 
 	onDestroy(() => {
-		if (editor) (editor as any).remove?.();
+		editor?.remove();
 	});
 </script>
 
 <div>
-	<div bind:this={container}></div>
-	<input type="hidden" {name} {value} />
+	{#if mode === 'plain'}
+		<textarea
+			{name}
+			bind:value
+			{placeholder}
+			style:min-height={minHeight}
+			class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-xs focus:border-ring focus:ring-2 focus:ring-ring focus:outline-none"
+		></textarea>
+	{:else}
+		<div bind:this={container}></div>
+		<input type="hidden" {name} {value} />
+	{/if}
 </div>

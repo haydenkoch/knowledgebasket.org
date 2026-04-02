@@ -17,7 +17,9 @@ export const venues = pgTable(
 		website: text('website'),
 		imageUrl: text('image_url'),
 		venueType: text('venue_type'),
-		organizationId: uuid('organization_id').references(() => organizations.id, { onDelete: 'set null' }),
+		organizationId: uuid('organization_id').references(() => organizations.id, {
+			onDelete: 'set null'
+		}),
 		createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 		updatedAt: timestamp('updated_at', { withTimezone: true })
 			.defaultNow()

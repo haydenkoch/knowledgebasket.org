@@ -3,7 +3,18 @@
 	import KbHero from '$lib/components/organisms/KbHero.svelte';
 	import { coilLabels, type CoilKey } from '$lib/data/kb';
 
-	const coils: { key: CoilKey; label: string; path: string; emoji: string; desc: string; gradient: string; btnBg: string }[] = [
+	let { data } = $props();
+	const canonicalUrl = $derived(`${data.origin ?? ''}/`);
+
+	const coils: {
+		key: CoilKey;
+		label: string;
+		path: string;
+		emoji: string;
+		desc: string;
+		gradient: string;
+		btnBg: string;
+	}[] = [
 		{
 			key: 'events',
 			label: coilLabels.events,
@@ -28,7 +39,8 @@
 			path: '/red-pages',
 			emoji: '📖',
 			desc: 'Native-owned vendors, artists, and service providers you can hire and support.',
-			gradient: 'linear-gradient(135deg, var(--color-salmonberry-900), var(--color-salmonberry-100))',
+			gradient:
+				'linear-gradient(135deg, var(--color-salmonberry-900), var(--color-salmonberry-100))',
 			btnBg: 'var(--red)'
 		},
 		{
@@ -52,6 +64,15 @@
 	];
 </script>
 
+<svelte:head>
+	<title>Knowledge Basket</title>
+	<meta
+		name="description"
+		content="Search Knowledge Basket for Indigenous-led events, funding opportunities, Native-owned businesses, jobs, and practical resources."
+	/>
+	<link rel="canonical" href={canonicalUrl} />
+</svelte:head>
+
 {#snippet weaveHome()}
 	<defs>
 		<pattern id="wv-home" x="0" y="0" width="20" height="20" patternUnits="userSpaceOnUse">
@@ -72,30 +93,62 @@
 		weave={weaveHome}
 	/>
 
-	<section class="px-10 py-5 pb-7 bg-[var(--color-alpine-100,var(--bone))] border-b border-[var(--rule)]" aria-labelledby="kb-home-search">
-		<div class="max-w-[720px] mx-auto">
+	<section
+		class="border-b border-[var(--rule)] bg-[var(--color-alpine-100,var(--bone))] px-4 py-5 pb-7 sm:px-6 lg:px-10"
+		aria-labelledby="kb-home-search"
+	>
+		<div class="mx-auto max-w-[720px]">
 			<h2 id="kb-home-search" class="sr-only">Search Knowledge Basket</h2>
 			<KbSearch variant="light" />
-			<p class="mt-2 font-sans text-[13px] text-[var(--muted-foreground)]">Search events, funding, Red Pages vendors, jobs, and toolbox resources from one place.</p>
+			<p class="mt-2 font-sans text-[13px] text-[var(--muted-foreground)]">
+				Search events, funding, Red Pages vendors, jobs, and toolbox resources from one place.
+			</p>
 		</div>
 	</section>
 
-	<section class="px-10 py-4 pb-12 border-t border-[var(--rule)] bg-[var(--color-alpine-100,var(--bone))]" aria-labelledby="kb-coils-heading">
-		<div class="max-w-[1080px] mx-auto">
-			<div class="flex justify-between items-center mb-4 flex-wrap gap-2">
-				<h2 id="kb-coils-heading" class="font-serif text-[22px] font-semibold text-[var(--dark)] m-0">Browse the five coils</h2>
-				<p class="font-sans text-xs text-[var(--muted-foreground)] m-0">Jump straight into events, funding, Red Pages, jobs, or the toolbox.</p>
+	<section
+		class="border-t border-[var(--rule)] bg-[var(--color-alpine-100,var(--bone))] px-4 py-4 pb-12 sm:px-6 lg:px-10"
+		aria-labelledby="kb-coils-heading"
+	>
+		<div class="mx-auto max-w-[1080px]">
+			<div class="mb-4 flex flex-wrap items-center justify-between gap-2">
+				<h2
+					id="kb-coils-heading"
+					class="m-0 font-serif text-[22px] font-semibold text-[var(--dark)]"
+				>
+					Browse the five coils
+				</h2>
+				<p class="m-0 font-sans text-xs text-[var(--muted-foreground)]">
+					Jump straight into events, funding, Red Pages, jobs, or the toolbox.
+				</p>
 			</div>
 			<div class="grid grid-cols-[repeat(auto-fill,minmax(310px,1fr))] gap-5">
 				{#each coils as { key, label, path, emoji, desc, gradient, btnBg }}
-					<a href={path} class="bg-white rounded-lg shadow-[var(--sh)] overflow-hidden flex flex-col transition-[transform,box-shadow] duration-150 cursor-pointer border border-[var(--rule)] no-underline hover:-translate-y-[3px] hover:shadow-[var(--shh)] hover:no-underline">
-						<div class="h-[148px] flex items-center justify-center relative overflow-hidden" style="background: {gradient}">
-							<div class="absolute text-[48px] opacity-[0.35]">{emoji}</div>
+					<a
+						href={path}
+						class="flex cursor-pointer flex-col overflow-hidden rounded-lg border border-[var(--rule)] bg-white no-underline shadow-[var(--sh)] transition-[transform,box-shadow] duration-150 hover:-translate-y-[3px] hover:no-underline hover:shadow-[var(--shh)]"
+					>
+						<div
+							class="relative flex h-[148px] items-center justify-center overflow-hidden"
+							style="background: {gradient}"
+						>
+							<div class="pointer-events-none absolute text-[48px] opacity-[0.35]">{emoji}</div>
 						</div>
-						<div class="p-4 px-[18px] flex-1 min-h-0 flex flex-col">
-							<div class="font-serif text-base font-semibold text-[var(--dark)] leading-[1.35] mb-[5px]">{label}</div>
-							<div class="text-[13px] leading-[1.5] text-[var(--mid)] mb-[14px] flex-auto min-h-0 line-clamp-3">{desc}</div>
-							<span class="block flex-none text-center text-white font-sans text-[13px] font-bold py-[9px] rounded-[var(--radius)] no-underline tracking-[0.03em] transition-[filter] duration-150 mt-auto hover:brightness-110" style="background: {btnBg}">Browse {label}</span>
+						<div class="flex min-h-0 flex-1 flex-col p-4 px-[18px]">
+							<div
+								class="mb-[5px] font-serif text-base leading-[1.35] font-semibold text-[var(--dark)]"
+							>
+								{label}
+							</div>
+							<div
+								class="mb-[14px] line-clamp-3 min-h-0 flex-auto text-[13px] leading-[1.5] text-[var(--mid)]"
+							>
+								{desc}
+							</div>
+							<span
+								class="mt-auto block flex-none rounded-[var(--radius)] py-[9px] text-center font-sans text-[13px] font-bold tracking-[0.03em] text-white no-underline transition-[filter] duration-150 hover:brightness-110"
+								style="background: {btnBg}">Browse {label}</span
+							>
 						</div>
 					</a>
 				{/each}

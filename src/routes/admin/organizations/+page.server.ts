@@ -16,12 +16,12 @@ export const actions: Actions = {
 
 		await createOrganization({
 			name,
-			description: fd.get('description') as string || undefined,
-			website: fd.get('website') as string || undefined,
-			email: fd.get('email') as string || undefined,
-			phone: fd.get('phone') as string || undefined,
-			orgType: fd.get('orgType') as string || undefined,
-			region: fd.get('region') as string || undefined
+			description: (fd.get('description') as string) || undefined,
+			website: (fd.get('website') as string) || undefined,
+			email: (fd.get('email') as string) || undefined,
+			phone: (fd.get('phone') as string) || undefined,
+			orgType: (fd.get('orgType') as string) || undefined,
+			region: (fd.get('region') as string) || undefined
 		});
 
 		return { success: true };

@@ -2,163 +2,262 @@
 	import { enhance } from '$app/forms';
 	import { page } from '$app/stores';
 	import RichTextEditor from '$lib/components/molecules/RichTextEditor.svelte';
+	import KbFormShell from '$lib/components/organisms/KbFormShell.svelte';
+	import * as Select from '$lib/components/ui/select/index.js';
+	import * as Field from '$lib/components/ui/field/index.js';
+	import { Button } from '$lib/components/ui/button/index.js';
+	import { Input } from '$lib/components/ui/input/index.js';
 	import {
 		redPagesServiceTypeOptions,
 		redPagesAreaOptions,
 		placeholders
 	} from '$lib/data/formSchema';
 
-	type FormResult = { success?: boolean; message?: string; error?: string; values?: Record<string, string> } | null;
+	type FormResult = {
+		success?: boolean;
+		message?: string;
+		error?: string;
+		values?: Record<string, string>;
+	} | null;
 	let { data } = $props();
-	let form = $derived(($page as unknown as { form?: FormResult }).form ?? (data as { form?: FormResult })?.form ?? null);
+	let form = $derived(
+		($page as unknown as { form?: FormResult }).form ??
+			(data as { form?: FormResult })?.form ??
+			null
+	);
 	let descriptionHtml = $state('');
+	let submitting = $state(false);
+
+	let serviceType = $state('');
+	let serviceArea = $state('');
+
+	$effect(() => {
+		const v = form?.values;
+		if (v) {
+			if (v.service_type != null) serviceType = v.service_type;
+			if (v.service_area != null) serviceArea = v.service_area;
+		}
+	});
+
+	const successData = $derived(
+		form?.success
+			? {
+					heading: 'Listing submitted',
+					message: form.message ?? '',
+					backHref: '/red-pages',
+					backLabel: '← Back to Red Pages'
+				}
+			: null
+	);
 </script>
 
-<div style="--kb-accent: var(--red)">
-	<nav class="kb-breadcrumb">
-		<a href="/red-pages">Red Pages</a>
-		<span class="kb-bc-sep">›</span>
-		<span>Add your business</span>
-	</nav>
+<svelte:head>
+	<title>Add your business | Red Pages | Knowledge Basket</title>
+</svelte:head>
 
-	<div class="kb-form-wrap">
-		{#if form?.success}
-			<div class="kb-success-wrap">
-				<div class="kb-success-ico">✓</div>
-				<h2>Listing submitted</h2>
-				<p>{form.message}</p>
-				<a href="/red-pages" class="kb-back-link">← Back to Red Pages</a>
-			</div>
-		{:else}
-			<div class="kb-form-header">
-				<h1>Add your business</h1>
-				<p>Native-owned businesses, artists, and organizations: submit your listing for IFS staff review. Listings must be Native/Indigenous-owned or led.</p>
-			</div>
-			<div class="kb-form-notice" style="background: var(--red-lt); border-left-color: var(--red); color: var(--red);">
-				📋 <strong>Eligibility:</strong> Listings must be Native/Indigenous-owned or led. Submissions are reviewed within 3–5 business days.
-			</div>
-
-			<form method="POST" action="?/default" use:enhance={() => {
-				return ({ result, update }) => {
-					if (result.type === 'success' || result.type === 'failure') update();
-				};
-			}}>
-				{#if form?.error}
-					<p class="kb-form-row" style="color: var(--red); margin-bottom: 16px">{form.error}</p>
-				{/if}
-
-				<div class="kb-form-section">
-					<h3>Business information</h3>
-					<div class="kb-form-row">
-						<label for="business_name">Business / organization name <span class="req">*</span></label>
-						<input
-							id="business_name"
-							name="business_name"
-							type="text"
-							required
-							value={form?.values?.business_name ?? ''}
-							placeholder="e.g. Numa Designs"
-						/>
-					</div>
-					<div class="kb-form-row">
-						<label for="tribal_affiliation">Tribal affiliation <span class="req">*</span></label>
-						<input
-							id="tribal_affiliation"
-							name="tribal_affiliation"
-							type="text"
-							required
-							value={form?.values?.tribal_affiliation ?? ''}
-							placeholder="e.g. Paiute Nation, Paiute / Washoe Nation"
-						/>
-					</div>
-					<div class="kb-form-row half">
-						<div>
-							<label for="service_type">Service type <span class="req">*</span></label>
-							<select id="service_type" name="service_type" required>
-								{#each redPagesServiceTypeOptions as opt}
-									<option value={opt.value} selected={form?.values?.service_type === opt.value}>{opt.label}</option>
-								{/each}
-							</select>
-						</div>
-						<div>
-							<label for="service_area">Service area</label>
-							<select id="service_area" name="service_area">
-								{#each redPagesAreaOptions as opt}
-									<option value={opt.value} selected={form?.values?.service_area === opt.value}>{opt.label}</option>
-								{/each}
-							</select>
-						</div>
-					</div>
-					<div class="kb-form-row">
-						<label for="description">Description <span class="req">*</span></label>
-						<p class="kb-form-row" style="margin-bottom: 8px; font-size: 13px; color: var(--muted);">Use the toolbar for <strong>bold</strong>, <em>italic</em>, lists, and links.</p>
-						<RichTextEditor
-							bind:value={descriptionHtml}
-							name="description"
-							placeholder="Describe your business, services, and who you serve."
-							minHeight="180px"
-							initialValue={form?.values?.description ?? ''}
-						/>
-					</div>
-					<div class="kb-form-row">
-						<label for="website">Website (optional)</label>
-						<input
-							id="website"
-							name="website"
-							type="url"
-							value={form?.values?.website ?? ''}
-							placeholder={placeholders.applyUrl}
-						/>
-					</div>
-				</div>
-
-				<div class="kb-form-section">
-					<h3>Your contact information</h3>
-					<div class="kb-form-row half">
-						<div>
-							<label for="contact_name">Your name <span class="req">*</span></label>
-							<input
-								id="contact_name"
-								name="contact_name"
-								type="text"
-								required
-								value={form?.values?.contact_name ?? ''}
-								placeholder="First Last"
-							/>
-						</div>
-						<div>
-							<label for="email">Your email <span class="req">*</span></label>
-							<input
-								id="email"
-								name="email"
-								type="email"
-								required
-								value={form?.values?.email ?? ''}
-								placeholder={placeholders.email}
-							/>
-						</div>
-					</div>
-					<div class="kb-form-row">
-						<label for="contact_phone">Phone (optional)</label>
-						<input
-							id="contact_phone"
-							name="contact_phone"
-							type="tel"
-							value={form?.values?.contact_phone ?? ''}
-							placeholder={placeholders.phone}
-						/>
-						<span class="hint">Used only by IFS to follow up; not published unless you request it.</span>
-					</div>
-				</div>
-
-				<div class="kb-form-actions">
-					<button type="submit" class="kb-btn-submit">Submit for review</button>
-					<a href="/red-pages" class="kb-btn-cancel">Cancel</a>
-				</div>
-			</form>
-			<div class="kb-form-footer">
-				Listings are free. By submitting you confirm the business is Native/Indigenous-owned or led. IFS reserves the right to decline listings that do not meet eligibility.
+<KbFormShell
+	coil="redpages"
+	breadcrumbHref="/red-pages"
+	breadcrumbLabel="Red Pages"
+	pageTitle="Add your business"
+	pageDescription="Native-owned businesses, artists, and organizations: submit your listing for IFS staff review. Listings must be Native/Indigenous-owned or led."
+	noticeLabel="Eligibility"
+	noticeText="Listings must be Native/Indigenous-owned or led. Submissions are reviewed within 3–5 business days."
+	footerText="Listings are free. By submitting you confirm the business is Native/Indigenous-owned or led. IFS reserves the right to decline listings that do not meet eligibility."
+	success={successData}
+>
+	<form
+		method="POST"
+		action="?/default"
+		use:enhance={() => {
+			submitting = true;
+			return async ({ result, update }) => {
+				try {
+					if (result.type === 'success' || result.type === 'failure') await update();
+				} finally {
+					submitting = false;
+				}
+			};
+		}}
+	>
+		{#if form?.error}
+			<div
+				role="alert"
+				aria-live="assertive"
+				class="mb-6 rounded-md border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive"
+			>
+				{form.error}
 			</div>
 		{/if}
-	</div>
-</div>
+
+		<!-- Business Information -->
+		<div class="space-y-5 border-b border-[var(--border)] py-8">
+			<h3 class="font-serif text-lg font-semibold text-foreground">Business information</h3>
+
+			<Field.Field>
+				<Field.Label for="business_name"
+					>Business / organization name <span class="text-destructive">*</span></Field.Label
+				>
+				<Field.Content>
+					<Input
+						id="business_name"
+						name="business_name"
+						type="text"
+						required
+						value={form?.values?.business_name ?? ''}
+						placeholder="e.g. Numa Designs"
+						class="w-full"
+					/>
+				</Field.Content>
+			</Field.Field>
+
+			<Field.Field>
+				<Field.Label for="tribal_affiliation"
+					>Tribal affiliation <span class="text-destructive">*</span></Field.Label
+				>
+				<Field.Content>
+					<Input
+						id="tribal_affiliation"
+						name="tribal_affiliation"
+						type="text"
+						required
+						value={form?.values?.tribal_affiliation ?? ''}
+						placeholder="e.g. Paiute Nation, Paiute / Washoe Nation"
+						class="w-full"
+					/>
+				</Field.Content>
+			</Field.Field>
+
+			<div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+				<Field.Field>
+					<Field.Label for="service_type"
+						>Service type <span class="text-destructive">*</span></Field.Label
+					>
+					<Field.Content>
+						<input type="hidden" name="service_type" value={serviceType} />
+						<Select.Root type="single" bind:value={serviceType}>
+							<Select.Trigger class="w-full">
+								{redPagesServiceTypeOptions.find((o) => o.value === serviceType)?.label ??
+									'Choose service type'}
+							</Select.Trigger>
+							<Select.Content>
+								{#each redPagesServiceTypeOptions as opt}
+									<Select.Item value={opt.value} label={opt.label}>{opt.label}</Select.Item>
+								{/each}
+							</Select.Content>
+						</Select.Root>
+					</Field.Content>
+				</Field.Field>
+
+				<Field.Field>
+					<Field.Label for="service_area">Service area</Field.Label>
+					<Field.Content>
+						<input type="hidden" name="service_area" value={serviceArea} />
+						<Select.Root type="single" bind:value={serviceArea}>
+							<Select.Trigger class="w-full">
+								{redPagesAreaOptions.find((o) => o.value === serviceArea)?.label ??
+									'Choose service area'}
+							</Select.Trigger>
+							<Select.Content>
+								{#each redPagesAreaOptions as opt}
+									<Select.Item value={opt.value} label={opt.label}>{opt.label}</Select.Item>
+								{/each}
+							</Select.Content>
+						</Select.Root>
+					</Field.Content>
+				</Field.Field>
+			</div>
+
+			<Field.Field>
+				<Field.Label for="description"
+					>Description <span class="text-destructive">*</span></Field.Label
+				>
+				<Field.Content>
+					<RichTextEditor
+						bind:value={descriptionHtml}
+						mode="plain"
+						name="description"
+						placeholder="Describe your business, services, and who you serve."
+						minHeight="180px"
+						initialValue={form?.values?.description ?? ''}
+					/>
+				</Field.Content>
+			</Field.Field>
+
+			<Field.Field>
+				<Field.Label for="website">Website</Field.Label>
+				<Field.Content>
+					<Input
+						id="website"
+						name="website"
+						type="url"
+						value={form?.values?.website ?? ''}
+						placeholder={placeholders.applyUrl}
+						class="w-full"
+					/>
+				</Field.Content>
+			</Field.Field>
+		</div>
+
+		<!-- Contact Information -->
+		<div class="-mx-4 mt-2 space-y-5 rounded-lg bg-muted/40 px-4 py-8 sm:-mx-6 sm:px-6">
+			<h3 class="font-serif text-lg font-semibold text-foreground">Your contact information</h3>
+			<div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+				<Field.Field>
+					<Field.Label for="contact_name"
+						>Your name <span class="text-destructive">*</span></Field.Label
+					>
+					<Field.Content>
+						<Input
+							id="contact_name"
+							name="contact_name"
+							type="text"
+							required
+							value={form?.values?.contact_name ?? ''}
+							placeholder="First Last"
+							class="w-full"
+						/>
+					</Field.Content>
+				</Field.Field>
+				<Field.Field>
+					<Field.Label for="email">Your email <span class="text-destructive">*</span></Field.Label>
+					<Field.Content>
+						<Input
+							id="email"
+							name="email"
+							type="email"
+							required
+							value={form?.values?.email ?? ''}
+							placeholder={placeholders.email}
+							class="w-full"
+						/>
+					</Field.Content>
+				</Field.Field>
+			</div>
+			<Field.Field>
+				<Field.Label for="contact_phone">Phone</Field.Label>
+				<Field.Content>
+					<Input
+						id="contact_phone"
+						name="contact_phone"
+						type="tel"
+						value={form?.values?.contact_phone ?? ''}
+						placeholder={placeholders.phone}
+						class="w-full sm:max-w-xs"
+					/>
+				</Field.Content>
+				<Field.Description
+					>Used only by IFS to follow up; not published unless you request it.</Field.Description
+				>
+			</Field.Field>
+		</div>
+
+		<!-- Form Actions -->
+		<div class="flex items-center gap-3 pt-8">
+			<Button type="submit" disabled={submitting} aria-busy={submitting}>
+				{submitting ? 'Submitting…' : 'Submit for review'}
+			</Button>
+			<Button variant="ghost" href="/red-pages">Cancel</Button>
+		</div>
+	</form>
+</KbFormShell>

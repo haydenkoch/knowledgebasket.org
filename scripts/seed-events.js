@@ -9,10 +9,11 @@ import postgres from 'postgres';
 import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
 
-const csvPath =
-	existsSync(join(process.cwd(), '..', 'data', 'Tribal Events - Knowledge Basket.csv'))
-		? join(process.cwd(), '..', 'data', 'Tribal Events - Knowledge Basket.csv')
-		: join(process.cwd(), 'data', 'Tribal Events - Knowledge Basket.csv');
+const csvPath = existsSync(
+	join(process.cwd(), '..', 'data', 'Tribal Events - Knowledge Basket.csv')
+)
+	? join(process.cwd(), '..', 'data', 'Tribal Events - Knowledge Basket.csv')
+	: join(process.cwd(), 'data', 'Tribal Events - Knowledge Basket.csv');
 
 if (!process.env.DATABASE_URL) {
 	console.error('DATABASE_URL is not set. Set it in .env or the environment.');
@@ -55,14 +56,16 @@ function parseCSV(content) {
 
 function slugify(text) {
 	if (!text || typeof text !== 'string') return 'event';
-	return text
-		.trim()
-		.toLowerCase()
-		.replace(/\s+/g, '-')
-		.replace(/[^a-z0-9-]/g, '')
-		.replace(/-+/g, '-')
-		.replace(/^-|-$/g, '')
-		.slice(0, 100) || 'event';
+	return (
+		text
+			.trim()
+			.toLowerCase()
+			.replace(/\s+/g, '-')
+			.replace(/[^a-z0-9-]/g, '')
+			.replace(/-+/g, '-')
+			.replace(/^-|-$/g, '')
+			.slice(0, 100) || 'event'
+	);
 }
 
 function normType(s) {

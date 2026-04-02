@@ -11,6 +11,15 @@ const handleBetterAuth: Handle = async ({ event, resolve }) => {
 		event.locals.user = session.user;
 	}
 
+	const url = event.url.toString();
+	if (url.includes('/api/auth/')) {
+		const { isAuthPath } = await import('better-auth/svelte-kit');
+		const matched = isAuthPath(url, auth.options);
+		if (matched) {
+			return auth.handler(event.request);
+		}
+	}
+
 	return svelteKitHandler({ event, resolve, auth, building });
 };
 

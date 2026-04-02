@@ -26,8 +26,8 @@ Docs in `docs/` are there to explain the current implementation and intended dir
 - Public surfaces exist for all five coils.
 - Public organization and venue pages exist.
 - Admin tools are strongest for Events: review/edit flows, event lists, iCal import, duplicate merge, branding, and search settings.
-- Event submission is live and writes pending records.
-- Non-event submit pages currently exist as UI but still return `503` from their server actions.
+- Source registry/admin scaffolding now exists under `/admin/sources`, but the full automated ingestion runtime is not implemented yet.
+- Public submissions are live for Events, Funding, Red Pages, Jobs, and Toolbox. Each submit flow writes a pending record for moderation.
 - Global search is available, but multi-coil results depend on Meilisearch indexing. Without Meilisearch, fallback search is events-only.
 
 ## Local Development
@@ -77,15 +77,16 @@ Notes:
 - Search indexing uses Meilisearch when configured.
 - `POST /api/reindex` is protected in production. Use an admin/moderator session or send `x-reindex-secret` matching `REINDEX_SECRET`.
 - The admin UI also exposes search reindexing at `/admin/settings/search`.
+- `sitemap.xml`, `robots.txt`, and `manifest.webmanifest` are generated as part of the app surface.
 
 ## Quality Status
 
 As of the current takeover baseline:
 
 - `pnpm check` should pass.
-- `pnpm build` should pass, though bundle-size and deployment follow-up work remains.
-- `pnpm lint` still reflects broad formatting drift in the repo and should be handled intentionally rather than piecemeal.
-- There is no established automated test suite yet.
+- `pnpm lint` should pass.
+- `pnpm test` runs the smoke and handler tests.
+- `pnpm build` should pass and now targets the Node adapter.
 
 ## Key Docs
 
@@ -95,6 +96,7 @@ As of the current takeover baseline:
 - `docs/DESIGN_SYSTEM.md`
 - `docs/PERFORMANCE.md`
 - `docs/ops-content-workflows.md`
+- `docs/SOURCE_OPS_HANDOFF.md`
 
 ## Short-Term Direction
 
@@ -104,4 +106,4 @@ The current implementation direction is:
 2. Preserve the current events filter-bar interaction model.
 3. Keep shadcn-svelte as the primary UI foundation.
 4. Standardize public/admin patterns instead of rewriting from scratch.
-5. Bring Funding and Jobs to operational parity before pushing the other non-event coils further.
+5. Build out non-event moderation and admin tooling to match the now-live public submission flows.

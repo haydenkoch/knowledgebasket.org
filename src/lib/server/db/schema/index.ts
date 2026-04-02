@@ -17,6 +17,7 @@ export * from './red-pages';
 export * from './jobs';
 export * from './toolbox';
 export * from './content';
+export * from './sources';
 
 // ── Import tables for relation definitions ────────────────
 
@@ -37,12 +38,25 @@ import {
 	contentLists,
 	contentListItems
 } from './content';
+import {
+	sources,
+	sourceTags,
+	sourceFetchLog,
+	importBatches,
+	importedCandidates,
+	canonicalRecords,
+	sourceRecordLinks,
+	mergeHistory
+} from './sources';
 
 // ── Relations ─────────────────────────────────────────────
 
 export const eventsRelations = relations(events, ({ one, many }) => ({
 	venue: one(venues, { fields: [events.venueId], references: [venues.id] }),
-	organization: one(organizations, { fields: [events.organizationId], references: [organizations.id] }),
+	organization: one(organizations, {
+		fields: [events.organizationId],
+		references: [organizations.id]
+	}),
 	parentEvent: one(events, {
 		fields: [events.parentEventId],
 		references: [events.id],
@@ -197,4 +211,68 @@ export const contentListsRelations = relations(contentLists, ({ many }) => ({
 
 export const contentListItemsRelations = relations(contentListItems, ({ one }) => ({
 	list: one(contentLists, { fields: [contentListItems.listId], references: [contentLists.id] })
+}));
+
+export const sourcesRelations = relations(sources, ({ one, many }) => ({
+	owner: one(user, { fields: [sources.ownerUserId], references: [user.id] }),
+	tags: many(sourceTags),
+	fetchLogs: many(sourceFetchLog),
+	batches: many(importBatches),
+	candidates: many(importedCandidates),
+	recordLinks: many(sourceRecordLinks)
+}));
+
+export const sourceTagsRelations = relations(sourceTags, ({ one }) => ({
+	source: one(sources, { fields: [sourceTags.sourceId], references: [sources.id] })
+}));
+
+export const sourceFetchLogRelations = relations(sourceFetchLog, ({ one }) => ({
+	source: one(sources, { fields: [sourceFetchLog.sourceId], references: [sources.id] })
+}));
+
+export const importBatchesRelations = relations(importBatches, ({ one, many }) => ({
+	source: one(sources, { fields: [importBatches.sourceId], references: [sources.id] }),
+	fetchLog: one(sourceFetchLog, {
+		fields: [importBatches.fetchLogId],
+		references: [sourceFetchLog.id]
+	}),
+	candidates: many(importedCandidates)
+}));
+
+export const importedCandidatesRelations = relations(importedCandidates, ({ one }) => ({
+	source: one(sources, { fields: [importedCandidates.sourceId], references: [sources.id] }),
+	batch: one(importBatches, { fields: [importedCandidates.batchId], references: [importBatches.id] }),
+	matchedCanonical: one(canonicalRecords, {
+		fields: [importedCandidates.matchedCanonicalId],
+		references: [canonicalRecords.id]
+	})
+}));
+
+export const canonicalRecordsRelations = relations(canonicalRecords, ({ one, many }) => ({
+	primarySource: one(sources, {
+		fields: [canonicalRecords.primarySourceId],
+		references: [sources.id]
+	}),
+	sourceLinks: many(sourceRecordLinks),
+	mergeHistory: many(mergeHistory)
+}));
+
+export const sourceRecordLinksRelations = relations(sourceRecordLinks, ({ one }) => ({
+	source: one(sources, { fields: [sourceRecordLinks.sourceId], references: [sources.id] }),
+	canonical: one(canonicalRecords, {
+		fields: [sourceRecordLinks.canonicalRecordId],
+		references: [canonicalRecords.id]
+	})
+}));
+
+export const mergeHistoryRelations = relations(mergeHistory, ({ one }) => ({
+	canonical: one(canonicalRecords, {
+		fields: [mergeHistory.canonicalRecordId],
+		references: [canonicalRecords.id]
+	}),
+	candidate: one(importedCandidates, {
+		fields: [mergeHistory.candidateId],
+		references: [importedCandidates.id]
+	}),
+	source: one(sources, { fields: [mergeHistory.sourceId], references: [sources.id] })
 }));

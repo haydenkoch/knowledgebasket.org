@@ -24,7 +24,8 @@
 	<Card.Root>
 		<Card.Header>
 			<Card.Title>iCal URL</Card.Title>
-			<Card.Description>Enter a public iCal feed URL to preview and import events.</Card.Description>
+			<Card.Description>Enter a public iCal feed URL to preview and import events.</Card.Description
+			>
 		</Card.Header>
 		<Card.Content>
 			<form method="POST" action="?/preview" use:enhance class="flex gap-2">
@@ -61,7 +62,9 @@
 		<Card.Root>
 			<Card.Header>
 				<Card.Title>Preview — {form.events.length} events</Card.Title>
-				<Card.Description>Select events to import. They will be created as pending.</Card.Description>
+				<Card.Description
+					>Select events to import. They will be created as pending.</Card.Description
+				>
 			</Card.Header>
 			<Card.Content>
 				<form method="POST" action="?/import" use:enhance>

@@ -2,7 +2,10 @@ import type { RequestHandler } from './$types';
 import { getEvents } from '$lib/server/events';
 
 function toIcalDate(d: Date): string {
-	return d.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+	return d
+		.toISOString()
+		.replace(/[-:]/g, '')
+		.replace(/\.\d{3}/, '');
 }
 
 export const GET: RequestHandler = async ({ url }) => {

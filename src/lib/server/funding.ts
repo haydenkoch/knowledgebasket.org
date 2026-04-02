@@ -2,12 +2,8 @@
  * Funding data layer: CRUD, moderation, search indexing.
  */
 import { eq, desc, asc, ilike, or, and, sql } from 'drizzle-orm';
-import { db } from '$lib/server/db';
-import {
-	funding as fundingTable,
-	organizations,
-	user as userTable
-} from '$lib/server/db/schema';
+import { db, type DbExecutor } from '$lib/server/db';
+import { funding as fundingTable, organizations, user as userTable } from '$lib/server/db/schema';
 import { indexDocument, removeDocument } from '$lib/server/meilisearch';
 import type { FundingItem } from '$lib/data/kb';
 import type { FundingSearchDoc } from '$lib/server/meilisearch';
@@ -101,7 +97,6 @@ function slugify(title: string): string {
 async function uniqueSlug(base: string): Promise<string> {
 	let slug = base.slice(0, 100);
 	let n = 0;
-	// eslint-disable-next-line no-constant-condition
 	while (true) {
 		const existing = await db
 			.select({ id: fundingTable.id })
@@ -233,10 +228,11 @@ export async function getFundingStatusCounts(): Promise<Record<string, number>> 
 // ── Create / Update / Delete ──────────────────────────────
 
 export async function createFunding(
-	data: Omit<FundingInsert, 'id' | 'slug' | 'createdAt' | 'updatedAt'>
+	data: Omit<FundingInsert, 'id' | 'slug' | 'createdAt' | 'updatedAt'>,
+	database: DbExecutor = db
 ): Promise<FundingRow> {
 	const slug = await uniqueSlug(slugify(data.title));
-	const [row] = await db
+	const [row] = await database
 		.insert(fundingTable)
 		.values({ ...data, slug })
 		.returning();
@@ -249,9 +245,10 @@ export async function createFunding(
 
 export async function updateFunding(
 	id: string,
-	data: Partial<Omit<FundingInsert, 'id' | 'createdAt'>>
+	data: Partial<Omit<FundingInsert, 'id' | 'createdAt'>>,
+	database: DbExecutor = db
 ): Promise<FundingRow | null> {
-	const [row] = await db
+	const [row] = await database
 		.update(fundingTable)
 		.set(data)
 		.where(eq(fundingTable.id, id))

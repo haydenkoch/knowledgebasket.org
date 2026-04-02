@@ -1,10 +1,21 @@
 <script lang="ts">
 	import { page } from '$app/stores';
+	import { enhance } from '$app/forms';
 	import logoFallback from '$lib/assets/favicon.svg';
 	import * as Sheet from '$lib/components/ui/sheet/index.js';
+	import * as Popover from '$lib/components/ui/popover/index.js';
 	import MenuIcon from '@lucide/svelte/icons/menu';
+	import ChevronDown from '@lucide/svelte/icons/chevron-down';
+	import LogOut from '@lucide/svelte/icons/log-out';
+	import UserIcon from '@lucide/svelte/icons/user';
 
-	let { logoUrl }: { logoUrl?: string | null } = $props();
+	let {
+		logoUrl,
+		user
+	}: {
+		logoUrl?: string | null;
+		user?: { name?: string | null; email: string; role?: string | null } | null;
+	} = $props();
 
 	const navLinks = [
 		{ href: '/events', label: 'Events' },
@@ -31,6 +42,9 @@
 		void pathname;
 		mobileOpen = false;
 	});
+
+	const displayName = $derived(user?.name || user?.email?.split('@')[0] || 'Account');
+	const isStaff = $derived(user?.role === 'moderator' || user?.role === 'admin');
 </script>
 
 <header class="kb-header">
@@ -62,7 +76,7 @@
 			</ul>
 		</nav>
 
-		<!-- Desktop secondary links -->
+		<!-- Desktop secondary links + auth -->
 		<div class="kb-header__secondary">
 			{#each secondaryLinks as link}
 				<a
@@ -74,6 +88,36 @@
 					{link.label}
 				</a>
 			{/each}
+
+			{#if user}
+				<Popover.Root>
+					<Popover.Trigger class="kb-header__user-btn" aria-label="Account menu">
+						<UserIcon class="kb-header__user-icon" />
+						<span class="kb-header__user-name">{displayName}</span>
+						<ChevronDown class="kb-header__user-chevron" />
+					</Popover.Trigger>
+					<Popover.Content class="kb-user-menu" align="end" sideOffset={8}>
+						<div class="kb-user-menu__header">
+							<span class="kb-user-menu__name">{displayName}</span>
+							{#if isStaff}
+								<span class="kb-user-menu__role">{user.role}</span>
+							{/if}
+						</div>
+						<div class="kb-user-menu__divider" role="separator"></div>
+						{#if isStaff}
+							<a href="/admin" class="kb-user-menu__item">Admin panel</a>
+						{/if}
+						<form method="post" action="/auth/logout" use:enhance>
+							<button type="submit" class="kb-user-menu__item kb-user-menu__item--signout">
+								<LogOut class="kb-user-menu__item-icon" />
+								Sign out
+							</button>
+						</form>
+					</Popover.Content>
+				</Popover.Root>
+			{:else}
+				<a href="/auth/login" class="kb-header__secondary-link kb-header__signin"> Sign in </a>
+			{/if}
 		</div>
 
 		<!-- Mobile menu button -->
@@ -93,11 +137,7 @@
 		<Sheet.Content side="left" class="kb-mobile-nav">
 			<Sheet.Header class="kb-mobile-nav__header">
 				<Sheet.Title class="sr-only">Navigation</Sheet.Title>
-				<a
-					href="/"
-					class="kb-mobile-nav__brand"
-					aria-label="Knowledge Basket — Home"
-				>
+				<a href="/" class="kb-mobile-nav__brand" aria-label="Knowledge Basket — Home">
 					<img src={logoUrl ?? logoFallback} alt="" class="kb-mobile-nav__logo" />
 					<span class="kb-mobile-nav__name">
 						Knowledge Basket
@@ -137,6 +177,48 @@
 							</a>
 						</li>
 					{/each}
+				</ul>
+
+				<div class="kb-mobile-nav__divider" role="separator"></div>
+
+				<ul class="kb-mobile-nav__list" role="list">
+					{#if user}
+						<li class="kb-mobile-nav__user-info">
+							<span class="kb-mobile-nav__user-name">{displayName}</span>
+							{#if isStaff}
+								<span class="kb-mobile-nav__role">{user.role}</span>
+							{/if}
+						</li>
+						{#if isStaff}
+							<li>
+								<a href="/admin" class="kb-mobile-nav__link kb-mobile-nav__link--secondary">
+									Admin panel
+								</a>
+							</li>
+						{/if}
+						<li>
+							<form method="post" action="/auth/logout" use:enhance>
+								<button
+									type="submit"
+									class="kb-mobile-nav__link kb-mobile-nav__link--secondary kb-mobile-nav__signout"
+								>
+									<LogOut class="kb-mobile-nav__signout-icon" />
+									Sign out
+								</button>
+							</form>
+						</li>
+					{:else}
+						<li>
+							<a href="/auth/login" class="kb-mobile-nav__link kb-mobile-nav__link--secondary">
+								Sign in
+							</a>
+						</li>
+						<li>
+							<a href="/auth/register" class="kb-mobile-nav__link kb-mobile-nav__link--secondary">
+								Create account
+							</a>
+						</li>
+					{/if}
 				</ul>
 			</nav>
 		</Sheet.Content>
@@ -290,11 +372,11 @@
 		border-radius: 1px;
 	}
 
-	/* ── Secondary links (About) ─────────────────────────────────────────── */
+	/* ── Secondary links (About + auth) ─────────────────────────────────── */
 	.kb-header__secondary {
 		display: none;
 		align-items: center;
-		gap: 16px;
+		gap: 8px;
 		margin-left: auto;
 		flex-shrink: 0;
 	}
@@ -335,6 +417,170 @@
 
 	.kb-header__secondary-link--active {
 		color: #ffffff;
+	}
+
+	.kb-header__signin {
+		padding: 6px 12px !important;
+		border: 1px solid rgba(255, 255, 255, 0.2);
+		border-radius: 5px;
+		color: rgba(255, 255, 255, 0.75) !important;
+		transition:
+			color 0.15s ease,
+			border-color 0.15s ease,
+			background-color 0.15s ease;
+	}
+
+	.kb-header__signin:hover {
+		color: #ffffff !important;
+		border-color: rgba(255, 255, 255, 0.4);
+		background-color: rgba(255, 255, 255, 0.06);
+		text-decoration: none;
+	}
+
+	/* ── User menu button ────────────────────────────────────────────────── */
+	:global(.kb-header__user-btn) {
+		display: flex !important;
+		align-items: center !important;
+		gap: 6px !important;
+		font-family: var(--font-sans) !important;
+		font-size: 12px !important;
+		font-weight: 600 !important;
+		letter-spacing: 0.04em !important;
+		text-transform: uppercase !important;
+		color: rgba(255, 255, 255, 0.75) !important;
+		background: transparent !important;
+		border: 1px solid rgba(255, 255, 255, 0.2) !important;
+		border-radius: 5px !important;
+		padding: 6px 10px !important;
+		min-height: 36px !important;
+		cursor: pointer !important;
+		transition:
+			color 0.15s ease,
+			border-color 0.15s ease,
+			background-color 0.15s ease !important;
+	}
+
+	:global(.kb-header__user-btn:hover) {
+		color: #ffffff !important;
+		border-color: rgba(255, 255, 255, 0.4) !important;
+		background-color: rgba(255, 255, 255, 0.06) !important;
+	}
+
+	:global(.kb-header__user-btn:focus-visible) {
+		outline: 2px solid var(--color-flicker-400) !important;
+		outline-offset: 2px !important;
+	}
+
+	:global(.kb-header__user-icon) {
+		width: 14px !important;
+		height: 14px !important;
+		flex-shrink: 0 !important;
+	}
+
+	.kb-header__user-name {
+		max-width: 100px;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
+	:global(.kb-header__user-chevron) {
+		width: 12px !important;
+		height: 12px !important;
+		flex-shrink: 0 !important;
+		opacity: 0.6 !important;
+	}
+
+	/* ── User dropdown menu ──────────────────────────────────────────────── */
+	:global(.kb-user-menu) {
+		min-width: 180px !important;
+		padding: 6px !important;
+		background: #fff !important;
+		border: 1px solid var(--color-granite-200) !important;
+		border-radius: 8px !important;
+		box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12) !important;
+	}
+
+	.kb-user-menu__header {
+		padding: 8px 10px 6px;
+		display: flex;
+		align-items: center;
+		gap: 6px;
+	}
+
+	.kb-user-menu__name {
+		font-family: var(--font-sans);
+		font-size: 12px;
+		font-weight: 700;
+		letter-spacing: 0.04em;
+		text-transform: uppercase;
+		color: var(--color-obsidian-800);
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+		flex: 1;
+	}
+
+	.kb-user-menu__role {
+		font-family: var(--font-sans);
+		font-size: 10px;
+		font-weight: 600;
+		letter-spacing: 0.06em;
+		text-transform: uppercase;
+		color: var(--color-lakebed-700);
+		background: var(--color-lakebed-50);
+		border: 1px solid var(--color-lakebed-200);
+		border-radius: 3px;
+		padding: 1px 5px;
+		flex-shrink: 0;
+	}
+
+	.kb-user-menu__divider {
+		height: 1px;
+		background: var(--color-granite-100);
+		margin: 4px 0;
+	}
+
+	:global(.kb-user-menu__item) {
+		display: flex !important;
+		align-items: center !important;
+		gap: 8px !important;
+		width: 100% !important;
+		padding: 7px 10px !important;
+		font-family: var(--font-sans) !important;
+		font-size: 12px !important;
+		font-weight: 600 !important;
+		letter-spacing: 0.04em !important;
+		text-transform: uppercase !important;
+		color: var(--color-obsidian-700) !important;
+		text-decoration: none !important;
+		border-radius: 5px !important;
+		background: transparent !important;
+		border: none !important;
+		cursor: pointer !important;
+		transition: background-color 0.1s ease !important;
+		text-align: left !important;
+	}
+
+	:global(.kb-user-menu__item:hover) {
+		background: var(--color-granite-50) !important;
+		color: var(--color-obsidian-900) !important;
+		text-decoration: none !important;
+	}
+
+	:global(.kb-user-menu__item--signout) {
+		color: var(--color-ember-700) !important;
+	}
+
+	:global(.kb-user-menu__item--signout:hover) {
+		background: var(--color-ember-50) !important;
+		color: var(--color-ember-800) !important;
+	}
+
+	:global(.kb-user-menu__item-icon) {
+		width: 13px !important;
+		height: 13px !important;
+		flex-shrink: 0 !important;
 	}
 
 	/* ── Mobile menu button ──────────────────────────────────────────────── */
@@ -381,11 +627,11 @@
 		border-color: rgba(255, 255, 255, 0.1) !important;
 	}
 
-	:global(.kb-mobile-nav [data-slot="sheet-close"]) {
+	:global(.kb-mobile-nav [data-slot='sheet-close']) {
 		color: rgba(255, 255, 255, 0.6);
 	}
 
-	:global(.kb-mobile-nav [data-slot="sheet-close"]:hover) {
+	:global(.kb-mobile-nav [data-slot='sheet-close']:hover) {
 		color: #ffffff;
 	}
 
@@ -464,6 +710,11 @@
 			color 0.15s ease,
 			background-color 0.15s ease;
 		touch-action: manipulation;
+		width: 100%;
+		background: transparent;
+		border: none;
+		cursor: pointer;
+		text-align: left;
 	}
 
 	.kb-mobile-nav__link:hover {
@@ -503,5 +754,49 @@
 		height: 1px;
 		background: rgba(255, 255, 255, 0.1);
 		margin: 8px 16px;
+	}
+
+	.kb-mobile-nav__user-info {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		padding: 10px 16px;
+	}
+
+	.kb-mobile-nav__user-name {
+		font-family: var(--font-sans);
+		font-size: 12px;
+		font-weight: 700;
+		letter-spacing: 0.04em;
+		text-transform: uppercase;
+		color: rgba(255, 255, 255, 0.8);
+	}
+
+	.kb-mobile-nav__role {
+		font-family: var(--font-sans);
+		font-size: 10px;
+		font-weight: 600;
+		letter-spacing: 0.06em;
+		text-transform: uppercase;
+		color: var(--color-flicker-300);
+		background: rgba(255, 255, 255, 0.08);
+		border: 1px solid rgba(255, 255, 255, 0.1);
+		border-radius: 3px;
+		padding: 1px 5px;
+	}
+
+	.kb-mobile-nav__signout {
+		color: rgba(255, 100, 100, 0.7) !important;
+	}
+
+	.kb-mobile-nav__signout:hover {
+		color: rgba(255, 130, 130, 0.9) !important;
+		background-color: rgba(255, 100, 100, 0.08) !important;
+	}
+
+	:global(.kb-mobile-nav__signout-icon) {
+		width: 14px !important;
+		height: 14px !important;
+		margin-right: 6px !important;
 	}
 </style>

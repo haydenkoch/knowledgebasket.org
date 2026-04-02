@@ -32,20 +32,26 @@
 		<div class="kb-rsidebar-panel">
 			<div class="kb-rsidebar-header">
 				<h3 class="kb-rsidebar-title">Event Details</h3>
-				<button type="button" onclick={onClose} class="kb-rsidebar-close" aria-label="Close panel">×</button>
+				<button type="button" onclick={onClose} class="kb-rsidebar-close" aria-label="Close panel"
+					>×</button
+				>
 			</div>
 			<div class="kb-rsidebar-body">
-				<h4 class="font-semibold text-base mb-1">{calendarSelectedEvent.title}</h4>
+				<h4 class="mb-1 text-base font-semibold">{calendarSelectedEvent.title}</h4>
 				{#if calendarSelectedEvent.startDate}
-					<p class="text-sm text-muted-foreground mb-1">
-						{new Date(calendarSelectedEvent.startDate).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+					<p class="mb-1 text-sm text-muted-foreground">
+						{new Date(calendarSelectedEvent.startDate).toLocaleDateString('en-US', {
+							weekday: 'long',
+							month: 'long',
+							day: 'numeric'
+						})}
 						{#if calendarSelectedEvent.startDate}
 							· {formatEventTime(calendarSelectedEvent.startDate)}
 						{/if}
 					</p>
 				{/if}
 				{#if calendarSelectedEvent.location}
-					<p class="text-sm text-muted-foreground mb-3">📍 {calendarSelectedEvent.location}</p>
+					<p class="mb-3 text-sm text-muted-foreground">📍 {calendarSelectedEvent.location}</p>
 				{/if}
 				{#if calendarSelectedEvent.slug}
 					<a href="/events/{calendarSelectedEvent.slug}" class="kb-rsidebar-cta">View event →</a>
@@ -65,7 +71,12 @@
 							<a href="/events/{event.slug}" class="kb-rsidebar-item">
 								<span class="kb-rsidebar-item-title">{event.title}</span>
 								{#if event.startDate}
-									<span class="kb-rsidebar-item-date">{new Date(event.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+									<span class="kb-rsidebar-item-date"
+										>{new Date(event.startDate).toLocaleDateString('en-US', {
+											month: 'short',
+											day: 'numeric'
+										})}</span
+									>
 								{/if}
 							</a>
 						</li>
@@ -85,7 +96,12 @@
 							<a href="/events/{event.slug}" class="kb-rsidebar-item">
 								<span class="kb-rsidebar-item-title">{event.title}</span>
 								{#if event.startDate}
-									<span class="kb-rsidebar-item-date">{new Date(event.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+									<span class="kb-rsidebar-item-date"
+										>{new Date(event.startDate).toLocaleDateString('en-US', {
+											month: 'short',
+											day: 'numeric'
+										})}</span
+									>
 								{/if}
 							</a>
 						</li>
@@ -97,65 +113,78 @@
 </div>
 
 <style>
-.kb-right-sidebar {
-	padding: 16px 14px;
-}
-.kb-rsidebar-panel {
-	margin-bottom: 20px;
-}
-.kb-rsidebar-header {
-	display: flex;
-	align-items: center;
-	justify-content: space-between;
-	margin-bottom: 10px;
-}
-.kb-rsidebar-title {
-	font-size: 11px;
-	font-weight: 700;
-	letter-spacing: 0.08em;
-	text-transform: uppercase;
-	color: var(--muted-foreground);
-	margin: 0;
-}
-.kb-rsidebar-close {
-	font-size: 18px;
-	border: none;
-	background: transparent;
-	cursor: pointer;
-	color: var(--muted-foreground);
-	line-height: 1;
-}
-.kb-rsidebar-body {
-	padding: 12px;
-	background: var(--card);
-	border: 1px solid var(--border);
-	border-radius: 8px;
-}
-.kb-rsidebar-cta {
-	font-size: 13px;
-	font-weight: 600;
-	color: var(--primary);
-	text-decoration: none;
-}
-.kb-rsidebar-list {
-	list-style: none;
-	margin: 0;
-	padding: 0;
-	display: flex;
-	flex-direction: column;
-	gap: 1px;
-}
-.kb-rsidebar-item {
-	display: flex;
-	align-items: center;
-	justify-content: space-between;
-	padding: 6px 8px;
-	border-radius: 5px;
-	text-decoration: none;
-	color: var(--foreground);
-	gap: 8px;
-}
-.kb-rsidebar-item:hover { background: var(--accent); }
-.kb-rsidebar-item-title { font-size: 13px; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.kb-rsidebar-item-date { font-size: 11px; color: var(--muted-foreground); flex-shrink: 0; }
+	.kb-right-sidebar {
+		padding: 16px 14px;
+	}
+	.kb-rsidebar-panel {
+		margin-bottom: 20px;
+	}
+	.kb-rsidebar-header {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		margin-bottom: 10px;
+	}
+	.kb-rsidebar-title {
+		font-size: 11px;
+		font-weight: 700;
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
+		color: var(--muted-foreground);
+		margin: 0;
+	}
+	.kb-rsidebar-close {
+		font-size: 18px;
+		border: none;
+		background: transparent;
+		cursor: pointer;
+		color: var(--muted-foreground);
+		line-height: 1;
+	}
+	.kb-rsidebar-body {
+		padding: 12px;
+		background: var(--card);
+		border: 1px solid var(--border);
+		border-radius: 8px;
+	}
+	.kb-rsidebar-cta {
+		font-size: 13px;
+		font-weight: 600;
+		color: var(--primary);
+		text-decoration: none;
+	}
+	.kb-rsidebar-list {
+		list-style: none;
+		margin: 0;
+		padding: 0;
+		display: flex;
+		flex-direction: column;
+		gap: 1px;
+	}
+	.kb-rsidebar-item {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		padding: 6px 8px;
+		border-radius: 5px;
+		text-decoration: none;
+		color: var(--foreground);
+		gap: 8px;
+	}
+	.kb-rsidebar-item:hover {
+		background: var(--accent);
+	}
+	.kb-rsidebar-item-title {
+		font-size: 13px;
+		flex: 1;
+		min-width: 0;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+	.kb-rsidebar-item-date {
+		font-size: 11px;
+		color: var(--muted-foreground);
+		flex-shrink: 0;
+	}
 </style>

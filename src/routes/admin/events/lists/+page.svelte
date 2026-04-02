@@ -16,12 +16,17 @@
 
 <div class="space-y-6">
 	<h1 class="text-2xl font-bold">Event Lists</h1>
-	<p class="text-muted-foreground">Curated lists (e.g. Featured) shown on the events page. Add events to a list to control order and visibility in sections.</p>
+	<p class="text-muted-foreground">
+		Curated lists (e.g. Featured) shown on the events page. Add events to a list to control order
+		and visibility in sections.
+	</p>
 
 	<Card.Root>
 		<Card.Header>
 			<Card.Title>Create list</Card.Title>
-			<Card.Description>New list slug will be used in the public feed (e.g. featured).</Card.Description>
+			<Card.Description
+				>New list slug will be used in the public feed (e.g. featured).</Card.Description
+			>
 		</Card.Header>
 		<Card.Content>
 			<form method="POST" action="?/create" use:enhance class="flex flex-wrap items-end gap-4">
@@ -47,7 +52,10 @@
 				<Empty.Root>
 					<Empty.Header>
 						<Empty.Title>No lists yet</Empty.Title>
-						<Empty.Description>Create your first list above (e.g. "Featured" with slug "featured") to curate events for the site.</Empty.Description>
+						<Empty.Description
+							>Create your first list above (e.g. "Featured" with slug "featured") to curate events
+							for the site.</Empty.Description
+						>
 					</Empty.Header>
 				</Empty.Root>
 			{:else}
@@ -65,7 +73,9 @@
 								<Table.Cell>{list.title}</Table.Cell>
 								<Table.Cell class="text-muted-foreground">{list.slug}</Table.Cell>
 								<Table.Cell>
-									<a href="/admin/events/lists/{list.id}"><Button variant="secondary" size="sm">Edit</Button></a>
+									<a href="/admin/events/lists/{list.id}"
+										><Button variant="secondary" size="sm">Edit</Button></a
+									>
 								</Table.Cell>
 							</Table.Row>
 						{/each}

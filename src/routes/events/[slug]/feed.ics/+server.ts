@@ -3,7 +3,10 @@ import { getEventBySlugOrIcalId } from '$lib/server/events';
 import { error } from '@sveltejs/kit';
 
 function toIcalDate(d: Date): string {
-	return d.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+	return d
+		.toISOString()
+		.replace(/[-:]/g, '')
+		.replace(/\.\d{3}/, '');
 }
 
 export const GET: RequestHandler = async ({ params, url }) => {
@@ -28,11 +31,16 @@ export const GET: RequestHandler = async ({ params, url }) => {
 		'SUMMARY:' + (event.title || '').replace(/\n/g, ' ').replace(/,/g, '\\,')
 	];
 	const desc = event.description
-		? String(event.description).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 500)
+		? String(event.description)
+				.replace(/<[^>]+>/g, ' ')
+				.replace(/\s+/g, ' ')
+				.trim()
+				.slice(0, 500)
 		: '';
 	if (desc) lines.push('DESCRIPTION:' + desc.replace(/,/g, '\\,').replace(/\n/g, ' '));
-	if (event.location) lines.push('LOCATION:' + event.location.replace(/\n/g, ' ').replace(/,/g, '\\,'));
-	const eventPageUrl = event.slug ? `${url.origin}/events/${event.slug}` : event.eventUrl ?? '';
+	if (event.location)
+		lines.push('LOCATION:' + event.location.replace(/\n/g, ' ').replace(/,/g, '\\,'));
+	const eventPageUrl = event.slug ? `${url.origin}/events/${event.slug}` : (event.eventUrl ?? '');
 	if (eventPageUrl) lines.push('URL:' + eventPageUrl);
 	lines.push('END:VEVENT', 'END:VCALENDAR');
 	const body = lines.join('\r\n');

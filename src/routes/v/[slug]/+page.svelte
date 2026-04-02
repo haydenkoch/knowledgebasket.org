@@ -47,15 +47,22 @@
 		{/if}
 		{#if addressLine}
 			<p class="kb-venue-address">
-				<MapPinIcon class="kb-location-icon" style="vertical-align: middle; width: 1rem; height: 1rem;" />
+				<MapPinIcon
+					class="kb-location-icon"
+					style="vertical-align: middle; width: 1rem; height: 1rem;"
+				/>
 				{addressLine}
 			</p>
 			{#if mapUrl}
-				<a href={mapUrl} target="_blank" rel="noopener" class="kb-venue-map-link">Get directions →</a>
+				<a href={mapUrl} target="_blank" rel="noopener" class="kb-venue-map-link"
+					>Get directions →</a
+				>
 			{/if}
 		{/if}
 		{#if venue.website}
-			<a href={venue.website} target="_blank" rel="noopener" class="kb-venue-website">Visit website →</a>
+			<a href={venue.website} target="_blank" rel="noopener" class="kb-venue-website"
+				>Visit website →</a
+			>
 		{/if}
 	</header>
 
@@ -64,7 +71,7 @@
 		{#if events.length > 0}
 			<ul class="kb-venue-event-grid">
 				{#each events as event, i}
-					<li><EventCard event={event} index={i} /></li>
+					<li><EventCard {event} index={i} /></li>
 				{/each}
 			</ul>
 		{:else}

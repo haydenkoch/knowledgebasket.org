@@ -8,11 +8,14 @@
 	let { data, children } = $props();
 
 	const isAdmin = $derived($page.url.pathname.startsWith('/admin'));
+	const isAuth = $derived($page.url.pathname.startsWith('/auth'));
 	const faviconHref = $derived(data.brandFaviconUrl ?? favicon);
 </script>
 
 <svelte:head>
 	<link rel="icon" href={faviconHref} />
+	<link rel="manifest" href="/manifest.webmanifest" />
+	<meta name="theme-color" content="#132533" />
 	<link
 		rel="stylesheet"
 		href="https://use.typekit.net/fkv3aem.css"
@@ -24,11 +27,11 @@
 	</noscript>
 </svelte:head>
 
-{#if isAdmin}
+{#if isAdmin || isAuth}
 	{@render children()}
 {:else}
 	<a href="#main" class="skip-link">Skip to main content</a>
-	<KbHeader logoUrl={data.brandLogoUrl} />
+	<KbHeader logoUrl={data.brandLogoUrl} user={data.user} />
 	<Tooltip.Provider>
 		<main id="main" class="min-h-screen bg-[var(--background)] text-[var(--foreground)]">
 			{@render children()}

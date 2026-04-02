@@ -2,6 +2,11 @@
 	import { enhance } from '$app/forms';
 	import { page } from '$app/stores';
 	import RichTextEditor from '$lib/components/molecules/RichTextEditor.svelte';
+	import KbFormShell from '$lib/components/organisms/KbFormShell.svelte';
+	import * as Select from '$lib/components/ui/select/index.js';
+	import * as Field from '$lib/components/ui/field/index.js';
+	import { Button } from '$lib/components/ui/button/index.js';
+	import { Input } from '$lib/components/ui/input/index.js';
 	import {
 		toolboxMediaTypeOptions,
 		toolboxCategoryOptions,
@@ -9,154 +14,241 @@
 		suggestedOrganizations
 	} from '$lib/data/formSchema';
 
-	type FormResult = { success?: boolean; message?: string; error?: string; values?: Record<string, string> } | null;
+	type FormResult = {
+		success?: boolean;
+		message?: string;
+		error?: string;
+		values?: Record<string, string>;
+	} | null;
 	let { data } = $props();
-	let form = $derived(($page as unknown as { form?: FormResult }).form ?? (data as { form?: FormResult })?.form ?? null);
+	let form = $derived(
+		($page as unknown as { form?: FormResult }).form ??
+			(data as { form?: FormResult })?.form ??
+			null
+	);
 	let descriptionHtml = $state('');
+	let submitting = $state(false);
+
+	let mediaType = $state('');
+	let category = $state('');
+
+	$effect(() => {
+		const v = form?.values;
+		if (v) {
+			if (v.media_type != null) mediaType = v.media_type;
+			if (v.category != null) category = v.category;
+		}
+	});
+
+	const successData = $derived(
+		form?.success
+			? {
+					heading: 'Resource submitted',
+					message: form.message ?? '',
+					backHref: '/toolbox',
+					backLabel: '← Back to Toolbox'
+				}
+			: null
+	);
 </script>
 
-<div style="--kb-accent: var(--slate)">
-	<nav class="kb-breadcrumb">
-		<a href="/toolbox">Toolbox</a>
-		<span class="kb-bc-sep">›</span>
-		<span>Submit a resource</span>
-	</nav>
+<svelte:head>
+	<title>Submit a resource | Toolbox | Knowledge Basket</title>
+</svelte:head>
 
-	<div class="kb-form-wrap">
-		{#if form?.success}
-			<div class="kb-success-wrap">
-				<div class="kb-success-ico">✓</div>
-				<h2>Resource submitted</h2>
-				<p>{form.message}</p>
-				<a href="/toolbox" class="kb-back-link">← Back to Toolbox</a>
-			</div>
-		{:else}
-			<div class="kb-form-header">
-				<h1>Submit a resource</h1>
-				<p>Add a link, report, toolkit, video, or other resource. The Toolbox prioritizes resources that support Indigenous sovereignty, cultural economies, land stewardship, and community self-determination. Submissions are reviewed for alignment before publishing.</p>
-			</div>
-			<div class="kb-form-notice" style="background: var(--slate-lt); border-left-color: var(--slate); color: var(--slate);">
-				📋 <strong>Curatorial note:</strong> Resources are reviewed within 3–5 business days. We prioritize content that supports Indigenous sovereignty and self-determination.
-			</div>
-
-			<form method="POST" action="?/default" use:enhance={() => {
-				return ({ result, update }) => {
-					if (result.type === 'success' || result.type === 'failure') update();
-				};
-			}}>
-				{#if form?.error}
-					<p class="kb-form-row" style="color: var(--red); margin-bottom: 16px">{form.error}</p>
-				{/if}
-
-				<div class="kb-form-section">
-					<h3>Resource details</h3>
-					<div class="kb-form-row">
-						<label for="resource_title">Resource title <span class="req">*</span></label>
-						<input
-							id="resource_title"
-							name="resource_title"
-							type="text"
-							required
-							value={form?.values?.resource_title ?? ''}
-							placeholder="e.g. NCAI Tribal Economic Development Toolkit"
-						/>
-					</div>
-					<div class="kb-form-row">
-						<label for="url">URL / link <span class="req">*</span></label>
-						<input
-							id="url"
-							name="url"
-							type="url"
-							required
-							value={form?.values?.url ?? ''}
-							placeholder={placeholders.applyUrl}
-						/>
-						<span class="hint">Public URL where the resource can be accessed.</span>
-					</div>
-					<div class="kb-form-row half">
-						<div>
-							<label for="media_type">Resource type</label>
-							<select id="media_type" name="media_type">
-								{#each toolboxMediaTypeOptions as opt}
-									<option value={opt.value} selected={form?.values?.media_type === opt.value}>{opt.label}</option>
-								{/each}
-							</select>
-						</div>
-						<div>
-							<label for="category">Category</label>
-							<select id="category" name="category">
-								{#each toolboxCategoryOptions as opt}
-									<option value={opt.value} selected={form?.values?.category === opt.value}>{opt.label}</option>
-								{/each}
-							</select>
-						</div>
-					</div>
-					<div class="kb-form-row">
-						<label for="source">Source / publisher (optional)</label>
-						<input
-							id="source"
-							name="source"
-							type="text"
-							value={form?.values?.source ?? ''}
-							placeholder={placeholders.organization}
-							list="datalist-organizations"
-						/>
-						<datalist id="datalist-organizations">
-							{#each suggestedOrganizations as org}
-								<option value={org}></option>
-							{/each}
-						</datalist>
-					</div>
-					<div class="kb-form-row">
-						<label for="description">Description <span class="req">*</span></label>
-						<p class="kb-form-row" style="margin-bottom: 8px; font-size: 13px; color: var(--muted);">Use the toolbar for <strong>bold</strong>, <em>italic</em>, lists, and links.</p>
-						<RichTextEditor
-							bind:value={descriptionHtml}
-							name="description"
-							placeholder="Briefly describe what this resource is and why it's valuable for Indigenous communities and allies."
-							minHeight="180px"
-							initialValue={form?.values?.description ?? ''}
-						/>
-					</div>
-				</div>
-
-				<div class="kb-form-section">
-					<h3>Your contact information</h3>
-					<div class="kb-form-row half">
-						<div>
-							<label for="contact_name">Your name <span class="req">*</span></label>
-							<input
-								id="contact_name"
-								name="contact_name"
-								type="text"
-								required
-								value={form?.values?.contact_name ?? ''}
-								placeholder="First Last"
-							/>
-						</div>
-						<div>
-							<label for="email">Your email <span class="req">*</span></label>
-							<input
-								id="email"
-								name="email"
-								type="email"
-								required
-								value={form?.values?.email ?? ''}
-								placeholder={placeholders.email}
-							/>
-						</div>
-					</div>
-					<span class="hint">Used only to confirm your submission; not published.</span>
-				</div>
-
-				<div class="kb-form-actions">
-					<button type="submit" class="kb-btn-submit">Submit for review</button>
-					<a href="/toolbox" class="kb-btn-cancel">Cancel</a>
-				</div>
-			</form>
-			<div class="kb-form-footer">
-				Submissions are reviewed within 3–5 business days. IFS will add the resource to the Toolbox if it aligns with our mission. By submitting you agree to our curation and publishing terms.
+<KbFormShell
+	coil="toolbox"
+	breadcrumbHref="/toolbox"
+	breadcrumbLabel="Toolbox"
+	pageTitle="Submit a resource"
+	pageDescription="Add a link, report, toolkit, video, or other resource. The Toolbox prioritizes resources that support Indigenous sovereignty, cultural economies, land stewardship, and community self-determination."
+	noticeLabel="Curatorial note"
+	noticeText="Resources are reviewed within 3–5 business days. We prioritize content that supports Indigenous sovereignty and self-determination."
+	footerText="Submissions are reviewed within 3–5 business days. IFS will add the resource to the Toolbox if it aligns with our mission. By submitting you agree to our curation and publishing terms."
+	success={successData}
+>
+	<form
+		method="POST"
+		action="?/default"
+		use:enhance={() => {
+			submitting = true;
+			return async ({ result, update }) => {
+				try {
+					if (result.type === 'success' || result.type === 'failure') await update();
+				} finally {
+					submitting = false;
+				}
+			};
+		}}
+	>
+		{#if form?.error}
+			<div
+				role="alert"
+				aria-live="assertive"
+				class="mb-6 rounded-md border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive"
+			>
+				{form.error}
 			</div>
 		{/if}
-	</div>
-</div>
+
+		<!-- Resource Details -->
+		<div class="space-y-5 border-b border-[var(--border)] py-8">
+			<h3 class="font-serif text-lg font-semibold text-foreground">Resource details</h3>
+
+			<Field.Field>
+				<Field.Label for="resource_title"
+					>Resource title <span class="text-destructive">*</span></Field.Label
+				>
+				<Field.Content>
+					<Input
+						id="resource_title"
+						name="resource_title"
+						type="text"
+						required
+						value={form?.values?.resource_title ?? ''}
+						placeholder="e.g. NCAI Tribal Economic Development Toolkit"
+						class="w-full"
+					/>
+				</Field.Content>
+			</Field.Field>
+
+			<Field.Field>
+				<Field.Label for="url">URL / link <span class="text-destructive">*</span></Field.Label>
+				<Field.Content>
+					<Input
+						id="url"
+						name="url"
+						type="url"
+						required
+						value={form?.values?.url ?? ''}
+						placeholder={placeholders.applyUrl}
+						class="w-full"
+					/>
+				</Field.Content>
+				<Field.Description>Public URL where the resource can be accessed.</Field.Description>
+			</Field.Field>
+
+			<div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+				<Field.Field>
+					<Field.Label for="media_type">Resource type</Field.Label>
+					<Field.Content>
+						<input type="hidden" name="media_type" value={mediaType} />
+						<Select.Root type="single" bind:value={mediaType}>
+							<Select.Trigger class="w-full">
+								{toolboxMediaTypeOptions.find((o) => o.value === mediaType)?.label ??
+									'Choose resource type'}
+							</Select.Trigger>
+							<Select.Content>
+								{#each toolboxMediaTypeOptions as opt}
+									<Select.Item value={opt.value} label={opt.label}>{opt.label}</Select.Item>
+								{/each}
+							</Select.Content>
+						</Select.Root>
+					</Field.Content>
+				</Field.Field>
+
+				<Field.Field>
+					<Field.Label for="category">Category</Field.Label>
+					<Field.Content>
+						<input type="hidden" name="category" value={category} />
+						<Select.Root type="single" bind:value={category}>
+							<Select.Trigger class="w-full">
+								{toolboxCategoryOptions.find((o) => o.value === category)?.label ??
+									'Choose category'}
+							</Select.Trigger>
+							<Select.Content>
+								{#each toolboxCategoryOptions as opt}
+									<Select.Item value={opt.value} label={opt.label}>{opt.label}</Select.Item>
+								{/each}
+							</Select.Content>
+						</Select.Root>
+					</Field.Content>
+				</Field.Field>
+			</div>
+
+			<Field.Field>
+				<Field.Label for="source">Source / publisher</Field.Label>
+				<Field.Content>
+					<Input
+						id="source"
+						name="source"
+						type="text"
+						value={form?.values?.source ?? ''}
+						placeholder={placeholders.organization}
+						list="datalist-organizations"
+						class="w-full"
+					/>
+					<datalist id="datalist-organizations">
+						{#each suggestedOrganizations as org}
+							<option value={org}></option>
+						{/each}
+					</datalist>
+				</Field.Content>
+			</Field.Field>
+
+			<Field.Field>
+				<Field.Label for="description"
+					>Description <span class="text-destructive">*</span></Field.Label
+				>
+				<Field.Content>
+					<RichTextEditor
+						bind:value={descriptionHtml}
+						mode="plain"
+						name="description"
+						placeholder="Briefly describe what this resource is and why it's valuable for Indigenous communities and allies."
+						minHeight="180px"
+						initialValue={form?.values?.description ?? ''}
+					/>
+				</Field.Content>
+			</Field.Field>
+		</div>
+
+		<!-- Contact Information -->
+		<div class="-mx-4 mt-2 space-y-5 rounded-lg bg-muted/40 px-4 py-8 sm:-mx-6 sm:px-6">
+			<h3 class="font-serif text-lg font-semibold text-foreground">Your contact information</h3>
+			<div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+				<Field.Field>
+					<Field.Label for="contact_name"
+						>Your name <span class="text-destructive">*</span></Field.Label
+					>
+					<Field.Content>
+						<Input
+							id="contact_name"
+							name="contact_name"
+							type="text"
+							required
+							value={form?.values?.contact_name ?? ''}
+							placeholder="First Last"
+							class="w-full"
+						/>
+					</Field.Content>
+				</Field.Field>
+				<Field.Field>
+					<Field.Label for="email">Your email <span class="text-destructive">*</span></Field.Label>
+					<Field.Content>
+						<Input
+							id="email"
+							name="email"
+							type="email"
+							required
+							value={form?.values?.email ?? ''}
+							placeholder={placeholders.email}
+							class="w-full"
+						/>
+					</Field.Content>
+				</Field.Field>
+			</div>
+			<p class="text-xs text-muted-foreground">
+				Used only to confirm your submission; not published.
+			</p>
+		</div>
+
+		<!-- Form Actions -->
+		<div class="flex items-center gap-3 pt-8">
+			<Button type="submit" disabled={submitting} aria-busy={submitting}>
+				{submitting ? 'Submitting…' : 'Submit for review'}
+			</Button>
+			<Button variant="ghost" href="/toolbox">Cancel</Button>
+		</div>
+	</form>
+</KbFormShell>

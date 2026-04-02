@@ -72,9 +72,9 @@ export function getPlaceholderImageSrcset(
 	if (!entry) {
 		return { src: getPlaceholderImage(index) };
 	}
-	const srcSet = LANDSCAPE_WIDTHS.map((w) => `${LANDSCAPE_BASE}/${w}/${entry.slug}.webp ${w}w`).join(
-		', '
-	);
+	const srcSet = LANDSCAPE_WIDTHS.map(
+		(w) => `${LANDSCAPE_BASE}/${w}/${entry.slug}.webp ${w}w`
+	).join(', ');
 	// Default src: 960 JPG for older browsers that don't support WebP/srcset
 	const src = `${LANDSCAPE_BASE}/960/${entry.slug}.jpg`;
 	return {

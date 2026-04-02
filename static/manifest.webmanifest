@@ -1,0 +1,16 @@
+{
+	"name": "Knowledge Basket",
+	"short_name": "KB",
+	"start_url": "/",
+	"display": "standalone",
+	"background_color": "#f7f0dc",
+	"theme_color": "#132533",
+	"description": "Search Indigenous-led events, funding, Native-owned businesses, jobs, and practical resources.",
+	"icons": [
+		{
+			"src": "/images/logo.png",
+			"sizes": "512x512",
+			"type": "image/png"
+		}
+	]
+}

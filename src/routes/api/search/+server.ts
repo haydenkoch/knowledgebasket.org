@@ -14,18 +14,25 @@ const emptyResults: Record<CoilKey, { title: string; slug?: string }[]> = {
 
 export const GET: RequestHandler = async ({ url }) => {
 	const q = (url.searchParams.get('q') as string)?.trim() ?? '';
+	const mode = isMeilisearchConfigured() ? 'all' : 'events-only';
 	if (q.length < 2) {
-		return json({ query: q, results: emptyResults });
+		return json({ query: q, results: emptyResults, mode });
 	}
 
-	if (isMeilisearchConfigured()) {
+	if (mode === 'all') {
 		const results = await searchAll(q, { limit: 3 });
-		return json({ query: q, results });
+		return json({ query: q, results, mode });
 	}
 
-	const events = await searchEventsFromDb(q);
+	let events: Awaited<ReturnType<typeof searchEventsFromDb>> = [];
+	try {
+		events = await searchEventsFromDb(q);
+	} catch {
+		events = [];
+	}
 	return json({
 		query: q,
+		mode,
 		results: {
 			...emptyResults,
 			events: events.slice(0, 3)

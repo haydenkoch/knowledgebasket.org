@@ -1,0 +1,66 @@
+<script lang="ts">
+	import type { FundingItem } from '$lib/data/kb';
+	import { stripHtml } from '$lib/utils/format';
+	import { getPlaceholderImage } from '$lib/data/placeholders';
+
+	let { item, index = 0 }: { item: FundingItem; index?: number } = $props();
+
+	const href = $derived(`/funding/${item.slug ?? item.id}`);
+	const plainDesc = $derived(item.description ? stripHtml(String(item.description)) : '');
+</script>
+
+<a
+	{href}
+	class="flex cursor-pointer flex-col overflow-hidden rounded-lg border border-[var(--rule)] bg-white no-underline shadow-[var(--sh)] transition-[transform,box-shadow] duration-150 hover:-translate-y-[3px] hover:no-underline hover:shadow-[var(--shh)]"
+	style="animation-delay: {index * 40}ms"
+>
+	<div class="relative flex h-[148px] items-center justify-center overflow-hidden">
+		{#if item.imageUrl}
+			<img src={item.imageUrl} alt={item.title} class="h-full w-full object-cover" loading="lazy" />
+		{:else}
+			<img
+				src={getPlaceholderImage(index)}
+				alt=""
+				class="h-full w-full object-cover"
+				loading="lazy"
+			/>
+		{/if}
+		{#if item.applicationStatus}
+			<span
+				class="absolute bottom-2 left-3 rounded bg-black/30 px-2 py-0.5 text-[11px] font-bold tracking-[0.05em] text-white/90 uppercase backdrop-blur-sm"
+				>{item.applicationStatus}</span
+			>
+		{/if}
+	</div>
+	<div class="flex min-h-0 flex-1 flex-col p-4">
+		<div class="mb-1.5 flex flex-wrap gap-1">
+			{#if item.fundingType}
+				<span
+					class="rounded bg-[var(--muted)] px-2 py-0.5 text-[11px] font-semibold text-[var(--muted-foreground)]"
+					>{item.fundingType}</span
+				>
+			{/if}
+		</div>
+		<h3 class="mb-1 font-serif text-base leading-[1.35] font-semibold text-[var(--dark)]">
+			{item.title}
+		</h3>
+		{#if item.amountDescription}
+			<p class="mb-1 font-sans text-xs text-[var(--muted-foreground)]">{item.amountDescription}</p>
+		{/if}
+		{#if item.funderName}
+			<p class="mb-1 font-sans text-xs text-[var(--muted-foreground)]">{item.funderName}</p>
+		{/if}
+		{#if item.deadline}
+			<p class="mb-1 font-sans text-xs text-[var(--muted-foreground)]">Deadline: {item.deadline}</p>
+		{/if}
+		{#if plainDesc}
+			<p class="mb-3 line-clamp-3 min-h-0 flex-auto text-[13px] leading-[1.5] text-[var(--mid)]">
+				{plainDesc}
+			</p>
+		{/if}
+		<span
+			class="mt-auto block flex-none rounded-[var(--radius)] bg-[var(--gold)] py-2 text-center font-sans text-[13px] font-bold tracking-[0.03em] text-white no-underline transition-[filter] duration-150 hover:brightness-110"
+			>View Opportunity</span
+		>
+	</div>
+</a>

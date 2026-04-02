@@ -34,7 +34,7 @@ function mapboxToFeature(f: MapboxFeature): GeoFeature | null {
 	const country = ctx.find((c) => c.id.startsWith('country.'));
 	const city = place?.text ?? '';
 	const state = region?.text ?? '';
-	const street = f.address && f.text ? `${f.address} ${f.text}`.trim() : f.text ?? '';
+	const street = f.address && f.text ? `${f.address} ${f.text}`.trim() : (f.text ?? '');
 	const name = f.place_name ?? [street, city, state].filter(Boolean).join(', ');
 	return {
 		type: 'Feature',
@@ -72,7 +72,8 @@ function censusToFeature(m: CensusMatch, index: number): GeoFeature | null {
 	if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
 	const c = m.addressComponents;
 	const street = c?.streetName
-		? [c.fromAddress ?? '', c.streetName, c.toAddress ?? ''].filter(Boolean).join(' ').trim() || c.streetName
+		? [c.fromAddress ?? '', c.streetName, c.toAddress ?? ''].filter(Boolean).join(' ').trim() ||
+			c.streetName
 		: '';
 	const city = c?.city ?? '';
 	const state = c?.state ?? '';
@@ -106,7 +107,7 @@ export const GET: RequestHandler = async ({ url }) => {
 			? fetch(
 					`${MAPBOX_URL}/${encodeURIComponent(q)}.json?access_token=${encodeURIComponent(token)}&limit=10&country=US`,
 					{ headers: { Accept: 'application/json' } }
-			  )
+				)
 					.then(async (res) => {
 						if (!res.ok) return [];
 						const data = await res.json();
@@ -117,10 +118,9 @@ export const GET: RequestHandler = async ({ url }) => {
 			: Promise.resolve([]);
 
 		// Photon (OSM) – good for place names and international
-		const photonPromise = fetch(
-			`${PHOTON_URL}?q=${encodeURIComponent(q)}&limit=${limit}`,
-			{ headers: { Accept: 'application/json' } }
-		).then(async (res) => {
+		const photonPromise = fetch(`${PHOTON_URL}?q=${encodeURIComponent(q)}&limit=${limit}`, {
+			headers: { Accept: 'application/json' }
+		}).then(async (res) => {
 			if (!res.ok) return [];
 			const data = await res.json();
 			return (data.features ?? []) as GeoFeature[];
@@ -140,7 +140,9 @@ export const GET: RequestHandler = async ({ url }) => {
 				if (!res.ok) return [];
 				const data = await res.json();
 				const matches = (data.result?.addressMatches ?? []) as CensusMatch[];
-				return matches.map((m, i) => censusToFeature(m, i)).filter((f): f is GeoFeature => f != null);
+				return matches
+					.map((m, i) => censusToFeature(m, i))
+					.filter((f): f is GeoFeature => f != null);
 			})
 			.catch(() => []);
 

@@ -2,6 +2,7 @@ import type { PageServerLoad, Actions } from './$types';
 import { fail } from '@sveltejs/kit';
 import { createEvent } from '$lib/server/events';
 import { fetchEventsFromIcalFeed } from '$lib/server/ical-feed';
+import type { EventItem } from '$lib/data/kb';
 
 export const load: PageServerLoad = async () => {
 	return {};
@@ -17,7 +18,9 @@ export const actions: Actions = {
 			const events = await fetchEventsFromIcalFeed(url);
 			return { events, url };
 		} catch (e) {
-			return fail(400, { error: `Failed to fetch iCal: ${e instanceof Error ? e.message : 'Unknown error'}` });
+			return fail(400, {
+				error: `Failed to fetch iCal: ${e instanceof Error ? e.message : 'Unknown error'}`
+			});
 		}
 	},
 	import: async ({ request, locals }) => {
@@ -25,7 +28,7 @@ export const actions: Actions = {
 		const eventsJson = fd.get('events') as string;
 		if (!eventsJson) return fail(400, { error: 'No events data' });
 
-		let events: any[];
+		let events: EventItem[];
 		try {
 			events = JSON.parse(eventsJson);
 		} catch {
@@ -33,7 +36,7 @@ export const actions: Actions = {
 		}
 
 		const selected = fd.getAll('selected') as string[];
-		const toImport = events.filter((_: any, i: number) => selected.includes(String(i)));
+		const toImport = events.filter((_, i) => selected.includes(String(i)));
 
 		let imported = 0;
 		for (const e of toImport) {

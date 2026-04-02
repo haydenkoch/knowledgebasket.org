@@ -1,7 +1,6 @@
 import type { Actions, PageServerLoad } from './$types';
 import {
 	getTags,
-	getOptions,
 	getAllOptions,
 	createTag,
 	updateTag,
@@ -31,7 +30,11 @@ export const load: PageServerLoad = async () => {
 		if (tagCount === 0) {
 			for (let i = 0; i < eventTypeTags.length; i++) {
 				const label = eventTypeTags[i];
-				const base = label.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'tag';
+				const base =
+					label
+						.toLowerCase()
+						.replace(/[^a-z0-9]+/g, '-')
+						.replace(/^-|-$/g, '') || 'tag';
 				await db.insert(taxonomyTags).values({
 					slug: `${base}-${i}`,
 					label,

@@ -15,7 +15,9 @@
 
 <div class="max-w-2xl space-y-6">
 	<h1 class="text-2xl font-bold">Branding</h1>
-	<p class="text-muted-foreground">Site logo and favicon. Changes apply to the public site header and browser tab.</p>
+	<p class="text-muted-foreground">
+		Site logo and favicon. Changes apply to the public site header and browser tab.
+	</p>
 
 	<Card.Root>
 		<Card.Header>
@@ -28,16 +30,30 @@
 					<img src={data.logoUrl} alt="Current logo" class="h-16 w-auto rounded object-contain" />
 				</div>
 			{/if}
-			<form method="POST" action="?/uploadLogo" enctype="multipart/form-data" use:enhance={() => ({ result, update }) => {
-				if (result.type === 'success') toast.success('Logo saved');
-				else if (result.type === 'failure') toast.error((result.data as { error?: string })?.error ?? 'Upload failed');
-				update();
-			}} class="flex flex-wrap items-end gap-3">
+			<form
+				method="POST"
+				action="?/uploadLogo"
+				enctype="multipart/form-data"
+				use:enhance={() =>
+					({ result, update }) => {
+						if (result.type === 'success') toast.success('Logo saved');
+						else if (result.type === 'failure')
+							toast.error((result.data as { error?: string })?.error ?? 'Upload failed');
+						update();
+					}}
+				class="flex flex-wrap items-end gap-3"
+			>
 				<Field.Field>
 					<Field.Label for="logo">Upload new logo</Field.Label>
 					<Field.Description>JPG, PNG, or WebP · max 5 MB.</Field.Description>
 					<Field.Content>
-						<Input id="logo" name="logo" type="file" accept="image/jpeg,image/png,image/webp" class="w-full" />
+						<Input
+							id="logo"
+							name="logo"
+							type="file"
+							accept="image/jpeg,image/png,image/webp"
+							class="w-full"
+						/>
 					</Field.Content>
 				</Field.Field>
 				<Button type="submit">Save logo</Button>
@@ -56,16 +72,30 @@
 					<img src={data.faviconUrl} alt="Current favicon" class="h-8 w-8 rounded object-contain" />
 				</div>
 			{/if}
-			<form method="POST" action="?/uploadFavicon" enctype="multipart/form-data" use:enhance={() => ({ result, update }) => {
-				if (result.type === 'success') toast.success('Favicon saved');
-				else if (result.type === 'failure') toast.error((result.data as { error?: string })?.error ?? 'Upload failed');
-				update();
-			}} class="flex flex-wrap items-end gap-3">
+			<form
+				method="POST"
+				action="?/uploadFavicon"
+				enctype="multipart/form-data"
+				use:enhance={() =>
+					({ result, update }) => {
+						if (result.type === 'success') toast.success('Favicon saved');
+						else if (result.type === 'failure')
+							toast.error((result.data as { error?: string })?.error ?? 'Upload failed');
+						update();
+					}}
+				class="flex flex-wrap items-end gap-3"
+			>
 				<Field.Field>
 					<Field.Label for="favicon">Upload new favicon</Field.Label>
 					<Field.Description>JPG, PNG, or WebP · max 5 MB.</Field.Description>
 					<Field.Content>
-						<Input id="favicon" name="favicon" type="file" accept="image/jpeg,image/png,image/webp" class="w-full" />
+						<Input
+							id="favicon"
+							name="favicon"
+							type="file"
+							accept="image/jpeg,image/png,image/webp"
+							class="w-full"
+						/>
 					</Field.Content>
 				</Field.Field>
 				<Button type="submit">Save favicon</Button>

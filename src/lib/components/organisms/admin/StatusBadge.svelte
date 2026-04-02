@@ -25,6 +25,8 @@
 	const label = $derived(labels[status] ?? status);
 </script>
 
-<span class="inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium {classes}">
+<span
+	class="inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium {classes}"
+>
 	{label}
 </span>

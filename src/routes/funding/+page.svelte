@@ -1,8 +1,10 @@
 <script lang="ts">
-	import Input from '$lib/components/ui/input/input.svelte';
 	import KbHero from '$lib/components/organisms/KbHero.svelte';
 	import KbTwoColumnLayout from '$lib/components/organisms/KbTwoColumnLayout.svelte';
+	import KbSidebar from '$lib/components/organisms/KbSidebar.svelte';
 	import KbFilterSection from '$lib/components/organisms/KbFilterSection.svelte';
+	import KbSubmitBanner from '$lib/components/organisms/KbSubmitBanner.svelte';
+	import FundingCard from '$lib/components/molecules/FundingCard.svelte';
 	import { Alert, AlertDescription, AlertTitle } from '$lib/components/ui/alert/index.js';
 	import {
 		Pagination,
@@ -13,61 +15,46 @@
 		PaginationNext,
 		PaginationEllipsis
 	} from '$lib/components/ui/pagination/index.js';
+	import { useCoilFilters } from '$lib/hooks/use-coil-filters.svelte';
 	import type { FundingItem } from '$lib/data/kb';
-	import { getPlaceholderImage } from '$lib/data/placeholders';
-	import { stripHtml, matchSearch, filterByFacets, facetCounts } from '$lib/utils/format';
 
 	let { data } = $props();
-	const funding = $derived(data.funding ?? []) as FundingItem[];
-	const total = $derived(funding.length);
+	const canonicalUrl = $derived(`${data.origin ?? ''}/funding`);
 
-	let searchQuery = $state('');
-	let typeFilter = $state<string[]>([]);
-	let statusFilter = $state<string[]>([]);
+	const filters = useCoilFilters<FundingItem>({
+		items: () => (data.funding ?? []) as FundingItem[],
+		facets: {
+			type: { field: 'fundingType' },
+			status: { field: 'applicationStatus' }
+		},
+		searchFields: ['funderName', 'amountDescription']
+	});
 
-	const typeCounts = $derived(facetCounts(funding, 'fundingType'));
-	const statusCounts = $derived(facetCounts(funding, 'applicationStatus'));
-	const typeValues = $derived(Object.keys(typeCounts).sort());
-	const statusValues = $derived(Object.keys(statusCounts).sort());
-
-	const filtered = $derived(
-		filterByFacets(
-			funding.filter((e) =>
-				matchSearch(e, searchQuery, ['funderName', 'amountDescription', 'title'])
-			),
-			{
-				fundingType: typeFilter,
-				applicationStatus: statusFilter
-			}
-		)
-	);
-	const filteredTotal = $derived(filtered.length);
 	const openCount = $derived(
-		funding.filter((f) => f.applicationStatus === 'open' || f.applicationStatus === 'rolling')
+		filters.items.filter((f) => f.applicationStatus === 'open' || f.applicationStatus === 'rolling')
 			.length
 	);
-	const rollingCount = $derived(funding.filter((f) => f.applicationStatus === 'rolling').length);
-
-	function toggle(arr: string[], val: string) {
-		return arr.includes(val) ? arr.filter((x) => x !== val) : [...arr, val];
-	}
-	function clearFilters() {
-		searchQuery = '';
-		typeFilter = [];
-		statusFilter = [];
-	}
-
-	const PER_PAGE = 6;
-	let pageBinding = $state(1);
-	const totalPages = $derived(Math.max(1, Math.ceil(filteredTotal / PER_PAGE)));
-	const currentPage = $derived(Math.min(pageBinding, totalPages));
-	const paginatedList = $derived(
-		filtered.slice((currentPage - 1) * PER_PAGE, currentPage * PER_PAGE)
+	const rollingCount = $derived(
+		filters.items.filter((f) => f.applicationStatus === 'rolling').length
 	);
+
+	let pageBinding = $state(1);
 	$effect(() => {
-		pageBinding = currentPage;
+		pageBinding = filters.currentPage;
+	});
+	$effect(() => {
+		if (pageBinding !== filters.currentPage) filters.pageBinding = pageBinding;
 	});
 </script>
+
+<svelte:head>
+	<title>Funding | Knowledge Basket</title>
+	<meta
+		name="description"
+		content="Browse grants, contracts, fellowships, and funding opportunities for Tribes, Native-led nonprofits, and Indigenous individuals."
+	/>
+	<link rel="canonical" href={canonicalUrl} />
+</svelte:head>
 
 {#snippet weave()}
 	<defs>
@@ -83,43 +70,45 @@
 {/snippet}
 {#snippet stats()}
 	<div class="font-sans text-white">
-		<strong class="block text-[28px] leading-none font-bold">{total}</strong><span
-			class="text-xs opacity-70">Total</span
-		>
+		<strong class="block text-[28px] leading-none font-bold">{filters.items.length}</strong>
+		<span class="text-xs opacity-70">Total</span>
 	</div>
 	<div class="font-sans text-white">
-		<strong class="block text-[28px] leading-none font-bold">{openCount}</strong><span
-			class="text-xs opacity-70">Open</span
-		>
+		<strong class="block text-[28px] leading-none font-bold">{openCount}</strong>
+		<span class="text-xs opacity-70">Open</span>
 	</div>
 {/snippet}
 {#snippet sidebar()}
-	<div class="relative mb-7">
-		<span
-			class="absolute top-1/2 left-3 flex -translate-y-1/2 items-center justify-center text-[14px] text-[var(--muted-foreground)]"
-			aria-hidden="true">🔍</span
-		>
-		<Input type="search" placeholder="Search funding…" class="pl-[38px]" bind:value={searchQuery} />
-	</div>
-	<KbFilterSection
-		title="Type"
-		options={typeValues.map((t) => ({ value: t, label: t, count: typeCounts[t] ?? 0 }))}
-		selected={typeFilter}
-		onToggle={(val) => (typeFilter = toggle(typeFilter, val))}
-		emptyLabel="No types"
-	/>
-	<KbFilterSection
-		title="Status"
-		options={statusValues.map((s) => ({ value: s, label: s, count: statusCounts[s] ?? 0 }))}
-		selected={statusFilter}
-		onToggle={(val) => (statusFilter = toggle(statusFilter, val))}
-		emptyLabel="No statuses"
-	/>
-	<button
-		type="button"
-		class="mt-2 cursor-pointer border-none bg-transparent p-0 font-sans text-xs text-[var(--teal)] underline"
-		onclick={clearFilters}>Clear all filters</button
+	<KbSidebar
+		searchPlaceholder="Search funding…"
+		bind:searchQuery={filters.searchQuery}
+		hasActiveFilters={filters.getFacetSelection('type').length > 0 ||
+			filters.getFacetSelection('status').length > 0}
+		onClear={() => filters.clearFilters()}
 	>
+		<KbFilterSection
+			title="Type"
+			options={filters.facetValues.type?.map((t) => ({
+				value: t,
+				label: t,
+				count: filters.facetCounts.type?.[t] ?? 0
+			})) ?? []}
+			selected={filters.getFacetSelection('type')}
+			onToggle={(val) => filters.toggleFacet('type', val)}
+			emptyLabel="No types"
+		/>
+		<KbFilterSection
+			title="Status"
+			options={filters.facetValues.status?.map((s) => ({
+				value: s,
+				label: s,
+				count: filters.facetCounts.status?.[s] ?? 0
+			})) ?? []}
+			selected={filters.getFacetSelection('status')}
+			onToggle={(val) => filters.toggleFacet('status', val)}
+			emptyLabel="No statuses"
+		/>
+	</KbSidebar>
 {/snippet}
 
 <div>
@@ -133,7 +122,7 @@
 	/>
 
 	<div
-		class="flex flex-wrap items-center gap-4 border-b border-[var(--rule)] bg-[var(--card)] px-10 py-2 font-sans text-[13px]"
+		class="flex flex-wrap items-center gap-4 border-b border-[var(--rule)] bg-[var(--card)] px-4 py-2 font-sans text-[13px] sm:px-6 lg:px-10"
 	>
 		<div class="flex items-center gap-1.5 text-[13px] text-[var(--foreground)]">
 			<span class="inline-block h-2 w-2 rounded-full bg-[var(--green,#22c55e)]"></span>
@@ -152,98 +141,45 @@
 				<Alert class="mb-6 border-amber-300 bg-amber-50 text-amber-950">
 					<AlertTitle>Live funding data is unavailable</AlertTitle>
 					<AlertDescription>
-						The page is showing a safe fallback because the local database connection failed. Check
-						`DATABASE_URL`, start local services, and run `pnpm db:push` if the schema is missing.
+						Some live funding data is temporarily unavailable, so you may be seeing limited results
+						right now. Please try again in a little while.
 					</AlertDescription>
 				</Alert>
 			{/if}
-			<div class="mb-[22px] flex items-center justify-between border-b border-[var(--rule)] pb-4">
-				<div class="font-sans text-[14px] text-[var(--muted-foreground)]">
-					Showing <strong class="text-[var(--dark)]">{filteredTotal}</strong> opportunities
+
+			<div class="mb-5 flex items-center justify-between border-b border-[var(--rule)] pb-4">
+				<div class="font-sans text-sm text-[var(--muted-foreground)]">
+					Showing <strong class="text-[var(--dark)]">{filters.filteredTotal}</strong> opportunities
 				</div>
-				<select
-					class="rounded border border-[var(--border)] bg-[var(--card)] px-2 py-1 text-sm text-[var(--foreground)]"
-					aria-label="Sort"
-				>
-					<option>Soonest deadline</option>
-					<option>Recently added</option>
-				</select>
 			</div>
-			<div class="grid grid-cols-[repeat(auto-fill,minmax(310px,1fr))] gap-5">
-				{#each paginatedList as item, i (item.id)}
-					<a
-						href="/funding/{item.slug ?? item.id}"
-						class="flex cursor-pointer flex-col overflow-hidden rounded-lg border border-[var(--rule)] bg-white no-underline shadow-[var(--sh)] transition-[transform,box-shadow] duration-150 hover:-translate-y-[3px] hover:no-underline hover:shadow-[var(--shh)]"
+
+			{#if filters.filteredTotal === 0}
+				<div class="flex flex-col items-center justify-center py-16 text-center">
+					<p class="mb-1 font-serif text-lg font-semibold text-[var(--dark)]">
+						No funding opportunities found
+					</p>
+					<p class="mb-4 text-sm text-[var(--muted-foreground)]">
+						Try adjusting your filters or search terms.
+					</p>
+					<button
+						type="button"
+						class="cursor-pointer rounded border-none bg-[var(--teal)] px-4 py-2 font-sans text-sm font-semibold text-white"
+						onclick={() => filters.clearFilters()}>Clear all filters</button
 					>
-						<div class="relative flex h-[148px] items-center justify-center overflow-hidden">
-							{#if item.imageUrl}
-								<img
-									src={item.imageUrl}
-									alt={item.title}
-									class="h-full w-full object-cover"
-									loading="lazy"
-								/>
-							{:else}
-								<span class="absolute text-[48px] opacity-[0.35]" aria-hidden="true">💰</span>
-							{/if}
-							{#if item.applicationStatus}
-								<span
-									class="absolute bottom-2 left-3 rounded bg-black/30 px-2 py-0.5 text-[11px] font-bold tracking-[0.05em] text-white/90 uppercase"
-									>{item.applicationStatus}</span
-								>
-							{/if}
-						</div>
-						<div class="flex min-h-0 flex-1 flex-col p-4 px-[18px]">
-							<div class="mb-2 flex flex-wrap gap-[5px]">
-								{#if item.applicationStatus}<span
-										class="rounded bg-[var(--muted)] px-2 py-0.5 text-[11px] font-semibold text-[var(--muted-foreground)]"
-										>{item.applicationStatus}</span
-									>{/if}
-								{#if item.fundingType}<span
-										class="rounded bg-[var(--muted)] px-2 py-0.5 text-[11px] font-semibold text-[var(--muted-foreground)]"
-										>{item.fundingType}</span
-									>{/if}
-							</div>
-							<div
-								class="mb-[5px] font-serif text-base leading-[1.35] font-semibold text-[var(--dark)]"
-							>
-								{item.title}
-							</div>
-							{#if item.amountDescription}
-								<div
-									class="mb-[6px] flex items-center gap-1 font-sans text-xs text-[var(--muted-foreground)]"
-								>
-									💵 {item.amountDescription}
-								</div>
-							{/if}
-							{#if item.funderName}<div
-									class="mb-[6px] flex items-center gap-1 font-sans text-xs text-[var(--muted-foreground)]"
-								>
-									🏛 {item.funderName}
-								</div>{/if}
-							{#if item.deadline}<div
-									class="mb-[6px] flex items-center gap-1 font-sans text-xs text-[var(--muted-foreground)]"
-								>
-									📅 Deadline: {item.deadline}
-								</div>{/if}
-							{#if item.description}<div
-									class="mb-[14px] line-clamp-3 min-h-0 flex-auto text-[13px] leading-[1.5] text-[var(--mid)]"
-								>
-									{stripHtml(String(item.description))}
-								</div>{/if}
-							<span
-								class="mt-auto block flex-none rounded-[var(--radius)] bg-[var(--teal)] py-[9px] text-center font-sans text-[13px] font-bold tracking-[0.03em] text-white no-underline transition-[filter] duration-150 hover:brightness-110"
-								>View Opportunity</span
-							>
-						</div>
-					</a>
-				{/each}
-			</div>
-			{#if totalPages > 1}
+				</div>
+			{:else}
+				<div class="grid grid-cols-[repeat(auto-fill,minmax(310px,1fr))] gap-5">
+					{#each filters.paginatedList as item, i (item.id)}
+						<FundingCard {item} index={i} />
+					{/each}
+				</div>
+			{/if}
+
+			{#if filters.totalPages > 1}
 				<Pagination
 					class="pt-6"
-					count={filteredTotal}
-					perPage={PER_PAGE}
+					count={filters.filteredTotal}
+					perPage={filters.perPage}
 					bind:page={pageBinding}
 					aria-label="Pagination"
 				>
@@ -252,12 +188,13 @@
 							<PaginationPrevious />
 							{#each pages as pageItem (pageItem.key)}
 								{#if pageItem.type === 'ellipsis'}
-									<PaginationItem>
-										<PaginationEllipsis />
-									</PaginationItem>
+									<PaginationItem><PaginationEllipsis /></PaginationItem>
 								{:else}
 									<PaginationItem>
-										<PaginationLink page={pageItem} isActive={pageItem.value === currentPage}>
+										<PaginationLink
+											page={pageItem}
+											isActive={pageItem.value === filters.currentPage}
+										>
 											{pageItem.value}
 										</PaginationLink>
 									</PaginationItem>
@@ -271,18 +208,11 @@
 		{/snippet}
 	</KbTwoColumnLayout>
 
-	<div
-		class="flex flex-wrap items-center justify-between gap-6 px-10 py-8"
-		style="background: var(--gold-lt); border-top-color: var(--gold)"
-	>
-		<div>
-			<h3 style="color: var(--gold)">Know of a funding opportunity?</h3>
-			<p>Submit grants, loans, fellowships, and contracts for IFS staff review.</p>
-		</div>
-		<a
-			href="/funding/submit"
-			class="inline-block flex-none rounded px-6 py-3 font-sans text-sm font-semibold text-white no-underline"
-			style="background: var(--gold)">Submit Funding Opportunity</a
-		>
-	</div>
+	<KbSubmitBanner
+		coil="funding"
+		heading="Know of a funding opportunity?"
+		description="Submit grants, loans, fellowships, and contracts for IFS staff review."
+		href="/funding/submit"
+		label="Submit Funding Opportunity"
+	/>
 </div>

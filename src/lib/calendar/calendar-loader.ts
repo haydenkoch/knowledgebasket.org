@@ -58,9 +58,7 @@ export async function createScheduleXAppFromEvents(
 				? viewDay.name
 				: viewMonthGrid.name;
 	const selected =
-		initialCalendarYear != null &&
-		initialCalendarMonth != null &&
-		initialCalendarDay != null
+		initialCalendarYear != null && initialCalendarMonth != null && initialCalendarDay != null
 			? Temporal.PlainDate.from({
 					year: initialCalendarYear,
 					month: initialCalendarMonth + 1,

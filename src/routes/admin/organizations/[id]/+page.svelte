@@ -31,7 +31,10 @@
 				<AlertDialog.Footer>
 					<AlertDialog.Cancel>Cancel</AlertDialog.Cancel>
 					<form method="POST" action="?/deleteOrganization" use:enhance>
-						<AlertDialog.Action type="submit" class="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+						<AlertDialog.Action
+							type="submit"
+							class="text-destructive-foreground bg-destructive hover:bg-destructive/90"
+						>
 							Delete
 						</AlertDialog.Action>
 					</form>
@@ -40,15 +43,22 @@
 		</AlertDialog.Root>
 	</div>
 
-	<form method="POST" action="?/updateOrganization" enctype="multipart/form-data" use:enhance={() => {
-		submitting = true;
-		return ({ result, update }) => {
-			submitting = false;
-			if (result.type === 'success') toast.success('Organization updated');
-			else if (result.type === 'failure') toast.error((result.data as { error?: string })?.error ?? 'Update failed');
-			update();
-		};
-	}} class="space-y-6">
+	<form
+		method="POST"
+		action="?/updateOrganization"
+		enctype="multipart/form-data"
+		use:enhance={() => {
+			submitting = true;
+			return ({ result, update }) => {
+				submitting = false;
+				if (result.type === 'success') toast.success('Organization updated');
+				else if (result.type === 'failure')
+					toast.error((result.data as { error?: string })?.error ?? 'Update failed');
+				update();
+			};
+		}}
+		class="space-y-6"
+	>
 		<Card.Root>
 			<Card.Header>
 				<Card.Title>Details</Card.Title>
@@ -59,20 +69,39 @@
 					<Field.Field>
 						<Field.Label for="name">Name *</Field.Label>
 						<Field.Content>
-							<Input id="name" name="name" type="text" required value={data.organization.name} class="w-full" />
+							<Input
+								id="name"
+								name="name"
+								type="text"
+								required
+								value={data.organization.name}
+								class="w-full"
+							/>
 						</Field.Content>
 					</Field.Field>
 					<Field.Field>
 						<Field.Label for="orgType">Type</Field.Label>
 						<Field.Content>
-							<Input id="orgType" name="orgType" type="text" value={data.organization.orgType ?? ''} class="w-full" />
+							<Input
+								id="orgType"
+								name="orgType"
+								type="text"
+								value={data.organization.orgType ?? ''}
+								class="w-full"
+							/>
 						</Field.Content>
 					</Field.Field>
 				</div>
 				<Field.Field>
 					<Field.Label for="description">Description</Field.Label>
 					<Field.Content>
-						<Textarea id="description" name="description" rows={3} value={data.organization.description ?? ''} class="w-full" />
+						<Textarea
+							id="description"
+							name="description"
+							rows={3}
+							value={data.organization.description ?? ''}
+							class="w-full"
+						/>
 					</Field.Content>
 				</Field.Field>
 			</Card.Content>
@@ -88,26 +117,50 @@
 					<Field.Field>
 						<Field.Label for="email">Email</Field.Label>
 						<Field.Content>
-							<Input id="email" name="email" type="email" value={data.organization.email ?? ''} class="w-full" />
+							<Input
+								id="email"
+								name="email"
+								type="email"
+								value={data.organization.email ?? ''}
+								class="w-full"
+							/>
 						</Field.Content>
 					</Field.Field>
 					<Field.Field>
 						<Field.Label for="website">Website</Field.Label>
 						<Field.Content>
-							<Input id="website" name="website" type="url" value={data.organization.website ?? ''} class="w-full" />
+							<Input
+								id="website"
+								name="website"
+								type="url"
+								value={data.organization.website ?? ''}
+								class="w-full"
+							/>
 						</Field.Content>
 					</Field.Field>
 					<Field.Field>
 						<Field.Label for="phone">Phone</Field.Label>
 						<Field.Content>
-							<Input id="phone" name="phone" type="tel" value={data.organization.phone ?? ''} class="w-full" />
+							<Input
+								id="phone"
+								name="phone"
+								type="tel"
+								value={data.organization.phone ?? ''}
+								class="w-full"
+							/>
 						</Field.Content>
 					</Field.Field>
 				</div>
 				<Field.Field>
 					<Field.Label for="region">Region</Field.Label>
 					<Field.Content>
-						<Input id="region" name="region" type="text" value={data.organization.region ?? ''} class="w-full" />
+						<Input
+							id="region"
+							name="region"
+							type="text"
+							value={data.organization.region ?? ''}
+							class="w-full"
+						/>
 					</Field.Content>
 				</Field.Field>
 			</Card.Content>
@@ -116,7 +169,9 @@
 		<Card.Root>
 			<Card.Header>
 				<Card.Title>Logo</Card.Title>
-				<Card.Description>JPG, PNG, or WebP · max 5 MB. Replace by choosing a new file.</Card.Description>
+				<Card.Description
+					>JPG, PNG, or WebP · max 5 MB. Replace by choosing a new file.</Card.Description
+				>
 			</Card.Header>
 			<Card.Content>
 				<Field.Field>
@@ -124,11 +179,21 @@
 					<Field.Content>
 						{#if data.organization.logoUrl}
 							<div class="mb-2 flex items-center gap-3">
-								<img src={data.organization.logoUrl} alt="" class="h-16 w-16 rounded object-contain" />
-								<span class="text-muted-foreground text-sm">Replace by choosing a new file.</span>
+								<img
+									src={data.organization.logoUrl}
+									alt=""
+									class="h-16 w-16 rounded object-contain"
+								/>
+								<span class="text-sm text-muted-foreground">Replace by choosing a new file.</span>
 							</div>
 						{/if}
-						<Input id="logo" name="logo" type="file" accept="image/jpeg,image/png,image/webp" class="w-full" />
+						<Input
+							id="logo"
+							name="logo"
+							type="file"
+							accept="image/jpeg,image/png,image/webp"
+							class="w-full"
+						/>
 					</Field.Content>
 				</Field.Field>
 			</Card.Content>

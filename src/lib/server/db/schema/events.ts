@@ -43,7 +43,9 @@ export const events = pgTable(
 			.$onUpdate(() => new Date())
 			.notNull(),
 
-		organizationId: uuid('organization_id').references(() => organizations.id, { onDelete: 'set null' }),
+		organizationId: uuid('organization_id').references(() => organizations.id, {
+			onDelete: 'set null'
+		}),
 		venueId: uuid('venue_id').references(() => venues.id, { onDelete: 'set null' }),
 		parentEventId: uuid('parent_event_id'),
 		submittedById: text('submitted_by_id').references(() => user.id, { onDelete: 'set null' }),

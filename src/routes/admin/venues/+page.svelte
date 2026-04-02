@@ -23,7 +23,7 @@
 	function doSearch() {
 		const url = new URL($page.url);
 		url.searchParams.set('search', searchValue);
-		goto(url.toString());
+		goto(url);
 	}
 </script>
 

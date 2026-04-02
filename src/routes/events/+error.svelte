@@ -10,7 +10,10 @@
 <div class="kb-event-error">
 	{#if is404}
 		<h1>Event not found</h1>
-		<p>We couldn't find the event you're looking for. It may have been removed or the link might be incorrect.</p>
+		<p>
+			We couldn't find the event you're looking for. It may have been removed or the link might be
+			incorrect.
+		</p>
 	{:else}
 		<h1>Something went wrong</h1>
 		<p>{error?.message ?? 'An error occurred while loading this page.'}</p>

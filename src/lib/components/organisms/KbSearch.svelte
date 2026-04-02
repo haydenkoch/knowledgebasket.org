@@ -1,12 +1,12 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
+	import { resolve } from '$app/paths';
 
 	let { variant = 'default' }: { variant?: 'default' | 'light' } = $props();
 
 	let query = $state('');
 	let results = $state<{ coil: string; title: string; slug: string; href: string }[]>([]);
 	let open = $state(false);
-	let loading = $state(false);
 	let timer: ReturnType<typeof setTimeout>;
 
 	const coilPaths: Record<string, string> = {
@@ -23,7 +23,6 @@
 			open = false;
 			return;
 		}
-		loading = true;
 		try {
 			const res = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
 			const data = (await res.json()) as {
@@ -47,7 +46,6 @@
 		} catch {
 			/* ignore */
 		}
-		loading = false;
 	}
 
 	function onInput(e: Event) {
@@ -58,7 +56,10 @@
 
 	function onSubmit(e: Event) {
 		e.preventDefault();
-		if (query.trim()) goto(`/events?q=${encodeURIComponent(query)}`);
+		if (!query.trim()) return;
+		const url = new URL(resolve('/search'), window.location.origin);
+		url.searchParams.set('q', query.trim());
+		goto(url);
 	}
 </script>
 

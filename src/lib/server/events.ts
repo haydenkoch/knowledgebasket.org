@@ -2,7 +2,7 @@
  * Events data layer: single source of truth for events (Postgres + iCal merge).
  */
 import { eq, ne, desc, asc, gte, ilike, or, and, sql, inArray, isNull } from 'drizzle-orm';
-import { db } from '$lib/server/db';
+import { db, type DbExecutor } from '$lib/server/db';
 import {
 	events as eventsTable,
 	eventSlugRedirects,
@@ -347,7 +347,6 @@ function slugify(title: string): string {
 async function uniqueSlug(baseSlug: string): Promise<string> {
 	let slug = baseSlug.slice(0, 100);
 	let n = 0;
-	// eslint-disable-next-line no-constant-condition
 	while (true) {
 		const existing = await db
 			.select({ id: eventsTable.id })
@@ -465,8 +464,8 @@ export async function createEvent(data: {
 	audience?: string;
 	cost?: string;
 	eventUrl?: string;
-	startDate?: string;
-	endDate?: string;
+	startDate?: string | Date;
+	endDate?: string | Date;
 	hostOrg?: string;
 	lat?: number;
 	lng?: number;
@@ -481,10 +480,10 @@ export async function createEvent(data: {
 	priceMin?: number;
 	priceMax?: number;
 	registrationUrl?: string;
-	registrationDeadline?: string;
+	registrationDeadline?: string | Date;
 	eventFormat?: string;
 	timezone?: string;
-	doorsOpenAt?: string;
+	doorsOpenAt?: string | Date;
 	capacity?: number;
 	soldOut?: boolean;
 	ageRestriction?: string;
@@ -498,10 +497,12 @@ export async function createEvent(data: {
 	contactPhone?: string;
 	adminNotes?: string;
 	submittedById?: string;
+	reviewedById?: string;
 	status?: string;
 	source?: string;
 	unlisted?: boolean;
-}): Promise<EventItem> {
+	publishedAt?: Date;
+}, database: DbExecutor = db): Promise<EventItem> {
 	const baseSlug = slugify(data.title);
 	const slug = await uniqueSlug(baseSlug);
 	const startDate = data.startDate ? new Date(data.startDate) : null;
@@ -511,7 +512,7 @@ export async function createEvent(data: {
 		: null;
 	const doorsOpenAt = data.doorsOpenAt ? new Date(data.doorsOpenAt) : null;
 
-	const [row] = await db
+	const [row] = await database
 		.insert(eventsTable)
 		.values({
 			slug,
@@ -556,9 +557,11 @@ export async function createEvent(data: {
 			contactPhone: data.contactPhone ?? null,
 			adminNotes: data.adminNotes ?? null,
 			submittedById: data.submittedById ?? null,
+			reviewedById: data.reviewedById ?? null,
 			status: data.status ?? 'pending',
 			source: data.source ?? 'submission',
-			unlisted: data.unlisted ?? false
+			unlisted: data.unlisted ?? false,
+			publishedAt: data.publishedAt ?? null
 		})
 		.returning();
 	if (!row) throw new Error('Insert did not return row');
@@ -569,22 +572,27 @@ export async function createEvent(data: {
 
 export async function updateEvent(
 	id: string,
-	data: Partial<Omit<EventInsert, 'id' | 'createdAt'>>
+	data: Partial<Omit<EventInsert, 'id' | 'createdAt'>>,
+	database: DbExecutor = db
 ): Promise<EventItem | null> {
 	if (data.slug != null) {
-		const [current] = await db
+		const [current] = await database
 			.select({ slug: eventsTable.slug })
 			.from(eventsTable)
 			.where(eq(eventsTable.id, id))
 			.limit(1);
 		if (current && current.slug !== data.slug) {
-			await db
+			await database
 				.insert(eventSlugRedirects)
 				.values({ fromSlug: current.slug, toSlug: data.slug })
 				.onConflictDoNothing({ target: eventSlugRedirects.fromSlug });
 		}
 	}
-	const [row] = await db.update(eventsTable).set(data).where(eq(eventsTable.id, id)).returning();
+	const [row] = await database
+		.update(eventsTable)
+		.set(data)
+		.where(eq(eventsTable.id, id))
+		.returning();
 	if (!row) return null;
 	return rowToEventItem(row);
 }

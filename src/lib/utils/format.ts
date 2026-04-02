@@ -1,7 +1,10 @@
 /** Remove HTML tags for plain-text display (e.g. in list cards). */
 export function stripHtml(html: string): string {
 	if (!html) return '';
-	return html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+	return html
+		.replace(/<[^>]+>/g, ' ')
+		.replace(/\s+/g, ' ')
+		.trim();
 }
 
 /** Match item against search query (title, description, and extra text fields). */
@@ -42,7 +45,10 @@ export function getEventTypeTags(event: { type?: string; types?: string[] }): st
 	const t = (event.type ?? '').trim();
 	if (!t) return [];
 	// Split at slash or comma only — never at space
-	return t.split(/\s*\/\s*|,\s*/).map((s) => s.trim()).filter(Boolean);
+	return t
+		.split(/\s*\/\s*|,\s*/)
+		.map((s) => s.trim())
+		.filter(Boolean);
 }
 
 /** Event matches a type group if it has any tag in the group's tags. */
@@ -100,8 +106,11 @@ export function formatEventDateShort(startDate?: string, endDate?: string): stri
 	if (!endDate?.trim()) return startStr;
 	const end = new Date(parseEventStart(endDate)!);
 	if (isNaN(end.getTime()) || end.getTime() === start.getTime()) return startStr;
-	const sameMonth = start.getMonth() === end.getMonth() && start.getFullYear() === end.getFullYear();
-	return sameMonth ? `${startStr} – ${end.getDate()}` : `${startStr} – ${end.toLocaleDateString('en-US', opts)}`;
+	const sameMonth =
+		start.getMonth() === end.getMonth() && start.getFullYear() === end.getFullYear();
+	return sameMonth
+		? `${startStr} – ${end.getDate()}`
+		: `${startStr} – ${end.toLocaleDateString('en-US', opts)}`;
 }
 
 /** Format for detail page: "Saturday, June 8, 2025" or "Jun 8 – Jun 12, 2025". */
@@ -109,7 +118,12 @@ export function formatEventDateRange(startDate?: string, endDate?: string): stri
 	const start = startDate?.trim() ? parseEventStart(startDate) : null;
 	if (start == null) return 'Date TBA';
 	const startD = new Date(start);
-	const longOpts: Intl.DateTimeFormatOptions = { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' };
+	const longOpts: Intl.DateTimeFormatOptions = {
+		weekday: 'long',
+		month: 'long',
+		day: 'numeric',
+		year: 'numeric'
+	};
 	if (!endDate?.trim()) return startD.toLocaleDateString('en-US', longOpts);
 	const end = parseEventStart(endDate);
 	if (end == null || end === start) return startD.toLocaleDateString('en-US', longOpts);
@@ -126,7 +140,9 @@ export function eventDayOfMonth(startDate?: string): number | null {
 }
 
 /** Return { year, month (0–11), day } for event start, or null. */
-export function eventCalendarParts(startDate?: string): { year: number; month: number; day: number } | null {
+export function eventCalendarParts(
+	startDate?: string
+): { year: number; month: number; day: number } | null {
 	const t = parseEventStart(startDate);
 	if (t == null) return null;
 	const d = new Date(t);
@@ -193,7 +209,10 @@ export function formatEventTime(startDate?: string): string | null {
 
 /** Format date for Google Calendar URL: YYYYMMDDTHHmmssZ (UTC). */
 function toGoogleDate(ts: number): string {
-	return new Date(ts).toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+	return new Date(ts)
+		.toISOString()
+		.replace(/[-:]/g, '')
+		.replace(/\.\d{3}/, '');
 }
 
 /** Build Google Calendar "Add to calendar" URL for an event, or null if no start date. */

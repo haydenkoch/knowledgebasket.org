@@ -14,9 +14,9 @@
 	const canonicalUrl = $derived(item?.slug ? `${origin}/jobs/${item.slug}` : `${origin}/jobs`);
 	const metaDescription = $derived(
 		item
-			? (item.description
+			? item.description
 				? stripHtml(String(item.description)).slice(0, 160)
-				: `${item.title}${item.employerName ? ` at ${item.employerName}` : ''}${item.location ? `. ${item.location}` : ''}.`)
+				: `${item.title}${item.employerName ? ` at ${item.employerName}` : ''}${item.location ? `. ${item.location}` : ''}.`
 			: ''
 	);
 
@@ -51,20 +51,33 @@
 			hiringOrganization: item.employerName
 				? { '@type': 'Organization', name: item.employerName }
 				: undefined,
-			jobLocation: item.location
-				? { '@type': 'Place', address: item.location }
-				: undefined,
+			jobLocation: item.location ? { '@type': 'Place', address: item.location } : undefined,
 			employmentType: item.jobType?.toUpperCase().replace(/\s+/g, '_') ?? undefined,
 			datePosted: item.publishedAt ?? undefined,
 			validThrough: item.applicationDeadline ?? undefined,
 			url: canonicalUrl,
-			...(item.applyUrl ? { applicationContact: { '@type': 'ContactPoint', url: item.applyUrl } } : {})
+			...(item.applyUrl
+				? { applicationContact: { '@type': 'ContactPoint', url: item.applyUrl } }
+				: {})
 		};
 	});
+	const jsonLdScript = $derived.by(() =>
+		jsonLd
+			? [
+					'<script type="application/ld+json">',
+					JSON.stringify(jsonLd).replaceAll('<', '\\u003c'),
+					'</scr' + 'ipt>'
+				].join('')
+			: ''
+	);
 </script>
 
 <svelte:head>
-	<title>{item ? `${item.title}${item.employerName ? ` | ${item.employerName}` : ''} | Jobs | Knowledge Basket` : 'Job not found | Knowledge Basket'}</title>
+	<title
+		>{item
+			? `${item.title}${item.employerName ? ` | ${item.employerName}` : ''} | Jobs | Knowledge Basket`
+			: 'Job not found | Knowledge Basket'}</title
+	>
 	{#if item}
 		<meta name="description" content={metaDescription} />
 		<link rel="canonical" href={canonicalUrl} />
@@ -77,7 +90,7 @@
 		<meta name="twitter:title" content={item.title} />
 		<meta name="twitter:description" content={metaDescription} />
 		{#if item.imageUrl}<meta name="twitter:image" content={item.imageUrl} />{/if}
-		{#if jsonLd}{@html `<script type="application/ld+json">${JSON.stringify(jsonLd).replace(/<\/script>/g, '<\\/script>')}</script>`}{/if}
+		{#if jsonLd}{@html jsonLdScript}{/if}
 	{/if}
 </svelte:head>
 
@@ -87,153 +100,208 @@
 		<Button variant="outline" href="/jobs" class="mt-4">← Back to Job Board</Button>
 	</div>
 {:else}
-<div class="mx-auto max-w-3xl px-4 py-6 sm:px-6">
+	<div class="mx-auto max-w-3xl px-4 py-6 sm:px-6">
+		<Breadcrumb.Root class="mb-5">
+			<Breadcrumb.List>
+				<Breadcrumb.Item>
+					<Breadcrumb.Link href="/jobs">Job Board</Breadcrumb.Link>
+				</Breadcrumb.Item>
+				<Breadcrumb.Separator />
+				<Breadcrumb.Item>
+					<Breadcrumb.Page>{item.title}</Breadcrumb.Page>
+				</Breadcrumb.Item>
+			</Breadcrumb.List>
+		</Breadcrumb.Root>
 
-	<Breadcrumb.Root class="mb-5">
-		<Breadcrumb.List>
-			<Breadcrumb.Item>
-				<Breadcrumb.Link href="/jobs">Job Board</Breadcrumb.Link>
-			</Breadcrumb.Item>
-			<Breadcrumb.Separator />
-			<Breadcrumb.Item>
-				<Breadcrumb.Page>{item.title}</Breadcrumb.Page>
-			</Breadcrumb.Item>
-		</Breadcrumb.List>
-	</Breadcrumb.Root>
-
-	<!-- Hero header -->
-	<div class="kb-job-hero">
-		<img src={heroImage} alt="" class="kb-job-hero-img" />
-		<div class="kb-job-hero-overlay"></div>
-		<div class="kb-job-hero-content">
-			<div class="kb-job-hero-badges">
-				{#if item.indigenousPriority}
-					<span class="kb-job-badge kb-job-badge--priority">Indigenous Priority</span>
-				{/if}
-				{#if item.jobType}
-					<span class="kb-job-badge">{item.jobType}</span>
-				{/if}
-				{#if workArrangementLabel()}
-					<span class="kb-job-badge">{workArrangementLabel()}</span>
-				{/if}
-			</div>
-			<h1 class="kb-job-hero-title">{item.title}</h1>
-			{#if item.employerName}
-				<p class="kb-job-hero-employer">{item.employerName}</p>
-			{/if}
-			{#if item.location}
-				<p class="kb-job-hero-location">
-					<MapPinIcon class="size-[14px] shrink-0" />
-					{item.location}
-				</p>
-			{/if}
-		</div>
-	</div>
-
-	<div class="mt-8 grid gap-8 lg:grid-cols-[1fr_280px]">
-		<!-- Main content -->
-		<div class="min-w-0">
-			{#if item.description}
-				<section class="kb-job-section">
-					<h2 class="kb-job-section-title">Position overview</h2>
-					<div class="prose prose-sm text-[var(--muted-foreground)] [&_a]:text-[var(--teal)] [&_a]:no-underline [&_a:hover]:underline">{@html item.description}</div>
-				</section>
-			{/if}
-
-			{#if item.qualifications}
-				<section class="kb-job-section">
-					<h2 class="kb-job-section-title">Qualifications</h2>
-					<div class="prose prose-sm text-[var(--muted-foreground)] [&_a]:text-[var(--teal)] [&_a]:no-underline [&_a:hover]:underline">{@html item.qualifications}</div>
-				</section>
-			{/if}
-
-			{#if item.applicationInstructions}
-				<section class="kb-job-section">
-					<h2 class="kb-job-section-title">How to apply</h2>
-					<div class="prose prose-sm text-[var(--muted-foreground)] [&_a]:text-[var(--teal)] [&_a]:no-underline [&_a:hover]:underline">{@html item.applicationInstructions}</div>
-				</section>
-			{/if}
-
-			{#if item.benefits}
-				<section class="kb-job-section">
-					<h2 class="kb-job-section-title">Benefits</h2>
-					<div class="prose prose-sm text-[var(--muted-foreground)] [&_a]:text-[var(--teal)] [&_a]:no-underline [&_a:hover]:underline">{@html item.benefits}</div>
-				</section>
-			{/if}
-		</div>
-
-		<!-- Sidebar -->
-		<aside class="flex flex-col gap-4">
-			{#if item.applyUrl}
-				<Button href={item.applyUrl} target="_blank" rel="noopener" class="w-full">
-					Apply Now →
-				</Button>
-			{/if}
-
-			<div class="rounded-xl border border-[var(--border)] bg-[var(--card)] p-5">
-				<h3 class="font-sans text-xs font-bold uppercase tracking-wider text-[var(--muted-foreground)] mb-3">Details</h3>
-				<dl class="flex flex-col gap-3 text-sm">
-					{#if compensationLabel()}
-						<div>
-							<dt class="font-semibold text-[var(--muted-foreground)] text-[11px] uppercase tracking-[0.06em]">Compensation</dt>
-							<dd class="text-[var(--foreground)] mt-0.5 font-medium">{compensationLabel()}</dd>
-						</div>
-					{/if}
-					{#if item.employerName}
-						<div>
-							<dt class="font-semibold text-[var(--muted-foreground)] text-[11px] uppercase tracking-[0.06em]">Employer</dt>
-							<dd class="text-[var(--foreground)] mt-0.5">{item.employerName}</dd>
-						</div>
-					{/if}
-					{#if item.location}
-						<div>
-							<dt class="font-semibold text-[var(--muted-foreground)] text-[11px] uppercase tracking-[0.06em]">Location</dt>
-							<dd class="text-[var(--foreground)] mt-0.5">{item.location}</dd>
-						</div>
+		<!-- Hero header -->
+		<div class="kb-job-hero">
+			<img src={heroImage} alt="" class="kb-job-hero-img" />
+			<div class="kb-job-hero-overlay"></div>
+			<div class="kb-job-hero-content">
+				<div class="kb-job-hero-badges">
+					{#if item.indigenousPriority}
+						<span class="kb-job-badge kb-job-badge--priority">Indigenous Priority</span>
 					{/if}
 					{#if item.jobType}
-						<div>
-							<dt class="font-semibold text-[var(--muted-foreground)] text-[11px] uppercase tracking-[0.06em]">Job type</dt>
-							<dd class="text-[var(--foreground)] mt-0.5">{item.jobType}</dd>
-						</div>
+						<span class="kb-job-badge">{item.jobType}</span>
 					{/if}
 					{#if workArrangementLabel()}
-						<div>
-							<dt class="font-semibold text-[var(--muted-foreground)] text-[11px] uppercase tracking-[0.06em]">Work arrangement</dt>
-							<dd class="text-[var(--foreground)] mt-0.5">{workArrangementLabel()}</dd>
-						</div>
+						<span class="kb-job-badge">{workArrangementLabel()}</span>
 					{/if}
-					{#if item.seniority}
-						<div>
-							<dt class="font-semibold text-[var(--muted-foreground)] text-[11px] uppercase tracking-[0.06em]">Level</dt>
-							<dd class="text-[var(--foreground)] mt-0.5">{item.seniority}</dd>
+				</div>
+				<h1 class="kb-job-hero-title">{item.title}</h1>
+				{#if item.employerName}
+					<p class="kb-job-hero-employer">{item.employerName}</p>
+				{/if}
+				{#if item.location}
+					<p class="kb-job-hero-location">
+						<MapPinIcon class="size-[14px] shrink-0" />
+						{item.location}
+					</p>
+				{/if}
+			</div>
+		</div>
+
+		<div class="mt-8 grid gap-8 lg:grid-cols-[1fr_280px]">
+			<!-- Main content -->
+			<div class="min-w-0">
+				{#if item.description}
+					<section class="kb-job-section">
+						<h2 class="kb-job-section-title">Position overview</h2>
+						<div
+							class="prose prose-sm text-[var(--muted-foreground)] [&_a]:text-[var(--teal)] [&_a]:no-underline [&_a:hover]:underline"
+						>
+							{@html item.description}
 						</div>
-					{/if}
-					{#if item.sector}
-						<div>
-							<dt class="font-semibold text-[var(--muted-foreground)] text-[11px] uppercase tracking-[0.06em]">Sector</dt>
-							<dd class="text-[var(--foreground)] mt-0.5">{item.sector}</dd>
+					</section>
+				{/if}
+
+				{#if item.qualifications}
+					<section class="kb-job-section">
+						<h2 class="kb-job-section-title">Qualifications</h2>
+						<div
+							class="prose prose-sm text-[var(--muted-foreground)] [&_a]:text-[var(--teal)] [&_a]:no-underline [&_a:hover]:underline"
+						>
+							{@html item.qualifications}
 						</div>
-					{/if}
-					{#if item.applicationDeadline}
-						<div>
-							<dt class="font-semibold text-[var(--muted-foreground)] text-[11px] uppercase tracking-[0.06em]">Apply by</dt>
-							<dd class="text-[var(--foreground)] mt-0.5">{item.applicationDeadline}</dd>
+					</section>
+				{/if}
+
+				{#if item.applicationInstructions}
+					<section class="kb-job-section">
+						<h2 class="kb-job-section-title">How to apply</h2>
+						<div
+							class="prose prose-sm text-[var(--muted-foreground)] [&_a]:text-[var(--teal)] [&_a]:no-underline [&_a:hover]:underline"
+						>
+							{@html item.applicationInstructions}
 						</div>
-					{/if}
-					{#if item.tribalPreference}
-						<div>
-							<dt class="font-semibold text-[var(--muted-foreground)] text-[11px] uppercase tracking-[0.06em]">Tribal preference</dt>
-							<dd class="text-[var(--foreground)] mt-0.5">{item.tribalPreference}</dd>
+					</section>
+				{/if}
+
+				{#if item.benefits}
+					<section class="kb-job-section">
+						<h2 class="kb-job-section-title">Benefits</h2>
+						<div
+							class="prose prose-sm text-[var(--muted-foreground)] [&_a]:text-[var(--teal)] [&_a]:no-underline [&_a:hover]:underline"
+						>
+							{@html item.benefits}
 						</div>
-					{/if}
-				</dl>
+					</section>
+				{/if}
 			</div>
 
-			<Button variant="outline" href="/jobs" class="w-full">← Back to Job Board</Button>
-		</aside>
+			<!-- Sidebar -->
+			<aside class="flex flex-col gap-4">
+				{#if item.applyUrl}
+					<Button href={item.applyUrl} target="_blank" rel="noopener" class="w-full">
+						Apply Now →
+					</Button>
+				{/if}
+
+				<div class="rounded-xl border border-[var(--border)] bg-[var(--card)] p-5">
+					<h3
+						class="mb-3 font-sans text-xs font-bold tracking-wider text-[var(--muted-foreground)] uppercase"
+					>
+						Details
+					</h3>
+					<dl class="flex flex-col gap-3 text-sm">
+						{#if compensationLabel()}
+							<div>
+								<dt
+									class="text-[11px] font-semibold tracking-[0.06em] text-[var(--muted-foreground)] uppercase"
+								>
+									Compensation
+								</dt>
+								<dd class="mt-0.5 font-medium text-[var(--foreground)]">{compensationLabel()}</dd>
+							</div>
+						{/if}
+						{#if item.employerName}
+							<div>
+								<dt
+									class="text-[11px] font-semibold tracking-[0.06em] text-[var(--muted-foreground)] uppercase"
+								>
+									Employer
+								</dt>
+								<dd class="mt-0.5 text-[var(--foreground)]">{item.employerName}</dd>
+							</div>
+						{/if}
+						{#if item.location}
+							<div>
+								<dt
+									class="text-[11px] font-semibold tracking-[0.06em] text-[var(--muted-foreground)] uppercase"
+								>
+									Location
+								</dt>
+								<dd class="mt-0.5 text-[var(--foreground)]">{item.location}</dd>
+							</div>
+						{/if}
+						{#if item.jobType}
+							<div>
+								<dt
+									class="text-[11px] font-semibold tracking-[0.06em] text-[var(--muted-foreground)] uppercase"
+								>
+									Job type
+								</dt>
+								<dd class="mt-0.5 text-[var(--foreground)]">{item.jobType}</dd>
+							</div>
+						{/if}
+						{#if workArrangementLabel()}
+							<div>
+								<dt
+									class="text-[11px] font-semibold tracking-[0.06em] text-[var(--muted-foreground)] uppercase"
+								>
+									Work arrangement
+								</dt>
+								<dd class="mt-0.5 text-[var(--foreground)]">{workArrangementLabel()}</dd>
+							</div>
+						{/if}
+						{#if item.seniority}
+							<div>
+								<dt
+									class="text-[11px] font-semibold tracking-[0.06em] text-[var(--muted-foreground)] uppercase"
+								>
+									Level
+								</dt>
+								<dd class="mt-0.5 text-[var(--foreground)]">{item.seniority}</dd>
+							</div>
+						{/if}
+						{#if item.sector}
+							<div>
+								<dt
+									class="text-[11px] font-semibold tracking-[0.06em] text-[var(--muted-foreground)] uppercase"
+								>
+									Sector
+								</dt>
+								<dd class="mt-0.5 text-[var(--foreground)]">{item.sector}</dd>
+							</div>
+						{/if}
+						{#if item.applicationDeadline}
+							<div>
+								<dt
+									class="text-[11px] font-semibold tracking-[0.06em] text-[var(--muted-foreground)] uppercase"
+								>
+									Apply by
+								</dt>
+								<dd class="mt-0.5 text-[var(--foreground)]">{item.applicationDeadline}</dd>
+							</div>
+						{/if}
+						{#if item.tribalPreference}
+							<div>
+								<dt
+									class="text-[11px] font-semibold tracking-[0.06em] text-[var(--muted-foreground)] uppercase"
+								>
+									Tribal preference
+								</dt>
+								<dd class="mt-0.5 text-[var(--foreground)]">{item.tribalPreference}</dd>
+							</div>
+						{/if}
+					</dl>
+				</div>
+
+				<Button variant="outline" href="/jobs" class="w-full">← Back to Job Board</Button>
+			</aside>
+		</div>
 	</div>
-</div>
 {/if}
 
 <style>
@@ -260,7 +328,7 @@
 	.kb-job-hero-overlay {
 		position: absolute;
 		inset: 0;
-		background: linear-gradient(to top, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0.15) 100%);
+		background: linear-gradient(to top, rgba(0, 0, 0, 0.6) 0%, rgba(0, 0, 0, 0.15) 100%);
 	}
 	.kb-job-hero-content {
 		position: absolute;
@@ -279,7 +347,7 @@
 	.kb-job-badge {
 		display: inline-block;
 		padding: 0.2rem 0.5rem;
-		background: rgba(255,255,255,0.15);
+		background: rgba(255, 255, 255, 0.15);
 		border-radius: 4px;
 		font-size: 0.6875rem;
 		font-weight: 700;
@@ -288,7 +356,7 @@
 	}
 	.kb-job-badge--priority {
 		background: var(--color-flicker-400);
-		color: rgba(0,0,0,0.85);
+		color: rgba(0, 0, 0, 0.85);
 	}
 	.kb-job-hero-title {
 		font-family: var(--font-serif);

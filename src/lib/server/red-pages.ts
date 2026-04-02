@@ -2,7 +2,7 @@
  * Red Pages (Native Business Directory) data layer: CRUD, moderation, search indexing.
  */
 import { eq, desc, asc, ilike, or, and, sql } from 'drizzle-orm';
-import { db } from '$lib/server/db';
+import { db, type DbExecutor } from '$lib/server/db';
 import {
 	redPagesBusinesses as rpTable,
 	organizations,
@@ -103,7 +103,6 @@ function slugify(name: string): string {
 async function uniqueSlug(base: string): Promise<string> {
 	let slug = base.slice(0, 100);
 	let n = 0;
-	// eslint-disable-next-line no-constant-condition
 	while (true) {
 		const existing = await db
 			.select({ id: rpTable.id })
@@ -181,10 +180,7 @@ export async function getBusinessesForAdmin(opts: {
 	}
 	if (opts.search) {
 		conditions.push(
-			or(
-				ilike(rpTable.name, `%${opts.search}%`),
-				ilike(rpTable.serviceType, `%${opts.search}%`)
-			)!
+			or(ilike(rpTable.name, `%${opts.search}%`), ilike(rpTable.serviceType, `%${opts.search}%`))!
 		);
 	}
 
@@ -232,10 +228,11 @@ export async function getBusinessStatusCounts(): Promise<Record<string, number>>
 // ── Create / Update / Delete ──────────────────────────────
 
 export async function createBusiness(
-	data: Omit<RedPagesInsert, 'id' | 'slug' | 'createdAt' | 'updatedAt'>
+	data: Omit<RedPagesInsert, 'id' | 'slug' | 'createdAt' | 'updatedAt'>,
+	database: DbExecutor = db
 ): Promise<RedPagesRow> {
 	const slug = await uniqueSlug(slugify(data.name));
-	const [row] = await db
+	const [row] = await database
 		.insert(rpTable)
 		.values({ ...data, slug })
 		.returning();
@@ -248,13 +245,10 @@ export async function createBusiness(
 
 export async function updateBusiness(
 	id: string,
-	data: Partial<Omit<RedPagesInsert, 'id' | 'createdAt'>>
+	data: Partial<Omit<RedPagesInsert, 'id' | 'createdAt'>>,
+	database: DbExecutor = db
 ): Promise<RedPagesRow | null> {
-	const [row] = await db
-		.update(rpTable)
-		.set(data)
-		.where(eq(rpTable.id, id))
-		.returning();
+	const [row] = await database.update(rpTable).set(data).where(eq(rpTable.id, id)).returning();
 	if (!row) return null;
 	if (row.status === 'published') {
 		await indexDocument('redpages', itemToSearchDoc(rowToItem(row)));

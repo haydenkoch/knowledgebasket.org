@@ -5,10 +5,7 @@ import { getAllOrganizations } from '$lib/server/organizations';
 import { uploadImage } from '$lib/server/upload';
 
 export const load: PageServerLoad = async ({ params }) => {
-	const [venue, orgs] = await Promise.all([
-		getVenueById(params.id),
-		getAllOrganizations()
-	]);
+	const [venue, orgs] = await Promise.all([getVenueById(params.id), getAllOrganizations()]);
 	if (!venue) throw error(404, 'Venue not found');
 	return {
 		venue,
@@ -34,14 +31,14 @@ export const actions: Actions = {
 
 		await updateVenue(params.id, {
 			name,
-			description: fd.get('description') as string || null,
-			address: fd.get('address') as string || null,
-			city: fd.get('city') as string || null,
-			state: fd.get('state') as string || null,
-			zip: fd.get('zip') as string || null,
-			website: fd.get('website') as string || null,
-			venueType: fd.get('venueType') as string || null,
-			organizationId: fd.get('organizationId') as string || null,
+			description: (fd.get('description') as string) || null,
+			address: (fd.get('address') as string) || null,
+			city: (fd.get('city') as string) || null,
+			state: (fd.get('state') as string) || null,
+			zip: (fd.get('zip') as string) || null,
+			website: (fd.get('website') as string) || null,
+			venueType: (fd.get('venueType') as string) || null,
+			organizationId: (fd.get('organizationId') as string) || null,
 			...(imageUrl && { imageUrl })
 		});
 

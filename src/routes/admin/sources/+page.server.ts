@@ -57,21 +57,20 @@ export const actions: Actions = {
 			description: ((fd.get('description') as string) || '').trim() || null,
 			sourceUrl,
 			homepageUrl: ((fd.get('homepageUrl') as string) || '').trim() || null,
-			coils: (fd.getAll('coils') as string[]) as Array<
+			coils: fd.getAll('coils') as string[] as Array<
 				'events' | 'funding' | 'jobs' | 'red_pages' | 'toolbox'
 			>,
-			ingestionMethod:
-				((fd.get('ingestionMethod') as string) || 'manual_only') as
-					| 'manual_only'
-					| 'manual_with_reminder'
-					| 'rss_import'
-					| 'ical_import'
-					| 'api_import'
-					| 'html_scrape'
-					| 'directory_sync'
-					| 'document_extraction'
-					| 'newsletter_triage'
-					| 'hybrid',
+			ingestionMethod: ((fd.get('ingestionMethod') as string) || 'manual_only') as
+				| 'manual_only'
+				| 'manual_with_reminder'
+				| 'rss_import'
+				| 'ical_import'
+				| 'api_import'
+				| 'html_scrape'
+				| 'directory_sync'
+				| 'document_extraction'
+				| 'newsletter_triage'
+				| 'hybrid',
 			sourceCategory: ((fd.get('sourceCategory') as string) || null) as
 				| null
 				| 'government_federal'

@@ -32,7 +32,10 @@ export async function fetchEventsFromIcalFeed(
 	try {
 		const response = await fetch(url, {
 			signal: options?.signal,
-			headers: { 'User-Agent': 'KB-Events-Importer/1.0', Accept: 'text/calendar, text/plain;q=0.9,*/*;q=0.5' }
+			headers: {
+				'User-Agent': 'KB-Events-Importer/1.0',
+				Accept: 'text/calendar, text/plain;q=0.9,*/*;q=0.5'
+			}
 		});
 		if (!response.ok) {
 			throw new Error(`HTTP ${response.status} while fetching ICS feed`);

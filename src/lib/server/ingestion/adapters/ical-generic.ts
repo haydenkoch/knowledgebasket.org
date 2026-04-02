@@ -1,5 +1,11 @@
 import { createHash } from 'node:crypto';
-import type { AdapterConfig, ConfigValidationResult, IngestionAdapter, ParsedItem, SourceRecord } from '../types';
+import type {
+	AdapterConfig,
+	ConfigValidationResult,
+	IngestionAdapter,
+	ParsedItem,
+	SourceRecord
+} from '../types';
 import type { NormalizeResult, ParseResult, FetchResult, Coil, NormalizedEvent } from '../types';
 import { normalizeUrl } from '../dedupe';
 import { parseIcalEvents } from './ical-shared';
@@ -52,7 +58,8 @@ export const icalGenericAdapter: IngestionAdapter = {
 		} catch (error) {
 			return {
 				success: false,
-				status: error instanceof DOMException && error.name === 'TimeoutError' ? 'timeout' : 'failure',
+				status:
+					error instanceof DOMException && error.name === 'TimeoutError' ? 'timeout' : 'failure',
 				httpStatusCode: null,
 				responseTimeMs: Date.now() - startedAt,
 				rawContent: null,
@@ -153,14 +160,19 @@ export const icalGenericAdapter: IngestionAdapter = {
 		const errors: string[] = [];
 		const warnings: string[] = [];
 		const candidateUrl =
-			(typeof config.fetchUrl === 'string' && config.fetchUrl) || source?.fetchUrl || source?.sourceUrl;
+			(typeof config.fetchUrl === 'string' && config.fetchUrl) ||
+			source?.fetchUrl ||
+			source?.sourceUrl;
 
 		if (!candidateUrl) {
 			errors.push('An iCal source needs a fetch URL or source URL.');
 		} else {
 			try {
 				const parsed = new URL(candidateUrl);
-				if (!/\.ics($|\?)/i.test(parsed.pathname) && !parsed.searchParams.toString().includes('ical')) {
+				if (
+					!/\.ics($|\?)/i.test(parsed.pathname) &&
+					!parsed.searchParams.toString().includes('ical')
+				) {
 					warnings.push('The fetch URL does not look like a typical .ics endpoint.');
 				}
 			} catch {
@@ -168,7 +180,10 @@ export const icalGenericAdapter: IngestionAdapter = {
 			}
 		}
 
-		if (config.startDateFilter && Number.isNaN(new Date(String(config.startDateFilter)).getTime())) {
+		if (
+			config.startDateFilter &&
+			Number.isNaN(new Date(String(config.startDateFilter)).getTime())
+		) {
 			errors.push('startDateFilter must be a valid ISO date.');
 		}
 		if (config.endDateFilter && Number.isNaN(new Date(String(config.endDateFilter)).getTime())) {
@@ -259,17 +274,29 @@ function asDate(value: unknown): Date | null {
 }
 
 function asStringArray(value: unknown): string[] {
-	if (Array.isArray(value)) return value.filter((entry): entry is string => typeof entry === 'string');
-	if (typeof value === 'string') return value.split(',').map((entry) => entry.trim()).filter(Boolean);
+	if (Array.isArray(value))
+		return value.filter((entry): entry is string => typeof entry === 'string');
+	if (typeof value === 'string')
+		return value
+			.split(',')
+			.map((entry) => entry.trim())
+			.filter(Boolean);
 	return [];
 }
 
-function parseLocation(location: string | null): { city: string | null; state: string | null; zip: string | null } {
+function parseLocation(location: string | null): {
+	city: string | null;
+	state: string | null;
+	zip: string | null;
+} {
 	if (!location) return { city: null, state: null, zip: null };
 	const normalized = location.replace(/\n+/g, ', ').replace(/\s+/g, ' ').trim();
 	const zipMatch = normalized.match(/\b\d{5}(?:-\d{4})?\b/);
 	const stateMatch = normalized.match(/\b([A-Z]{2})\b(?:\s+\d{5}(?:-\d{4})?)?$/);
-	const parts = normalized.split(',').map((part) => part.trim()).filter(Boolean);
+	const parts = normalized
+		.split(',')
+		.map((part) => part.trim())
+		.filter(Boolean);
 
 	return {
 		city: parts.length >= 2 ? parts[parts.length - 2] : null,
@@ -284,7 +311,9 @@ function detectVirtualEvent(
 	description: string | null
 ): boolean {
 	const haystack = `${location ?? ''} ${url ?? ''} ${description ?? ''}`.toLowerCase();
-	return ['virtual', 'online', 'zoom', 'teams', 'meet.google'].some((needle) => haystack.includes(needle));
+	return ['virtual', 'online', 'zoom', 'teams', 'meet.google'].some((needle) =>
+		haystack.includes(needle)
+	);
 }
 
 function mapHttpStatusToFetchStatus(status: number): FetchResult['status'] {

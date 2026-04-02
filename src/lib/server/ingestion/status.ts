@@ -18,8 +18,7 @@ export function computeHealthStatus(
 	if (lastContentChangeAt && lastCheckedAt && fetchCadence !== 'manual') {
 		const staleDays = getStalenessThresholdDays(fetchCadence);
 		if (staleDays) {
-			const daysSinceChange =
-				(Date.now() - lastContentChangeAt.getTime()) / (1000 * 60 * 60 * 24);
+			const daysSinceChange = (Date.now() - lastContentChangeAt.getTime()) / (1000 * 60 * 60 * 24);
 			if (daysSinceChange > staleDays) return 'stale';
 		}
 	}

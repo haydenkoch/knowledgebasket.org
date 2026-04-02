@@ -3,6 +3,8 @@ import { fail } from '@sveltejs/kit';
 import {
 	approveCandidate,
 	archiveCandidate,
+	bulkApproveCandidates,
+	bulkRejectCandidates,
 	getImportCandidatesForReview,
 	markCandidateNeedsInfo,
 	rejectCandidate
@@ -50,6 +52,38 @@ export const load: PageServerLoad = async ({ url }) => {
 };
 
 export const actions: Actions = {
+	bulkApprove: async ({ request, locals }) => {
+		const fd = await request.formData();
+		const ids = fd
+			.getAll('candidateId')
+			.map((value) => String(value).trim())
+			.filter(Boolean);
+		if (ids.length === 0) return fail(400, { error: 'Select at least one candidate' });
+		const count = await bulkApproveCandidates(ids, locals.user!.id);
+		return { success: true, count };
+	},
+	bulkReject: async ({ request, locals }) => {
+		const fd = await request.formData();
+		const ids = fd
+			.getAll('candidateId')
+			.map((value) => String(value).trim())
+			.filter(Boolean);
+		if (ids.length === 0) return fail(400, { error: 'Select at least one candidate' });
+		const count = await bulkRejectCandidates(ids, locals.user!.id, {
+			rejectionReason: ((fd.get('rejectionReason') as string) || 'other') as
+				| 'duplicate'
+				| 'irrelevant'
+				| 'expired'
+				| 'low_quality'
+				| 'inaccurate'
+				| 'incomplete'
+				| 'out_of_scope'
+				| 'spam'
+				| 'other',
+			reviewNotes: ((fd.get('reviewNotes') as string) || '').trim() || undefined
+		});
+		return { success: true, count };
+	},
 	approve: async ({ request, locals }) => {
 		const fd = await request.formData();
 		const id = (fd.get('id') as string)?.trim();

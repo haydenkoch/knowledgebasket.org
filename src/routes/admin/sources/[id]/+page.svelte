@@ -17,6 +17,14 @@
 		previewMode?: 'test' | 'import';
 		preview?: IngestionPreviewResult;
 		importResult?: IngestionResult;
+		runResult?: {
+			success: boolean;
+			batchId: string | null;
+			fetchLogId: string | null;
+			candidatesCreated: number;
+			autoApprovedCount: number;
+			error: string | null;
+		};
 	};
 
 	let { data, form } = $props<{ data: App.PageData; form?: SourceDetailForm }>();
@@ -108,13 +116,19 @@
 		<div>
 			<h1 class="text-2xl font-bold">{data.source.name}</h1>
 			<div class="mt-2 flex flex-wrap gap-2">
-				<span class={`inline-flex rounded-full border px-2 py-0.5 text-xs ${badgeClass(data.source.status)}`}>
+				<span
+					class={`inline-flex rounded-full border px-2 py-0.5 text-xs ${badgeClass(data.source.status)}`}
+				>
 					{data.source.status.replace(/_/g, ' ')}
 				</span>
-				<span class={`inline-flex rounded-full border px-2 py-0.5 text-xs ${badgeClass(data.source.healthStatus)}`}>
+				<span
+					class={`inline-flex rounded-full border px-2 py-0.5 text-xs ${badgeClass(data.source.healthStatus)}`}
+				>
 					{data.source.healthStatus.replace(/_/g, ' ')}
 				</span>
-				<span class="inline-flex rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs text-slate-700">
+				<span
+					class="inline-flex rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs text-slate-700"
+				>
 					{data.source.enabled ? 'Enabled' : 'Disabled'}
 				</span>
 			</div>
@@ -147,6 +161,20 @@
 				}}
 			>
 				<Button type="submit" variant="secondary">Run import</Button>
+			</form>
+			<form
+				method="POST"
+				action="?/retrySource"
+				use:enhance={() => {
+					return async ({ result, update }) => {
+						if (result.type === 'success') toast.success('Retry run completed');
+						else if (result.type === 'failure')
+							toast.error((result.data as { error?: string })?.error ?? 'Retry failed');
+						await update();
+					};
+				}}
+			>
+				<Button type="submit" variant="outline">Retry now</Button>
 			</form>
 			<form
 				method="POST"
@@ -207,11 +235,32 @@
 		</div>
 	{/if}
 
+	{#if form?.runResult}
+		<div class="rounded-md border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-800">
+			<div class="font-medium">Latest retry run</div>
+			<div class="mt-1">
+				{form.runResult.success ? 'Completed successfully' : 'Run failed'}
+				{#if form.runResult.batchId}
+					· Batch {form.runResult.batchId}
+				{/if}
+				· Candidates {form.runResult.candidatesCreated}
+				· Auto-approved {form.runResult.autoApprovedCount}
+			</div>
+			{#if form.runResult.error}
+				<div class="mt-1">{form.runResult.error}</div>
+			{/if}
+		</div>
+	{/if}
+
 	{#if currentResult}
 		{@const result = currentResult}
 		<Card.Root>
 			<Card.Header>
-				<Card.Title>{form?.previewMode === 'import' ? 'Latest import result' : 'Latest test preview'}</Card.Title>
+				<Card.Title
+					>{form?.previewMode === 'import'
+						? 'Latest import result'
+						: 'Latest test preview'}</Card.Title
+				>
 				<Card.Description>
 					Fetch, parse, normalize, and dedupe output for this source.
 				</Card.Description>
@@ -219,24 +268,32 @@
 			<Card.Content class="space-y-4">
 				<div class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
 					<div class="rounded-md border p-3">
-						<div class="text-xs uppercase tracking-wide text-muted-foreground">Fetch</div>
+						<div class="text-xs tracking-wide text-muted-foreground uppercase">Fetch</div>
 						<div class="mt-1 text-sm font-medium">{result.fetchResult.status}</div>
 						<div class="text-xs text-muted-foreground">
-							{result.fetchResult.httpStatusCode ?? 'No HTTP status'} · {result.fetchResult.responseTimeMs} ms
+							{result.fetchResult.httpStatusCode ?? 'No HTTP status'} · {result.fetchResult
+								.responseTimeMs} ms
 						</div>
 					</div>
 					<div class="rounded-md border p-3">
-						<div class="text-xs uppercase tracking-wide text-muted-foreground">Parsed items</div>
+						<div class="text-xs tracking-wide text-muted-foreground uppercase">Parsed items</div>
 						<div class="mt-1 text-sm font-medium">{result.parseResult?.totalFound ?? 0}</div>
 					</div>
 					<div class="rounded-md border p-3">
-						<div class="text-xs uppercase tracking-wide text-muted-foreground">Normalized records</div>
-						<div class="mt-1 text-sm font-medium">{result.normalizeResult?.records.length ?? 0}</div>
+						<div class="text-xs tracking-wide text-muted-foreground uppercase">
+							Normalized records
+						</div>
+						<div class="mt-1 text-sm font-medium">
+							{result.normalizeResult?.records.length ?? 0}
+						</div>
 					</div>
 					<div class="rounded-md border p-3">
-						<div class="text-xs uppercase tracking-wide text-muted-foreground">Queued candidates</div>
+						<div class="text-xs tracking-wide text-muted-foreground uppercase">
+							Queued candidates
+						</div>
 						<div class="mt-1 text-sm font-medium">
-							{result.candidates.filter((candidate) => candidate.dedupe.result !== 'duplicate').length}
+							{result.candidates.filter((candidate) => candidate.dedupe.result !== 'duplicate')
+								.length}
 						</div>
 					</div>
 				</div>
@@ -274,11 +331,26 @@
 
 						{#if form?.previewMode === 'import'}
 							<div class="rounded-md border p-3 text-sm">
-								<div><span class="font-medium">Batch:</span> {isImportResult(result) ? result.batchId ?? '—' : '—'}</div>
-								<div><span class="font-medium">Fetch log:</span> {isImportResult(result) ? result.fetchLogId ?? '—' : '—'}</div>
-								<div><span class="font-medium">Created:</span> {isImportResult(result) ? result.candidatesCreated : 0}</div>
-								<div><span class="font-medium">Duplicates skipped:</span> {isImportResult(result) ? result.duplicatesSkipped : 0}</div>
-								<div><span class="font-medium">Updates queued:</span> {isImportResult(result) ? result.updatesQueued : 0}</div>
+								<div>
+									<span class="font-medium">Batch:</span>
+									{isImportResult(result) ? (result.batchId ?? '—') : '—'}
+								</div>
+								<div>
+									<span class="font-medium">Fetch log:</span>
+									{isImportResult(result) ? (result.fetchLogId ?? '—') : '—'}
+								</div>
+								<div>
+									<span class="font-medium">Created:</span>
+									{isImportResult(result) ? result.candidatesCreated : 0}
+								</div>
+								<div>
+									<span class="font-medium">Duplicates skipped:</span>
+									{isImportResult(result) ? result.duplicatesSkipped : 0}
+								</div>
+								<div>
+									<span class="font-medium">Updates queued:</span>
+									{isImportResult(result) ? result.updatesQueued : 0}
+								</div>
 							</div>
 						{/if}
 					</div>
@@ -289,10 +361,14 @@
 							<div class="rounded-md border p-3">
 								<div class="flex flex-wrap items-center gap-2">
 									<div class="font-medium">{previewTitle(candidate.normalizedData)}</div>
-									<span class={`inline-flex rounded-full border px-2 py-0.5 text-xs ${badgeClass(candidate.dedupe.result)}`}>
+									<span
+										class={`inline-flex rounded-full border px-2 py-0.5 text-xs ${badgeClass(candidate.dedupe.result)}`}
+									>
 										{candidate.dedupe.result}
 									</span>
-									<span class="inline-flex rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs text-slate-700">
+									<span
+										class="inline-flex rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs text-slate-700"
+									>
 										{candidate.priority}
 									</span>
 								</div>
@@ -303,12 +379,24 @@
 									{/if}
 								</div>
 								<div class="mt-3 grid gap-3 xl:grid-cols-2">
-									<pre class="max-h-56 overflow-auto rounded-md border bg-muted/40 p-3 text-xs">{JSON.stringify(candidate.normalizedData, null, 2)}</pre>
-									<pre class="max-h-56 overflow-auto rounded-md border bg-muted/40 p-3 text-xs">{JSON.stringify(candidate.rawData, null, 2)}</pre>
+									<pre
+										class="max-h-56 overflow-auto rounded-md border bg-muted/40 p-3 text-xs">{JSON.stringify(
+											candidate.normalizedData,
+											null,
+											2
+										)}</pre>
+									<pre
+										class="max-h-56 overflow-auto rounded-md border bg-muted/40 p-3 text-xs">{JSON.stringify(
+											candidate.rawData,
+											null,
+											2
+										)}</pre>
 								</div>
 							</div>
 						{:else}
-							<div class="rounded-md border border-dashed p-6 text-center text-sm text-muted-foreground">
+							<div
+								class="rounded-md border border-dashed p-6 text-center text-sm text-muted-foreground"
+							>
 								No candidate rows were produced.
 							</div>
 						{/each}
@@ -347,7 +435,13 @@
 					<Field.Field>
 						<Field.Label for="sourceUrl">Source URL *</Field.Label>
 						<Field.Content>
-							<Input id="sourceUrl" name="sourceUrl" type="url" value={data.source.sourceUrl} required />
+							<Input
+								id="sourceUrl"
+								name="sourceUrl"
+								type="url"
+								value={data.source.sourceUrl}
+								required
+							/>
 						</Field.Content>
 					</Field.Field>
 				</div>
@@ -373,7 +467,12 @@
 				<Field.Field>
 					<Field.Label for="description">Description</Field.Label>
 					<Field.Content>
-						<Textarea id="description" name="description" rows={3} value={data.source.description ?? ''} />
+						<Textarea
+							id="description"
+							name="description"
+							rows={3}
+							value={data.source.description ?? ''}
+						/>
 					</Field.Content>
 				</Field.Field>
 				<div class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -394,7 +493,11 @@
 					<Field.Field>
 						<Field.Label for="healthStatus">Health</Field.Label>
 						<Field.Content>
-							<NativeSelect.Root id="healthStatus" name="healthStatus" value={data.source.healthStatus}>
+							<NativeSelect.Root
+								id="healthStatus"
+								name="healthStatus"
+								value={data.source.healthStatus}
+							>
 								<NativeSelect.Option value="healthy">Healthy</NativeSelect.Option>
 								<NativeSelect.Option value="degraded">Degraded</NativeSelect.Option>
 								<NativeSelect.Option value="unhealthy">Unhealthy</NativeSelect.Option>
@@ -425,7 +528,9 @@
 								<NativeSelect.Option value="document_extraction">
 									Document extraction
 								</NativeSelect.Option>
-								<NativeSelect.Option value="newsletter_triage">Newsletter triage</NativeSelect.Option>
+								<NativeSelect.Option value="newsletter_triage"
+									>Newsletter triage</NativeSelect.Option
+								>
 								<NativeSelect.Option value="hybrid">Hybrid</NativeSelect.Option>
 							</NativeSelect.Root>
 						</Field.Content>
@@ -433,7 +538,11 @@
 					<Field.Field>
 						<Field.Label for="fetchCadence">Fetch cadence</Field.Label>
 						<Field.Content>
-							<NativeSelect.Root id="fetchCadence" name="fetchCadence" value={data.source.fetchCadence}>
+							<NativeSelect.Root
+								id="fetchCadence"
+								name="fetchCadence"
+								value={data.source.fetchCadence}
+							>
 								<NativeSelect.Option value="hourly">Hourly</NativeSelect.Option>
 								<NativeSelect.Option value="every_6h">Every 6h</NativeSelect.Option>
 								<NativeSelect.Option value="daily">Daily</NativeSelect.Option>
@@ -455,9 +564,15 @@
 								value={data.source.sourceCategory ?? ''}
 							>
 								<NativeSelect.Option value="">Unspecified</NativeSelect.Option>
-								<NativeSelect.Option value="government_federal">Government (Federal)</NativeSelect.Option>
-								<NativeSelect.Option value="government_state">Government (State)</NativeSelect.Option>
-								<NativeSelect.Option value="government_tribal">Government (Tribal)</NativeSelect.Option>
+								<NativeSelect.Option value="government_federal"
+									>Government (Federal)</NativeSelect.Option
+								>
+								<NativeSelect.Option value="government_state"
+									>Government (State)</NativeSelect.Option
+								>
+								<NativeSelect.Option value="government_tribal"
+									>Government (Tribal)</NativeSelect.Option
+								>
 								<NativeSelect.Option value="nonprofit">Nonprofit</NativeSelect.Option>
 								<NativeSelect.Option value="foundation">Foundation</NativeSelect.Option>
 								<NativeSelect.Option value="aggregator">Aggregator</NativeSelect.Option>
@@ -537,7 +652,9 @@
 		<Card.Root>
 			<Card.Header>
 				<Card.Title>Execution settings</Card.Title>
-				<Card.Description>Adapter config, risk profile, review behavior, and timing.</Card.Description>
+				<Card.Description
+					>Adapter config, risk profile, review behavior, and timing.</Card.Description
+				>
 			</Card.Header>
 			<Card.Content class="space-y-4">
 				<div class="grid gap-4 md:grid-cols-2">
@@ -618,19 +735,11 @@
 						<span>Enabled</span>
 					</label>
 					<label class="flex items-center gap-2">
-						<input
-							type="checkbox"
-							name="reviewRequired"
-							checked={data.source.reviewRequired}
-						/>
+						<input type="checkbox" name="reviewRequired" checked={data.source.reviewRequired} />
 						<span>Review required</span>
 					</label>
 					<label class="flex items-center gap-2">
-						<input
-							type="checkbox"
-							name="autoApprove"
-							checked={data.source.autoApprove}
-						/>
+						<input type="checkbox" name="autoApprove" checked={data.source.autoApprove} />
 						<span>Auto approve</span>
 					</label>
 					<label class="flex items-center gap-2">
@@ -688,7 +797,9 @@
 		<Card.Root>
 			<Card.Header>
 				<Card.Title>Tags</Card.Title>
-				<Card.Description>Flexible key/value metadata for stewardship and filtering.</Card.Description>
+				<Card.Description
+					>Flexible key/value metadata for stewardship and filtering.</Card.Description
+				>
 			</Card.Header>
 			<Card.Content class="space-y-3">
 				{#each tags as tag, index}
@@ -710,6 +821,48 @@
 
 		<Button type="submit">Save source</Button>
 	</form>
+
+	<Card.Root>
+		<Card.Header>
+			<Card.Title>Operator snapshot</Card.Title>
+			<Card.Description
+				>Scheduling, publishing, and failure patterns for this source.</Card.Description
+			>
+		</Card.Header>
+		<Card.Content class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+			<div class="rounded-md border p-3">
+				<div class="text-xs tracking-wide text-muted-foreground uppercase">
+					Next scheduled check
+				</div>
+				<div class="mt-1 text-sm font-medium">
+					{data.source.nextCheckAt ? data.source.nextCheckAt.toLocaleString() : 'Not scheduled'}
+				</div>
+			</div>
+			<div class="rounded-md border p-3">
+				<div class="text-xs tracking-wide text-muted-foreground uppercase">Last trigger</div>
+				<div class="mt-1 text-sm font-medium">
+					{(data.lastBatchMeta?.trigger as string | undefined)?.replace(/_/g, ' ') ?? 'Unknown'}
+				</div>
+				<div class="text-xs text-muted-foreground">
+					{(data.lastBatchMeta?.triggered_by as string | undefined) ?? 'No actor recorded'}
+				</div>
+			</div>
+			<div class="rounded-md border p-3">
+				<div class="text-xs tracking-wide text-muted-foreground uppercase">Published outcomes</div>
+				<div class="mt-1 text-sm font-medium">
+					Approved {data.publishSummary.approved} · Auto-approved {data.publishSummary.autoApproved}
+				</div>
+			</div>
+			<div class="rounded-md border p-3">
+				<div class="text-xs tracking-wide text-muted-foreground uppercase">Top error pattern</div>
+				<div class="mt-1 text-sm font-medium">
+					{Object.entries(data.errorPatterns)[0]
+						? `${Object.entries(data.errorPatterns)[0][0]} (${Object.entries(data.errorPatterns)[0][1]})`
+						: 'No repeated errors'}
+				</div>
+			</div>
+		</Card.Content>
+	</Card.Root>
 
 	<div class="grid gap-6 xl:grid-cols-3">
 		<Card.Root>
@@ -757,6 +910,7 @@
 							<Table.Row>
 								<Table.Head>Status</Table.Head>
 								<Table.Head>Started</Table.Head>
+								<Table.Head>Trigger</Table.Head>
 								<Table.Head>Fetched</Table.Head>
 							</Table.Row>
 						</Table.Header>
@@ -765,11 +919,25 @@
 								<Table.Row>
 									<Table.Cell>{batch.status}</Table.Cell>
 									<Table.Cell>{batch.startedAt.toLocaleString()}</Table.Cell>
+									<Table.Cell>
+										{Array.isArray(batch.errors)
+											? (
+													(
+														(batch.errors as Array<Record<string, unknown>>).find(
+															(entry: Record<string, unknown>) =>
+																entry &&
+																typeof entry === 'object' &&
+																(entry as { stage?: string }).stage === 'meta'
+														) as { trigger?: string } | undefined
+													)?.trigger ?? '—'
+												).replace(/_/g, ' ')
+											: '—'}
+									</Table.Cell>
 									<Table.Cell>{batch.itemsFetched}</Table.Cell>
 								</Table.Row>
 							{:else}
 								<Table.Row>
-									<Table.Cell colspan={3} class="h-20 text-center text-muted-foreground">
+									<Table.Cell colspan={4} class="h-20 text-center text-muted-foreground">
 										No batches yet
 									</Table.Cell>
 								</Table.Row>

@@ -2,8 +2,13 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
-import { compositeKey, contentFingerprint, runDedupeStrategies } from '../src/lib/server/ingestion/dedupe';
+import {
+	compositeKey,
+	contentFingerprint,
+	runDedupeStrategies
+} from '../src/lib/server/ingestion/dedupe';
 import { icalGenericAdapter } from '../src/lib/server/ingestion/adapters/ical-generic';
+import type { IngestionPreviewResult, IngestionResult } from '../src/lib/server/ingestion/types';
 import { _createSourceDetailActions } from '../src/routes/admin/sources/[id]/+page.server';
 import {
 	canonicalRecords,
@@ -23,7 +28,7 @@ const icsFixture = readFileSync(fixturePath, 'utf8');
 describe('ingestion dedupe helpers', () => {
 	it('generates a stable fingerprint regardless of whitespace and casing', () => {
 		const left = {
-			coil: 'events',
+			coil: 'events' as const,
 			title: 'Knowledge Gathering',
 			description: 'Community event',
 			url: 'https://example.com/event',
@@ -49,14 +54,14 @@ describe('ingestion dedupe helpers', () => {
 			event_type: null,
 			registration_url: null,
 			cost: null
-		} as const;
+		};
 
 		const right = {
 			...left,
 			title: '  knowledge   gathering  ',
 			description: 'COMMUNITY EVENT',
 			tags: ['education', 'community']
-		} as const;
+		};
 
 		expect(contentFingerprint(left)).toBe(contentFingerprint(right));
 	});
@@ -185,7 +190,7 @@ describe('ical generic adapter', () => {
 
 describe('source detail actions', () => {
 	it('returns preview data from testSource without touching import execution', async () => {
-		const preview = {
+		const preview: IngestionPreviewResult = {
 			sourceId: 'source-1',
 			adapterType: 'ical_generic',
 			fetchResult: {
@@ -205,14 +210,15 @@ describe('source detail actions', () => {
 			candidates: [],
 			dedupeCounts: { new: 0, duplicate: 0, update: 0, ambiguous: 0 },
 			durationMs: 12
-		} as const;
+		};
 
 		const previewSource = vi.fn(async () => preview);
 		const ingestSource = vi.fn();
 		const actions = _createSourceDetailActions({
 			updateSource: vi.fn() as never,
 			previewSource,
-			ingestSource: ingestSource as never
+			ingestSource: ingestSource as never,
+			runSourceNow: vi.fn() as never
 		});
 
 		const result = await actions.testSource!({
@@ -231,7 +237,7 @@ describe('source detail actions', () => {
 	});
 
 	it('returns persisted import data from runImport', async () => {
-		const importResult = {
+		const importResult: IngestionResult = {
 			sourceId: 'source-1',
 			adapterType: 'ical_generic',
 			success: true,
@@ -257,13 +263,15 @@ describe('source detail actions', () => {
 			candidatesCreated: 1,
 			duplicatesSkipped: 0,
 			updatesQueued: 0,
-			errors: []
-		} as const;
+			errors: [],
+			autoApprovedCount: 0
+		};
 
 		const actions = _createSourceDetailActions({
 			updateSource: vi.fn() as never,
 			previewSource: vi.fn() as never,
-			ingestSource: vi.fn(async () => importResult) as never
+			ingestSource: vi.fn(async () => importResult) as never,
+			runSourceNow: vi.fn() as never
 		});
 
 		const result = await actions.runImport!({
@@ -348,7 +356,10 @@ describe('approveCandidate publishing', () => {
 		vi.doMock('$lib/server/events', () => ({ createEvent, updateEvent }));
 		vi.doMock('$lib/server/funding', () => ({ createFunding: vi.fn(), updateFunding: vi.fn() }));
 		vi.doMock('$lib/server/jobs', () => ({ createJob: vi.fn(), updateJob: vi.fn() }));
-		vi.doMock('$lib/server/red-pages', () => ({ createBusiness: vi.fn(), updateBusiness: vi.fn() }));
+		vi.doMock('$lib/server/red-pages', () => ({
+			createBusiness: vi.fn(),
+			updateBusiness: vi.fn()
+		}));
 		vi.doMock('$lib/server/toolbox', () => ({ createResource: vi.fn(), updateResource: vi.fn() }));
 
 		const { approveCandidate } = await import('../src/lib/server/import-candidates');
@@ -463,7 +474,10 @@ describe('approveCandidate publishing', () => {
 		vi.doMock('$lib/server/events', () => ({ createEvent, updateEvent }));
 		vi.doMock('$lib/server/funding', () => ({ createFunding: vi.fn(), updateFunding: vi.fn() }));
 		vi.doMock('$lib/server/jobs', () => ({ createJob: vi.fn(), updateJob: vi.fn() }));
-		vi.doMock('$lib/server/red-pages', () => ({ createBusiness: vi.fn(), updateBusiness: vi.fn() }));
+		vi.doMock('$lib/server/red-pages', () => ({
+			createBusiness: vi.fn(),
+			updateBusiness: vi.fn()
+		}));
 		vi.doMock('$lib/server/toolbox', () => ({ createResource: vi.fn(), updateResource: vi.fn() }));
 
 		const { approveCandidate } = await import('../src/lib/server/import-candidates');
@@ -501,15 +515,16 @@ function createFakeDb(initial: {
 	const tx = {
 		select: () => ({
 			from(table: unknown) {
-				const rows = tableName(table) === tableName(importedCandidates)
-					? state.candidates
-					: tableName(table) === tableName(canonicalRecords)
-						? state.canonicalRecords
-						: tableName(table) === tableName(sourceRecordLinks)
-							? state.sourceRecordLinks
-							: tableName(table) === tableName(events)
-								? state.events
-								: [];
+				const rows =
+					tableName(table) === tableName(importedCandidates)
+						? state.candidates
+						: tableName(table) === tableName(canonicalRecords)
+							? state.canonicalRecords
+							: tableName(table) === tableName(sourceRecordLinks)
+								? state.sourceRecordLinks
+								: tableName(table) === tableName(events)
+									? state.events
+									: [];
 				return {
 					where: () => ({
 						limit: async (count: number) => rows.slice(0, count)

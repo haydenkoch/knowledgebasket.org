@@ -66,10 +66,8 @@ export async function getFetchLogSummary(): Promise<{
 		.select({
 			totalAttempts: sql<number>`count(*)::int`,
 			successes: sql<number>`count(*) filter (where ${sourceFetchLog.status} = 'success')::int`,
-			failures:
-				sql<number>`count(*) filter (where ${sourceFetchLog.status} in ('failure', 'timeout'))::int`,
-			changedContent:
-				sql<number>`count(*) filter (where ${sourceFetchLog.contentChanged} = true)::int`
+			failures: sql<number>`count(*) filter (where ${sourceFetchLog.status} in ('failure', 'timeout'))::int`,
+			changedContent: sql<number>`count(*) filter (where ${sourceFetchLog.contentChanged} = true)::int`
 		})
 		.from(sourceFetchLog);
 

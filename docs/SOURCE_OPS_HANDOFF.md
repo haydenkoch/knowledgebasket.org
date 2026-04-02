@@ -2,6 +2,43 @@
 
 This document captures the current source-ops implementation status in the app repo, the external design/source-data workspace it depends on, what has been verified, and what remains to finish the source system end to end in a fresh thread.
 
+## Current Status Snapshot
+
+As of the latest source-ops pass in the app repo:
+
+- The source registry, seeded starter sources, admin list/detail pages, health page, and review queue are all live.
+- The ingestion runtime now exists under `src/lib/server/ingestion/` with:
+  - adapter registry
+  - dedupe engine
+  - scheduler/due-source runner
+  - persisted fetch/import pipeline
+- Implemented adapter families:
+  - `ical_generic`
+  - `rss_generic`
+  - `html_selector`
+  - `api_json`
+  - `grants_gov_api`
+  - `usajobs_api`
+  - `csv_import`
+- `/admin/sources/[id]` supports:
+  - test preview
+  - persisted import
+  - retry-now execution
+  - batch/fetch/operator summaries
+- `POST /api/source-ops/run-due` exists as the authenticated cron-triggered scheduler entrypoint.
+- `/admin/sources/health` now includes due-now counts, manual run controls, latest scheduler summary, adapter stats, and batch quality diagnostics.
+- `/admin/sources/review/[id]` now exists for update/ambiguous candidate decisions with canonical-match resolution and live-record comparison.
+- `approveCandidate()` now publishes real live coil records and supports auto-approved imports without inventing a fake user row.
+
+## Remaining Gaps
+
+The source system is substantially beyond the registry MVP, but a few follow-ups are still worth tracking:
+
+- Some seeded HTML/RSS sources still rely on generic heuristics or source-specific fallbacks rather than fully curated adapter config.
+- Auto-approve currently records system approval via notes/status rather than a dedicated persisted “system reviewer” user.
+- There is still no public-facing attribution/provenance rendering on live content pages.
+- Multi-coil automated ingestion remains intentionally out of scope.
+
 ## External Context
 
 The broader source-ops design and research live outside the app repo at:

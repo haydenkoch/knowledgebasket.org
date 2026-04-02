@@ -12,9 +12,14 @@
 
 	let { data } = $props();
 	let searchValue = $state('');
+	let selectedIds = $state<string[]>([]);
 
 	$effect(() => {
 		searchValue = data.currentSearch ?? '';
+	});
+
+	$effect(() => {
+		selectedIds = [];
 	});
 
 	function applyFilter(key: string, value: string) {
@@ -47,6 +52,16 @@
 			if (typeof name === 'string' && name.trim()) return name;
 		}
 		return candidate.sourceItemId ?? candidate.id;
+	}
+
+	function isBulkEligible(candidate: (typeof data.candidates)[number]) {
+		return candidate.dedupeResult === 'new' && !candidate.matchedCanonicalId;
+	}
+
+	function toggleSelected(id: string, checked: boolean) {
+		selectedIds = checked
+			? Array.from(new Set([...selectedIds, id]))
+			: selectedIds.filter((entry) => entry !== id);
 	}
 </script>
 
@@ -127,6 +142,47 @@
 				</div>
 			</div>
 
+			<div class="grid gap-4 xl:grid-cols-2">
+				<form method="POST" action="?/bulkApprove" class="rounded-md border p-3">
+					<div class="text-sm font-medium">Bulk approve safe new candidates</div>
+					<p class="mt-1 text-xs text-muted-foreground">
+						Only selected `new` candidates without an existing canonical match will be approved.
+					</p>
+					{#each selectedIds as id}
+						<input type="hidden" name="candidateId" value={id} />
+					{/each}
+					<Button type="submit" class="mt-3" disabled={selectedIds.length === 0}>
+						Approve selected ({selectedIds.length})
+					</Button>
+				</form>
+
+				<form method="POST" action="?/bulkReject" class="rounded-md border p-3">
+					<div class="text-sm font-medium">Bulk reject selected</div>
+					<div class="mt-3 grid gap-3 md:grid-cols-[180px_1fr_auto]">
+						<NativeSelect.Root name="rejectionReason">
+							<NativeSelect.Option value="duplicate">Duplicate</NativeSelect.Option>
+							<NativeSelect.Option value="irrelevant">Irrelevant</NativeSelect.Option>
+							<NativeSelect.Option value="expired">Expired</NativeSelect.Option>
+							<NativeSelect.Option value="low_quality">Low quality</NativeSelect.Option>
+							<NativeSelect.Option value="inaccurate">Inaccurate</NativeSelect.Option>
+							<NativeSelect.Option value="incomplete">Incomplete</NativeSelect.Option>
+							<NativeSelect.Option value="out_of_scope">Out of scope</NativeSelect.Option>
+							<NativeSelect.Option value="spam">Spam</NativeSelect.Option>
+							<NativeSelect.Option value="other">Other</NativeSelect.Option>
+						</NativeSelect.Root>
+						<Textarea name="reviewNotes" rows={2} placeholder="Optional rejection notes" />
+						<div>
+							{#each selectedIds as id}
+								<input type="hidden" name="candidateId" value={id} />
+							{/each}
+							<Button type="submit" variant="outline" disabled={selectedIds.length === 0}>
+								Reject selected
+							</Button>
+						</div>
+					</div>
+				</form>
+			</div>
+
 			<div class="space-y-4">
 				{#each data.candidates as candidate}
 					<Card.Root class="border">
@@ -134,19 +190,41 @@
 							<div class="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
 								<div class="space-y-2">
 									<div class="flex flex-wrap items-center gap-2">
+										{#if isBulkEligible(candidate)}
+											<label class="flex items-center gap-2 rounded-md border px-2 py-1 text-xs">
+												<input
+													type="checkbox"
+													checked={selectedIds.includes(candidate.id)}
+													onchange={(event) =>
+														toggleSelected(
+															candidate.id,
+															(event.currentTarget as HTMLInputElement).checked
+														)}
+												/>
+												<span>Select</span>
+											</label>
+										{/if}
 										<h2 class="text-lg font-semibold">{candidateTitle(candidate)}</h2>
-										<span class="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs text-slate-700">
+										<span
+											class="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs text-slate-700"
+										>
 											{candidate.coil}
 										</span>
-										<span class="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs text-slate-700">
+										<span
+											class="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs text-slate-700"
+										>
 											{candidate.priority}
 										</span>
-										<span class="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs text-slate-700">
+										<span
+											class="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs text-slate-700"
+										>
 											{candidate.dedupeResult}
 										</span>
 									</div>
 									<div class="text-sm text-muted-foreground">
-										From <a href={`/admin/sources/${candidate.sourceId}`} class="hover:underline">{candidate.sourceName}</a>
+										From <a href={`/admin/sources/${candidate.sourceId}`} class="hover:underline"
+											>{candidate.sourceName}</a
+										>
 										· Imported {candidate.importedAt.toLocaleString()}
 									</div>
 									{#if candidate.sourceItemUrl}
@@ -160,11 +238,16 @@
 										</a>
 									{/if}
 								</div>
-								<div class="text-sm text-muted-foreground">
+								<div class="space-y-2 text-sm text-muted-foreground">
 									{#if candidate.matchedCanonicalTitle}
-										Matched canonical: {candidate.matchedCanonicalTitle}
+										<div>Matched canonical: {candidate.matchedCanonicalTitle}</div>
 									{:else}
-										No canonical match yet
+										<div>No canonical match yet</div>
+									{/if}
+									{#if candidate.dedupeResult === 'update' || candidate.dedupeResult === 'ambiguous'}
+										<Button href={`/admin/sources/review/${candidate.id}`} variant="outline">
+											Review details
+										</Button>
 									{/if}
 								</div>
 							</div>
@@ -172,11 +255,21 @@
 							<div class="grid gap-4 xl:grid-cols-[1.2fr_1fr]">
 								<div class="space-y-2">
 									<div class="text-sm font-medium">Normalized data</div>
-									<pre class="max-h-64 overflow-auto rounded-md border bg-muted/40 p-3 text-xs">{JSON.stringify(candidate.normalizedData, null, 2)}</pre>
+									<pre
+										class="max-h-64 overflow-auto rounded-md border bg-muted/40 p-3 text-xs">{JSON.stringify(
+											candidate.normalizedData,
+											null,
+											2
+										)}</pre>
 								</div>
 								<div class="space-y-2">
 									<div class="text-sm font-medium">Raw data</div>
-									<pre class="max-h-64 overflow-auto rounded-md border bg-muted/40 p-3 text-xs">{JSON.stringify(candidate.rawData, null, 2)}</pre>
+									<pre
+										class="max-h-64 overflow-auto rounded-md border bg-muted/40 p-3 text-xs">{JSON.stringify(
+											candidate.rawData,
+											null,
+											2
+										)}</pre>
 								</div>
 							</div>
 
@@ -194,7 +287,14 @@
 								>
 									<input type="hidden" name="id" value={candidate.id} />
 									<Textarea name="reviewNotes" rows={2} placeholder="Approval notes" />
-									<Button type="submit" class="w-full">Approve</Button>
+									<Button
+										type="submit"
+										class="w-full"
+										disabled={candidate.dedupeResult === 'update' ||
+											candidate.dedupeResult === 'ambiguous'}
+									>
+										Approve
+									</Button>
 								</form>
 								<form
 									method="POST"

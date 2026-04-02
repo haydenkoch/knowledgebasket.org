@@ -241,7 +241,10 @@ export const importBatchesRelations = relations(importBatches, ({ one, many }) =
 
 export const importedCandidatesRelations = relations(importedCandidates, ({ one }) => ({
 	source: one(sources, { fields: [importedCandidates.sourceId], references: [sources.id] }),
-	batch: one(importBatches, { fields: [importedCandidates.batchId], references: [importBatches.id] }),
+	batch: one(importBatches, {
+		fields: [importedCandidates.batchId],
+		references: [importBatches.id]
+	}),
 	matchedCanonical: one(canonicalRecords, {
 		fields: [importedCandidates.matchedCanonicalId],
 		references: [canonicalRecords.id]

@@ -233,11 +233,7 @@ export async function updateResource(
 	data: Partial<Omit<ToolboxInsert, 'id' | 'createdAt'>>,
 	database: DbExecutor = db
 ): Promise<ToolboxRow | null> {
-	const [row] = await database
-		.update(tbTable)
-		.set(data)
-		.where(eq(tbTable.id, id))
-		.returning();
+	const [row] = await database.update(tbTable).set(data).where(eq(tbTable.id, id)).returning();
 	if (!row) return null;
 	if (row.status === 'published') {
 		await indexDocument('toolbox', itemToSearchDoc(rowToItem(row)));

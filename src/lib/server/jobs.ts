@@ -302,11 +302,7 @@ export async function updateJob(
 	data: Partial<Omit<JobInsert, 'id' | 'createdAt'>>,
 	database: DbExecutor = db
 ): Promise<JobRow | null> {
-	const [row] = await database
-		.update(jobsTable)
-		.set(data)
-		.where(eq(jobsTable.id, id))
-		.returning();
+	const [row] = await database.update(jobsTable).set(data).where(eq(jobsTable.id, id)).returning();
 	if (!row) return null;
 	if (row.status === 'published') {
 		await indexDocument('jobs', itemToSearchDoc(rowToItem(row)));

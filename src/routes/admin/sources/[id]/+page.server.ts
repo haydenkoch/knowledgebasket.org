@@ -4,6 +4,7 @@ import { desc, eq } from 'drizzle-orm';
 import { db } from '$lib/server/db';
 import { importBatches } from '$lib/server/db/schema';
 import { ingestSource, previewSource } from '$lib/server/ingestion/pipeline';
+import { runSourceNow } from '$lib/server/ingestion/scheduler';
 import { getRecentCandidatesForSource } from '$lib/server/import-candidates';
 import { getFetchLogsForSource } from '$lib/server/source-fetch-log';
 import { getSourceById, updateSource } from '$lib/server/sources';
@@ -39,12 +40,38 @@ export const load: PageServerLoad = async ({ params }) => {
 		getRecentCandidatesForSource(params.id, 10)
 	]);
 
+	const lastBatchMeta =
+		batches
+			.map((batch) => ({
+				batchId: batch.id,
+				meta: Array.isArray(batch.errors)
+					? batch.errors.find(
+							(entry) =>
+								entry && typeof entry === 'object' && (entry as { stage?: string }).stage === 'meta'
+						)
+					: null
+			}))
+			.find((entry) => entry.meta)?.meta ?? null;
+
+	const errorPatterns = fetchLogs.reduce<Record<string, number>>((acc, log) => {
+		const key = log.errorCategory ?? log.status;
+		if (!key) return acc;
+		acc[key] = (acc[key] ?? 0) + 1;
+		return acc;
+	}, {});
+
 	return {
 		source: detail.source,
 		tags: detail.tags,
 		fetchLogs,
 		batches,
-		candidates
+		candidates,
+		lastBatchMeta,
+		publishSummary: {
+			approved: candidates.filter((candidate) => candidate.status === 'approved').length,
+			autoApproved: candidates.filter((candidate) => candidate.status === 'auto_approved').length
+		},
+		errorPatterns
 	};
 };
 
@@ -52,10 +79,11 @@ type SourceDetailActionDeps = {
 	updateSource: typeof updateSource;
 	previewSource: typeof previewSource;
 	ingestSource: typeof ingestSource;
+	runSourceNow: typeof runSourceNow;
 };
 
 export function _createSourceDetailActions(
-	deps: SourceDetailActionDeps = { updateSource, previewSource, ingestSource }
+	deps: SourceDetailActionDeps = { updateSource, previewSource, ingestSource, runSourceNow }
 ): Actions {
 	return {
 		updateSource: async ({ params, request }) => {
@@ -72,7 +100,7 @@ export function _createSourceDetailActions(
 					description: parseNullableString(fd.get('description')),
 					sourceUrl,
 					homepageUrl: parseNullableString(fd.get('homepageUrl')),
-					coils: (fd.getAll('coils') as string[]) as Array<
+					coils: fd.getAll('coils') as string[] as Array<
 						'events' | 'funding' | 'jobs' | 'red_pages' | 'toolbox'
 					>,
 					ingestionMethod: ((fd.get('ingestionMethod') as string) || 'manual_only') as
@@ -145,7 +173,7 @@ export function _createSourceDetailActions(
 						maintenance: 'medium',
 						moderation: 'medium'
 					}),
-					dedupeStrategies: (fd.getAll('dedupeStrategies') as string[]) as Array<
+					dedupeStrategies: fd.getAll('dedupeStrategies') as string[] as Array<
 						'url_match' | 'title_fuzzy' | 'composite_key' | 'content_hash' | 'external_id'
 					>,
 					dedupeConfig: parseJsonField(fd.get('dedupeConfig'), {}),
@@ -213,7 +241,10 @@ export function _createSourceDetailActions(
 		},
 		runImport: async ({ params }) => {
 			try {
-				const result = await deps.ingestSource(params.id);
+				const result = await deps.ingestSource(params.id, {
+					trigger: 'manual_import',
+					enableAutoApprove: true
+				});
 				return {
 					success: true,
 					previewMode: 'import',
@@ -222,6 +253,21 @@ export function _createSourceDetailActions(
 			} catch (err) {
 				return fail(400, {
 					error: err instanceof Error ? err.message : 'Failed to import source'
+				});
+			}
+		},
+		retrySource: async ({ params, locals }) => {
+			try {
+				const runResult = await deps.runSourceNow(params.id, 'admin_retry', {
+					triggeredBy: locals.user?.id ?? null
+				});
+				return {
+					success: true,
+					runResult
+				};
+			} catch (err) {
+				return fail(400, {
+					error: err instanceof Error ? err.message : 'Failed to retry source'
 				});
 			}
 		}

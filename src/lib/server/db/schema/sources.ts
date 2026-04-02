@@ -112,7 +112,12 @@ export const candidateStatusEnum = pgEnum('candidate_status', [
 
 export const candidatePriorityEnum = pgEnum('candidate_priority', ['low', 'normal', 'high']);
 
-export const dedupeResultEnum = pgEnum('dedupe_result', ['new', 'duplicate', 'update', 'ambiguous']);
+export const dedupeResultEnum = pgEnum('dedupe_result', [
+	'new',
+	'duplicate',
+	'update',
+	'ambiguous'
+]);
 
 export const rejectionReasonEnum = pgEnum('rejection_reason', [
 	'duplicate',
@@ -126,9 +131,20 @@ export const rejectionReasonEnum = pgEnum('rejection_reason', [
 	'other'
 ]);
 
-export const batchStatusEnum = pgEnum('batch_status', ['running', 'completed', 'failed', 'cancelled']);
+export const batchStatusEnum = pgEnum('batch_status', [
+	'running',
+	'completed',
+	'failed',
+	'cancelled'
+]);
 
-export const coilTypeEnum = pgEnum('coil_type', ['events', 'funding', 'jobs', 'red_pages', 'toolbox']);
+export const coilTypeEnum = pgEnum('coil_type', [
+	'events',
+	'funding',
+	'jobs',
+	'red_pages',
+	'toolbox'
+]);
 
 export const mergeTypeEnum = pgEnum('merge_type', ['auto_merge', 'manual_merge', 'field_update']);
 
@@ -168,16 +184,14 @@ export const sources = pgTable(
 		reviewRequired: boolean('review_required').notNull().default(true),
 		autoApprove: boolean('auto_approve').notNull().default(false),
 		confidenceScore: integer('confidence_score'),
-		riskProfile: jsonb('risk_profile')
-			.notNull()
-			.default({
-				freshness: 'medium',
-				duplication: 'medium',
-				legal: 'low',
-				normalization: 'medium',
-				maintenance: 'medium',
-				moderation: 'medium'
-			}),
+		riskProfile: jsonb('risk_profile').notNull().default({
+			freshness: 'medium',
+			duplication: 'medium',
+			legal: 'low',
+			normalization: 'medium',
+			maintenance: 'medium',
+			moderation: 'medium'
+		}),
 		dedupeStrategies: dedupeStrategyEnum('dedupe_strategies')
 			.array()
 			.notNull()
@@ -214,9 +228,7 @@ export const sources = pgTable(
 			.where(sql`${t.status} not in ('deprecated', 'disabled')`),
 		uniqueIndex('sources_fetch_url_active_unique')
 			.on(t.fetchUrl)
-			.where(
-				sql`${t.fetchUrl} is not null and ${t.status} not in ('deprecated', 'disabled')`
-			)
+			.where(sql`${t.fetchUrl} is not null and ${t.status} not in ('deprecated', 'disabled')`)
 	]
 );
 
@@ -293,7 +305,9 @@ export const canonicalRecords = pgTable(
 		canonicalUrl: text('canonical_url'),
 		externalIds: jsonb('external_ids').notNull().default({}),
 		sourceCount: integer('source_count').notNull().default(1),
-		primarySourceId: uuid('primary_source_id').references(() => sources.id, { onDelete: 'set null' }),
+		primarySourceId: uuid('primary_source_id').references(() => sources.id, {
+			onDelete: 'set null'
+		}),
 		createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 		updatedAt: timestamp('updated_at', { withTimezone: true })
 			.defaultNow()
@@ -347,9 +361,7 @@ export const importedCandidates = pgTable(
 	(t) => [
 		uniqueIndex('imported_candidates_source_item_active_unique')
 			.on(t.sourceId, t.sourceItemId)
-			.where(
-				sql`${t.sourceItemId} is not null and ${t.status} not in ('rejected', 'archived')`
-			),
+			.where(sql`${t.sourceItemId} is not null and ${t.status} not in ('rejected', 'archived')`),
 		uniqueIndex('imported_candidates_fingerprint_active_unique')
 			.on(t.coil, t.contentFingerprint)
 			.where(
@@ -406,7 +418,9 @@ export const mergeHistory = pgTable(
 		canonicalRecordId: uuid('canonical_record_id')
 			.notNull()
 			.references(() => canonicalRecords.id, { onDelete: 'cascade' }),
-		candidateId: uuid('candidate_id').references(() => importedCandidates.id, { onDelete: 'set null' }),
+		candidateId: uuid('candidate_id').references(() => importedCandidates.id, {
+			onDelete: 'set null'
+		}),
 		sourceId: uuid('source_id')
 			.notNull()
 			.references(() => sources.id, { onDelete: 'cascade' }),

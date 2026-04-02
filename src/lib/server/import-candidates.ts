@@ -75,10 +75,7 @@ export async function getImportCandidatesForReview(opts?: {
 
 	if (opts?.dedupeResult && opts.dedupeResult !== 'all') {
 		conditions.push(
-			eq(
-				importedCandidates.dedupeResult,
-				opts.dedupeResult as ImportedCandidateRow['dedupeResult']
-			)
+			eq(importedCandidates.dedupeResult, opts.dedupeResult as ImportedCandidateRow['dedupeResult'])
 		);
 	}
 
@@ -163,8 +160,8 @@ export async function getCandidateById(id: string): Promise<ImportCandidateListI
 
 export async function approveCandidate(
 	id: string,
-	reviewerId: string,
-	opts?: { reviewNotes?: string }
+	reviewerId: string | null,
+	opts?: { reviewNotes?: string; allowAmbiguous?: boolean }
 ): Promise<ImportedCandidateRow | null> {
 	return db.transaction(async (tx) => {
 		const [candidate] = await tx
@@ -174,9 +171,15 @@ export async function approveCandidate(
 			.limit(1);
 
 		if (!candidate) return null;
+		if (candidate.dedupeResult === 'ambiguous' && !opts?.allowAmbiguous) {
+			throw new Error('Ambiguous candidates must be resolved before approval.');
+		}
 
 		let canonical = await findCanonicalRecord(tx, candidate);
 		const canonicalExisted = Boolean(canonical);
+		if (candidate.dedupeResult === 'update' && !canonical) {
+			throw new Error('Update candidates require a matched canonical record.');
+		}
 		const published = await publishCandidateRecord(tx, candidate, reviewerId, canonical);
 		const normalized = asRecord(candidate.normalizedData);
 		const compositeKey = readCompositeKey(candidate, normalized);
@@ -269,10 +272,11 @@ export async function approveCandidate(
 		const [updatedCandidate] = await tx
 			.update(importedCandidates)
 			.set({
-				status: 'approved',
+				status: reviewerId ? 'approved' : 'auto_approved',
 				reviewedAt: new Date(),
 				reviewedBy: reviewerId,
-				reviewNotes: opts?.reviewNotes ?? candidate.reviewNotes,
+				reviewNotes:
+					opts?.reviewNotes ?? (reviewerId ? candidate.reviewNotes : 'Auto-approved by source-ops'),
 				matchedCanonicalId: canonical.id
 			})
 			.where(eq(importedCandidates.id, id))
@@ -287,11 +291,89 @@ export async function approveCandidate(
 			previousData: published.previousData,
 			newData: normalized,
 			mergedBy: reviewerId,
-			notes: opts?.reviewNotes ?? null
+			notes: opts?.reviewNotes ?? (reviewerId ? null : 'Auto-approved by source-ops')
 		});
 
 		return updatedCandidate ?? null;
 	});
+}
+
+export async function getCandidateReviewDetail(id: string) {
+	const candidate = await getCandidateById(id);
+	if (!candidate) return null;
+
+	const canonical = candidate.matchedCanonicalId
+		? ((
+				await db
+					.select()
+					.from(canonicalRecords)
+					.where(eq(canonicalRecords.id, candidate.matchedCanonicalId))
+					.limit(1)
+			)[0] ?? null)
+		: null;
+	const publishedRecord = canonical?.publishedRecordId
+		? await getPublishedRecordById(db, candidate.coil, canonical.publishedRecordId)
+		: null;
+
+	const suggestedMatches = await getSuggestedCanonicalMatches(candidate);
+
+	return {
+		candidate,
+		canonical,
+		publishedRecord,
+		comparablePublishedRecord: publishedRecord
+			? mapPublishedRecordToComparable(candidate.coil, publishedRecord)
+			: null,
+		suggestedMatches
+	};
+}
+
+export async function resolveCandidateMatch(
+	id: string,
+	options: {
+		dedupeResult: ImportedCandidateRow['dedupeResult'];
+		matchedCanonicalId?: string | null;
+		reviewNotes?: string;
+	}
+): Promise<ImportedCandidateRow | null> {
+	const [row] = await db
+		.update(importedCandidates)
+		.set({
+			dedupeResult: options.dedupeResult,
+			matchedCanonicalId: options.matchedCanonicalId ?? null,
+			reviewNotes: options.reviewNotes ?? null
+		})
+		.where(eq(importedCandidates.id, id))
+		.returning();
+	return row ?? null;
+}
+
+export async function bulkApproveCandidates(ids: string[], reviewerId: string): Promise<number> {
+	let count = 0;
+	for (const id of ids) {
+		const candidate = await getCandidateById(id);
+		if (!candidate) continue;
+		if (candidate.dedupeResult !== 'new' || candidate.matchedCanonicalId) continue;
+		const approved = await approveCandidate(id, reviewerId);
+		if (approved) count += 1;
+	}
+	return count;
+}
+
+export async function bulkRejectCandidates(
+	ids: string[],
+	reviewerId: string,
+	opts?: {
+		rejectionReason?: ImportedCandidateRow['rejectionReason'];
+		reviewNotes?: string;
+	}
+): Promise<number> {
+	let count = 0;
+	for (const id of ids) {
+		const rejected = await rejectCandidate(id, reviewerId, opts);
+		if (rejected) count += 1;
+	}
+	return count;
 }
 
 async function findCanonicalRecord(
@@ -327,12 +409,14 @@ async function findCanonicalRecord(
 async function publishCandidateRecord(
 	tx: DatabaseExecutor,
 	candidate: ImportedCandidateRow,
-	reviewerId: string,
+	reviewerId: string | null,
 	canonical: CanonicalRecordRow | null
 ): Promise<{ id: string; previousData: unknown | null }> {
 	const normalized = asRecord(candidate.normalizedData);
 	const publishedRecordId = canonical?.publishedRecordId ?? null;
-	const previousData = publishedRecordId ? await getPublishedRecordById(tx, candidate.coil, publishedRecordId) : null;
+	const previousData = publishedRecordId
+		? await getPublishedRecordById(tx, candidate.coil, publishedRecordId)
+		: null;
 
 	switch (candidate.coil) {
 		case 'events': {
@@ -404,11 +488,19 @@ async function getPublishedRecordById(
 			return row ?? null;
 		}
 		case 'red_pages': {
-			const [row] = await tx.select().from(redPagesBusinesses).where(eq(redPagesBusinesses.id, id)).limit(1);
+			const [row] = await tx
+				.select()
+				.from(redPagesBusinesses)
+				.where(eq(redPagesBusinesses.id, id))
+				.limit(1);
 			return row ?? null;
 		}
 		case 'toolbox': {
-			const [row] = await tx.select().from(toolboxResources).where(eq(toolboxResources.id, id)).limit(1);
+			const [row] = await tx
+				.select()
+				.from(toolboxResources)
+				.where(eq(toolboxResources.id, id))
+				.limit(1);
 			return row ?? null;
 		}
 		default:
@@ -416,14 +508,15 @@ async function getPublishedRecordById(
 	}
 }
 
-function mapEventCandidate(normalized: Record<string, unknown>, reviewerId: string) {
+function mapEventCandidate(normalized: Record<string, unknown>, reviewerId: string | null) {
 	const publishedAt = new Date();
 	return {
 		title: readString(normalized, 'title') ?? 'Untitled event',
 		description: readString(normalized, 'description') ?? undefined,
 		location: buildEventLocation(normalized),
 		address: readString(normalized, 'location_address') ?? undefined,
-		region: readString(normalized, 'region') ?? readString(normalized, 'location_state') ?? undefined,
+		region:
+			readString(normalized, 'region') ?? readString(normalized, 'location_state') ?? undefined,
 		eventUrl: readString(normalized, 'url') ?? undefined,
 		startDate: readDate(normalized, 'start_date') ?? undefined,
 		endDate: readDate(normalized, 'end_date') ?? undefined,
@@ -440,12 +533,12 @@ function mapEventCandidate(normalized: Record<string, unknown>, reviewerId: stri
 		imageUrl: readString(normalized, 'image_url') ?? undefined,
 		status: 'published',
 		source: 'source-import',
-		reviewedById: reviewerId,
+		reviewedById: reviewerId ?? undefined,
 		publishedAt
 	};
 }
 
-function mapFundingCandidate(normalized: Record<string, unknown>, reviewerId: string) {
+function mapFundingCandidate(normalized: Record<string, unknown>, reviewerId: string | null) {
 	return {
 		title: readString(normalized, 'title') ?? 'Untitled funding',
 		description: readString(normalized, 'description') ?? null,
@@ -465,11 +558,11 @@ function mapFundingCandidate(normalized: Record<string, unknown>, reviewerId: st
 		status: 'published',
 		source: 'source-import',
 		publishedAt: new Date(),
-		reviewedById: reviewerId
+		reviewedById: reviewerId ?? undefined
 	};
 }
 
-function mapJobCandidate(normalized: Record<string, unknown>, reviewerId: string) {
+function mapJobCandidate(normalized: Record<string, unknown>, reviewerId: string | null) {
 	return {
 		title: readString(normalized, 'title') ?? 'Untitled job',
 		description: readString(normalized, 'description') ?? null,
@@ -497,11 +590,11 @@ function mapJobCandidate(normalized: Record<string, unknown>, reviewerId: string
 		status: 'published',
 		source: 'source-import',
 		publishedAt: new Date(),
-		reviewedById: reviewerId
+		reviewedById: reviewerId ?? undefined
 	};
 }
 
-function mapRedPagesCandidate(normalized: Record<string, unknown>, reviewerId: string) {
+function mapRedPagesCandidate(normalized: Record<string, unknown>, reviewerId: string | null) {
 	return {
 		name: readString(normalized, 'title') ?? 'Untitled listing',
 		description: readString(normalized, 'description') ?? null,
@@ -522,15 +615,16 @@ function mapRedPagesCandidate(normalized: Record<string, unknown>, reviewerId: s
 		status: 'published',
 		source: 'source-import',
 		publishedAt: new Date(),
-		reviewedById: reviewerId
+		reviewedById: reviewerId ?? undefined
 	};
 }
 
-function mapToolboxCandidate(normalized: Record<string, unknown>, reviewerId: string) {
+function mapToolboxCandidate(normalized: Record<string, unknown>, reviewerId: string | null) {
 	return {
 		title: readString(normalized, 'title') ?? 'Untitled resource',
 		description: readString(normalized, 'description') ?? null,
-		sourceName: readString(normalized, 'publisher') ?? readString(normalized, 'organization_name') ?? null,
+		sourceName:
+			readString(normalized, 'publisher') ?? readString(normalized, 'organization_name') ?? null,
 		resourceType: readString(normalized, 'resource_type') ?? 'other',
 		mediaType: readString(normalized, 'format') ?? null,
 		categories: readStringArray(normalized, 'topics') ?? null,
@@ -543,7 +637,7 @@ function mapToolboxCandidate(normalized: Record<string, unknown>, reviewerId: st
 		status: 'published',
 		source: 'source-import',
 		publishedAt: new Date(),
-		reviewedById: reviewerId
+		reviewedById: reviewerId ?? undefined
 	};
 }
 
@@ -554,7 +648,11 @@ function buildExternalIds(candidate: ImportedCandidateRow): Record<string, strin
 }
 
 function readCanonicalTitle(candidate: ImportedCandidateRow, normalized: Record<string, unknown>) {
-	return readString(normalized, 'title') ?? candidate.sourceItemId ?? `Candidate ${candidate.id.slice(0, 8)}`;
+	return (
+		readString(normalized, 'title') ??
+		candidate.sourceItemId ??
+		`Candidate ${candidate.id.slice(0, 8)}`
+	);
 }
 
 function readCanonicalUrl(candidate: ImportedCandidateRow, normalized: Record<string, unknown>) {
@@ -586,7 +684,9 @@ function readString(data: Record<string, unknown>, key: string): string | null {
 function readStringArray(data: Record<string, unknown>, key: string): string[] | undefined {
 	const value = data[key];
 	if (Array.isArray(value)) {
-		const items = value.filter((entry): entry is string => typeof entry === 'string' && entry.trim().length > 0);
+		const items = value.filter(
+			(entry): entry is string => typeof entry === 'string' && entry.trim().length > 0
+		);
 		return items.length > 0 ? items : undefined;
 	}
 	return undefined;
@@ -619,8 +719,113 @@ function buildEventLocation(normalized: Record<string, unknown>): string | undef
 }
 
 function buildJobLocation(normalized: Record<string, unknown>): string | null {
-	const parts = [readString(normalized, 'location_city'), readString(normalized, 'location_state')].filter(Boolean);
+	const parts = [
+		readString(normalized, 'location_city'),
+		readString(normalized, 'location_state')
+	].filter(Boolean);
 	return parts.length > 0 ? parts.join(', ') : null;
+}
+
+async function getSuggestedCanonicalMatches(candidate: ImportCandidateListItem) {
+	const normalized = asRecord(candidate.normalizedData);
+	const title = readString(normalized, 'title');
+	if (!title) return [];
+
+	return db
+		.select({
+			id: canonicalRecords.id,
+			canonicalTitle: canonicalRecords.canonicalTitle,
+			publishedRecordId: canonicalRecords.publishedRecordId
+		})
+		.from(canonicalRecords)
+		.where(
+			and(
+				eq(canonicalRecords.coil, candidate.coil),
+				ilike(canonicalRecords.canonicalTitle, `%${title}%`)
+			)
+		)
+		.limit(10);
+}
+
+function mapPublishedRecordToComparable(
+	coil: ImportedCandidateRow['coil'],
+	publishedRecord: unknown
+) {
+	const record = asRecord(publishedRecord);
+	switch (coil) {
+		case 'events':
+			return {
+				title: readString(record, 'title'),
+				description: readString(record, 'description'),
+				url: readString(record, 'eventUrl'),
+				start_date: toIso(record.startDate),
+				end_date: toIso(record.endDate),
+				location_name: readString(record, 'location'),
+				location_address: readString(record, 'address'),
+				event_type: readString(record, 'type'),
+				registration_url: readString(record, 'registrationUrl'),
+				tags: readStringArray(record, 'tags')
+			};
+		case 'funding':
+			return {
+				title: readString(record, 'title'),
+				description: readString(record, 'description'),
+				url: readString(record, 'applyUrl'),
+				deadline: toIso(record.deadline),
+				funder_name: readString(record, 'funderName'),
+				amount_min: readNumber(record, 'amountMin'),
+				amount_max: readNumber(record, 'amountMax'),
+				status: readString(record, 'applicationStatus'),
+				tags: readStringArray(record, 'tags')
+			};
+		case 'jobs':
+			return {
+				title: readString(record, 'title'),
+				description: readString(record, 'description'),
+				url: readString(record, 'applyUrl'),
+				organization_name: readString(record, 'employerName'),
+				job_type: readString(record, 'jobType'),
+				closing_date: toIso(record.applicationDeadline),
+				location_city: readString(record, 'city'),
+				location_state: readString(record, 'state'),
+				tags: readStringArray(record, 'tags')
+			};
+		case 'red_pages':
+			return {
+				title: readString(record, 'name'),
+				description: readString(record, 'description'),
+				url: readString(record, 'website'),
+				organization_name: readString(record, 'ownerName'),
+				address: readString(record, 'address'),
+				city: readString(record, 'city'),
+				state: readString(record, 'state'),
+				email: readString(record, 'email'),
+				phone: readString(record, 'phone'),
+				tags: readStringArray(record, 'tags')
+			};
+		case 'toolbox':
+			return {
+				title: readString(record, 'title'),
+				description: readString(record, 'description'),
+				url: readString(record, 'externalUrl'),
+				publisher: readString(record, 'sourceName'),
+				resource_type: readString(record, 'resourceType'),
+				publication_date: toIso(record.publishDate),
+				topics: readStringArray(record, 'categories'),
+				tags: readStringArray(record, 'tags')
+			};
+		default:
+			return record;
+	}
+}
+
+function toIso(value: unknown) {
+	if (value instanceof Date) return value.toISOString();
+	if (typeof value === 'string' && value.trim()) {
+		const parsed = new Date(value);
+		return Number.isNaN(parsed.getTime()) ? value : parsed.toISOString();
+	}
+	return null;
 }
 
 export async function rejectCandidate(

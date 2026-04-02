@@ -227,9 +227,15 @@
 								<Label for="sourceCategory">Category</Label>
 								<NativeSelect.Root id="sourceCategory" name="sourceCategory">
 									<NativeSelect.Option value="">Unspecified</NativeSelect.Option>
-									<NativeSelect.Option value="government_federal">Government (Federal)</NativeSelect.Option>
-									<NativeSelect.Option value="government_state">Government (State)</NativeSelect.Option>
-									<NativeSelect.Option value="government_tribal">Government (Tribal)</NativeSelect.Option>
+									<NativeSelect.Option value="government_federal"
+										>Government (Federal)</NativeSelect.Option
+									>
+									<NativeSelect.Option value="government_state"
+										>Government (State)</NativeSelect.Option
+									>
+									<NativeSelect.Option value="government_tribal"
+										>Government (Tribal)</NativeSelect.Option
+									>
 									<NativeSelect.Option value="nonprofit">Nonprofit</NativeSelect.Option>
 									<NativeSelect.Option value="foundation">Foundation</NativeSelect.Option>
 									<NativeSelect.Option value="aggregator">Aggregator</NativeSelect.Option>
@@ -238,7 +244,9 @@
 									<NativeSelect.Option value="professional_association">
 										Professional association
 									</NativeSelect.Option>
-									<NativeSelect.Option value="private_business">Private business</NativeSelect.Option>
+									<NativeSelect.Option value="private_business"
+										>Private business</NativeSelect.Option
+									>
 									<NativeSelect.Option value="community">Community</NativeSelect.Option>
 								</NativeSelect.Root>
 							</div>
@@ -275,7 +283,9 @@
 		<Empty.Root>
 			<Empty.Header>
 				<Empty.Title>No sources yet</Empty.Title>
-				<Empty.Description>Create your first source to start building the registry.</Empty.Description>
+				<Empty.Description
+					>Create your first source to start building the registry.</Empty.Description
+				>
 			</Empty.Header>
 			<Empty.Content>
 				<Button type="button" onclick={() => (createOpen = true)}>
@@ -305,8 +315,7 @@
 					<div class="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
 						<NativeSelect.Root
 							value={data.currentStatus}
-							onchange={(event) =>
-								applyFilter('status', (event.target as HTMLSelectElement).value)}
+							onchange={(event) => applyFilter('status', (event.target as HTMLSelectElement).value)}
 						>
 							{#each statusOptions as option}
 								<NativeSelect.Option value={option}>
@@ -369,17 +378,23 @@
 											<div class="text-xs text-muted-foreground">{source.slug}</div>
 										</Table.Cell>
 										<Table.Cell>
-											<span class={`inline-flex rounded-full border px-2 py-0.5 text-xs ${badgeClass('status', source.status)}`}>
+											<span
+												class={`inline-flex rounded-full border px-2 py-0.5 text-xs ${badgeClass('status', source.status)}`}
+											>
 												{source.status.replace(/_/g, ' ')}
 											</span>
 										</Table.Cell>
 										<Table.Cell>
-											<span class={`inline-flex rounded-full border px-2 py-0.5 text-xs ${badgeClass('health', source.healthStatus)}`}>
+											<span
+												class={`inline-flex rounded-full border px-2 py-0.5 text-xs ${badgeClass('health', source.healthStatus)}`}
+											>
 												{source.healthStatus.replace(/_/g, ' ')}
 											</span>
 										</Table.Cell>
 										<Table.Cell>
-											<span class={`inline-flex rounded-full border px-2 py-0.5 text-xs ${badgeClass('enabled', source.enabled)}`}>
+											<span
+												class={`inline-flex rounded-full border px-2 py-0.5 text-xs ${badgeClass('enabled', source.enabled)}`}
+											>
 												{source.enabled ? 'Enabled' : 'Disabled'}
 											</span>
 										</Table.Cell>
@@ -387,7 +402,9 @@
 											<div class="flex flex-wrap gap-1">
 												{#if source.coils.length > 0}
 													{#each source.coils as coil}
-														<span class="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs text-slate-700">
+														<span
+															class="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs text-slate-700"
+														>
 															{coil.replace(/_/g, ' ')}
 														</span>
 													{/each}

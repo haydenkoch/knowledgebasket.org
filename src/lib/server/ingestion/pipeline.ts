@@ -2,12 +2,19 @@ import { and, eq, inArray, or, sql } from 'drizzle-orm';
 import { db } from '$lib/server/db';
 import { importBatches, importedCandidates, sourceFetchLog, sources } from '$lib/server/db/schema';
 import { getSourceById } from '$lib/server/sources';
-import { compositeKey, contentFingerprint, createDedupeLookup, runDedupeStrategies } from './dedupe';
+import { approveCandidate } from '$lib/server/import-candidates';
+import {
+	compositeKey,
+	contentFingerprint,
+	createDedupeLookup,
+	runDedupeStrategies
+} from './dedupe';
 import { adapterRegistry } from './registry';
 import { computeCandidatePriority, computeHealthStatus, computeNextCheckAt } from './status';
 import type {
 	AdapterConfig,
 	DedupeResult,
+	IngestionExecutionOptions,
 	IngestionPreviewResult,
 	IngestionResult,
 	NormalizedRecord,
@@ -34,7 +41,7 @@ export async function previewSource(sourceId: string): Promise<IngestionPreviewR
 		};
 	}
 
-	const config = source.adapterConfig as AdapterConfig;
+	const config = buildAdapterConfig(source);
 	const parseResult = await adapter.parse(fetchResult.rawContent, config);
 	const normalizeResult = parseResult.success
 		? await adapter.normalize(parseResult.items, source.coils[0], config)
@@ -57,7 +64,10 @@ export async function previewSource(sourceId: string): Promise<IngestionPreviewR
 	};
 }
 
-export async function ingestSource(sourceId: string): Promise<IngestionResult> {
+export async function ingestSource(
+	sourceId: string,
+	options: IngestionExecutionOptions = {}
+): Promise<IngestionResult> {
 	const source = await loadSourceRecord(sourceId);
 	const preview = await previewSource(sourceId);
 	const now = new Date();
@@ -68,6 +78,10 @@ export async function ingestSource(sourceId: string): Promise<IngestionResult> {
 
 	let fetchLogId: string | null = null;
 	let batchId: string | null = null;
+	let autoApprovedCount = 0;
+	const trigger = options.trigger ?? 'manual_import';
+	const triggerRunId = options.triggerRunId ?? null;
+	const triggeredBy = options.triggeredBy ?? null;
 
 	if (!preview.fetchResult.success) {
 		const [fetchLog] = await db
@@ -104,6 +118,7 @@ export async function ingestSource(sourceId: string): Promise<IngestionResult> {
 			candidatesCreated: 0,
 			duplicatesSkipped: 0,
 			updatesQueued: 0,
+			autoApprovedCount,
 			errors
 		};
 	}
@@ -114,7 +129,9 @@ export async function ingestSource(sourceId: string): Promise<IngestionResult> {
 		.values({
 			sourceId: source.id,
 			status:
-				preview.parseResult?.errors.length || preview.normalizeResult?.errors.length ? 'partial' : 'success',
+				preview.parseResult?.errors.length || preview.normalizeResult?.errors.length
+					? 'partial'
+					: 'success',
 			httpStatusCode: preview.fetchResult.httpStatusCode,
 			responseTimeMs: preview.fetchResult.responseTimeMs,
 			contentHash: preview.fetchResult.contentHash,
@@ -140,8 +157,14 @@ export async function ingestSource(sourceId: string): Promise<IngestionResult> {
 			itemsNew: dedupeCounts.new,
 			itemsDuplicate: dedupeCounts.duplicate,
 			itemsUpdated: dedupeCounts.update,
-			itemsFailed: (preview.parseResult?.errors.length ?? 0) + (preview.normalizeResult?.errors.length ?? 0),
-			errors: buildBatchErrors(preview)
+			itemsFailed:
+				(preview.parseResult?.errors.length ?? 0) + (preview.normalizeResult?.errors.length ?? 0),
+			errors: buildBatchErrors(preview, {
+				trigger,
+				triggerRunId,
+				triggeredBy,
+				sourceSlug: source.slug
+			})
 		})
 		.returning({ id: importBatches.id });
 	batchId = batch?.id ?? null;
@@ -151,9 +174,16 @@ export async function ingestSource(sourceId: string): Promise<IngestionResult> {
 	if (batchId) {
 		for (const candidate of preview.candidates) {
 			if (candidate.dedupe.result === 'duplicate') continue;
-			await upsertImportedCandidate(source, batchId, candidate);
+			const candidateId = await upsertImportedCandidate(source, batchId, candidate);
 			candidatesCreated += 1;
 			if (candidate.dedupe.result === 'update') updatesQueued += 1;
+			if (candidateId && shouldAutoApproveCandidate(source, candidate, options)) {
+				await approveCandidate(candidateId, null, {
+					reviewNotes: 'Auto-approved by source-ops scheduler',
+					allowAmbiguous: false
+				});
+				autoApprovedCount += 1;
+			}
 		}
 	}
 
@@ -182,13 +212,18 @@ export async function ingestSource(sourceId: string): Promise<IngestionResult> {
 		candidatesCreated,
 		duplicatesSkipped: dedupeCounts.duplicate,
 		updatesQueued,
+		autoApprovedCount,
 		errors
 	};
 }
 
 async function buildPreviewCandidates(
 	source: SourceRecord,
-	parsedItems: Array<{ fields: Record<string, unknown>; sourceItemId: string | null; sourceItemUrl: string | null }>,
+	parsedItems: Array<{
+		fields: Record<string, unknown>;
+		sourceItemId: string | null;
+		sourceItemUrl: string | null;
+	}>,
 	normalizedRecords: NormalizedRecord[]
 ): Promise<PreviewCandidate[]> {
 	const dedupeLookup = createDedupeLookup();
@@ -234,7 +269,7 @@ async function upsertImportedCandidate(
 	source: SourceRecord,
 	batchId: string,
 	candidate: PreviewCandidate
-): Promise<void> {
+): Promise<string> {
 	const existing = await findActiveCandidate(source.id, candidate);
 
 	const values = {
@@ -260,14 +295,18 @@ async function upsertImportedCandidate(
 	};
 
 	if (existing) {
-		await db
+		const [updated] = await db
 			.update(importedCandidates)
 			.set(values)
-			.where(eq(importedCandidates.id, existing.id));
-		return;
+			.where(eq(importedCandidates.id, existing.id))
+			.returning({ id: importedCandidates.id });
+		return updated?.id ?? existing.id;
 	}
 
-	await db.insert(importedCandidates).values(values);
+	const [created] = await db.insert(importedCandidates).values(values).returning({
+		id: importedCandidates.id
+	});
+	return created?.id ?? '';
 }
 
 async function findActiveCandidate(sourceId: string, candidate: PreviewCandidate) {
@@ -314,19 +353,30 @@ async function loadSourceRecord(sourceId: string): Promise<SourceRecord> {
 function getAdapterForSource(source: SourceRecord) {
 	const adapter = adapterRegistry.get(source.adapterType);
 	if (!adapter) {
-		throw new Error(`No ingestion adapter is registered for ${source.adapterType ?? 'unknown source'}`);
+		throw new Error(
+			`No ingestion adapter is registered for ${source.adapterType ?? 'unknown source'}`
+		);
 	}
 	if (source.coils.length === 0) throw new Error('Source must have at least one configured coil');
 	if (!adapter.supportedCoils.includes(source.coils[0])) {
 		throw new Error(`Adapter ${adapter.adapterType} does not support ${source.coils[0]}`);
 	}
 
-	const validation = adapter.validateConfig(source.adapterConfig as AdapterConfig, source);
+	const validation = adapter.validateConfig(buildAdapterConfig(source), source);
 	if (!validation.valid) {
 		throw new Error(validation.errors.join(' '));
 	}
 
 	return adapter;
+}
+
+function buildAdapterConfig(source: SourceRecord): AdapterConfig {
+	return {
+		...(source.adapterConfig as AdapterConfig),
+		__sourceSlug: source.slug,
+		__sourceUrl: source.sourceUrl,
+		__fetchUrl: source.fetchUrl
+	};
 }
 
 function countDedupeResults(candidates: PreviewCandidate[]): Record<DedupeResult, number> {
@@ -403,8 +453,24 @@ function collectPreviewErrors(preview: IngestionPreviewResult): string[] {
 	return errors;
 }
 
-function buildBatchErrors(preview: IngestionPreviewResult) {
+function buildBatchErrors(
+	preview: IngestionPreviewResult,
+	meta: {
+		trigger: string;
+		triggerRunId: string | null;
+		triggeredBy: string | null;
+		sourceSlug: string;
+	}
+) {
 	return [
+		{
+			stage: 'meta',
+			trigger: meta.trigger,
+			trigger_run_id: meta.triggerRunId,
+			triggered_by: meta.triggeredBy,
+			source_slug: meta.sourceSlug,
+			recorded_at: new Date().toISOString()
+		},
 		...(preview.parseResult?.errors ?? []).map((error) => ({
 			stage: 'parse',
 			item_index: error.itemIndex,
@@ -416,4 +482,18 @@ function buildBatchErrors(preview: IngestionPreviewResult) {
 			error: error.message
 		}))
 	];
+}
+
+function shouldAutoApproveCandidate(
+	source: SourceRecord,
+	candidate: PreviewCandidate,
+	options: IngestionExecutionOptions
+) {
+	return Boolean(
+		options.enableAutoApprove &&
+		source.autoApprove &&
+		!source.reviewRequired &&
+		(source.confidenceScore ?? 0) >= 4 &&
+		candidate.dedupe.result === 'new'
+	);
 }

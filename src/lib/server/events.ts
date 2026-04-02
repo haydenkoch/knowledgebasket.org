@@ -455,54 +455,57 @@ export async function getEventStatusCounts(): Promise<Record<string, number>> {
 
 // ── Create / Update ────────────────────────────────────────
 
-export async function createEvent(data: {
-	title: string;
-	description?: string;
-	location?: string;
-	address?: string;
-	region?: string;
-	audience?: string;
-	cost?: string;
-	eventUrl?: string;
-	startDate?: string | Date;
-	endDate?: string | Date;
-	hostOrg?: string;
-	lat?: number;
-	lng?: number;
-	type?: string;
-	types?: string[];
-	imageUrl?: string;
-	imageUrls?: string[];
-	organizationId?: string;
-	venueId?: string;
-	parentEventId?: string;
-	pricingTiers?: PricingTier[];
-	priceMin?: number;
-	priceMax?: number;
-	registrationUrl?: string;
-	registrationDeadline?: string | Date;
-	eventFormat?: string;
-	timezone?: string;
-	doorsOpenAt?: string | Date;
-	capacity?: number;
-	soldOut?: boolean;
-	ageRestriction?: string;
-	accessibilityNotes?: string;
-	virtualEventUrl?: string;
-	waitlistUrl?: string;
-	tags?: string[];
-	isAllDay?: boolean;
-	contactEmail?: string;
-	contactName?: string;
-	contactPhone?: string;
-	adminNotes?: string;
-	submittedById?: string;
-	reviewedById?: string;
-	status?: string;
-	source?: string;
-	unlisted?: boolean;
-	publishedAt?: Date;
-}, database: DbExecutor = db): Promise<EventItem> {
+export async function createEvent(
+	data: {
+		title: string;
+		description?: string;
+		location?: string;
+		address?: string;
+		region?: string;
+		audience?: string;
+		cost?: string;
+		eventUrl?: string;
+		startDate?: string | Date;
+		endDate?: string | Date;
+		hostOrg?: string;
+		lat?: number;
+		lng?: number;
+		type?: string;
+		types?: string[];
+		imageUrl?: string;
+		imageUrls?: string[];
+		organizationId?: string;
+		venueId?: string;
+		parentEventId?: string;
+		pricingTiers?: PricingTier[];
+		priceMin?: number;
+		priceMax?: number;
+		registrationUrl?: string;
+		registrationDeadline?: string | Date;
+		eventFormat?: string;
+		timezone?: string;
+		doorsOpenAt?: string | Date;
+		capacity?: number;
+		soldOut?: boolean;
+		ageRestriction?: string;
+		accessibilityNotes?: string;
+		virtualEventUrl?: string;
+		waitlistUrl?: string;
+		tags?: string[];
+		isAllDay?: boolean;
+		contactEmail?: string;
+		contactName?: string;
+		contactPhone?: string;
+		adminNotes?: string;
+		submittedById?: string;
+		reviewedById?: string;
+		status?: string;
+		source?: string;
+		unlisted?: boolean;
+		publishedAt?: Date;
+	},
+	database: DbExecutor = db
+): Promise<EventItem> {
 	const baseSlug = slugify(data.title);
 	const slug = await uniqueSlug(baseSlug);
 	const startDate = data.startDate ? new Date(data.startDate) : null;

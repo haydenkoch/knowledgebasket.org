@@ -16,7 +16,12 @@ import type {
 	NormalizedToolboxItem
 } from './types';
 
-const VOLATILE_FIELDS = new Set(['organization_id', 'image_url', 'last_verified_at', 'link_healthy']);
+const VOLATILE_FIELDS = new Set([
+	'organization_id',
+	'image_url',
+	'last_verified_at',
+	'link_healthy'
+]);
 
 export function contentFingerprint(record: NormalizedRecord): string {
 	const cleaned = stripVolatileFields(record as unknown as Record<string, unknown>);
@@ -115,10 +120,7 @@ export function createDedupeLookup(): DedupeLookup {
 				})
 				.from(canonicalRecords)
 				.where(
-					and(
-						eq(canonicalRecords.coil, coil),
-						eq(canonicalRecords.contentFingerprint, fingerprint)
-					)
+					and(eq(canonicalRecords.coil, coil), eq(canonicalRecords.contentFingerprint, fingerprint))
 				)
 				.limit(1);
 
@@ -141,7 +143,9 @@ export function createDedupeLookup(): DedupeLookup {
 					publishedRecordId: canonicalRecords.publishedRecordId
 				})
 				.from(canonicalRecords)
-				.where(and(eq(canonicalRecords.coil, coil), eq(canonicalRecords.compositeKey, compositeHash)))
+				.where(
+					and(eq(canonicalRecords.coil, coil), eq(canonicalRecords.compositeKey, compositeHash))
+				)
 				.limit(1);
 
 			return row
@@ -187,7 +191,10 @@ export function createDedupeLookup(): DedupeLookup {
 				.from(sourceRecordLinks)
 				.innerJoin(canonicalRecords, eq(sourceRecordLinks.canonicalRecordId, canonicalRecords.id))
 				.where(
-					and(eq(sourceRecordLinks.sourceId, sourceId), eq(sourceRecordLinks.sourceItemId, externalId))
+					and(
+						eq(sourceRecordLinks.sourceId, sourceId),
+						eq(sourceRecordLinks.sourceItemId, externalId)
+					)
 				)
 				.limit(1);
 

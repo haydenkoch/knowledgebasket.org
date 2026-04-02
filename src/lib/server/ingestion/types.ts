@@ -253,7 +253,47 @@ export interface IngestionResult extends IngestionPreviewResult {
 	candidatesCreated: number;
 	duplicatesSkipped: number;
 	updatesQueued: number;
+	autoApprovedCount: number;
 	errors: string[];
+}
+
+export type IngestionTrigger =
+	| 'manual_preview'
+	| 'manual_import'
+	| 'admin_retry'
+	| 'scheduler'
+	| 'api';
+
+export interface IngestionExecutionOptions {
+	trigger?: IngestionTrigger | string;
+	triggerRunId?: string | null;
+	triggeredBy?: string | null;
+	enableAutoApprove?: boolean;
+}
+
+export interface SchedulerSourceRunResult {
+	sourceId: string;
+	sourceName: string;
+	success: boolean;
+	batchId: string | null;
+	fetchLogId: string | null;
+	candidatesCreated: number;
+	autoApprovedCount: number;
+	error: string | null;
+}
+
+export interface SchedulerRunResult {
+	trigger: string;
+	triggerRunId: string;
+	startedAt: string;
+	completedAt: string;
+	totalSelected: number;
+	totalProcessed: number;
+	totalSucceeded: number;
+	totalFailed: number;
+	totalCandidatesCreated: number;
+	totalAutoApproved: number;
+	results: SchedulerSourceRunResult[];
 }
 
 export interface IngestionAdapter {

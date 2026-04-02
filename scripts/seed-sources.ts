@@ -110,28 +110,27 @@ async function run() {
 			fetchCadence: item.fetchCadence ?? item.fetch_cadence ?? 'manual',
 			fetchUrl: item.fetchUrl ?? item.fetch_url ?? null,
 			status: item.status ?? 'discovered',
-				healthStatus: item.healthStatus ?? item.health_status ?? 'unknown',
-				enabled: item.enabled ?? false,
-				stewardNotes: item.stewardNotes ?? item.steward_notes ?? null,
-				attributionRequired: item.attributionRequired ?? item.attribution_required ?? true,
-				attributionText: item.attributionText ?? item.attribution_text ?? null,
-				reviewRequired: item.reviewRequired ?? item.review_required ?? true,
-				autoApprove: item.autoApprove ?? item.auto_approve ?? false,
-				confidenceScore: item.confidenceScore ?? item.confidence_score ?? null,
-				riskProfile:
-					item.riskProfile ??
-					item.risk_profile ?? {
-						freshness: 'medium',
-						duplication: 'medium',
-						legal: 'low',
-						normalization: 'medium',
-						maintenance: 'medium',
-						moderation: 'medium'
-					},
-				dedupeStrategies: item.dedupeStrategies ?? item.dedupe_strategies ?? ['url_match'],
-				dedupeConfig: item.dedupeConfig ?? item.dedupe_config ?? {}
-			};
-		});
+			healthStatus: item.healthStatus ?? item.health_status ?? 'unknown',
+			enabled: item.enabled ?? false,
+			stewardNotes: item.stewardNotes ?? item.steward_notes ?? null,
+			attributionRequired: item.attributionRequired ?? item.attribution_required ?? true,
+			attributionText: item.attributionText ?? item.attribution_text ?? null,
+			reviewRequired: item.reviewRequired ?? item.review_required ?? true,
+			autoApprove: item.autoApprove ?? item.auto_approve ?? false,
+			confidenceScore: item.confidenceScore ?? item.confidence_score ?? null,
+			riskProfile: item.riskProfile ??
+				item.risk_profile ?? {
+					freshness: 'medium',
+					duplication: 'medium',
+					legal: 'low',
+					normalization: 'medium',
+					maintenance: 'medium',
+					moderation: 'medium'
+				},
+			dedupeStrategies: item.dedupeStrategies ?? item.dedupe_strategies ?? ['url_match'],
+			dedupeConfig: item.dedupeConfig ?? item.dedupe_config ?? {}
+		};
+	});
 
 	const validRows = rows.filter((row) => row.sourceUrl.trim().length > 0);
 

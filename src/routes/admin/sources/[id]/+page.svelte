@@ -11,6 +11,11 @@
 	import { Textarea } from '$lib/components/ui/textarea/index.js';
 	import { Separator } from '$lib/components/ui/separator/index.js';
 	import { Plus, Trash2 } from '@lucide/svelte';
+	import StatusBadge from '$lib/components/organisms/admin/StatusBadge.svelte';
+	import HealthBadge from '$lib/components/organisms/admin/HealthBadge.svelte';
+	import CandidateFieldCard from '$lib/components/organisms/admin/CandidateFieldCard.svelte';
+	import CollapsibleDebug from '$lib/components/organisms/admin/CollapsibleDebug.svelte';
+	import { friendly, ingestionLabel, dedupeLabel, priorityLabel } from '$lib/admin/labels.js';
 
 	type SourceDetailForm = {
 		error?: string;
@@ -116,19 +121,9 @@
 		<div>
 			<h1 class="text-2xl font-bold">{data.source.name}</h1>
 			<div class="mt-2 flex flex-wrap gap-2">
-				<span
-					class={`inline-flex rounded-full border px-2 py-0.5 text-xs ${badgeClass(data.source.status)}`}
-				>
-					{data.source.status.replace(/_/g, ' ')}
-				</span>
-				<span
-					class={`inline-flex rounded-full border px-2 py-0.5 text-xs ${badgeClass(data.source.healthStatus)}`}
-				>
-					{data.source.healthStatus.replace(/_/g, ' ')}
-				</span>
-				<span
-					class="inline-flex rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs text-slate-700"
-				>
+				<StatusBadge status={data.source.status} />
+				<HealthBadge health={data.source.healthStatus} />
+				<span class="inline-flex items-center rounded-full border border-[color:var(--rule)] bg-[var(--color-alpine-snow-100)] px-2.5 py-1 text-[11px] font-semibold tracking-[0.04em] text-[var(--mid)] uppercase">
 					{data.source.enabled ? 'Enabled' : 'Disabled'}
 				</span>
 			</div>
@@ -236,18 +231,69 @@
 	{/if}
 
 	{#if form?.runResult}
-		<div class="rounded-md border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-800">
-			<div class="font-medium">Latest retry run</div>
-			<div class="mt-1">
-				{form.runResult.success ? 'Completed successfully' : 'Run failed'}
-				{#if form.runResult.batchId}
-					· Batch {form.runResult.batchId}
-				{/if}
-				· Candidates {form.runResult.candidatesCreated}
-				· Auto-approved {form.runResult.autoApprovedCount}
+		<div class="rounded-xl border border-[color:color-mix(in_srgb,var(--color-lakebed-300)_50%,transparent)] bg-[color:color-mix(in_srgb,var(--color-lakebed-50)_70%,white)] px-5 py-4 text-sm">
+			<div class="font-semibold text-[var(--color-lakebed-900)]">{form.runResult.success ? 'Run completed' : 'Run failed'}</div>
+			<div class="mt-1 text-[var(--color-lakebed-800)]">
+				{form.runResult.candidatesCreated} new item{form.runResult.candidatesCreated !== 1 ? 's' : ''} found ·
+				{form.runResult.autoApprovedCount} auto-approved
 			</div>
 			{#if form.runResult.error}
-				<div class="mt-1">{form.runResult.error}</div>
+				<div class="mt-2 text-[var(--color-ember-700)]">{form.runResult.error}</div>
+			{/if}
+		</div>
+	{/if}
+
+	<div class="grid gap-4 lg:grid-cols-2 xl:grid-cols-4">
+		<div class="rounded-xl border border-[color:var(--rule)] bg-[var(--color-alpine-snow-100)]/50 p-4">
+			<div class="text-[11px] font-bold tracking-[0.08em] text-[var(--mid)] uppercase">Setup</div>
+			<div class="mt-1 text-sm font-medium">
+				{data.validation.valid ? 'Ready to run' : 'Needs attention'}
+			</div>
+			<div class="mt-1 text-xs text-[var(--mid)]">
+				{data.validation.adapterDisplayName ?? friendly(ingestionLabel, data.source.adapterType) ?? 'No import method set'}
+			</div>
+		</div>
+		<div class="rounded-xl border border-[color:var(--rule)] bg-[var(--color-alpine-snow-100)]/50 p-4">
+			<div class="text-[11px] font-bold tracking-[0.08em] text-[var(--mid)] uppercase">Items imported</div>
+			<div class="mt-1 text-sm font-medium">
+				{data.batchQualitySummary.totalNew} new · {data.batchQualitySummary.totalUpdated} updates
+			</div>
+			<div class="mt-1 text-xs text-[var(--mid)]">
+				{data.batchQualitySummary.totalDuplicate} duplicates · {data.batchQualitySummary.totalFailed} failed
+			</div>
+		</div>
+		<div class="rounded-xl border border-[color:var(--rule)] bg-[var(--color-alpine-snow-100)]/50 p-4">
+			<div class="text-[11px] font-bold tracking-[0.08em] text-[var(--mid)] uppercase">Published</div>
+			<div class="mt-1 text-sm font-medium">
+				{data.candidateOutcomeSummary.approved + data.candidateOutcomeSummary.autoApproved} approved
+			</div>
+			<div class="mt-1 text-xs text-[var(--mid)]">
+				{data.candidateOutcomeSummary.pending} pending · {data.candidateOutcomeSummary.rejected} rejected
+			</div>
+		</div>
+		<div class="rounded-xl border border-[color:var(--rule)] bg-[var(--color-alpine-snow-100)]/50 p-4">
+			<div class="text-[11px] font-bold tracking-[0.08em] text-[var(--mid)] uppercase">Error types</div>
+			<div class="mt-1 text-sm font-medium">{Object.keys(data.errorPatterns).length}</div>
+			<div class="mt-1 text-xs text-[var(--mid)]">Distinct error patterns seen</div>
+		</div>
+	</div>
+
+	{#if !data.validation.valid || data.validation.warnings.length > 0}
+		<div class="rounded-xl border border-[color:color-mix(in_srgb,var(--color-flicker-300)_50%,transparent)] bg-[color:color-mix(in_srgb,var(--color-flicker-50)_60%,white)] p-4 text-sm text-[var(--color-flicker-900)]">
+			<div class="font-medium">Configuration issue</div>
+			{#if data.validation.errors.length > 0}
+				<div class="mt-2 space-y-1">
+					{#each data.validation.errors as message}
+						<div>{message}</div>
+					{/each}
+				</div>
+			{/if}
+			{#if data.validation.warnings.length > 0}
+				<div class="mt-2 space-y-1 text-amber-800">
+					{#each data.validation.warnings as message}
+						<div>{message}</div>
+					{/each}
+				</div>
 			{/if}
 		</div>
 	{/if}
@@ -358,45 +404,30 @@
 					<div class="space-y-3">
 						<div class="text-sm font-medium">Candidate preview</div>
 						{#each result.candidates as candidate}
-							<div class="rounded-md border p-3">
+							<div class="rounded-xl border border-[color:var(--rule)] p-4">
 								<div class="flex flex-wrap items-center gap-2">
 									<div class="font-medium">{previewTitle(candidate.normalizedData)}</div>
-									<span
-										class={`inline-flex rounded-full border px-2 py-0.5 text-xs ${badgeClass(candidate.dedupe.result)}`}
-									>
-										{candidate.dedupe.result}
+									<span class="inline-flex items-center rounded-full border border-[color:var(--rule)] bg-[var(--color-alpine-snow-100)] px-2.5 py-1 text-[11px] font-semibold tracking-[0.04em] text-[var(--mid)] uppercase">
+										{friendly(dedupeLabel, candidate.dedupe.result)}
 									</span>
-									<span
-										class="inline-flex rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs text-slate-700"
-									>
-										{candidate.priority}
-									</span>
-								</div>
-								<div class="mt-2 text-xs text-muted-foreground">
-									{candidate.sourceItemId ?? 'No external ID'}
-									{#if candidate.dedupe.match?.canonicalTitle}
-										· Match: {candidate.dedupe.match.canonicalTitle}
+									{#if candidate.priority !== 'normal'}
+										<span class="inline-flex items-center rounded-full border border-[color:color-mix(in_srgb,var(--color-ember-300)_60%,transparent)] bg-[color:color-mix(in_srgb,var(--color-ember-50)_90%,white)] px-2.5 py-1 text-[11px] font-semibold tracking-[0.04em] text-[var(--color-ember-900)] uppercase">
+											{friendly(priorityLabel, candidate.priority)}
+										</span>
 									{/if}
 								</div>
-								<div class="mt-3 grid gap-3 xl:grid-cols-2">
-									<pre
-										class="max-h-56 overflow-auto rounded-md border bg-muted/40 p-3 text-xs">{JSON.stringify(
-											candidate.normalizedData,
-											null,
-											2
-										)}</pre>
-									<pre
-										class="max-h-56 overflow-auto rounded-md border bg-muted/40 p-3 text-xs">{JSON.stringify(
-											candidate.rawData,
-											null,
-											2
-										)}</pre>
+								{#if candidate.dedupe.match?.canonicalTitle}
+									<p class="mt-1 text-xs text-[var(--mid)]">Matches: {candidate.dedupe.match.canonicalTitle}</p>
+								{/if}
+								<div class="mt-3">
+									<CandidateFieldCard data={candidate.normalizedData as unknown as Record<string, unknown>} />
+								</div>
+								<div class="mt-3">
+									<CollapsibleDebug label="Raw data" data={{ normalized: candidate.normalizedData, raw: candidate.rawData }} />
 								</div>
 							</div>
 						{:else}
-							<div
-								class="rounded-md border border-dashed p-6 text-center text-sm text-muted-foreground"
-							>
+							<div class="rounded-xl border border-dashed border-[color:var(--rule)] p-6 text-center text-sm text-[var(--mid)]">
 								No candidate rows were produced.
 							</div>
 						{/each}

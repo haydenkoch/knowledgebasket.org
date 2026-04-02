@@ -9,6 +9,7 @@
 	import * as Table from '$lib/components/ui/table/index.js';
 	import * as Collapsible from '$lib/components/ui/collapsible/index.js';
 	import * as Empty from '$lib/components/ui/empty/index.js';
+	import AdminPageHeader from '$lib/components/organisms/admin/AdminPageHeader.svelte';
 	import { Pencil, Plus } from '@lucide/svelte';
 
 	let { data } = $props();
@@ -28,43 +29,25 @@
 </script>
 
 <div class="space-y-6">
-	<h1 class="text-2xl font-bold">Venues</h1>
-
-	{#if data.venues.length === 0 && !searchValue}
-		<Empty.Root>
-			<Empty.Header>
-				<Empty.Title>No venues yet</Empty.Title>
-				<Empty.Description>Add your first venue to link to events.</Empty.Description>
-			</Empty.Header>
-			<Empty.Content>
-				<Button type="button" onclick={() => (newVenueOpen = true)}>
-					<Plus class="mr-2 h-4 w-4" />
-					New venue
-				</Button>
-			</Empty.Content>
-		</Empty.Root>
-	{:else}
-		<form
-			onsubmit={(e) => {
-				e.preventDefault();
-				doSearch();
-			}}
-			class="flex gap-2"
-		>
-			<Input type="text" bind:value={searchValue} placeholder="Search venues..." class="max-w-sm" />
-			<Button type="submit" variant="secondary">Search</Button>
-		</form>
-	{/if}
+	<AdminPageHeader
+		eyebrow="Directory"
+		title="Venues"
+		description="Venues linked to events and activities."
+	>
+		{#snippet actions()}
+			<Button type="button" onclick={() => (newVenueOpen = !newVenueOpen)}>
+				<Plus class="mr-2 h-4 w-4" />
+				New venue
+			</Button>
+		{/snippet}
+	</AdminPageHeader>
 
 	<Collapsible.Root bind:open={newVenueOpen}>
-		<Card.Root>
-			<Collapsible.Trigger class="w-full">
-				<Card.Header class="flex flex-row items-center justify-between space-y-0">
-					<Card.Title class="text-base">New venue</Card.Title>
-					<Plus class="h-4 w-4" />
+		<Collapsible.Content>
+			<Card.Root class="mb-2">
+				<Card.Header>
+					<Card.Title>New venue</Card.Title>
 				</Card.Header>
-			</Collapsible.Trigger>
-			<Collapsible.Content>
 				<Card.Content class="pt-0">
 					<form method="POST" action="?/createVenue" use:enhance class="space-y-4">
 						<div class="grid gap-4 sm:grid-cols-2">
@@ -78,7 +61,7 @@
 									id="venue-type"
 									name="venueType"
 									type="text"
-									placeholder="e.g. theater, park"
+									placeholder="e.g. Theater, Park, Community center"
 								/>
 							</div>
 						</div>
@@ -119,17 +102,41 @@
 							<Label for="venue-website">Website</Label>
 							<Input id="venue-website" name="website" type="url" />
 						</div>
-						<Button type="submit">Create</Button>
+						<Button type="submit">Create venue</Button>
 					</form>
 				</Card.Content>
-			</Collapsible.Content>
-		</Card.Root>
+			</Card.Root>
+		</Collapsible.Content>
 	</Collapsible.Root>
 
-	{#if data.venues.length > 0 || searchValue}
+	{#if data.venues.length === 0 && !searchValue}
+		<Empty.Root>
+			<Empty.Header>
+				<Empty.Title>No venues yet</Empty.Title>
+				<Empty.Description>Add your first venue to link to events.</Empty.Description>
+			</Empty.Header>
+			<Empty.Content>
+				<Button type="button" onclick={() => (newVenueOpen = true)}>
+					<Plus class="mr-2 h-4 w-4" />
+					New venue
+				</Button>
+			</Empty.Content>
+		</Empty.Root>
+	{:else}
+		<form
+			onsubmit={(e) => {
+				e.preventDefault();
+				doSearch();
+			}}
+			class="flex gap-2"
+		>
+			<Input type="text" bind:value={searchValue} placeholder="Search venues..." class="max-w-sm" />
+			<Button type="submit" variant="secondary">Search</Button>
+		</form>
+
 		<Card.Root>
 			<Card.Content class="p-0">
-				<div class="overflow-x-auto rounded-md border">
+				<div class="overflow-x-auto rounded-md">
 					<Table.Root class="min-w-[500px]">
 						<Table.Header>
 							<Table.Row>

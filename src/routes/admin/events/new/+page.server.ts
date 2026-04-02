@@ -7,6 +7,12 @@ import { getTags, getOptions } from '$lib/server/taxonomy';
 import { uploadImage } from '$lib/server/upload';
 import type { PricingTier } from '$lib/data/kb';
 
+function normalizeCreateStatus(raw: FormDataEntryValue | null): 'draft' | 'pending' | 'published' {
+	const value = typeof raw === 'string' ? raw.trim() : '';
+	if (value === 'pending' || value === 'published') return value;
+	return 'draft';
+}
+
 export const load: PageServerLoad = async () => {
 	const [orgs, vens, tags, regionOpts, audienceOpts, costOpts] = await Promise.all([
 		getAllOrganizations(),
@@ -63,10 +69,10 @@ export const actions: Actions = {
 		const lat = latStr ? parseFloat(latStr) : undefined;
 		const lng = lngStr ? parseFloat(lngStr) : undefined;
 
-		const intent = (fd.get('intent') as string) || 'publish';
-		const status = intent === 'publish' ? 'published' : 'draft';
+		const status = normalizeCreateStatus(fd.get('status'));
 		const capacityStr = (fd.get('capacity') as string)?.trim();
 		const capacityNum = capacityStr ? parseInt(capacityStr, 10) : undefined;
+		const imageUrlInput = (fd.get('imageUrl') as string | null)?.trim() || undefined;
 		const imageUrlsRaw = (fd.get('imageUrls') as string) ?? '';
 		const imageUrls = imageUrlsRaw
 			? imageUrlsRaw
@@ -112,10 +118,11 @@ export const actions: Actions = {
 			tags: tags.length > 0 ? tags : undefined,
 			isAllDay: fd.has('isAllDay'),
 			pricingTiers,
-			imageUrl,
+			imageUrl: imageUrl ?? imageUrlInput,
 			submittedById: locals.user?.id,
 			status,
 			source: 'admin',
+			publishedAt: status === 'published' ? new Date() : undefined,
 			unlisted: fd.has('unlisted')
 		});
 

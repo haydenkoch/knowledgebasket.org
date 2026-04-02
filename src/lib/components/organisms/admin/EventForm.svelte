@@ -15,6 +15,7 @@
 		organizations?: { id: string; name: string }[];
 		venues?: { id: string; name: string }[];
 		action?: string;
+		mode?: 'create' | 'edit';
 		taxonomyTags?: { slug: string; label: string; group: string }[];
 		regionOptions?: { value: string; label: string }[];
 		audienceOptions?: { value: string; label: string }[];
@@ -26,6 +27,7 @@
 		organizations = [],
 		venues = [],
 		action = '?/update',
+		mode = 'edit',
 		taxonomyTags = [],
 		regionOptions = [],
 		audienceOptions = [],
@@ -70,18 +72,22 @@
 				placeholder="Event title"
 			/>
 		</div>
-		<div class="space-y-1.5">
-			<Label for="slug">Slug</Label>
-			<Input id="slug" name="slug" value={event?.slug ?? ''} placeholder="auto-generated" />
-		</div>
+		{#if mode === 'edit'}
+			<div class="space-y-1.5">
+				<Label for="slug">Slug</Label>
+				<Input id="slug" name="slug" value={event?.slug ?? ''} placeholder="auto-generated" />
+			</div>
+		{/if}
 		<div class="space-y-1.5">
 			<Label for="status">Status</Label>
 			<select id="status" name="status" class={selectCls} value={event?.status ?? 'draft'}>
+				<option value="draft">Draft</option>
 				<option value="pending">Pending</option>
 				<option value="published">Published</option>
-				<option value="draft">Draft</option>
-				<option value="rejected">Rejected</option>
-				<option value="cancelled">Cancelled</option>
+				{#if mode === 'edit'}
+					<option value="rejected">Rejected</option>
+					<option value="cancelled">Cancelled</option>
+				{/if}
 			</select>
 		</div>
 	</div>

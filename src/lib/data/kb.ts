@@ -30,6 +30,17 @@ export interface BaseItem {
 	title: string;
 	description?: string;
 	coil: CoilKey;
+	provenance?: SourceProvenance;
+}
+
+export interface SourceProvenance {
+	sourceName: string;
+	sourceSlug?: string;
+	sourceUrl?: string;
+	sourceItemUrl?: string;
+	attributionText: string;
+	lastSyncedAt?: string;
+	sourceCount: number;
 }
 
 export interface PricingTier {

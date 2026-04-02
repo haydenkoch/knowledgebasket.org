@@ -1,10 +1,8 @@
 import type { PageServerLoad } from './$types';
-import { getEventStatusCounts, getEventsForAdmin } from '$lib/server/events';
+import { getAdminQueueSnapshot } from '$lib/server/admin-review';
 
 export const load: PageServerLoad = async () => {
-	const [counts, { events: recentPending }] = await Promise.all([
-		getEventStatusCounts(),
-		getEventsForAdmin({ status: 'pending', limit: 5, page: 1 })
-	]);
-	return { counts, recentPending };
+	return {
+		snapshot: await getAdminQueueSnapshot(5)
+	};
 };

@@ -8,6 +8,9 @@ import {
 	runDedupeStrategies
 } from '../src/lib/server/ingestion/dedupe';
 import { icalGenericAdapter } from '../src/lib/server/ingestion/adapters/ical-generic';
+import { validateSourceConfig } from '../src/lib/server/ingestion/validation';
+import { planCandidateMerge } from '../src/lib/server/import-candidate-merge';
+import { getSourceProvenanceByPublishedRecord } from '../src/lib/server/source-provenance';
 import type { IngestionPreviewResult, IngestionResult } from '../src/lib/server/ingestion/types';
 import { _createSourceDetailActions } from '../src/routes/admin/sources/[id]/+page.server';
 import {
@@ -22,6 +25,15 @@ const fixturePath = path.resolve(
 	path.dirname(fileURLToPath(import.meta.url)),
 	'fixtures',
 	'smithsonian-sample.ics'
+);
+const seedSourcesPath = path.resolve(
+	process.cwd(),
+	'..',
+	'..',
+	'kb-data',
+	'source-ops',
+	'data',
+	'seed-sources.json'
 );
 const icsFixture = readFileSync(fixturePath, 'utf8');
 
@@ -288,6 +300,171 @@ describe('source detail actions', () => {
 	});
 });
 
+describe('merge-safe source publishing', () => {
+	it('applies source updates when live values still match the last accepted snapshot', () => {
+		const merge = planCandidateMerge(
+			'events',
+			{
+				coil: 'events',
+				title: 'Knowledge Gathering 2026',
+				description: 'Updated community event',
+				url: 'https://example.com/events/knowledge-gathering',
+				organization_name: 'Smithsonian',
+				organization_id: null,
+				tags: ['Community'],
+				region: 'DC',
+				image_url: null,
+				start_date: '2026-05-10T18:00:00.000Z',
+				end_date: null,
+				start_time: null,
+				end_time: null,
+				timezone: 'UTC',
+				location_name: 'Washington, DC',
+				location_address: null,
+				location_city: 'Washington',
+				location_state: 'DC',
+				location_zip: null,
+				is_virtual: false,
+				virtual_url: null,
+				is_recurring: false,
+				recurrence_rule: null,
+				event_type: 'Community',
+				registration_url: null,
+				cost: null
+			},
+			{
+				title: 'Knowledge Gathering',
+				description: 'Community event',
+				url: 'https://example.com/events/knowledge-gathering',
+				start_date: '2026-05-10T18:00:00.000Z'
+			},
+			{
+				title: 'Knowledge Gathering',
+				description: 'Community event',
+				url: 'https://example.com/events/knowledge-gathering',
+				start_date: '2026-05-10T18:00:00.000Z'
+			}
+		);
+
+		expect(merge.appliedFields.map((field) => field.field)).toEqual(
+			expect.arrayContaining(['title', 'description'])
+		);
+		expect(merge.patch).toEqual(
+			expect.objectContaining({
+				title: 'Knowledge Gathering 2026',
+				description: 'Updated community event'
+			})
+		);
+		expect(merge.preservedFields).toHaveLength(0);
+		expect(merge.nextSnapshot.title).toBe('Knowledge Gathering 2026');
+	});
+
+	it('preserves curator-edited live values on update candidates', () => {
+		const merge = planCandidateMerge(
+			'events',
+			{
+				coil: 'events',
+				title: 'Imported title update',
+				description: 'Imported description update',
+				url: 'https://example.com/events/knowledge-gathering',
+				organization_name: 'Smithsonian',
+				organization_id: null,
+				tags: ['Community'],
+				region: 'DC',
+				image_url: null,
+				start_date: '2026-05-10T18:00:00.000Z',
+				end_date: null,
+				start_time: null,
+				end_time: null,
+				timezone: 'UTC',
+				location_name: 'Washington, DC',
+				location_address: null,
+				location_city: 'Washington',
+				location_state: 'DC',
+				location_zip: null,
+				is_virtual: false,
+				virtual_url: null,
+				is_recurring: false,
+				recurrence_rule: null,
+				event_type: 'Community',
+				registration_url: null,
+				cost: null
+			},
+			{
+				title: 'Curated title',
+				description: 'Community event',
+				url: 'https://example.com/events/knowledge-gathering',
+				start_date: '2026-05-10T18:00:00.000Z'
+			},
+			{
+				title: 'Knowledge Gathering',
+				description: 'Community event',
+				url: 'https://example.com/events/knowledge-gathering',
+				start_date: '2026-05-10T18:00:00.000Z'
+			}
+		);
+
+		expect(merge.preservedFields.map((field) => field.field)).toContain('title');
+		expect(merge.patch).not.toHaveProperty('title');
+		expect(merge.patch).toEqual(
+			expect.objectContaining({
+				description: 'Imported description update'
+			})
+		);
+	});
+
+	it('does not clear populated live fields from blank source values', () => {
+		const merge = planCandidateMerge(
+			'events',
+			{
+				coil: 'events',
+				title: 'Knowledge Gathering',
+				description: null,
+				url: 'https://example.com/events/knowledge-gathering',
+				organization_name: 'Smithsonian',
+				organization_id: null,
+				tags: ['Community'],
+				region: 'DC',
+				image_url: null,
+				start_date: '2026-05-10T18:00:00.000Z',
+				end_date: null,
+				start_time: null,
+				end_time: null,
+				timezone: 'UTC',
+				location_name: 'Washington, DC',
+				location_address: null,
+				location_city: 'Washington',
+				location_state: 'DC',
+				location_zip: null,
+				is_virtual: false,
+				virtual_url: null,
+				is_recurring: false,
+				recurrence_rule: null,
+				event_type: 'Community',
+				registration_url: null,
+				cost: null
+			},
+			{
+				title: 'Knowledge Gathering',
+				description: 'Curated event description',
+				url: 'https://example.com/events/knowledge-gathering',
+				start_date: '2026-05-10T18:00:00.000Z'
+			},
+			{
+				title: 'Knowledge Gathering',
+				description: 'Curated event description',
+				url: 'https://example.com/events/knowledge-gathering',
+				start_date: '2026-05-10T18:00:00.000Z'
+			}
+		);
+
+		expect(merge.patch).not.toHaveProperty('description');
+		expect(
+			merge.unchangedFields.find((field) => field.field === 'description')?.reason
+		).toContain('Blank source values');
+	});
+});
+
 describe('approveCandidate publishing', () => {
 	beforeEach(() => {
 		vi.resetModules();
@@ -369,6 +546,12 @@ describe('approveCandidate publishing', () => {
 		expect(updateEvent).not.toHaveBeenCalled();
 		expect(result?.status).toBe('approved');
 		expect(fakeDb.state.canonicalRecords[0]?.publishedRecordId).toBe('evt-1');
+		expect(fakeDb.state.canonicalRecords[0]?.sourceSnapshot).toEqual(
+			expect.objectContaining({
+				title: 'Knowledge Gathering',
+				description: 'A community event'
+			})
+		);
 		expect(fakeDb.state.sourceRecordLinks).toHaveLength(1);
 		expect(fakeDb.state.mergeHistory).toHaveLength(1);
 	});
@@ -440,6 +623,12 @@ describe('approveCandidate publishing', () => {
 					contentFingerprint: 'fingerprint-1',
 					canonicalUrl: 'https://example.com/events/knowledge-gathering',
 					externalIds: {},
+					sourceSnapshot: {
+						title: 'Knowledge Gathering',
+						description: 'A community event',
+						url: 'https://example.com/events/knowledge-gathering',
+						start_date: '2026-05-10T18:00:00.000Z'
+					},
 					sourceCount: 1,
 					primarySourceId: 'source-1',
 					createdAt: new Date(),
@@ -491,6 +680,151 @@ describe('approveCandidate publishing', () => {
 		expect(createEvent).not.toHaveBeenCalled();
 		expect(result?.matchedCanonicalId).toBe('canon-1');
 		expect(fakeDb.state.canonicalRecords[0]?.publishedRecordId).toBe('evt-1');
+		expect(fakeDb.state.canonicalRecords[0]?.sourceSnapshot).toEqual(
+			expect.objectContaining({
+				title: 'Knowledge Gathering Updated'
+			})
+		);
+	});
+});
+
+describe('seeded automated source configs', () => {
+	it('ship explicit config for all curated html and rss starter sources', () => {
+		const seedSources = JSON.parse(readFileSync(seedSourcesPath, 'utf8')) as Array<
+			Record<string, unknown>
+		>;
+		const automated = seedSources.filter((source) =>
+			['html_selector', 'rss_generic'].includes(String(source.adapter_type ?? source.adapterType))
+		);
+
+		expect(automated).toHaveLength(11);
+
+		for (const source of automated) {
+			expect(source.adapter_config ?? source.adapterConfig).toBeTruthy();
+			expect(Object.keys((source.adapter_config ?? source.adapterConfig) as Record<string, unknown>))
+				.not.toHaveLength(0);
+		}
+	});
+
+	it('validate cleanly through the app adapter registry', () => {
+		const seedSources = JSON.parse(readFileSync(seedSourcesPath, 'utf8')) as Array<
+			Record<string, unknown>
+		>;
+		const automated = seedSources.filter((source) =>
+			['html_selector', 'rss_generic'].includes(String(source.adapter_type ?? source.adapterType))
+		);
+
+		for (const source of automated) {
+			const validation = validateSourceConfig({
+				id: String(source.slug ?? source.name),
+				name: String(source.name),
+				slug: String(source.slug),
+				sourceUrl: String(source.source_url ?? source.sourceUrl ?? ''),
+				fetchUrl: (source.fetch_url ?? source.fetchUrl ?? null) as string | null,
+				adapterType: String(source.adapter_type ?? source.adapterType),
+				adapterConfig: (source.adapter_config ?? source.adapterConfig ?? {}) as Record<
+					string,
+					unknown
+				>
+			} as never);
+
+			expect(validation.valid, `${source.slug} should validate`).toBe(true);
+			expect(validation.errors).toHaveLength(0);
+		}
+	});
+});
+
+describe('source provenance helper', () => {
+	it('returns primary-source public provenance for a published record', async () => {
+		const canonical = {
+			id: 'canon-1',
+			coil: 'events',
+			publishedRecordId: 'evt-1',
+			primarySourceId: 'source-2',
+			sourceCount: 2
+		};
+		const joinedLinks = [
+			{
+				link: {
+					sourceItemUrl: 'https://example.com/secondary',
+					sourceAttribution: 'Secondary source',
+					lastSyncAt: new Date('2026-03-01T00:00:00.000Z'),
+					lastSeenAt: new Date('2026-03-01T00:00:00.000Z'),
+					isPrimary: false
+				},
+				source: {
+					id: 'source-1',
+					name: 'Secondary Source',
+					slug: 'secondary-source',
+					homepageUrl: 'https://example.com/secondary-home',
+					sourceUrl: 'https://example.com/secondary-source',
+					attributionText: 'Secondary attribution'
+				}
+			},
+			{
+				link: {
+					sourceItemUrl: 'https://example.com/original-listing',
+					sourceAttribution: null,
+					lastSyncAt: new Date('2026-03-15T00:00:00.000Z'),
+					lastSeenAt: new Date('2026-03-14T00:00:00.000Z'),
+					isPrimary: true
+				},
+				source: {
+					id: 'source-2',
+					name: 'Primary Source',
+					slug: 'primary-source',
+					homepageUrl: 'https://example.com/source-home',
+					sourceUrl: 'https://example.com/source',
+					attributionText: 'Primary attribution'
+				}
+			}
+		];
+
+		const database = {
+			select(selection?: unknown) {
+				if (selection) {
+					return {
+						from() {
+							return {
+								innerJoin() {
+									return {
+										where: async () => joinedLinks
+									};
+								}
+							};
+						}
+					};
+				}
+
+				return {
+					from() {
+						return {
+							where() {
+								return {
+									limit: async () => [canonical]
+								};
+							}
+						};
+					}
+				};
+			}
+		};
+
+		const provenance = await getSourceProvenanceByPublishedRecord(
+			'events',
+			'evt-1',
+			database as never
+		);
+
+		expect(provenance).toEqual({
+			sourceName: 'Primary Source',
+			sourceSlug: 'primary-source',
+			sourceUrl: 'https://example.com/source-home',
+			sourceItemUrl: 'https://example.com/original-listing',
+			attributionText: 'Primary attribution',
+			lastSyncedAt: '2026-03-15T00:00:00.000Z',
+			sourceCount: 2
+		});
 	});
 });
 

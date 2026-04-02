@@ -10,6 +10,7 @@ import {
 	user as userTable
 } from '$lib/server/db/schema';
 import { indexDocument, removeDocument } from '$lib/server/meilisearch';
+import { getSourceProvenanceByPublishedRecord } from '$lib/server/source-provenance';
 import type { ToolboxItem } from '$lib/data/kb';
 import type { ToolboxSearchDoc } from '$lib/server/meilisearch';
 import { stripHtml } from '$lib/utils/format';
@@ -124,10 +125,12 @@ export async function getResourceBySlug(slug: string): Promise<ToolboxItem | nul
 		.limit(1);
 	const r = rows[0];
 	if (!r) return null;
-	return rowToItem(r.resource, {
+	const item = rowToItem(r.resource, {
 		organizationName: r.orgName ?? undefined,
 		organizationSlug: r.orgSlug ?? undefined
 	});
+	item.provenance = await getSourceProvenanceByPublishedRecord('toolbox', r.resource.id);
+	return item;
 }
 
 export async function getResourceById(id: string): Promise<ToolboxItem | null> {

@@ -11,8 +11,8 @@ import {
 } from './dedupe';
 import { adapterRegistry } from './registry';
 import { computeCandidatePriority, computeHealthStatus, computeNextCheckAt } from './status';
+import { buildAdapterConfig } from './validation';
 import type {
-	AdapterConfig,
 	DedupeResult,
 	IngestionExecutionOptions,
 	IngestionPreviewResult,
@@ -368,15 +368,6 @@ function getAdapterForSource(source: SourceRecord) {
 	}
 
 	return adapter;
-}
-
-function buildAdapterConfig(source: SourceRecord): AdapterConfig {
-	return {
-		...(source.adapterConfig as AdapterConfig),
-		__sourceSlug: source.slug,
-		__sourceUrl: source.sourceUrl,
-		__fetchUrl: source.fetchUrl
-	};
 }
 
 function countDedupeResults(candidates: PreviewCandidate[]): Record<DedupeResult, number> {

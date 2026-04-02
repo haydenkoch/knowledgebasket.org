@@ -19,6 +19,11 @@ import { compositeKey as buildCompositeKey } from '$lib/server/ingestion/dedupe'
 import { createJob, updateJob } from '$lib/server/jobs';
 import { createBusiness, updateBusiness } from '$lib/server/red-pages';
 import { createResource, updateResource } from '$lib/server/toolbox';
+import {
+	mapCandidateToComparable,
+	planCandidateMerge,
+	type MergePreview
+} from '$lib/server/import-candidate-merge';
 
 export type ImportedCandidateRow = typeof importedCandidates.$inferSelect;
 export type ImportedCandidateInsert = typeof importedCandidates.$inferInsert;
@@ -200,7 +205,8 @@ export async function approveCandidate(
 						...asStringRecord(canonical.externalIds),
 						...externalIds
 					},
-					primarySourceId: canonical.primarySourceId ?? candidate.sourceId
+					primarySourceId: canonical.primarySourceId ?? candidate.sourceId,
+					sourceSnapshot: published.nextSourceSnapshot
 				})
 				.where(eq(canonicalRecords.id, canonical.id))
 				.returning();
@@ -216,6 +222,7 @@ export async function approveCandidate(
 					contentFingerprint: candidate.contentFingerprint,
 					canonicalUrl,
 					externalIds,
+					sourceSnapshot: published.nextSourceSnapshot,
 					sourceCount: 1,
 					primarySourceId: candidate.sourceId
 				})
@@ -287,7 +294,7 @@ export async function approveCandidate(
 			candidateId: candidate.id,
 			sourceId: candidate.sourceId,
 			mergeType: published.previousData ? 'field_update' : 'manual_merge',
-			fieldsUpdated: Object.keys(normalized),
+			fieldsUpdated: published.fieldsUpdated,
 			previousData: published.previousData,
 			newData: normalized,
 			mergedBy: reviewerId,
@@ -316,14 +323,30 @@ export async function getCandidateReviewDetail(id: string) {
 		: null;
 
 	const suggestedMatches = await getSuggestedCanonicalMatches(candidate);
+	const comparableCandidateRecord = mapCandidateToComparable(
+		candidate.coil,
+		asRecord(candidate.normalizedData)
+	);
+	const comparablePublishedRecord = publishedRecord
+		? mapPublishedRecordToComparable(candidate.coil, publishedRecord)
+		: null;
+	const mergePreview =
+		canonical && comparablePublishedRecord
+			? planCandidateMerge(
+					candidate.coil,
+					asRecord(candidate.normalizedData),
+					comparablePublishedRecord,
+					asRecord(canonical.sourceSnapshot)
+				)
+			: null;
 
 	return {
 		candidate,
 		canonical,
 		publishedRecord,
-		comparablePublishedRecord: publishedRecord
-			? mapPublishedRecordToComparable(candidate.coil, publishedRecord)
-			: null,
+		comparableCandidateRecord,
+		comparablePublishedRecord,
+		mergePreview,
 		suggestedMatches
 	};
 }
@@ -411,62 +434,176 @@ async function publishCandidateRecord(
 	candidate: ImportedCandidateRow,
 	reviewerId: string | null,
 	canonical: CanonicalRecordRow | null
-): Promise<{ id: string; previousData: unknown | null }> {
+): Promise<{
+	id: string;
+	previousData: unknown | null;
+	fieldsUpdated: string[];
+	nextSourceSnapshot: Record<string, unknown>;
+}> {
 	const normalized = asRecord(candidate.normalizedData);
 	const publishedRecordId = canonical?.publishedRecordId ?? null;
 	const previousData = publishedRecordId
 		? await getPublishedRecordById(tx, candidate.coil, publishedRecordId)
 		: null;
+	const previousComparable = previousData
+		? mapPublishedRecordToComparable(candidate.coil, previousData)
+		: null;
+	const mergePreview =
+		previousComparable && canonical
+			? planCandidateMerge(
+					candidate.coil,
+					normalized,
+					previousComparable,
+					asRecord(canonical.sourceSnapshot)
+				)
+			: null;
 
 	switch (candidate.coil) {
 		case 'events': {
 			const payload = mapEventCandidate(normalized, reviewerId);
 			if (publishedRecordId && previousData) {
-				const updated = await updateEvent(publishedRecordId, payload, tx);
-				if (updated) return { id: updated.id, previousData };
+				const updated = await updateEvent(
+					publishedRecordId,
+					buildManagedPatch(payload, mergePreview, ['status', 'source', 'reviewedById']),
+					tx
+				);
+				if (updated) {
+					return {
+						id: updated.id,
+						previousData,
+						fieldsUpdated: mergePreview?.appliedFields.map((field) => field.field) ?? [],
+						nextSourceSnapshot: mergePreview?.nextSnapshot ?? mapCandidateToComparable(candidate.coil, normalized)
+					};
+				}
 			}
 			const created = await createEvent(payload, tx);
-			return { id: created.id, previousData };
+			return {
+				id: created.id,
+				previousData,
+				fieldsUpdated: Object.keys(mapCandidateToComparable(candidate.coil, normalized)),
+				nextSourceSnapshot: mapCandidateToComparable(candidate.coil, normalized)
+			};
 		}
 		case 'funding': {
 			const payload = mapFundingCandidate(normalized, reviewerId);
 			if (publishedRecordId && previousData) {
-				const updated = await updateFunding(publishedRecordId, payload, tx);
-				if (updated) return { id: updated.id, previousData };
+				const updated = await updateFunding(
+					publishedRecordId,
+					buildManagedPatch(payload, mergePreview, ['status', 'source', 'reviewedById']),
+					tx
+				);
+				if (updated) {
+					return {
+						id: updated.id,
+						previousData,
+						fieldsUpdated: mergePreview?.appliedFields.map((field) => field.field) ?? [],
+						nextSourceSnapshot: mergePreview?.nextSnapshot ?? mapCandidateToComparable(candidate.coil, normalized)
+					};
+				}
 			}
 			const created = await createFunding(payload, tx);
-			return { id: created.id, previousData };
+			return {
+				id: created.id,
+				previousData,
+				fieldsUpdated: Object.keys(mapCandidateToComparable(candidate.coil, normalized)),
+				nextSourceSnapshot: mapCandidateToComparable(candidate.coil, normalized)
+			};
 		}
 		case 'jobs': {
 			const payload = mapJobCandidate(normalized, reviewerId);
 			if (publishedRecordId && previousData) {
-				const updated = await updateJob(publishedRecordId, payload, tx);
-				if (updated) return { id: updated.id, previousData };
+				const updated = await updateJob(
+					publishedRecordId,
+					buildManagedPatch(payload, mergePreview, ['status', 'source', 'reviewedById']),
+					tx
+				);
+				if (updated) {
+					return {
+						id: updated.id,
+						previousData,
+						fieldsUpdated: mergePreview?.appliedFields.map((field) => field.field) ?? [],
+						nextSourceSnapshot: mergePreview?.nextSnapshot ?? mapCandidateToComparable(candidate.coil, normalized)
+					};
+				}
 			}
 			const created = await createJob(payload, tx);
-			return { id: created.id, previousData };
+			return {
+				id: created.id,
+				previousData,
+				fieldsUpdated: Object.keys(mapCandidateToComparable(candidate.coil, normalized)),
+				nextSourceSnapshot: mapCandidateToComparable(candidate.coil, normalized)
+			};
 		}
 		case 'red_pages': {
 			const payload = mapRedPagesCandidate(normalized, reviewerId);
 			if (publishedRecordId && previousData) {
-				const updated = await updateBusiness(publishedRecordId, payload, tx);
-				if (updated) return { id: updated.id, previousData };
+				const updated = await updateBusiness(
+					publishedRecordId,
+					buildManagedPatch(payload, mergePreview, ['status', 'source', 'reviewedById']),
+					tx
+				);
+				if (updated) {
+					return {
+						id: updated.id,
+						previousData,
+						fieldsUpdated: mergePreview?.appliedFields.map((field) => field.field) ?? [],
+						nextSourceSnapshot: mergePreview?.nextSnapshot ?? mapCandidateToComparable(candidate.coil, normalized)
+					};
+				}
 			}
 			const created = await createBusiness(payload, tx);
-			return { id: created.id, previousData };
+			return {
+				id: created.id,
+				previousData,
+				fieldsUpdated: Object.keys(mapCandidateToComparable(candidate.coil, normalized)),
+				nextSourceSnapshot: mapCandidateToComparable(candidate.coil, normalized)
+			};
 		}
 		case 'toolbox': {
 			const payload = mapToolboxCandidate(normalized, reviewerId);
 			if (publishedRecordId && previousData) {
-				const updated = await updateResource(publishedRecordId, payload, tx);
-				if (updated) return { id: updated.id, previousData };
+				const updated = await updateResource(
+					publishedRecordId,
+					buildManagedPatch(payload, mergePreview, [
+						'status',
+						'source',
+						'reviewedById',
+						'lastReviewedAt'
+					]),
+					tx
+				);
+				if (updated) {
+					return {
+						id: updated.id,
+						previousData,
+						fieldsUpdated: mergePreview?.appliedFields.map((field) => field.field) ?? [],
+						nextSourceSnapshot: mergePreview?.nextSnapshot ?? mapCandidateToComparable(candidate.coil, normalized)
+					};
+				}
 			}
 			const created = await createResource(payload, tx);
-			return { id: created.id, previousData };
+			return {
+				id: created.id,
+				previousData,
+				fieldsUpdated: Object.keys(mapCandidateToComparable(candidate.coil, normalized)),
+				nextSourceSnapshot: mapCandidateToComparable(candidate.coil, normalized)
+			};
 		}
 		default:
 			throw new Error(`Unsupported coil ${candidate.coil}`);
 	}
+}
+
+function buildManagedPatch(
+	basePayload: Record<string, unknown>,
+	mergePreview: MergePreview | null,
+	metaKeys: string[]
+) {
+	const patch = Object.fromEntries(
+		Object.entries(basePayload).filter(([key]) => metaKeys.includes(key))
+	) as Record<string, unknown>;
+	Object.assign(patch, mergePreview?.patch ?? {});
+	return patch;
 }
 
 async function getPublishedRecordById(
@@ -762,9 +899,18 @@ function mapPublishedRecordToComparable(
 				end_date: toIso(record.endDate),
 				location_name: readString(record, 'location'),
 				location_address: readString(record, 'address'),
+				location_state: readString(record, 'region'),
+				organization_name: readString(record, 'hostOrg'),
 				event_type: readString(record, 'type'),
 				registration_url: readString(record, 'registrationUrl'),
-				tags: readStringArray(record, 'tags')
+				timezone: readString(record, 'timezone'),
+				is_virtual:
+					readString(record, 'eventFormat') === 'online' ||
+					Boolean(readString(record, 'virtualEventUrl')),
+				virtual_url: readString(record, 'virtualEventUrl'),
+				cost: readString(record, 'cost'),
+				tags: readStringArray(record, 'tags'),
+				image_url: readString(record, 'imageUrl')
 			};
 		case 'funding':
 			return {
@@ -773,10 +919,15 @@ function mapPublishedRecordToComparable(
 				url: readString(record, 'applyUrl'),
 				deadline: toIso(record.deadline),
 				funder_name: readString(record, 'funderName'),
+				funding_type: readString(record, 'fundingType'),
 				amount_min: readNumber(record, 'amountMin'),
 				amount_max: readNumber(record, 'amountMax'),
+				amount_description: readString(record, 'amountDescription'),
+				region: readString(record, 'region'),
+				eligibility: readString(record, 'eligibilityType'),
 				status: readString(record, 'applicationStatus'),
-				tags: readStringArray(record, 'tags')
+				tags: readStringArray(record, 'tags'),
+				image_url: readString(record, 'imageUrl')
 			};
 		case 'jobs':
 			return {
@@ -785,10 +936,19 @@ function mapPublishedRecordToComparable(
 				url: readString(record, 'applyUrl'),
 				organization_name: readString(record, 'employerName'),
 				job_type: readString(record, 'jobType'),
+				is_remote: readString(record, 'workArrangement') === 'remote',
+				is_hybrid: readString(record, 'workArrangement') === 'hybrid',
 				closing_date: toIso(record.applicationDeadline),
 				location_city: readString(record, 'city'),
 				location_state: readString(record, 'state'),
-				tags: readStringArray(record, 'tags')
+				region: readString(record, 'region'),
+				salary_min: readNumber(record, 'compensationMin'),
+				salary_max: readNumber(record, 'compensationMax'),
+				salary_period: readString(record, 'compensationType'),
+				salary_description: readString(record, 'compensationDescription'),
+				department: readString(record, 'department'),
+				tags: readStringArray(record, 'tags'),
+				image_url: readString(record, 'imageUrl')
 			};
 		case 'red_pages':
 			return {
@@ -796,12 +956,18 @@ function mapPublishedRecordToComparable(
 				description: readString(record, 'description'),
 				url: readString(record, 'website'),
 				organization_name: readString(record, 'ownerName'),
+				organization_type: readString(record, 'serviceType'),
+				service_area: readString(record, 'serviceArea'),
+				tribal_affiliation: readString(record, 'tribalAffiliation'),
 				address: readString(record, 'address'),
 				city: readString(record, 'city'),
 				state: readString(record, 'state'),
+				region: readString(record, 'region'),
+				zip: readString(record, 'zip'),
 				email: readString(record, 'email'),
 				phone: readString(record, 'phone'),
-				tags: readStringArray(record, 'tags')
+				tags: readStringArray(record, 'tags'),
+				image_url: readString(record, 'imageUrl')
 			};
 		case 'toolbox':
 			return {
@@ -810,9 +976,11 @@ function mapPublishedRecordToComparable(
 				url: readString(record, 'externalUrl'),
 				publisher: readString(record, 'sourceName'),
 				resource_type: readString(record, 'resourceType'),
+				format: readString(record, 'mediaType'),
 				publication_date: toIso(record.publishDate),
 				topics: readStringArray(record, 'categories'),
-				tags: readStringArray(record, 'tags')
+				tags: readStringArray(record, 'tags'),
+				image_url: readString(record, 'imageUrl')
 			};
 		default:
 			return record;

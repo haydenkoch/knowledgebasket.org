@@ -10,39 +10,45 @@
 	import * as NativeSelect from '$lib/components/ui/native-select/index.js';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog/index.js';
 	import { Spinner } from '$lib/components/ui/spinner/index.js';
+	import AdminPageHeader from '$lib/components/organisms/admin/AdminPageHeader.svelte';
 
 	let { data } = $props();
 	let submitting = $state(false);
 </script>
 
 <div class="space-y-6">
-	<div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-		<h1 class="text-2xl font-bold">Edit venue</h1>
-		<AlertDialog.Root>
-			<AlertDialog.Trigger>
-				<Button variant="destructive" type="button">Delete</Button>
-			</AlertDialog.Trigger>
-			<AlertDialog.Content>
-				<AlertDialog.Header>
-					<AlertDialog.Title>Delete venue</AlertDialog.Title>
-					<AlertDialog.Description>
-						This will permanently delete this venue. This action cannot be undone.
-					</AlertDialog.Description>
-				</AlertDialog.Header>
-				<AlertDialog.Footer>
-					<AlertDialog.Cancel>Cancel</AlertDialog.Cancel>
-					<form method="POST" action="?/deleteVenue" use:enhance>
-						<AlertDialog.Action
-							type="submit"
-							class="text-destructive-foreground bg-destructive hover:bg-destructive/90"
-						>
-							Delete
-						</AlertDialog.Action>
-					</form>
-				</AlertDialog.Footer>
-			</AlertDialog.Content>
-		</AlertDialog.Root>
-	</div>
+	<AdminPageHeader
+		eyebrow="Venues"
+		title={data.venue.name}
+		description="Edit venue details, address, and linked organization."
+	>
+		{#snippet actions()}
+			<AlertDialog.Root>
+				<AlertDialog.Trigger>
+					<Button variant="destructive" type="button">Delete</Button>
+				</AlertDialog.Trigger>
+				<AlertDialog.Content>
+					<AlertDialog.Header>
+						<AlertDialog.Title>Delete venue</AlertDialog.Title>
+						<AlertDialog.Description>
+							This will permanently delete this venue. This action cannot be undone.
+						</AlertDialog.Description>
+					</AlertDialog.Header>
+					<AlertDialog.Footer>
+						<AlertDialog.Cancel>Cancel</AlertDialog.Cancel>
+						<form method="POST" action="?/deleteVenue" use:enhance>
+							<AlertDialog.Action
+								type="submit"
+								class="text-destructive-foreground bg-destructive hover:bg-destructive/90"
+							>
+								Delete
+							</AlertDialog.Action>
+						</form>
+					</AlertDialog.Footer>
+				</AlertDialog.Content>
+			</AlertDialog.Root>
+		{/snippet}
+	</AdminPageHeader>
 
 	<form
 		method="POST"
@@ -82,6 +88,7 @@
 					</Field.Field>
 					<Field.Field>
 						<Field.Label for="venueType">Type</Field.Label>
+						<Field.Description>e.g. Theater, Park, Community center</Field.Description>
 						<Field.Content>
 							<Input
 								id="venueType"

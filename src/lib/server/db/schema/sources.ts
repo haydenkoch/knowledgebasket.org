@@ -304,6 +304,7 @@ export const canonicalRecords = pgTable(
 		contentFingerprint: text('content_fingerprint'),
 		canonicalUrl: text('canonical_url'),
 		externalIds: jsonb('external_ids').notNull().default({}),
+		sourceSnapshot: jsonb('source_snapshot').notNull().default({}),
 		sourceCount: integer('source_count').notNull().default(1),
 		primarySourceId: uuid('primary_source_id').references(() => sources.id, {
 			onDelete: 'set null'

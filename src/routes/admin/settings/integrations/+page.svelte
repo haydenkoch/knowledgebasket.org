@@ -12,25 +12,24 @@
 <div class="max-w-2xl space-y-6">
 	<h1 class="text-2xl font-bold">Integrations</h1>
 	<p class="text-muted-foreground">
-		API keys are configured via environment variables. Status below is read-only.
+		These integrations are configured by your developer. Status is shown here for reference.
 	</p>
 
 	<Card.Root>
 		<Card.Header>
 			<Card.Title>Mapbox</Card.Title>
-			<Card.Description
-				>Used for geocoding and maps (event/venue location picker, public map). Set
-				MAPBOX_ACCESS_TOKEN or MAPBOX_TOKEN in your environment.</Card.Description
-			>
+			<Card.Description>
+				Enables maps and location search — used for event and venue location pickers and the public map view.
+			</Card.Description>
 		</Card.Header>
 		<Card.Content>
 			<div class="flex items-center gap-2">
 				{#if data.mapboxConfigured}
-					<CheckCircle class="h-5 w-5 text-green-600" />
-					<span>Configured</span>
+					<CheckCircle class="h-5 w-5 text-[var(--color-pinyon-600)]" />
+					<span class="font-medium text-[var(--color-pinyon-800)]">Connected</span>
 				{:else}
-					<XCircle class="h-5 w-5 text-amber-600" />
-					<span>Not set</span>
+					<XCircle class="h-5 w-5 text-[var(--color-ember-600)]" />
+					<span class="font-medium text-[var(--mid)]">Not configured</span>
 				{/if}
 			</div>
 		</Card.Content>
@@ -39,18 +38,18 @@
 	<Card.Root>
 		<Card.Header>
 			<Card.Title>Meilisearch</Card.Title>
-			<Card.Description
-				>Used for events search. Set MEILISEARCH_HOST and MEILISEARCH_API_KEY in your environment.</Card.Description
-			>
+			<Card.Description>
+				Powers the public events search. Required for search to work on the site.
+			</Card.Description>
 		</Card.Header>
 		<Card.Content>
 			<div class="flex items-center gap-2">
 				{#if data.meilisearchConfigured}
-					<CheckCircle class="h-5 w-5 text-green-600" />
-					<span>Configured</span>
+					<CheckCircle class="h-5 w-5 text-[var(--color-pinyon-600)]" />
+					<span class="font-medium text-[var(--color-pinyon-800)]">Connected</span>
 				{:else}
-					<XCircle class="h-5 w-5 text-amber-600" />
-					<span>Not set</span>
+					<XCircle class="h-5 w-5 text-[var(--color-ember-600)]" />
+					<span class="font-medium text-[var(--mid)]">Not configured</span>
 				{/if}
 			</div>
 		</Card.Content>

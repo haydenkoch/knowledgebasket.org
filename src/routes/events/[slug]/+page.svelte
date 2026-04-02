@@ -15,6 +15,7 @@
 	import * as ButtonGroup from '$lib/components/ui/button-group/index.js';
 	import EventCard from '$lib/components/molecules/EventCard.svelte';
 	import * as Breadcrumb from '$lib/components/ui/breadcrumb/index.js';
+	import SourceProvenanceCard from '$lib/components/public/source-provenance-card.svelte';
 
 	let { data } = $props();
 	let event = $derived(data.event as EventItem);
@@ -464,6 +465,7 @@
 					</ButtonGroup.Root>
 				</div>
 			{/if}
+			<SourceProvenanceCard provenance={event.provenance} />
 			<a href="/events" class="kb-event-back">← Back to all events</a>
 		</aside>
 	</div>

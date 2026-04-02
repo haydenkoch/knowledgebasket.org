@@ -5,6 +5,7 @@
 	import * as Breadcrumb from '$lib/components/ui/breadcrumb/index.js';
 	import ExternalLinkIcon from '@lucide/svelte/icons/external-link';
 	import DownloadIcon from '@lucide/svelte/icons/download';
+	import SourceProvenanceCard from '$lib/components/public/source-provenance-card.svelte';
 
 	let { data } = $props();
 	let item = $derived(data.item as ToolboxItem | null);
@@ -215,6 +216,7 @@
 						{/if}
 					</dl>
 				</div>
+				<SourceProvenanceCard provenance={item.provenance} />
 
 				<Button variant="outline" href="/toolbox" class="w-full">← Back to Toolbox</Button>
 			</aside>

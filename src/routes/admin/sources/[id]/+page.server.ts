@@ -5,6 +5,7 @@ import { db } from '$lib/server/db';
 import { importBatches } from '$lib/server/db/schema';
 import { ingestSource, previewSource } from '$lib/server/ingestion/pipeline';
 import { runSourceNow } from '$lib/server/ingestion/scheduler';
+import { validateSourceConfig } from '$lib/server/ingestion/validation';
 import { getRecentCandidatesForSource } from '$lib/server/import-candidates';
 import { getFetchLogsForSource } from '$lib/server/source-fetch-log';
 import { getSourceById, updateSource } from '$lib/server/sources';
@@ -60,6 +61,23 @@ export const load: PageServerLoad = async ({ params }) => {
 		return acc;
 	}, {});
 
+	const validation = validateSourceConfig(detail.source);
+	const candidateOutcomeSummary = {
+		approved: candidates.filter((candidate) => candidate.status === 'approved').length,
+		autoApproved: candidates.filter((candidate) => candidate.status === 'auto_approved').length,
+		pending: candidates.filter((candidate) => candidate.status === 'pending_review').length,
+		needsInfo: candidates.filter((candidate) => candidate.status === 'needs_info').length,
+		rejected: candidates.filter((candidate) => candidate.status === 'rejected').length
+	};
+	const batchQualitySummary = {
+		totalFetched: batches.reduce((sum, batch) => sum + batch.itemsFetched, 0),
+		totalNormalized: batches.reduce((sum, batch) => sum + batch.itemsNormalized, 0),
+		totalNew: batches.reduce((sum, batch) => sum + batch.itemsNew, 0),
+		totalDuplicate: batches.reduce((sum, batch) => sum + batch.itemsDuplicate, 0),
+		totalUpdated: batches.reduce((sum, batch) => sum + batch.itemsUpdated, 0),
+		totalFailed: batches.reduce((sum, batch) => sum + batch.itemsFailed, 0)
+	};
+
 	return {
 		source: detail.source,
 		tags: detail.tags,
@@ -67,11 +85,14 @@ export const load: PageServerLoad = async ({ params }) => {
 		batches,
 		candidates,
 		lastBatchMeta,
+		validation,
 		publishSummary: {
 			approved: candidates.filter((candidate) => candidate.status === 'approved').length,
 			autoApproved: candidates.filter((candidate) => candidate.status === 'auto_approved').length
 		},
-		errorPatterns
+		errorPatterns,
+		candidateOutcomeSummary,
+		batchQualitySummary
 	};
 };
 

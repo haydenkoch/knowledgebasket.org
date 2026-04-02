@@ -55,19 +55,18 @@ export const htmlSelectorAdapter: IngestionAdapter = {
 		try {
 			const cfg = config as HtmlSelectorConfig;
 			const $ = load(rawContent);
-			const preset = getPreset(cfg);
 			const baseUrl = cfg.baseUrl ?? cfg.__sourceUrl ?? '';
 			const items = (
-				preset.itemSelector
-					? $(preset.itemSelector)
+				cfg.itemSelector
+					? $(cfg.itemSelector)
 					: $('article, .post, .event, .job, .listing, .card, li')
 			)
 				.toArray()
-				.map((element) => extractItem($, element, { ...preset, baseUrl }))
+				.map((element) => extractItem($, element, { ...cfg, baseUrl }))
 				.filter(
 					(entry) => entry.sourceItemId || entry.sourceItemUrl || readString(entry.fields.title)
 				)
-				.slice(0, Number(cfg.maxItems ?? preset.maxItems ?? 100));
+				.slice(0, Number(cfg.maxItems ?? 100));
 
 			return {
 				success: true,
@@ -119,38 +118,22 @@ export const htmlSelectorAdapter: IngestionAdapter = {
 
 	validateConfig(config, source): ConfigValidationResult {
 		const errors: string[] = [];
+		const warnings: string[] = [];
 		try {
 			new URL(selectSourceUrl(source as SourceRecord, config));
 		} catch {
 			errors.push('HTML selector sources require a valid source URL.');
 		}
-		return { valid: errors.length === 0, errors, warnings: [] };
+		const htmlConfig = config as HtmlSelectorConfig;
+		if (!htmlConfig.itemSelector) {
+			warnings.push('No item selector configured; generic HTML fallback will be used.');
+		}
+		if (!htmlConfig.fieldRules || Object.keys(htmlConfig.fieldRules).length === 0) {
+			warnings.push('No field rules configured; generic field extraction fallback will be used.');
+		}
+		return { valid: errors.length === 0, errors, warnings };
 	}
 };
-
-function getPreset(config: HtmlSelectorConfig) {
-	const sourceSlug = config.__sourceSlug ?? '';
-	const presets: Record<string, HtmlSelectorConfig> = {
-		'ncai-events': { itemSelector: '.views-row, article, .event-listing article' },
-		'powwow-calendar': {
-			itemSelector: 'article, .tribe-events-calendar-list__event-row, .event-card'
-		},
-		'tribal-funding-registry': { itemSelector: 'article, .grant-card, .listing-card' },
-		nativehire: { itemSelector: 'article, .job-item, .opening, .job' },
-		'yurok-careers': { itemSelector: '.job-listing, .job-item, tr, .position' },
-		'crihb-careers': { itemSelector: 'article, .job-posting, .job, .views-row' },
-		'news-native-california-events': { itemSelector: 'article, .event, .tribe-events-event' },
-		'ca-tribal-casino-directory': { itemSelector: 'table tr, .casino, .tribe-list li' }
-	};
-
-	return {
-		itemSelector: config.itemSelector,
-		fieldRules: config.fieldRules,
-		baseUrl: config.baseUrl,
-		maxItems: config.maxItems,
-		...(presets[sourceSlug] ?? {})
-	};
-}
 
 function extractItem(
 	$: ReturnType<typeof load>,
@@ -161,7 +144,10 @@ function extractItem(
 	if (config.fieldRules && Object.keys(config.fieldRules).length > 0) {
 		const fields: Record<string, unknown> = {};
 		for (const [key, rule] of Object.entries(config.fieldRules)) {
-			const target = root.find(rule.selector).first();
+			const target =
+				rule.selector === ':scope' || rule.selector === 'self'
+					? root
+					: root.find(rule.selector).first();
 			const raw = extractRuleValue(target, rule);
 			fields[key] = applyTransform(raw, rule.transform);
 		}

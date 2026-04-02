@@ -38,8 +38,8 @@
 		</Card.Root>
 	{/if}
 	<div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-		<div class="flex items-center gap-3">
-			<h1 class="text-2xl font-bold">Edit Event</h1>
+		<div class="flex items-center gap-3 min-w-0">
+			<h1 class="truncate text-2xl font-bold">{data.event.title}</h1>
 			<StatusBadge status={data.event.status ?? 'unknown'} />
 			{#if data.event.slug && data.event.status === 'published'}
 				<Button
@@ -52,8 +52,6 @@
 					<ExternalLink class="mr-1.5 h-3.5 w-3.5" />
 					View on site
 				</Button>
-			{:else if data.event.status !== 'published'}
-				<span class="text-sm text-muted-foreground">Publish to get a public link.</span>
 			{/if}
 		</div>
 		<div class="flex flex-wrap gap-2">

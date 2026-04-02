@@ -1,12 +1,18 @@
 <script lang="ts">
 	import EventForm from '$lib/components/organisms/admin/EventForm.svelte';
+	import AdminPageHeader from '$lib/components/organisms/admin/AdminPageHeader.svelte';
 
 	let { data } = $props();
 </script>
 
-<div>
-	<h1 class="mb-6 text-2xl font-bold">New Event</h1>
+<div class="space-y-6">
+	<AdminPageHeader
+		eyebrow="Events"
+		title="Add event"
+		description="Create a new event to publish on the public calendar."
+	/>
 	<EventForm
+		mode="create"
 		organizations={data.organizations}
 		venues={data.venues}
 		taxonomyTags={data.taxonomyTags ?? []}
@@ -15,3 +21,4 @@
 		costOptions={data.costOptions ?? []}
 	/>
 </div>
+

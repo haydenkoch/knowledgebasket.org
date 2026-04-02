@@ -23,13 +23,16 @@ Implemented:
 - Dedupe fingerprinting and canonical matching during ingest
 - Review queue plus candidate-level review page for update and ambiguous cases
 - Approval publishing into real live coil tables through existing content services
+- Merge-safe update publishing using canonical source snapshots to preserve curator edits
+- Public source provenance rendering on imported live detail pages
 - Scheduled due-source execution through `POST /api/source-ops/run-due`
 - Advisory-lock protection for scheduler-wide and per-source concurrent runs
 - Controlled auto-approve for eligible new candidates
+- Expanded source-health diagnostics, source-quality summaries, and config validation in admin
+- Curated starter HTML/RSS source configs in `kb-data` instead of relying on hidden adapter presets
 
 Still intentionally out of scope:
 
-- Public attribution/provenance rendering on live content pages
 - Multi-coil automated ingestion for a single source
 - Headless-browser scraping
 - A persisted “system reviewer” user row for auto-approvals
@@ -63,6 +66,8 @@ Relevant external references:
 - Source registry services: [src/lib/server/sources.ts](/Users/hayden/Desktop/kb/site/src/lib/server/sources.ts)
 - Fetch log services: [src/lib/server/source-fetch-log.ts](/Users/hayden/Desktop/kb/site/src/lib/server/source-fetch-log.ts)
 - Review/publish services: [src/lib/server/import-candidates.ts](/Users/hayden/Desktop/kb/site/src/lib/server/import-candidates.ts)
+- Merge planner: [src/lib/server/import-candidate-merge.ts](/Users/hayden/Desktop/kb/site/src/lib/server/import-candidate-merge.ts)
+- Public provenance helper: [src/lib/server/source-provenance.ts](/Users/hayden/Desktop/kb/site/src/lib/server/source-provenance.ts)
 
 ### Ingestion runtime
 
@@ -167,7 +172,10 @@ Current behavior:
 `approveCandidate()` now:
 
 - creates or updates the real live content row in the target coil
+- computes a merge plan for source-managed fields on update approvals
+- preserves curator-edited live values when they differ from the last accepted source snapshot
 - updates or creates the canonical record
+- stores the latest accepted source-managed values in `canonical_records.source_snapshot`
 - upserts source-to-canonical links
 - writes merge history
 - marks the candidate as approved or auto-approved
@@ -179,6 +187,18 @@ Supported publish targets:
 - `jobs`
 - `red_pages`
 - `toolbox`
+
+### Public provenance flow
+
+Imported public detail pages now resolve provenance from `canonical_records`, `source_record_links`, and `sources`.
+
+Current behavior:
+
+- provenance is attached in the public detail loaders for events, funding, jobs, red pages, and toolbox
+- public detail pages render a compact “Imported from” card only when provenance exists
+- provenance includes primary source name/slug, source URL, source item URL when available, attribution text, last synced timestamp, and total linked source count
+
+List pages and search cards still do not render provenance.
 
 ## Operator Runbook
 
@@ -193,6 +213,13 @@ What this does:
 - reads the starter source definitions from `kb-data`
 - upserts by slug
 - preserves the app repo as the publishing/runtime environment
+- refreshes curated adapter config for the automated starter HTML/RSS sources
+
+Starter source config ownership:
+
+- canonical starter-source config lives in [/Users/hayden/Desktop/kb-data/source-ops/data/seed-sources.json](/Users/hayden/Desktop/kb-data/source-ops/data/seed-sources.json)
+- the app DB is refreshed from that file via the seed script
+- if a seeded HTML/RSS source needs selector or feed changes, update `kb-data` first and then re-run the seed script
 
 ### Test a single source manually
 
@@ -224,6 +251,19 @@ This path:
 Use `/admin/sources/[id]` or `/admin/sources/health` and run `Retry source`.
 
 This path uses the same scheduler-backed source execution service as automated runs.
+
+### Curate a weak source safely
+
+Recommended workflow for a newly added or noisy HTML/RSS source:
+
+1. Update its config in `kb-data/source-ops/data/seed-sources.json`
+2. Re-run `pnpm tsx scripts/seed-sources.ts`
+3. Open `/admin/sources/[id]`
+4. Check config validation warnings
+5. Run `Test source`
+6. Confirm normalized records and dedupe results look sane
+7. Run `Run import`
+8. Review a small sample of candidates before trusting the source more broadly
 
 ### Run due sources through the API
 
@@ -279,8 +319,20 @@ Auto-approved candidates are published through the same real publish path as man
 - stale/broken/auth-required/degraded source groupings
 - duplicate-heavy sources
 - low-yield sources
+- repeated fetch/parse error groupings
+- update-heavy sources
+- approval-rate summaries
+- needs-curation sources derived from config validation, poor yield, or repeated failures
 
 The dashboard is derived from existing source, fetch-log, and batch data. There is no separate telemetry table.
+
+`/admin/sources/[id]` now also surfaces:
+
+- config validation status
+- batch quality summary
+- candidate outcome summary
+- recent repeated errors
+- next-check and recent runtime context stored on the source row
 
 ## Verified State
 
@@ -296,6 +348,7 @@ Verified successfully in the app repo:
 Additional notes:
 
 - the 20 starter sources seed correctly from `kb-data`
+- curated HTML/RSS source configs are now seeded from `kb-data` into the app DB
 - the repo still has no historical Drizzle baseline, so generated migrations must be inspected carefully
 - bootstrap-style full-schema output from Drizzle should still be treated as suspect and manually reduced to additive changes only
 
@@ -303,9 +356,9 @@ Additional notes:
 
 These are the main follow-ups after the current implementation pass:
 
-- tighten adapter configs for seeded HTML and RSS sources that still lean on generic heuristics
-- add public-facing source attribution/provenance rendering
-- refine per-coil merge rules so imported updates preserve curator-authored edits where needed
+- improve weak/publicly limited starter sources whose sites still do not expose good structured listings even after config curation
+- add richer field-by-field reviewer controls if operators need manual override at approve time
+- consider provenance on public list/search surfaces only if it improves UX enough to justify the clutter
 - add stronger operational reporting if scheduler volume grows beyond what fetch-log and batch summaries comfortably show
 - decide whether a persisted system reviewer identity is worth adding for audit clarity
 - revisit multi-coil automated ingestion only after single-coil source behavior is fully trusted

@@ -7,6 +7,7 @@
 	import GlobeIcon from '@lucide/svelte/icons/globe';
 	import PhoneIcon from '@lucide/svelte/icons/phone';
 	import MailIcon from '@lucide/svelte/icons/mail';
+	import SourceProvenanceCard from '$lib/components/public/source-provenance-card.svelte';
 
 	let { data } = $props();
 	let item = $derived(data.item as RedPagesItem | null);
@@ -299,6 +300,7 @@
 						</div>
 					</div>
 				{/if}
+				<SourceProvenanceCard provenance={item.provenance} />
 
 				<Button variant="outline" href="/red-pages" class="w-full">← Back to Red Pages</Button>
 			</aside>

@@ -5,6 +5,7 @@
 	import MapPinIcon from '@lucide/svelte/icons/map-pin';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import * as Breadcrumb from '$lib/components/ui/breadcrumb/index.js';
+	import SourceProvenanceCard from '$lib/components/public/source-provenance-card.svelte';
 
 	let { data } = $props();
 	let item = $derived(data.item as JobItem | null);
@@ -297,6 +298,7 @@
 						{/if}
 					</dl>
 				</div>
+				<SourceProvenanceCard provenance={item.provenance} />
 
 				<Button variant="outline" href="/jobs" class="w-full">← Back to Job Board</Button>
 			</aside>

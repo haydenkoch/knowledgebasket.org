@@ -12,6 +12,7 @@ import {
 } from '$lib/server/db/schema';
 import { fetchEventsFromIcalFeed } from '$lib/server/ical-feed';
 import { indexEvent } from '$lib/server/meilisearch';
+import { getSourceProvenanceByPublishedRecord } from '$lib/server/source-provenance';
 import { stripHtml } from '$lib/utils/format';
 import type { EventItem, PricingTier } from '$lib/data/kb';
 
@@ -201,12 +202,14 @@ export async function getEventBySlug(slug: string): Promise<EventItem | null> {
 			.limit(1);
 		const r = rows[0];
 		if (!r) return null;
-		return rowToEventItem(r.event, {
+		const item = rowToEventItem(r.event, {
 			organizationName: r.orgName ?? undefined,
 			venueName: r.venueName ?? undefined,
 			organizationSlug: r.orgSlug ?? undefined,
 			venueSlug: r.venueSlug ?? undefined
 		});
+		item.provenance = await getSourceProvenanceByPublishedRecord('events', r.event.id);
+		return item;
 	} catch (err) {
 		console.warn('[events] getEventBySlug failed:', err);
 		return null;

@@ -9,39 +9,45 @@
 	import { Separator } from '$lib/components/ui/separator/index.js';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog/index.js';
 	import { Spinner } from '$lib/components/ui/spinner/index.js';
+	import AdminPageHeader from '$lib/components/organisms/admin/AdminPageHeader.svelte';
 
 	let { data } = $props();
 	let submitting = $state(false);
 </script>
 
 <div class="space-y-6">
-	<div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-		<h1 class="text-2xl font-bold">Edit organization</h1>
-		<AlertDialog.Root>
-			<AlertDialog.Trigger>
-				<Button variant="destructive" type="button">Delete</Button>
-			</AlertDialog.Trigger>
-			<AlertDialog.Content>
-				<AlertDialog.Header>
-					<AlertDialog.Title>Delete organization</AlertDialog.Title>
-					<AlertDialog.Description>
-						This will permanently delete this organization. This action cannot be undone.
-					</AlertDialog.Description>
-				</AlertDialog.Header>
-				<AlertDialog.Footer>
-					<AlertDialog.Cancel>Cancel</AlertDialog.Cancel>
-					<form method="POST" action="?/deleteOrganization" use:enhance>
-						<AlertDialog.Action
-							type="submit"
-							class="text-destructive-foreground bg-destructive hover:bg-destructive/90"
-						>
-							Delete
-						</AlertDialog.Action>
-					</form>
-				</AlertDialog.Footer>
-			</AlertDialog.Content>
-		</AlertDialog.Root>
-	</div>
+	<AdminPageHeader
+		eyebrow="Organizations"
+		title={data.organization.name}
+		description="Edit organization details, contact information, and logo."
+	>
+		{#snippet actions()}
+			<AlertDialog.Root>
+				<AlertDialog.Trigger>
+					<Button variant="destructive" type="button">Delete</Button>
+				</AlertDialog.Trigger>
+				<AlertDialog.Content>
+					<AlertDialog.Header>
+						<AlertDialog.Title>Delete organization</AlertDialog.Title>
+						<AlertDialog.Description>
+							This will permanently delete this organization. This action cannot be undone.
+						</AlertDialog.Description>
+					</AlertDialog.Header>
+					<AlertDialog.Footer>
+						<AlertDialog.Cancel>Cancel</AlertDialog.Cancel>
+						<form method="POST" action="?/deleteOrganization" use:enhance>
+							<AlertDialog.Action
+								type="submit"
+								class="text-destructive-foreground bg-destructive hover:bg-destructive/90"
+							>
+								Delete
+							</AlertDialog.Action>
+						</form>
+					</AlertDialog.Footer>
+				</AlertDialog.Content>
+			</AlertDialog.Root>
+		{/snippet}
+	</AdminPageHeader>
 
 	<form
 		method="POST"
@@ -81,6 +87,7 @@
 					</Field.Field>
 					<Field.Field>
 						<Field.Label for="orgType">Type</Field.Label>
+						<Field.Description>e.g. Nonprofit, Foundation, Tribal organization</Field.Description>
 						<Field.Content>
 							<Input
 								id="orgType"

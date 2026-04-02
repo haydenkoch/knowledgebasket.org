@@ -5,6 +5,7 @@ import { eq, desc, asc, ilike, or, and, sql } from 'drizzle-orm';
 import { db, type DbExecutor } from '$lib/server/db';
 import { funding as fundingTable, organizations, user as userTable } from '$lib/server/db/schema';
 import { indexDocument, removeDocument } from '$lib/server/meilisearch';
+import { getSourceProvenanceByPublishedRecord } from '$lib/server/source-provenance';
 import type { FundingItem } from '$lib/data/kb';
 import type { FundingSearchDoc } from '$lib/server/meilisearch';
 import { stripHtml } from '$lib/utils/format';
@@ -133,10 +134,12 @@ export async function getFundingBySlug(slug: string): Promise<FundingItem | null
 		.limit(1);
 	const r = rows[0];
 	if (!r) return null;
-	return rowToItem(r.funding, {
+	const item = rowToItem(r.funding, {
 		organizationName: r.orgName ?? undefined,
 		organizationSlug: r.orgSlug ?? undefined
 	});
+	item.provenance = await getSourceProvenanceByPublishedRecord('funding', r.funding.id);
+	return item;
 }
 
 export async function getFundingById(id: string): Promise<FundingItem | null> {

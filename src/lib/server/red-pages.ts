@@ -9,6 +9,7 @@ import {
 	user as userTable
 } from '$lib/server/db/schema';
 import { indexDocument, removeDocument } from '$lib/server/meilisearch';
+import { getSourceProvenanceByPublishedRecord } from '$lib/server/source-provenance';
 import type { RedPagesItem } from '$lib/data/kb';
 import type { RedPagesSearchDoc } from '$lib/server/meilisearch';
 import { stripHtml } from '$lib/utils/format';
@@ -139,10 +140,12 @@ export async function getBusinessBySlug(slug: string): Promise<RedPagesItem | nu
 		.limit(1);
 	const r = rows[0];
 	if (!r) return null;
-	return rowToItem(r.business, {
+	const item = rowToItem(r.business, {
 		organizationName: r.orgName ?? undefined,
 		organizationSlug: r.orgSlug ?? undefined
 	});
+	item.provenance = await getSourceProvenanceByPublishedRecord('redpages', r.business.id);
+	return item;
 }
 
 export async function getBusinessById(id: string): Promise<RedPagesItem | null> {

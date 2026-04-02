@@ -3,6 +3,7 @@
 	import { stripHtml } from '$lib/utils/format';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import * as Breadcrumb from '$lib/components/ui/breadcrumb/index.js';
+	import SourceProvenanceCard from '$lib/components/public/source-provenance-card.svelte';
 
 	let { data } = $props();
 	let item = $derived(data.item as FundingItem | null);
@@ -262,6 +263,7 @@
 						{/if}
 					</dl>
 				</div>
+				<SourceProvenanceCard provenance={item.provenance} />
 
 				<Button variant="outline" href="/funding" class="w-full">← Back to Funding</Button>
 			</aside>

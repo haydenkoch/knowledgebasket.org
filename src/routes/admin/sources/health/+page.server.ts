@@ -2,13 +2,14 @@ import type { Actions, PageServerLoad } from './$types';
 import { fail } from '@sveltejs/kit';
 import { desc, eq, sql } from 'drizzle-orm';
 import { db } from '$lib/server/db';
-import { importBatches, sourceFetchLog, sources } from '$lib/server/db/schema';
+import { importBatches, importedCandidates, sourceFetchLog, sources } from '$lib/server/db/schema';
 import {
 	countDueSources,
 	getLatestSchedulerRunSummary,
 	runDueSources,
 	runSourceNow
 } from '$lib/server/ingestion/scheduler';
+import { validateSourceConfig } from '$lib/server/ingestion/validation';
 import { getRecentFailures, getFetchLogSummary } from '$lib/server/source-fetch-log';
 import { getSourceHealthSummary, getSourcesForAdmin } from '$lib/server/sources';
 
@@ -25,7 +26,12 @@ export const load: PageServerLoad = async () => {
 		recentFailures,
 		adapterStats,
 		duplicateHeavy,
-		lowYield
+		lowYield,
+		updateHeavy,
+		approvalRates,
+		recentSchedulerRuns,
+		repeatedErrors,
+		needsCuration
 	] = await Promise.all([
 		getSourceHealthSummary(),
 		getFetchLogSummary(),
@@ -38,7 +44,12 @@ export const load: PageServerLoad = async () => {
 		getRecentFailures(15),
 		getAdapterStats(),
 		getDuplicateHeavySources(),
-		getLowYieldSources()
+		getLowYieldSources(),
+		getUpdateHeavySources(),
+		getApprovalRates(),
+		getRecentSchedulerRuns(),
+		getRepeatedErrors(),
+		getNeedsCurationSources()
 	]);
 
 	return {
@@ -53,7 +64,12 @@ export const load: PageServerLoad = async () => {
 		recentFailures,
 		adapterStats,
 		duplicateHeavy,
-		lowYield
+		lowYield,
+		updateHeavy,
+		approvalRates,
+		recentSchedulerRuns,
+		repeatedErrors,
+		needsCuration
 	};
 };
 
@@ -153,4 +169,163 @@ async function getLowYieldSources() {
 		.limit(10);
 
 	return rows;
+}
+
+async function getUpdateHeavySources() {
+	const rows = await db
+		.select({
+			sourceId: sources.id,
+			sourceName: sources.name,
+			updateRatio: sql<number>`round((sum(${importBatches.itemsUpdated})::numeric / greatest(sum(${importBatches.itemsNormalized}), 1))::numeric, 3)`,
+			totalUpdated: sql<number>`sum(${importBatches.itemsUpdated})::int`,
+			totalNormalized: sql<number>`sum(${importBatches.itemsNormalized})::int`
+		})
+		.from(importBatches)
+		.innerJoin(sources, eq(importBatches.sourceId, sources.id))
+		.groupBy(sources.id, sources.name)
+		.having(sql`sum(${importBatches.itemsNormalized}) > 0`)
+		.orderBy(
+			desc(
+				sql`sum(${importBatches.itemsUpdated})::numeric / greatest(sum(${importBatches.itemsNormalized}), 1)`
+			)
+		)
+		.limit(10);
+
+	return rows;
+}
+
+async function getApprovalRates() {
+	const rows = await db
+		.select({
+			sourceId: sources.id,
+			sourceName: sources.name,
+			approvalRatio: sql<number>`round((count(*) filter (where ${importedCandidates.status} in ('approved', 'auto_approved'))::numeric / greatest(count(*), 1))::numeric, 3)`,
+			totalReviewed: sql<number>`count(*)::int`,
+			totalApproved: sql<number>`count(*) filter (where ${importedCandidates.status} in ('approved', 'auto_approved'))::int`
+		})
+		.from(importedCandidates)
+		.innerJoin(sources, eq(importedCandidates.sourceId, sources.id))
+		.where(sql`${importedCandidates.status} not in ('pending_review')`)
+		.groupBy(sources.id, sources.name)
+		.orderBy(sql`count(*) desc`)
+		.limit(10);
+
+	return rows;
+}
+
+async function getRecentSchedulerRuns(limit = 6) {
+	const batches = await db
+		.select({
+			id: importBatches.id,
+			sourceId: importBatches.sourceId,
+			sourceName: sources.name,
+			status: importBatches.status,
+			startedAt: importBatches.startedAt,
+			completedAt: importBatches.completedAt,
+			itemsNew: importBatches.itemsNew,
+			itemsUpdated: importBatches.itemsUpdated,
+			errors: importBatches.errors
+		})
+		.from(importBatches)
+		.innerJoin(sources, eq(importBatches.sourceId, sources.id))
+		.orderBy(desc(importBatches.startedAt))
+		.limit(100);
+
+	const grouped = new Map<
+		string,
+		Array<{
+			id: string;
+			sourceId: string;
+			sourceName: string;
+			status: string;
+			startedAt: Date;
+			completedAt: Date | null;
+			itemsNew: number;
+			itemsUpdated: number;
+			errors: unknown;
+		}>
+	>();
+
+	for (const batch of batches) {
+		const meta = Array.isArray(batch.errors)
+			? batch.errors.find(
+					(entry) =>
+						entry && typeof entry === 'object' && (entry as { stage?: string }).stage === 'meta'
+				)
+			: null;
+		if (!meta || typeof meta !== 'object') continue;
+		const runId = (meta as { trigger_run_id?: string }).trigger_run_id;
+		if (!runId) continue;
+		const existing = grouped.get(runId) ?? [];
+		existing.push(batch);
+		grouped.set(runId, existing);
+	}
+
+	return Array.from(grouped.entries())
+		.slice(0, limit)
+		.map(([triggerRunId, rows]) => ({
+			triggerRunId,
+			startedAt: rows.map((row) => row.startedAt).sort((a, b) => a.getTime() - b.getTime())[0] ?? null,
+			completedAt:
+				rows
+					.map((row) => row.completedAt)
+					.filter((value): value is Date => value instanceof Date)
+					.sort((a, b) => b.getTime() - a.getTime())[0] ?? null,
+			totalSources: rows.length,
+			totalNew: rows.reduce((sum, row) => sum + row.itemsNew, 0),
+			totalUpdated: rows.reduce((sum, row) => sum + row.itemsUpdated, 0)
+		}));
+}
+
+async function getRepeatedErrors() {
+	return db
+		.select({
+			sourceId: sources.id,
+			sourceName: sources.name,
+			errorCategory: sourceFetchLog.errorCategory,
+			errorMessage: sourceFetchLog.errorMessage,
+			count: sql<number>`count(*)::int`
+		})
+		.from(sourceFetchLog)
+		.innerJoin(sources, eq(sourceFetchLog.sourceId, sources.id))
+		.where(sql`${sourceFetchLog.status} in ('failure', 'timeout', 'partial')`)
+		.groupBy(sources.id, sources.name, sourceFetchLog.errorCategory, sourceFetchLog.errorMessage)
+		.orderBy(desc(sql`count(*)`))
+		.limit(12);
+}
+
+async function getNeedsCurationSources() {
+	const automated = await getSourcesForAdmin({ limit: 100, sort: 'checked' });
+	const duplicateHeavy = await getDuplicateHeavySources();
+	const lowYield = await getLowYieldSources();
+
+	const duplicateMap = new Map(duplicateHeavy.map((row) => [row.sourceId, row]));
+	const lowYieldMap = new Map(lowYield.map((row) => [row.sourceId, row]));
+
+	return automated.items
+		.filter((source) => source.adapterType)
+		.map((source) => {
+			const validation = validateSourceConfig(source);
+			const reasons: string[] = [];
+			if (!validation.valid) reasons.push('invalid config');
+			if (source.healthStatus === 'broken' || source.healthStatus === 'auth_required') {
+				reasons.push(source.healthStatus.replace(/_/g, ' '));
+			}
+			if (duplicateMap.get(source.id)?.duplicateRatio != null && duplicateMap.get(source.id)!.duplicateRatio >= 0.7) {
+				reasons.push('duplicate heavy');
+			}
+			if (lowYieldMap.get(source.id)?.yieldRatio != null && lowYieldMap.get(source.id)!.yieldRatio <= 0.2) {
+				reasons.push('low yield');
+			}
+			return {
+				sourceId: source.id,
+				sourceName: source.name,
+				adapterType: source.adapterType,
+				healthStatus: source.healthStatus,
+				valid: validation.valid,
+				reasons
+			};
+		})
+		.filter((source) => source.reasons.length > 0)
+		.slice(0, 12);
 }

@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { page } from '$app/stores';
 	import { enhance } from '$app/forms';
+	import logoFallback from '$lib/assets/favicon.svg';
+	import { Button } from '$lib/components/ui/button/index.js';
 	import * as Sidebar from '$lib/components/ui/sidebar/index.js';
 	import * as Breadcrumb from '$lib/components/ui/breadcrumb/index.js';
 	import { Toaster } from '$lib/components/ui/sonner/index.js';
@@ -8,7 +10,7 @@
 		Activity,
 		Building2,
 		MapPin,
-		LayoutDashboard,
+		Compass,
 		LogOut,
 		ChevronRight,
 		Database,
@@ -16,34 +18,42 @@
 		Copy,
 		List,
 		ListOrdered,
-		Settings,
 		Tags,
 		Palette,
 		Plug,
 		Search,
-		User
+		User,
+		Inbox,
+		Globe2,
+		ShieldCheck
 	} from '@lucide/svelte';
 
 	let { data, children } = $props();
 
-	const topNav = [{ href: '/admin', label: 'Dashboard', icon: LayoutDashboard }];
+	const overviewNav = [
+		{ href: '/admin', label: 'Overview', icon: Compass },
+		{ href: '/admin/inbox', label: 'Inbox', icon: Inbox }
+	];
 
-	const eventsNav = [
-		{ href: '/admin/events', label: 'Manage Events', icon: List },
-		{ href: '/admin/events/lists', label: 'Event Lists', icon: ListOrdered },
-		{ href: '/admin/events/import', label: 'Import iCal', icon: FileDown },
-		{ href: '/admin/events/duplicates', label: 'Find Duplicates', icon: Copy }
+	const contentNav = [
+		{ href: '/admin/events', label: 'Events', icon: List },
+		{ href: '/admin/events/lists', label: 'Event Lists', icon: ListOrdered }
 	];
 
 	const sourcesNav = [
 		{ href: '/admin/sources', label: 'All Sources', icon: Database },
-		{ href: '/admin/sources/review', label: 'Import Queue', icon: FileDown },
-		{ href: '/admin/sources/health', label: 'Source Health', icon: Activity }
+		{ href: '/admin/sources/review', label: 'Import Review', icon: FileDown },
+		{ href: '/admin/sources/health', label: 'Health Monitor', icon: Activity }
 	];
 
-	const dataNav = [
+	const directoryNav = [
 		{ href: '/admin/organizations', label: 'Organizations', icon: Building2 },
 		{ href: '/admin/venues', label: 'Venues', icon: MapPin }
+	];
+
+	const operationsNav = [
+		{ href: '/admin/events/import', label: 'Event Import', icon: FileDown },
+		{ href: '/admin/events/duplicates', label: 'Duplicates', icon: Copy }
 	];
 
 	const settingsNav = [
@@ -66,6 +76,37 @@
 			.split('/')
 			.filter(Boolean)
 	);
+
+	const breadcrumbLabel: Record<string, string> = {
+		sources: 'Sources',
+		review: 'Import Review',
+		health: 'Health Monitor',
+		events: 'Events',
+		organizations: 'Organizations',
+		venues: 'Venues',
+		inbox: 'Inbox',
+		settings: 'Settings',
+		taxonomies: 'Taxonomies',
+		branding: 'Branding',
+		integrations: 'Integrations',
+		search: 'Search',
+		account: 'Account',
+		new: 'New',
+		import: 'Import',
+		duplicates: 'Duplicates',
+		lists: 'Lists',
+		funding: 'Funding',
+		jobs: 'Jobs',
+		toolbox: 'Toolbox',
+	};
+
+	function breadcrumbText(segment: string): string {
+		if (breadcrumbLabel[segment]) return breadcrumbLabel[segment];
+		if (/^[0-9a-f-]{8,}$/i.test(segment)) return 'Details';
+		return segment.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+	}
+
+	const brandLogo = $derived(data.brandLogoUrl ?? logoFallback);
 </script>
 
 <a
@@ -73,16 +114,29 @@
 	class="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:rounded focus:bg-primary focus:px-4 focus:py-2 focus:text-primary-foreground focus:ring-2 focus:ring-ring focus:outline-none"
 	>Skip to main content</a
 >
-<Sidebar.Provider class="bg-muted/30">
-	<Sidebar.Root>
-		<Sidebar.Header class="border-b px-4 py-3">
-			<a href="/admin" class="text-lg font-bold tracking-tight">KB Admin</a>
+
+<Sidebar.Provider class="min-h-screen bg-[var(--color-alpine-snow-50)]">
+	<Sidebar.Root class="border-r border-[color:var(--rule)] bg-[var(--color-alpine-snow-100)]/72">
+		<Sidebar.Header class="border-b border-[color:var(--rule)] px-4 py-3">
+			<a href="/admin" class="flex items-center gap-3 no-underline hover:no-underline">
+				<img
+					src={brandLogo}
+					alt=""
+					class="h-9 w-9 rounded-lg bg-[var(--color-lakebed-950)] object-contain p-1.5"
+				/>
+				<div class="min-w-0">
+					<div class="font-display text-base leading-none font-bold text-[var(--dark)]">Knowledge Basket</div>
+					<div class="mt-0.5 text-[10px] tracking-[0.12em] text-[var(--mid)] uppercase">Admin</div>
+				</div>
+			</a>
 		</Sidebar.Header>
+
 		<Sidebar.Content>
 			<Sidebar.Group>
+				<Sidebar.GroupLabel>Overview</Sidebar.GroupLabel>
 				<Sidebar.GroupContent>
 					<Sidebar.Menu>
-						{#each topNav as item}
+						{#each overviewNav as item}
 							<Sidebar.MenuItem>
 								<Sidebar.MenuButton isActive={isActive(item.href)}>
 									{#snippet child({ props })}
@@ -97,11 +151,12 @@
 					</Sidebar.Menu>
 				</Sidebar.GroupContent>
 			</Sidebar.Group>
+
 			<Sidebar.Group>
-				<Sidebar.GroupLabel>Events</Sidebar.GroupLabel>
+				<Sidebar.GroupLabel>Content</Sidebar.GroupLabel>
 				<Sidebar.GroupContent>
 					<Sidebar.Menu>
-						{#each eventsNav as item}
+						{#each contentNav as item}
 							<Sidebar.MenuItem>
 								<Sidebar.MenuButton isActive={isActive(item.href)}>
 									{#snippet child({ props })}
@@ -116,6 +171,27 @@
 					</Sidebar.Menu>
 				</Sidebar.GroupContent>
 			</Sidebar.Group>
+
+			<Sidebar.Group>
+				<Sidebar.GroupLabel>Directory</Sidebar.GroupLabel>
+				<Sidebar.GroupContent>
+					<Sidebar.Menu>
+						{#each directoryNav as item}
+							<Sidebar.MenuItem>
+								<Sidebar.MenuButton isActive={isActive(item.href)}>
+									{#snippet child({ props })}
+										<a href={item.href} {...props}>
+											<item.icon class="mr-2 h-4 w-4" />
+											{item.label}
+										</a>
+									{/snippet}
+								</Sidebar.MenuButton>
+							</Sidebar.MenuItem>
+						{/each}
+					</Sidebar.Menu>
+				</Sidebar.GroupContent>
+			</Sidebar.Group>
+
 			<Sidebar.Group>
 				<Sidebar.GroupLabel>Sources</Sidebar.GroupLabel>
 				<Sidebar.GroupContent>
@@ -135,11 +211,12 @@
 					</Sidebar.Menu>
 				</Sidebar.GroupContent>
 			</Sidebar.Group>
+
 			<Sidebar.Group>
-				<Sidebar.GroupLabel>Data</Sidebar.GroupLabel>
+				<Sidebar.GroupLabel>Operations</Sidebar.GroupLabel>
 				<Sidebar.GroupContent>
 					<Sidebar.Menu>
-						{#each dataNav as item}
+						{#each operationsNav as item}
 							<Sidebar.MenuItem>
 								<Sidebar.MenuButton isActive={isActive(item.href)}>
 									{#snippet child({ props })}
@@ -154,6 +231,7 @@
 					</Sidebar.Menu>
 				</Sidebar.GroupContent>
 			</Sidebar.Group>
+
 			<Sidebar.Group>
 				<Sidebar.GroupLabel>Settings</Sidebar.GroupLabel>
 				<Sidebar.GroupContent>
@@ -173,6 +251,7 @@
 					</Sidebar.Menu>
 				</Sidebar.GroupContent>
 			</Sidebar.Group>
+
 			<Sidebar.Group>
 				<Sidebar.GroupContent>
 					<Sidebar.Menu>
@@ -192,9 +271,14 @@
 				</Sidebar.GroupContent>
 			</Sidebar.Group>
 		</Sidebar.Content>
-		<Sidebar.Footer class="border-t px-4 py-3">
-			<div class="flex items-center justify-between text-sm">
-				<span class="truncate font-medium">{data.user?.name ?? data.user?.email}</span>
+
+		<Sidebar.Footer class="border-t border-[color:var(--rule)] px-4 py-3">
+			<div class="flex items-center gap-2">
+				<ShieldCheck class="h-4 w-4 shrink-0 text-[var(--color-pinyon-700)]" />
+				<div class="min-w-0 flex-1">
+					<p class="truncate text-sm font-medium text-[var(--dark)]">{data.user?.name ?? data.user?.email}</p>
+					<p class="text-[11px] text-[var(--mid)]">{data.user?.role === 'admin' ? 'Administrator' : data.user?.role === 'moderator' ? 'Moderator' : data.user?.role === 'contributor' ? 'Contributor' : data.user?.role ?? 'Staff'}</p>
+				</div>
 				<form method="post" action="/auth/logout" use:enhance>
 					<button
 						type="submit"
@@ -208,32 +292,50 @@
 		</Sidebar.Footer>
 	</Sidebar.Root>
 
-	<main class="flex-1 overflow-auto" id="admin-main">
-		<div class="flex flex-wrap items-center gap-2 border-b bg-background px-6 py-3 text-sm">
-			<Sidebar.Trigger />
-			<ChevronRight class="h-3 w-3 text-muted-foreground" />
-			<Breadcrumb.Root>
-				<Breadcrumb.List>
-					<Breadcrumb.Item>
-						<Breadcrumb.Link href="/admin" class="capitalize">Admin</Breadcrumb.Link>
-					</Breadcrumb.Item>
-					{#each pathSegments as segment, i}
-						<Breadcrumb.Separator />
+	<main
+		class="min-h-screen flex-1 bg-[radial-gradient(circle_at_top_left,color-mix(in_srgb,var(--color-lakebed-100)_36%,transparent),transparent_30%),linear-gradient(180deg,var(--background),color-mix(in_srgb,var(--color-alpine-snow-100)_75%,white))]"
+		id="admin-main"
+	>
+		<div
+			class="sticky top-0 z-20 border-b border-[color:var(--rule)] bg-[color:color-mix(in_srgb,var(--background)_88%,white)]/95 backdrop-blur"
+		>
+			<div
+				class="mx-auto flex max-w-[1480px] flex-wrap items-center gap-2 px-4 py-3 text-sm sm:px-6"
+			>
+				<Sidebar.Trigger />
+				<ChevronRight class="h-3 w-3 text-muted-foreground" />
+				<Breadcrumb.Root>
+					<Breadcrumb.List>
 						<Breadcrumb.Item>
-							{#if i === pathSegments.length - 1}
-								<Breadcrumb.Page class="capitalize">{segment.replace(/-/g, ' ')}</Breadcrumb.Page>
-							{:else}
-								{@const pathSoFar = '/admin/' + pathSegments.slice(0, i + 1).join('/')}
-								<Breadcrumb.Link href={pathSoFar} class="capitalize"
-									>{segment.replace(/-/g, ' ')}</Breadcrumb.Link
-								>
-							{/if}
+							<Breadcrumb.Link href="/admin" class="capitalize">Admin</Breadcrumb.Link>
 						</Breadcrumb.Item>
-					{/each}
-				</Breadcrumb.List>
-			</Breadcrumb.Root>
+						{#each pathSegments as segment, i}
+							<Breadcrumb.Separator />
+							<Breadcrumb.Item>
+								{#if i === pathSegments.length - 1}
+									<Breadcrumb.Page>{breadcrumbText(segment)}</Breadcrumb.Page>
+								{:else}
+									{@const pathSoFar = '/admin/' + pathSegments.slice(0, i + 1).join('/')}
+									<Breadcrumb.Link href={pathSoFar}>{breadcrumbText(segment)}</Breadcrumb.Link>
+								{/if}
+							</Breadcrumb.Item>
+						{/each}
+					</Breadcrumb.List>
+				</Breadcrumb.Root>
+				<div class="ml-auto flex items-center gap-2">
+					<Button href="/admin/inbox" variant="secondary" size="sm">
+						<Inbox class="mr-2 h-4 w-4" />
+						Inbox
+					</Button>
+					<Button href="/" variant="outline" size="sm" target="_blank" rel="noreferrer">
+						<Globe2 class="mr-2 h-4 w-4" />
+						View site
+					</Button>
+				</div>
+			</div>
 		</div>
-		<div class="p-6">
+
+		<div class="mx-auto max-w-[1480px] px-4 pb-6 pt-0 sm:px-6">
 			{@render children()}
 		</div>
 	</main>

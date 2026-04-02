@@ -89,7 +89,6 @@
 						<Table.Header>
 							<Table.Row>
 								<Table.Head>Label</Table.Head>
-								<Table.Head>Slug</Table.Head>
 								<Table.Head>Group</Table.Head>
 								<Table.Head class="w-[100px]">Actions</Table.Head>
 							</Table.Row>
@@ -98,7 +97,6 @@
 							{#each tags as tag}
 								<Table.Row>
 									<Table.Cell>{tag.label}</Table.Cell>
-									<Table.Cell class="text-muted-foreground">{tag.slug}</Table.Cell>
 									<Table.Cell>{tag.group}</Table.Cell>
 									<Table.Cell>
 										<AlertDialog.Root>

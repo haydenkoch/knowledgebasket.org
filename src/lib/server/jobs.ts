@@ -10,6 +10,7 @@ import {
 	user as userTable
 } from '$lib/server/db/schema';
 import { indexDocument, removeDocument } from '$lib/server/meilisearch';
+import { getSourceProvenanceByPublishedRecord } from '$lib/server/source-provenance';
 import type { JobItem } from '$lib/data/kb';
 import type { JobSearchDoc } from '$lib/server/meilisearch';
 import { stripHtml } from '$lib/utils/format';
@@ -167,12 +168,14 @@ export async function getJobBySlug(slug: string, userId?: string): Promise<JobIt
 		userInterested = !!interest;
 	}
 
-	return rowToItem(r.job, {
+	const item = rowToItem(r.job, {
 		organizationName: r.orgName ?? undefined,
 		organizationSlug: r.orgSlug ?? undefined,
 		interestCount,
 		userInterested
 	});
+	item.provenance = await getSourceProvenanceByPublishedRecord('jobs', r.job.id);
+	return item;
 }
 
 export async function getJobById(id: string): Promise<JobItem | null> {

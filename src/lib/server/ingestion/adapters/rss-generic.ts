@@ -2,6 +2,7 @@ import { XMLParser } from 'fast-xml-parser';
 import { normalizeUrl } from '../dedupe';
 import {
 	cleanText,
+	extractPath,
 	fetchText,
 	inferFeedUrlFromHtml,
 	parseDateLike,
@@ -27,6 +28,8 @@ type RssAdapterConfig = AdapterConfig & {
 	feedUrl?: string;
 	maxItems?: number;
 	itemsPath?: string;
+	fieldMap?: Record<string, string | string[]>;
+	sourceItemIdPath?: string | string[];
 };
 
 const parser = new XMLParser({
@@ -91,7 +94,7 @@ export const rssGenericAdapter: IngestionAdapter = {
 						? Number((config as RssAdapterConfig).maxItems)
 						: 100
 				)
-				.map((item) => toParsedItem(item, source.feedTitle));
+				.map((item) => toParsedItem(item, source.feedTitle, config as RssAdapterConfig));
 
 			return {
 				success: true,
@@ -154,12 +157,17 @@ export const rssGenericAdapter: IngestionAdapter = {
 	validateConfig(config, source): ConfigValidationResult {
 		const candidateUrl = selectSourceUrl(source as SourceRecord, config);
 		const errors: string[] = [];
+		const warnings: string[] = [];
 		try {
 			new URL(candidateUrl);
 		} catch {
 			errors.push('RSS source needs a valid feed URL or source URL.');
 		}
-		return { valid: errors.length === 0, errors, warnings: [] };
+		const rssConfig = config as RssAdapterConfig;
+		if (!rssConfig.fieldMap || Object.keys(rssConfig.fieldMap).length === 0) {
+			warnings.push('No RSS field map configured; generic feed mapping will be used.');
+		}
+		return { valid: errors.length === 0, errors, warnings };
 	}
 };
 
@@ -183,32 +191,68 @@ function getItemsFromFeed(feed: Record<string, unknown>) {
 	return { feedTitle: null, items: [] as Record<string, unknown>[] };
 }
 
-function toParsedItem(item: Record<string, unknown>, feedTitle: string | null): ParsedItem {
-	const link = extractLink(item.link);
+function toParsedItem(
+	item: Record<string, unknown>,
+	feedTitle: string | null,
+	config: RssAdapterConfig
+): ParsedItem {
+	const readMapped = (key: string) => readMappedValue(item, config.fieldMap?.[key]);
+	const link = normalizeUrl(readString(readMapped('url')) ?? extractLink(item.link));
+	const guid = readString(readMapped('guid')) ?? readString(item.guid);
 	return {
 		fields: {
-			title: cleanText(readString(item.title)),
+			title: cleanText(readString(readMapped('title')) ?? readString(item.title)),
 			description:
+				cleanText(readString(readMapped('description'))) ??
 				cleanText(readString(item['content:encoded'])) ??
 				cleanText(readString(item.content)) ??
 				cleanText(readString(item.summary)) ??
 				cleanText(readString(item.description)),
-			url: normalizeUrl(link),
+			url: link,
 			published_at:
+				parseDateLike(readMapped('published_at')) ??
 				parseDateLike(item.pubDate) ??
 				parseDateLike(item.published) ??
 				parseDateLike(item.updated) ??
 				null,
-			categories: extractCategories(item.category),
+			deadline: parseDateLike(readMapped('deadline')),
+			start_date: parseDateLike(readMapped('start_date')),
+			event_date: parseDateLike(readMapped('event_date')),
+			location: cleanText(readString(readMapped('location'))),
+			categories: extractCategories(readMapped('categories') ?? item.category),
 			author:
+				cleanText(readString(readMapped('author'))) ??
 				cleanText(readString(item.creator)) ??
 				cleanText(readString(item.author)) ??
 				cleanText(readNestedString(item.author, 'name')),
-			feed_title: feedTitle
+			feed_title: cleanText(readString(readMapped('feed_title'))) ?? feedTitle,
+			guid
 		},
-		sourceItemId: readString(item.guid) ?? normalizeUrl(link),
-		sourceItemUrl: normalizeUrl(link)
+		sourceItemId:
+			readString(readMapped('source_item_id')) ??
+			readMappedSourceItemId(item, config.sourceItemIdPath) ??
+			guid ??
+			link,
+		sourceItemUrl: link
 	};
+}
+
+function readMappedValue(record: Record<string, unknown>, mapping: string | string[] | undefined) {
+	if (!mapping) return null;
+	for (const path of Array.isArray(mapping) ? mapping : [mapping]) {
+		const value = extractPath(record, path);
+		if (value !== null && value !== undefined && value !== '') return value;
+	}
+	return null;
+}
+
+function readMappedSourceItemId(
+	record: Record<string, unknown>,
+	path: string | string[] | undefined
+) {
+	const value = readMappedValue(record, path);
+	if (typeof value === 'string' && value.trim()) return value.trim();
+	return null;
 }
 
 function normalizeEvent(item: ParsedItem): NormalizedEvent {

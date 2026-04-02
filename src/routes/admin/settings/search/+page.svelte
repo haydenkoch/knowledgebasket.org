@@ -15,26 +15,24 @@
 <div class="max-w-2xl space-y-6">
 	<h1 class="text-2xl font-bold">Search</h1>
 	<p class="text-muted-foreground">
-		Reindex events in Meilisearch so the public events search stays in sync after bulk edits or
-		imports.
+		Keep the public search index up to date after bulk edits or imports.
 	</p>
 
 	<Card.Root>
 		<Card.Header>
-			<Card.Title>Index status</Card.Title>
-			<Card.Description
-				>Meilisearch is used for event search. Set MEILISEARCH_HOST and MEILISEARCH_API_KEY in your
-				environment.</Card.Description
-			>
+			<Card.Title>Search index</Card.Title>
+			<Card.Description>
+				Powers the public events search. Configured by your developer via environment variables.
+			</Card.Description>
 		</Card.Header>
 		<Card.Content class="space-y-4">
 			<div class="flex items-center gap-2">
 				{#if data.meilisearchConfigured}
-					<CheckCircle class="h-5 w-5 text-green-600" />
-					<span>Configured</span>
+					<CheckCircle class="h-5 w-5 text-[var(--color-pinyon-600)]" />
+					<span class="font-medium text-[var(--color-pinyon-800)]">Connected</span>
 				{:else}
-					<XCircle class="h-5 w-5 text-amber-600" />
-					<span>Not configured</span>
+					<XCircle class="h-5 w-5 text-[var(--color-ember-600)]" />
+					<span class="font-medium text-[var(--mid)]">Not configured</span>
 				{/if}
 			</div>
 			{#if data.meilisearchConfigured}
@@ -43,21 +41,24 @@
 					action="?/reindex"
 					use:enhance={() =>
 						({ result, update }) => {
-							if (result.type === 'success') toast.success('Reindex complete');
+							if (result.type === 'success') toast.success('Search index rebuilt successfully');
 							else if (result.type === 'failure')
-								toast.error((result.data as { error?: string })?.error ?? 'Reindex failed');
+								toast.error((result.data as { error?: string })?.error ?? 'Rebuild failed');
 							update();
 						}}
 					class="flex flex-wrap items-center gap-2"
 				>
 					<Button type="submit">
 						<RefreshCw class="mr-2 h-4 w-4" />
-						Reindex events now
+						Rebuild search index
 					</Button>
 					{#if data.reindexed != null}
-						<span class="text-sm text-muted-foreground">Indexed {data.reindexed} events.</span>
+						<span class="text-sm text-[var(--mid)]">Indexed {data.reindexed} events.</span>
 					{/if}
 				</form>
+				<p class="text-xs text-[var(--mid)]">
+					This updates the search index with all currently published events. Use this after bulk imports or major edits.
+				</p>
 			{/if}
 		</Card.Content>
 	</Card.Root>

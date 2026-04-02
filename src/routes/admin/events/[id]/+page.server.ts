@@ -11,12 +11,27 @@ import {
 	getChildEvents,
 	cloneEvent
 } from '$lib/server/events';
-import { indexEvent } from '$lib/server/meilisearch';
+import { indexEvent, removeDocument } from '$lib/server/meilisearch';
 import { getAllOrganizations } from '$lib/server/organizations';
 import { getAllVenues } from '$lib/server/venues';
 import { getTags, getOptions } from '$lib/server/taxonomy';
 import { uploadImage } from '$lib/server/upload';
 import type { PricingTier } from '$lib/data/kb';
+
+function normalizeEditStatus(
+	raw: FormDataEntryValue | null
+): 'draft' | 'pending' | 'published' | 'rejected' | 'cancelled' {
+	const value = typeof raw === 'string' ? raw.trim() : '';
+	if (
+		value === 'pending' ||
+		value === 'published' ||
+		value === 'rejected' ||
+		value === 'cancelled'
+	) {
+		return value;
+	}
+	return 'draft';
+}
 
 export const load: PageServerLoad = async ({ params }) => {
 	const [event, orgs, vens, tags, regionOpts, audienceOpts, costOpts, submissionInfo] =
@@ -49,6 +64,8 @@ export const actions: Actions = {
 		const fd = await request.formData();
 		const title = fd.get('title') as string;
 		if (!title?.trim()) return fail(400, { error: 'Title is required' });
+		const current = await getEventById(params.id);
+		if (!current) return fail(404, { error: 'Event not found' });
 
 		let pricingTiers: PricingTier[] = [];
 		try {
@@ -80,13 +97,12 @@ export const actions: Actions = {
 		const lngStr = (fd.get('lng') as string)?.trim();
 		const lat = latStr ? parseFloat(latStr) : undefined;
 		const lng = lngStr ? parseFloat(lngStr) : undefined;
-
-		const intent = (fd.get('intent') as string) || 'draft';
-		const status = intent === 'publish' ? 'published' : 'draft';
-		const publishedAt = intent === 'publish' ? new Date() : null;
+		const status = normalizeEditStatus(fd.get('status'));
 
 		const capacityStr = (fd.get('capacity') as string)?.trim();
 		const capacityNum = capacityStr ? parseInt(capacityStr, 10) : null;
+		const slug = (fd.get('slug') as string | null)?.trim() || undefined;
+		const imageUrlInput = (fd.get('imageUrl') as string | null)?.trim() || undefined;
 		const imageUrlsRaw = (fd.get('imageUrls') as string) ?? '';
 		const imageUrls = imageUrlsRaw
 			? imageUrlsRaw
@@ -95,8 +111,42 @@ export const actions: Actions = {
 					.filter(Boolean)
 			: [];
 
+		const moderationFields =
+			status === 'published'
+				? {
+						status,
+						publishedAt: current.publishedAt ? new Date(current.publishedAt) : new Date(),
+						rejectedAt: null,
+						rejectionReason: null,
+						cancelledAt: null
+					}
+				: status === 'rejected'
+					? {
+							status,
+							publishedAt: null,
+							rejectedAt: current.rejectedAt ? new Date(current.rejectedAt) : new Date(),
+							rejectionReason: current.rejectionReason ?? null,
+							cancelledAt: null
+						}
+					: status === 'cancelled'
+						? {
+								status,
+								publishedAt: current.publishedAt ? new Date(current.publishedAt) : null,
+								rejectedAt: null,
+								rejectionReason: null,
+								cancelledAt: current.cancelledAt ? new Date(current.cancelledAt) : new Date()
+							}
+						: {
+								status,
+								publishedAt: null,
+								rejectedAt: null,
+								rejectionReason: null,
+								cancelledAt: null
+							};
+
 		await updateEvent(params.id, {
 			title,
+			...(slug ? { slug } : {}),
 			description: (fd.get('description') as string) || null,
 			location: (fd.get('location') as string) || null,
 			address: (fd.get('address') as string) || null,
@@ -135,16 +185,17 @@ export const actions: Actions = {
 			isAllDay: fd.has('isAllDay'),
 			featured: fd.has('featured'),
 			pricingTiers,
-			...(imageUrl && { imageUrl }),
+			imageUrl: imageUrl ?? imageUrlInput ?? null,
 			lat: Number.isFinite(lat) ? lat! : null,
 			lng: Number.isFinite(lng) ? lng! : null,
-			status,
-			publishedAt,
+			...moderationFields,
 			unlisted: fd.has('unlisted')
 		});
-		if (intent === 'publish') {
+		if (status === 'published') {
 			const item = await getEventById(params.id);
 			if (item) await indexEvent(item);
+		} else {
+			await removeDocument('events', params.id);
 		}
 
 		return { success: true };

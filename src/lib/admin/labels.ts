@@ -62,8 +62,8 @@ export const coilLabel: Record<string, string> = {
 
 export const dedupeLabel: Record<string, string> = {
 	new: 'New item',
-	duplicate: 'Possible duplicate',
-	update: 'Updated version',
+	duplicate: 'Same listing',
+	update: 'Update to existing listing',
 	ambiguous: 'Needs review'
 };
 

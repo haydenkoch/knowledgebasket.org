@@ -23,6 +23,29 @@ export type FetchErrorCategory =
 
 export type AdapterConfig = Record<string, unknown>;
 
+export type DetailEnrichmentField =
+	| 'description'
+	| 'image_url'
+	| 'organization_name'
+	| 'location_name'
+	| 'location_address'
+	| 'registration_url';
+
+export type DetailEnrichmentSelector =
+	| string
+	| {
+			selector: string;
+			extract?: 'text' | 'html' | 'href' | 'src' | 'attribute';
+			attribute?: string;
+	  };
+
+export type DetailEnrichmentConfig = {
+	enabled?: boolean;
+	fetchFrom?: 'sourceItemUrl' | 'normalizedUrl';
+	selectors?: Partial<Record<DetailEnrichmentField, DetailEnrichmentSelector>>;
+	preferPageFields?: DetailEnrichmentField[];
+};
+
 export interface ParsedItem {
 	fields: Record<string, unknown>;
 	sourceItemId: string | null;

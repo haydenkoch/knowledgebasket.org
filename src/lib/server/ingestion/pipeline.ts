@@ -9,6 +9,7 @@ import {
 	createDedupeLookup,
 	runDedupeStrategies
 } from './dedupe';
+import { enrichNormalizedRecords } from './detail-enrichment';
 import { adapterRegistry } from './registry';
 import { computeCandidatePriority, computeHealthStatus, computeNextCheckAt } from './status';
 import { buildAdapterConfig } from './validation';
@@ -43,9 +44,30 @@ export async function previewSource(sourceId: string): Promise<IngestionPreviewR
 
 	const config = buildAdapterConfig(source);
 	const parseResult = await adapter.parse(fetchResult.rawContent, config);
-	const normalizeResult = parseResult.success
+	let normalizeResult = parseResult.success
 		? await adapter.normalize(parseResult.items, source.coils[0], config)
 		: null;
+
+	if (parseResult.success && normalizeResult?.success) {
+		const enrichment = await enrichNormalizedRecords(
+			config,
+			parseResult.items,
+			normalizeResult.records
+		);
+		normalizeResult = {
+			...normalizeResult,
+			records: enrichment.records,
+			errors: [
+				...normalizeResult.errors,
+				...enrichment.warnings.map((message, index) => ({
+					itemIndex: index,
+					message,
+					field: 'detailEnrichment',
+					rawValue: null
+				}))
+			]
+		};
+	}
 
 	const candidates =
 		parseResult.success && normalizeResult

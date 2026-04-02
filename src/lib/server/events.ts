@@ -1,5 +1,5 @@
 /**
- * Events data layer: single source of truth for events (Postgres + iCal merge).
+ * Events data layer: single source of truth for reviewed event content.
  */
 import { eq, ne, desc, asc, gte, ilike, or, and, sql, inArray, isNull } from 'drizzle-orm';
 import { db, type DbExecutor } from '$lib/server/db';
@@ -10,7 +10,6 @@ import {
 	venues,
 	user as userTable
 } from '$lib/server/db/schema';
-import { fetchEventsFromIcalFeed } from '$lib/server/ical-feed';
 import { indexEvent } from '$lib/server/meilisearch';
 import { getSourceProvenanceByPublishedRecord } from '$lib/server/source-provenance';
 import { stripHtml } from '$lib/utils/format';
@@ -105,14 +104,13 @@ function rowToEventItem(
 }
 
 /**
- * Get all published events from DB and merge with iCal feed.
- * By default excludes unlisted; pass includeUnlisted: true for e.g. iCal feed so subscribers see them.
+ * Get all published events from DB.
+ * By default excludes unlisted; pass includeUnlisted: true for export/feed surfaces.
  */
 export async function getEvents(options?: {
 	includeIcal?: boolean;
 	includeUnlisted?: boolean;
 }): Promise<EventItem[]> {
-	const includeIcal = options?.includeIcal ?? true;
 	const includeUnlisted = options?.includeUnlisted ?? false;
 	let rows: EventRow[] = [];
 	try {
@@ -133,15 +131,13 @@ export async function getEvents(options?: {
 			err
 		);
 	}
-	const icalItems = includeIcal ? await fetchEventsFromIcalFeed() : [];
 	const fromDb = rows.map((r) => rowToEventItem(r));
-	const combined = [...fromDb, ...icalItems];
-	combined.sort((a, b) => {
+	fromDb.sort((a, b) => {
 		const aStart = a.startDate ? new Date(a.startDate).getTime() : 0;
 		const bStart = b.startDate ? new Date(b.startDate).getTime() : 0;
 		return aStart - bStart;
 	});
-	return combined;
+	return fromDb;
 }
 
 /**
@@ -217,17 +213,10 @@ export async function getEventBySlug(slug: string): Promise<EventItem | null> {
 }
 
 /**
- * Get event by slug, or by iCal id when slug looks like "ical-*" (imported feed events).
+ * Get event by slug.
  */
 export async function getEventBySlugOrIcalId(slug: string): Promise<EventItem | null> {
-	const fromDb = await getEventBySlug(slug);
-	if (fromDb) return fromDb;
-	if (slug.startsWith('ical-')) {
-		const icalEvents = await fetchEventsFromIcalFeed();
-		const found = icalEvents.find((e) => e.id === slug || e.slug === slug);
-		if (found) return { ...found, slug };
-	}
-	return null;
+	return getEventBySlug(slug);
 }
 
 /**

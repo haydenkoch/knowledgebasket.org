@@ -9,6 +9,7 @@ import {
 	markCandidateNeedsInfo,
 	rejectCandidate
 } from '$lib/server/import-candidates';
+import { getSourceOpsSchemaHealth } from '$lib/server/source-ops-schema';
 import { getSourcesForAdmin } from '$lib/server/sources';
 
 export const load: PageServerLoad = async ({ url }) => {
@@ -20,7 +21,7 @@ export const load: PageServerLoad = async ({ url }) => {
 	const search = url.searchParams.get('search') ?? '';
 	const page = parseInt(url.searchParams.get('page') ?? '1', 10);
 
-	const [{ items, total }, sourceOptions] = await Promise.all([
+	const [{ items, total }, sourceOptions, schemaHealth] = await Promise.all([
 		getImportCandidatesForReview({
 			status,
 			coil,
@@ -31,7 +32,8 @@ export const load: PageServerLoad = async ({ url }) => {
 			page,
 			limit: 25
 		}),
-		getSourcesForAdmin({ limit: 200, sort: 'name', order: 'asc' })
+		getSourcesForAdmin({ limit: 200, sort: 'name', order: 'asc' }),
+		getSourceOpsSchemaHealth()
 	]);
 
 	return {
@@ -47,7 +49,8 @@ export const load: PageServerLoad = async ({ url }) => {
 		currentDedupeResult: dedupeResult,
 		currentSourceId: sourceId,
 		currentSearch: search,
-		currentPage: page
+		currentPage: page,
+		schemaHealth
 	};
 };
 

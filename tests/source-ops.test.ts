@@ -8,6 +8,7 @@ import {
 	runDedupeStrategies
 } from '../src/lib/server/ingestion/dedupe';
 import { icalGenericAdapter } from '../src/lib/server/ingestion/adapters/ical-generic';
+import { enrichNormalizedRecords } from '../src/lib/server/ingestion/detail-enrichment';
 import { validateSourceConfig } from '../src/lib/server/ingestion/validation';
 import { planCandidateMerge } from '../src/lib/server/import-candidate-merge';
 import { getSourceProvenanceByPublishedRecord } from '../src/lib/server/source-provenance';
@@ -200,6 +201,158 @@ describe('ical generic adapter', () => {
 	});
 });
 
+describe('detail enrichment', () => {
+	beforeEach(() => {
+		vi.restoreAllMocks();
+	});
+
+	it('enriches normalized event records from their HTML detail page', async () => {
+		vi.stubGlobal(
+			'fetch',
+			vi.fn(async () => ({
+				ok: true,
+				status: 200,
+				text: async () => `
+					<html>
+						<head>
+							<meta property="og:image" content="https://example.com/event.jpg" />
+						</head>
+						<body>
+							<div class="tribe-events-content">Full event description from the page.</div>
+							<div class="tribe-organizer">News from Native California</div>
+							<div class="tribe-venue">Bay Area Cultural Center</div>
+							<div class="tribe-address">123 Story Ave, Oakland, CA</div>
+							<a class="tribe-events-event-url" href="https://example.com/register">Register</a>
+						</body>
+					</html>
+				`
+			}))
+		);
+
+		const result = await enrichNormalizedRecords(
+			{
+				detailEnrichment: {
+					enabled: true,
+					fetchFrom: 'sourceItemUrl',
+					selectors: {
+						description: { selector: '.tribe-events-content', extract: 'html' },
+						organization_name: { selector: '.tribe-organizer', extract: 'text' },
+						location_name: { selector: '.tribe-venue', extract: 'text' },
+						location_address: { selector: '.tribe-address', extract: 'text' },
+						registration_url: { selector: '.tribe-events-event-url', extract: 'href' }
+					},
+					preferPageFields: ['description', 'image_url', 'organization_name', 'location_name']
+				}
+			},
+			[
+				{
+					fields: {},
+					sourceItemId: 'evt-1',
+					sourceItemUrl: 'https://example.com/event'
+				}
+			],
+			[
+				{
+					coil: 'events',
+					title: 'Event',
+					description: 'Short summary',
+					url: 'https://example.com/event',
+					organization_name: null,
+					organization_id: null,
+					tags: [],
+					region: null,
+					image_url: null,
+					start_date: '2026-05-10T18:00:00.000Z',
+					end_date: null,
+					start_time: '2026-05-10T18:00:00.000Z',
+					end_time: null,
+					timezone: null,
+					location_name: null,
+					location_address: null,
+					location_city: null,
+					location_state: null,
+					location_zip: null,
+					is_virtual: false,
+					virtual_url: null,
+					is_recurring: false,
+					recurrence_rule: null,
+					event_type: null,
+					registration_url: null,
+					cost: null
+				}
+			]
+		);
+
+		expect(result.warnings).toHaveLength(0);
+		expect(result.records[0]).toEqual(
+			expect.objectContaining({
+				description: 'Full event description from the page.',
+				image_url: 'https://example.com/event.jpg',
+				organization_name: 'News from Native California',
+				location_name: 'Bay Area Cultural Center',
+				location_address: '123 Story Ave, Oakland, CA',
+				registration_url: 'https://example.com/register'
+			})
+		);
+	});
+
+	it('keeps the base record when HTML enrichment fails', async () => {
+		vi.stubGlobal(
+			'fetch',
+			vi.fn(async () => ({ ok: false, status: 500 }))
+		);
+
+		const baseRecord = {
+			coil: 'events' as const,
+			title: 'Event',
+			description: 'Base description',
+			url: 'https://example.com/event',
+			organization_name: null,
+			organization_id: null,
+			tags: [],
+			region: null,
+			image_url: null,
+			start_date: '2026-05-10T18:00:00.000Z',
+			end_date: null,
+			start_time: '2026-05-10T18:00:00.000Z',
+			end_time: null,
+			timezone: null,
+			location_name: null,
+			location_address: null,
+			location_city: null,
+			location_state: null,
+			location_zip: null,
+			is_virtual: false,
+			virtual_url: null,
+			is_recurring: false,
+			recurrence_rule: null,
+			event_type: null,
+			registration_url: null,
+			cost: null
+		};
+
+		const result = await enrichNormalizedRecords(
+			{
+				detailEnrichment: {
+					enabled: true,
+					fetchFrom: 'sourceItemUrl'
+				}
+			},
+			[
+				{
+					fields: {},
+					sourceItemId: 'evt-1',
+					sourceItemUrl: 'https://example.com/event'
+				}
+			],
+			[baseRecord]
+		);
+
+		expect(result.records[0]).toEqual(baseRecord);
+		expect(result.warnings[0]).toContain('HTTP 500');
+	});
+});
+
 describe('source detail actions', () => {
 	it('returns preview data from testSource without touching import execution', async () => {
 		const preview: IngestionPreviewResult = {
@@ -296,6 +449,103 @@ describe('source detail actions', () => {
 				previewMode: 'import',
 				importResult
 			})
+		);
+	});
+});
+
+describe('source schema health during approval', () => {
+	it('keeps approval working when source snapshot storage is unavailable', async () => {
+		vi.resetModules();
+
+		const fakeDb = createFakeDb({
+			candidates: [
+				{
+					id: 'cand-compat-1',
+					sourceId: 'source-1',
+					batchId: 'batch-1',
+					coil: 'events',
+					status: 'pending_review',
+					priority: 'normal',
+					rawData: {},
+					normalizedData: {
+						coil: 'events',
+						title: 'Compatibility Gathering',
+						description: 'A community event',
+						url: 'https://example.com/events/compatibility-gathering',
+						organization_name: 'Smithsonian',
+						organization_id: null,
+						tags: ['Community'],
+						region: 'DC',
+						image_url: null,
+						start_date: '2026-05-10T18:00:00.000Z',
+						end_date: '2026-05-10T20:00:00.000Z',
+						start_time: null,
+						end_time: null,
+						timezone: 'UTC',
+						location_name: 'Washington, DC',
+						location_address: 'Washington, DC',
+						location_city: 'Washington',
+						location_state: 'DC',
+						location_zip: null,
+						is_virtual: false,
+						virtual_url: null,
+						is_recurring: false,
+						recurrence_rule: null,
+						event_type: 'Community',
+						registration_url: 'https://example.com/events/compatibility-gathering',
+						cost: null
+					},
+					sourceItemId: 'event-compat-1@example.com',
+					sourceItemUrl: 'https://example.com/events/compatibility-gathering',
+					dedupeResult: 'new',
+					dedupeStrategyUsed: null,
+					matchedCanonicalId: null,
+					contentFingerprint: 'compat-fingerprint-1',
+					sourceAttribution: 'Source: Smithsonian',
+					reviewedAt: null,
+					reviewedBy: null,
+					reviewNotes: null,
+					rejectionReason: null,
+					importedAt: new Date(),
+					updatedAt: new Date(),
+					expiresAt: null
+				}
+			],
+			schemaColumns: []
+		});
+
+		const createEvent = vi.fn(async () => ({ id: 'evt-compat-1' }));
+		vi.doMock('$lib/server/db', () => ({ db: fakeDb }));
+		vi.doMock('$lib/server/events', () => ({ createEvent, updateEvent: vi.fn() }));
+		vi.doMock('$lib/server/funding', () => ({ createFunding: vi.fn(), updateFunding: vi.fn() }));
+		vi.doMock('$lib/server/jobs', () => ({ createJob: vi.fn(), updateJob: vi.fn() }));
+		vi.doMock('$lib/server/red-pages', () => ({
+			createBusiness: vi.fn(),
+			updateBusiness: vi.fn()
+		}));
+		vi.doMock('$lib/server/toolbox', () => ({ createResource: vi.fn(), updateResource: vi.fn() }));
+		vi.doMock('$lib/server/organizations', () => ({
+			createOrganization: vi.fn(),
+			getOrganizationById: vi.fn(),
+			suggestOrganizationMatches: vi.fn(async () => [])
+		}));
+		vi.doMock('$lib/server/venues', () => ({
+			createVenue: vi.fn(),
+			getVenueById: vi.fn(),
+			suggestVenueMatches: vi.fn(async () => [])
+		}));
+
+		const { getSourceOpsSchemaHealth } = await import('../src/lib/server/source-ops-schema');
+		const { approveCandidate } = await import('../src/lib/server/import-candidates');
+		const health = await getSourceOpsSchemaHealth();
+		const result = await approveCandidate('cand-compat-1', 'reviewer-1');
+
+		expect(health.ok).toBe(false);
+		expect(health.message).toContain('compatibility mode');
+		expect(createEvent).toHaveBeenCalledOnce();
+		expect(result?.status).toBe('approved');
+		expect(fakeDb.state.canonicalRecords[0]).toEqual(
+			expect.not.objectContaining({ sourceSnapshot: expect.anything() })
 		);
 	});
 });
@@ -459,9 +709,9 @@ describe('merge-safe source publishing', () => {
 		);
 
 		expect(merge.patch).not.toHaveProperty('description');
-		expect(
-			merge.unchangedFields.find((field) => field.field === 'description')?.reason
-		).toContain('Blank source values');
+		expect(merge.unchangedFields.find((field) => field.field === 'description')?.reason).toContain(
+			'Blank source values'
+		);
 	});
 });
 
@@ -697,12 +947,13 @@ describe('seeded automated source configs', () => {
 			['html_selector', 'rss_generic'].includes(String(source.adapter_type ?? source.adapterType))
 		);
 
-		expect(automated).toHaveLength(11);
+		expect(automated).toHaveLength(10);
 
 		for (const source of automated) {
 			expect(source.adapter_config ?? source.adapterConfig).toBeTruthy();
-			expect(Object.keys((source.adapter_config ?? source.adapterConfig) as Record<string, unknown>))
-				.not.toHaveLength(0);
+			expect(
+				Object.keys((source.adapter_config ?? source.adapterConfig) as Record<string, unknown>)
+			).not.toHaveLength(0);
 		}
 	});
 
@@ -786,6 +1037,11 @@ describe('source provenance helper', () => {
 					return {
 						from() {
 							return {
+								where() {
+									return {
+										limit: async () => [canonical]
+									};
+								},
 								innerJoin() {
 									return {
 										where: async () => joinedLinks
@@ -834,20 +1090,28 @@ function createFakeDb(initial: {
 	sourceRecordLinks?: Array<Record<string, unknown>>;
 	mergeHistory?: Array<Record<string, unknown>>;
 	events?: Array<Record<string, unknown>>;
+	schemaColumns?: Array<{ table_name: string; column_name: string }>;
 }) {
 	const tableName = (table: unknown) =>
 		(table as { [key: symbol]: string | undefined })?.[Symbol.for('drizzle:Name')] ?? '';
+	const projectRow = (row: Record<string, unknown>, selection?: Record<string, unknown>) =>
+		selection ? Object.fromEntries(Object.keys(selection).map((key) => [key, row[key]])) : row;
 
 	const state = {
 		candidates: [...(initial.candidates ?? [])],
 		canonicalRecords: [...(initial.canonicalRecords ?? [])],
 		sourceRecordLinks: [...(initial.sourceRecordLinks ?? [])],
 		mergeHistory: [...(initial.mergeHistory ?? [])],
-		events: [...(initial.events ?? [])]
+		events: [...(initial.events ?? [])],
+		schemaColumns: [
+			...(initial.schemaColumns ?? [
+				{ table_name: 'canonical_records', column_name: 'source_snapshot' }
+			])
+		]
 	};
 
 	const tx = {
-		select: () => ({
+		select: (selection?: Record<string, unknown>) => ({
 			from(table: unknown) {
 				const rows =
 					tableName(table) === tableName(importedCandidates)
@@ -861,7 +1125,8 @@ function createFakeDb(initial: {
 									: [];
 				return {
 					where: () => ({
-						limit: async (count: number) => rows.slice(0, count)
+						limit: async (count: number) =>
+							rows.slice(0, count).map((row) => projectRow(row, selection))
 					})
 				};
 			}
@@ -873,7 +1138,9 @@ function createFakeDb(initial: {
 						const row = { id: `canon-${state.canonicalRecords.length + 1}`, ...values };
 						state.canonicalRecords.push(row);
 						return {
-							returning: async () => [row]
+							returning: async (selection?: Record<string, unknown>) => [
+								projectRow(row, selection)
+							]
 						};
 					}
 					if (tableName(table) === tableName(sourceRecordLinks)) {
@@ -914,7 +1181,8 @@ function createFakeDb(initial: {
 							const target = rows[0];
 							if (target) Object.assign(target, values);
 							return {
-								returning: async () => (target ? [target] : [])
+								returning: async (selection?: Record<string, unknown>) =>
+									target ? [projectRow(target, selection)] : []
 							};
 						}
 					};
@@ -926,6 +1194,7 @@ function createFakeDb(initial: {
 
 	return {
 		state,
+		execute: vi.fn(async () => state.schemaColumns),
 		transaction: async (callback: (executor: typeof tx) => Promise<unknown>) => callback(tx),
 		select: tx.select,
 		insert: tx.insert,

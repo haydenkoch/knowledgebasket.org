@@ -68,7 +68,9 @@
 		<Card.Root>
 			<Card.Header>
 				<Card.Title>Details</Card.Title>
-				<Card.Description>Name, type, and description for the organization.</Card.Description>
+				<Card.Description
+					>Name, alternate names, type, and description for this organization.</Card.Description
+				>
 			</Card.Header>
 			<Card.Content class="space-y-4">
 				<div class="grid gap-4 sm:grid-cols-2">
@@ -100,6 +102,21 @@
 					</Field.Field>
 				</div>
 				<Field.Field>
+					<Field.Label for="aliases">Alternate names</Field.Label>
+					<Field.Description
+						>One per line. Add names people might search for or import from sources.</Field.Description
+					>
+					<Field.Content>
+						<Textarea
+							id="aliases"
+							name="aliases"
+							rows={3}
+							value={(data.organization.aliases ?? []).join('\n')}
+							class="w-full"
+						/>
+					</Field.Content>
+				</Field.Field>
+				<Field.Field>
 					<Field.Label for="description">Description</Field.Label>
 					<Field.Content>
 						<Textarea
@@ -113,6 +130,105 @@
 				</Field.Field>
 			</Card.Content>
 		</Card.Root>
+		<Separator />
+		<Card.Root>
+			<Card.Header>
+				<Card.Title>Linked content</Card.Title>
+				<Card.Description
+					>See how much published content is currently connected to this organization.</Card.Description
+				>
+			</Card.Header>
+			<Card.Content class="grid gap-4 sm:grid-cols-3 xl:grid-cols-6">
+				<div
+					class="rounded-xl border border-[color:var(--rule)] bg-[var(--color-alpine-snow-100)]/50 p-4"
+				>
+					<p class="text-[11px] font-bold tracking-[0.08em] text-[var(--mid)] uppercase">Events</p>
+					<p class="font-display mt-1 text-2xl text-[var(--dark)]">{data.impact.events}</p>
+				</div>
+				<div
+					class="rounded-xl border border-[color:var(--rule)] bg-[var(--color-alpine-snow-100)]/50 p-4"
+				>
+					<p class="text-[11px] font-bold tracking-[0.08em] text-[var(--mid)] uppercase">Funding</p>
+					<p class="font-display mt-1 text-2xl text-[var(--dark)]">{data.impact.funding}</p>
+				</div>
+				<div
+					class="rounded-xl border border-[color:var(--rule)] bg-[var(--color-alpine-snow-100)]/50 p-4"
+				>
+					<p class="text-[11px] font-bold tracking-[0.08em] text-[var(--mid)] uppercase">Jobs</p>
+					<p class="font-display mt-1 text-2xl text-[var(--dark)]">{data.impact.jobs}</p>
+				</div>
+				<div
+					class="rounded-xl border border-[color:var(--rule)] bg-[var(--color-alpine-snow-100)]/50 p-4"
+				>
+					<p class="text-[11px] font-bold tracking-[0.08em] text-[var(--mid)] uppercase">
+						Directory
+					</p>
+					<p class="font-display mt-1 text-2xl text-[var(--dark)]">{data.impact.redPages}</p>
+				</div>
+				<div
+					class="rounded-xl border border-[color:var(--rule)] bg-[var(--color-alpine-snow-100)]/50 p-4"
+				>
+					<p class="text-[11px] font-bold tracking-[0.08em] text-[var(--mid)] uppercase">
+						Resources
+					</p>
+					<p class="font-display mt-1 text-2xl text-[var(--dark)]">{data.impact.toolbox}</p>
+				</div>
+				<div
+					class="rounded-xl border border-[color:var(--rule)] bg-[var(--color-alpine-snow-100)]/50 p-4"
+				>
+					<p class="text-[11px] font-bold tracking-[0.08em] text-[var(--mid)] uppercase">Venues</p>
+					<p class="font-display mt-1 text-2xl text-[var(--dark)]">{data.impact.venues}</p>
+				</div>
+			</Card.Content>
+		</Card.Root>
+		{#if data.suggestedMatches.length > 0}
+			<Separator />
+			<Card.Root>
+				<Card.Header>
+					<Card.Title>Possible duplicates</Card.Title>
+					<Card.Description
+						>Merge matching records so staff and imports point to one clean organization entry.</Card.Description
+					>
+				</Card.Header>
+				<Card.Content class="space-y-4">
+					<form method="POST" action="?/mergeOrganizations" use:enhance class="space-y-4">
+						{#each data.suggestedMatches as match}
+							<label
+								class="flex items-start gap-3 rounded-xl border border-[color:var(--rule)] p-4"
+							>
+								<input
+									type="checkbox"
+									name="mergeId"
+									value={match.organization.id}
+									class="mt-1 h-4 w-4"
+								/>
+								<div class="min-w-0 flex-1">
+									<div class="flex items-center justify-between gap-3">
+										<div>
+											<p class="font-medium text-[var(--dark)]">{match.organization.name}</p>
+											<p class="text-sm text-[var(--mid)]">
+												{match.reasons.join(' · ')} · {match.usageCount} linked item{match.usageCount ===
+												1
+													? ''
+													: 's'}
+											</p>
+										</div>
+										<Button
+											href={`/admin/organizations/${match.organization.id}`}
+											variant="ghost"
+											size="sm"
+										>
+											Open
+										</Button>
+									</div>
+								</div>
+							</label>
+						{/each}
+						<Button type="submit" variant="secondary">Merge selected into this organization</Button>
+					</form>
+				</Card.Content>
+			</Card.Root>
+		{/if}
 		<Separator />
 		<Card.Root>
 			<Card.Header>

@@ -19,7 +19,11 @@ export async function getSourceProvenanceByPublishedRecord(
 	database: DbExecutor = db
 ): Promise<SourceProvenance | undefined> {
 	const [canonical] = await database
-		.select()
+		.select({
+			id: canonicalRecords.id,
+			primarySourceId: canonicalRecords.primarySourceId,
+			sourceCount: canonicalRecords.sourceCount
+		})
 		.from(canonicalRecords)
 		.where(
 			and(

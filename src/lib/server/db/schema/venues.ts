@@ -7,6 +7,7 @@ export const venues = pgTable(
 		id: uuid('id').primaryKey().defaultRandom(),
 		slug: text('slug').notNull().unique(),
 		name: text('name').notNull(),
+		aliases: text('aliases').array().notNull().default([]),
 		description: text('description'),
 		address: text('address'),
 		city: text('city'),

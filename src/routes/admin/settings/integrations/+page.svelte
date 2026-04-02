@@ -12,14 +12,14 @@
 <div class="max-w-2xl space-y-6">
 	<h1 class="text-2xl font-bold">Integrations</h1>
 	<p class="text-muted-foreground">
-		These integrations are configured by your developer. Status is shown here for reference.
+		Check whether key services are connected and ready to support staff workflows on the site.
 	</p>
 
 	<Card.Root>
 		<Card.Header>
 			<Card.Title>Mapbox</Card.Title>
 			<Card.Description>
-				Enables maps and location search — used for event and venue location pickers and the public map view.
+				Supports maps and location lookup in event and venue workflows.
 			</Card.Description>
 		</Card.Header>
 		<Card.Content>
@@ -29,7 +29,7 @@
 					<span class="font-medium text-[var(--color-pinyon-800)]">Connected</span>
 				{:else}
 					<XCircle class="h-5 w-5 text-[var(--color-ember-600)]" />
-					<span class="font-medium text-[var(--mid)]">Not configured</span>
+					<span class="font-medium text-[var(--mid)]">This connection is not set up yet</span>
 				{/if}
 			</div>
 		</Card.Content>
@@ -39,7 +39,7 @@
 		<Card.Header>
 			<Card.Title>Meilisearch</Card.Title>
 			<Card.Description>
-				Powers the public events search. Required for search to work on the site.
+				Powers cross-site content search and the internal search operations page.
 			</Card.Description>
 		</Card.Header>
 		<Card.Content>
@@ -49,7 +49,7 @@
 					<span class="font-medium text-[var(--color-pinyon-800)]">Connected</span>
 				{:else}
 					<XCircle class="h-5 w-5 text-[var(--color-ember-600)]" />
-					<span class="font-medium text-[var(--mid)]">Not configured</span>
+					<span class="font-medium text-[var(--mid)]">This connection is not set up yet</span>
 				{/if}
 			</div>
 		</Card.Content>

@@ -69,7 +69,9 @@
 		<Card.Root>
 			<Card.Header>
 				<Card.Title>Details</Card.Title>
-				<Card.Description>Name, type, and description for the venue.</Card.Description>
+				<Card.Description
+					>Name, alternate names, type, and description for this venue.</Card.Description
+				>
 			</Card.Header>
 			<Card.Content class="space-y-4">
 				<div class="grid gap-4 sm:grid-cols-2">
@@ -101,6 +103,21 @@
 					</Field.Field>
 				</div>
 				<Field.Field>
+					<Field.Label for="aliases">Alternate names</Field.Label>
+					<Field.Description
+						>One per line. Add common spellings or imported venue names.</Field.Description
+					>
+					<Field.Content>
+						<Textarea
+							id="aliases"
+							name="aliases"
+							rows={3}
+							value={(data.venue.aliases ?? []).join('\n')}
+							class="w-full"
+						/>
+					</Field.Content>
+				</Field.Field>
+				<Field.Field>
 					<Field.Label for="description">Description</Field.Label>
 					<Field.Content>
 						<Textarea
@@ -114,6 +131,62 @@
 				</Field.Field>
 			</Card.Content>
 		</Card.Root>
+		<Separator />
+		<Card.Root>
+			<Card.Header>
+				<Card.Title>Linked events</Card.Title>
+				<Card.Description
+					>See how much public event content currently points at this venue.</Card.Description
+				>
+			</Card.Header>
+			<Card.Content>
+				<div
+					class="rounded-xl border border-[color:var(--rule)] bg-[var(--color-alpine-snow-100)]/50 p-4"
+				>
+					<p class="text-[11px] font-bold tracking-[0.08em] text-[var(--mid)] uppercase">Events</p>
+					<p class="font-display mt-1 text-3xl text-[var(--dark)]">{data.impact.events}</p>
+				</div>
+			</Card.Content>
+		</Card.Root>
+		{#if data.suggestedMatches.length > 0}
+			<Separator />
+			<Card.Root>
+				<Card.Header>
+					<Card.Title>Possible duplicates</Card.Title>
+					<Card.Description
+						>Merge matching venue records so imports and staff edits stay focused on one place.</Card.Description
+					>
+				</Card.Header>
+				<Card.Content class="space-y-4">
+					<form method="POST" action="?/mergeVenues" use:enhance class="space-y-4">
+						{#each data.suggestedMatches as match}
+							<label
+								class="flex items-start gap-3 rounded-xl border border-[color:var(--rule)] p-4"
+							>
+								<input type="checkbox" name="mergeId" value={match.venue.id} class="mt-1 h-4 w-4" />
+								<div class="min-w-0 flex-1">
+									<div class="flex items-center justify-between gap-3">
+										<div>
+											<p class="font-medium text-[var(--dark)]">{match.venue.name}</p>
+											<p class="text-sm text-[var(--mid)]">
+												{match.reasons.join(' · ')} · {match.eventCount} linked event{match.eventCount ===
+												1
+													? ''
+													: 's'}
+											</p>
+										</div>
+										<Button href={`/admin/venues/${match.venue.id}`} variant="ghost" size="sm">
+											Open
+										</Button>
+									</div>
+								</div>
+							</label>
+						{/each}
+						<Button type="submit" variant="secondary">Merge selected into this venue</Button>
+					</form>
+				</Card.Content>
+			</Card.Root>
+		{/if}
 		<Separator />
 		<Card.Root>
 			<Card.Header>

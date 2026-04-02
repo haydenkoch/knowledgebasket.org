@@ -1,7 +1,10 @@
 import type { PageServerLoad, Actions } from './$types';
 import { error, fail, redirect } from '@sveltejs/kit';
 import {
+	getOrganizationImpact,
 	getOrganizationById,
+	mergeOrganizations,
+	suggestOrganizationMatches,
 	updateOrganization,
 	deleteOrganization
 } from '$lib/server/organizations';
@@ -10,13 +13,32 @@ import { uploadImage } from '$lib/server/upload';
 export const load: PageServerLoad = async ({ params }) => {
 	const org = await getOrganizationById(params.id);
 	if (!org) throw error(404, 'Organization not found');
-	return { organization: org };
+	const [impact, suggestedMatches] = await Promise.all([
+		getOrganizationImpact(params.id),
+		suggestOrganizationMatches({
+			name: org.name,
+			website: org.website,
+			city: org.city,
+			state: org.state,
+			address: org.address,
+			limit: 6
+		})
+	]);
+	return {
+		organization: org,
+		impact,
+		suggestedMatches: suggestedMatches.filter((entry) => entry.organization.id !== params.id)
+	};
 };
 
 export const actions: Actions = {
 	updateOrganization: async ({ params, request }) => {
 		const fd = await request.formData();
 		const name = fd.get('name') as string;
+		const aliases = ((fd.get('aliases') as string) || '')
+			.split(/\r?\n|,/)
+			.map((entry) => entry.trim())
+			.filter(Boolean);
 		if (!name?.trim()) return fail(400, { error: 'Name is required' });
 
 		let logoUrl: string | undefined;
@@ -31,6 +53,7 @@ export const actions: Actions = {
 
 		await updateOrganization(params.id, {
 			name,
+			aliases,
 			description: (fd.get('description') as string) || null,
 			website: (fd.get('website') as string) || null,
 			email: (fd.get('email') as string) || null,
@@ -40,6 +63,17 @@ export const actions: Actions = {
 			...(logoUrl && { logoUrl })
 		});
 
+		return { success: true };
+	},
+	mergeOrganizations: async ({ params, request }) => {
+		const fd = await request.formData();
+		const mergeIds = fd
+			.getAll('mergeId')
+			.map((value) => String(value).trim())
+			.filter(Boolean);
+		if (mergeIds.length === 0)
+			return fail(400, { error: 'Choose at least one organization to merge' });
+		await mergeOrganizations(params.id, mergeIds);
 		return { success: true };
 	},
 	deleteOrganization: async ({ params }) => {

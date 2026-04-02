@@ -15,11 +15,58 @@ const INDEXES: Record<CoilKey, string> = {
 };
 
 const SEARCHABLE_ATTRIBUTES: Record<CoilKey, string[]> = {
-	events: ['title', 'description', 'location', 'region', 'hostOrg', 'type'],
-	funding: ['title', 'description', 'funderName', 'focusAreas', 'eligibilityType'],
-	redpages: ['name', 'description', 'serviceType', 'tribalAffiliation', 'city', 'state'],
-	jobs: ['title', 'description', 'employerName', 'location', 'sector'],
-	toolbox: ['title', 'description', 'body', 'sourceName', 'author', 'category']
+	events: [
+		'title',
+		'description',
+		'location',
+		'region',
+		'hostOrg',
+		'organizationName',
+		'venueName',
+		'type',
+		'tags'
+	],
+	funding: [
+		'title',
+		'description',
+		'funderName',
+		'organizationName',
+		'focusAreas',
+		'eligibilityType',
+		'tags',
+		'region'
+	],
+	redpages: [
+		'name',
+		'title',
+		'description',
+		'serviceType',
+		'tribalAffiliation',
+		'organizationName',
+		'city',
+		'state',
+		'tags'
+	],
+	jobs: [
+		'title',
+		'description',
+		'employerName',
+		'organizationName',
+		'location',
+		'sector',
+		'tags',
+		'region'
+	],
+	toolbox: [
+		'title',
+		'description',
+		'body',
+		'sourceName',
+		'organizationName',
+		'author',
+		'category',
+		'tags'
+	]
 };
 
 const MEILISEARCH_TIMEOUT_MS = 1500;
@@ -232,7 +279,11 @@ function eventToDoc(item: EventItem & { id: string }): EventSearchDoc {
 		startDate: item.startDate,
 		endDate: item.endDate,
 		status: 'published',
-		hostOrg: item.hostOrg
+		hostOrg: item.hostOrg,
+		organizationName: item.organizationName,
+		venueName: item.venueName,
+		tags: item.tags,
+		imageUrl: item.imageUrl
 	};
 }
 

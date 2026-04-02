@@ -1,19 +1,45 @@
+import { fail } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
-import { redirect } from '@sveltejs/kit';
-import { env } from '$env/dynamic/private';
-import { getEvents } from '$lib/server/events';
-import { reindexAllEvents } from '$lib/server/meilisearch';
+import type { CoilKey } from '$lib/data/kb';
+import {
+	getSearchOperationsSnapshot,
+	reindexAllPublishedContent,
+	reindexPublishedContentCoil
+} from '$lib/server/search-ops';
 
 export const load: PageServerLoad = async ({ url }) => {
-	const meilisearchConfigured = !!(env.MEILISEARCH_HOST && env.MEILISEARCH_API_KEY);
-	const reindexed = url.searchParams.get('reindexed');
-	return { meilisearchConfigured, reindexed: reindexed ? parseInt(reindexed, 10) : null };
+	const query = url.searchParams.get('q')?.trim() ?? '';
+	return {
+		query,
+		snapshot: await getSearchOperationsSnapshot(query)
+	};
 };
 
 export const actions: Actions = {
-	reindex: async () => {
-		const events = await getEvents({ includeIcal: false });
-		await reindexAllEvents(events);
-		throw redirect(303, '/admin/settings/search?reindexed=' + events.length);
+	reindexAll: async () => {
+		try {
+			const summary = await reindexAllPublishedContent();
+			return { success: true, scope: 'all', summary };
+		} catch (error) {
+			return fail(400, {
+				error: error instanceof Error ? error.message : 'Unable to rebuild search indexes'
+			});
+		}
+	},
+	reindexCoil: async ({ request }) => {
+		const formData = await request.formData();
+		const coil = String(formData.get('coil') ?? '').trim() as CoilKey;
+		if (!['events', 'funding', 'redpages', 'jobs', 'toolbox'].includes(coil)) {
+			return fail(400, { error: 'Choose a content area to rebuild' });
+		}
+
+		try {
+			const count = await reindexPublishedContentCoil(coil);
+			return { success: true, scope: coil, count };
+		} catch (error) {
+			return fail(400, {
+				error: error instanceof Error ? error.message : 'Unable to rebuild that search index'
+			});
+		}
 	}
 };

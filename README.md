@@ -25,8 +25,10 @@ Docs in `docs/` are there to explain the current implementation and intended dir
 
 - Public surfaces exist for all five coils.
 - Public organization and venue pages exist.
-- Admin tools are strongest for Events: review/edit flows, event lists, iCal import, duplicate merge, branding, and search settings.
-- Source registry/admin scaffolding now exists under `/admin/sources`, but the full automated ingestion runtime is not implemented yet.
+- Admin now has stronger operational tooling for Events, Sources, Organizations, Venues, and Search.
+- Source review, source health, candidate publishing, source-to-live merge history, and search reindexing now exist under `/admin/sources` and `/admin/settings/search`.
+- Organization and venue admin now support aliases, duplicate suggestions, and merge workflows.
+- Public `/events` now reads reviewed database content instead of merging a hardcoded runtime iCal feed.
 - Public submissions are live for Events, Funding, Red Pages, Jobs, and Toolbox. Each submit flow writes a pending record for moderation.
 - Global search is available, but multi-coil results depend on Meilisearch indexing. Without Meilisearch, fallback search is events-only.
 
@@ -56,6 +58,14 @@ Common local dependencies:
 - MinIO
 - Redis
 
+If you only need search locally, you can start just Meilisearch:
+
+```sh
+cd ..
+docker compose up -d meilisearch
+curl http://localhost:7700/health
+```
+
 Set `DATABASE_URL` in `site/.env`. See `.env.example` for the rest of the optional configuration.
 
 ## Database And Search
@@ -75,6 +85,8 @@ Notes:
 
 - `pnpm db:seed` currently seeds events from CSV.
 - Search indexing uses Meilisearch when configured.
+- After applying DB migrations, restart the dev server so cached schema-health warnings clear.
+- Recent additive migrations include source-ops snapshot support and aliases on organizations/venues.
 - `POST /api/reindex` is protected in production. Use an admin/moderator session or send `x-reindex-secret` matching `REINDEX_SECRET`.
 - The admin UI also exposes search reindexing at `/admin/settings/search`.
 - `sitemap.xml`, `robots.txt`, and `manifest.webmanifest` are generated as part of the app surface.

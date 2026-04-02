@@ -13,7 +13,14 @@
 	import CandidateFieldCard from '$lib/components/organisms/admin/CandidateFieldCard.svelte';
 	import CollapsibleDebug from '$lib/components/organisms/admin/CollapsibleDebug.svelte';
 	import { ArrowRight, Check, Clock3, X } from '@lucide/svelte';
-	import { friendly, timeAgo, coilLabel, priorityLabel, dedupeLabel, rejectionLabel } from '$lib/admin/labels.js';
+	import {
+		friendly,
+		timeAgo,
+		coilLabel,
+		priorityLabel,
+		dedupeLabel,
+		rejectionLabel
+	} from '$lib/admin/labels.js';
 
 	let { data } = $props();
 	let searchValue = $state('');
@@ -68,6 +75,34 @@
 		return null;
 	}
 
+	function candidateImage(candidate: (typeof data.candidates)[number]): string | null {
+		if (candidate.normalizedData && typeof candidate.normalizedData === 'object') {
+			const norm = candidate.normalizedData as Record<string, unknown>;
+			return typeof norm.image_url === 'string' && norm.image_url.trim() ? norm.image_url : null;
+		}
+		return null;
+	}
+
+	function qualityFlags(candidate: (typeof data.candidates)[number]) {
+		const flags: string[] = [];
+		if (!candidate.normalizedData || typeof candidate.normalizedData !== 'object') return flags;
+		const norm = candidate.normalizedData as Record<string, unknown>;
+		const description = typeof norm.description === 'string' ? norm.description.trim() : '';
+		const image = typeof norm.image_url === 'string' ? norm.image_url.trim() : '';
+		const venue =
+			typeof norm.location_name === 'string' && norm.location_name.trim()
+				? norm.location_name.trim()
+				: typeof norm.location_address === 'string' && norm.location_address.trim()
+					? norm.location_address.trim()
+					: '';
+
+		if (!image) flags.push('Missing image');
+		if (candidate.coil === 'events' && !venue) flags.push('Missing venue details');
+		if (description.length > 0 && description.length < 80) flags.push('Short description');
+		if (candidate.dedupeResult === 'ambiguous') flags.push('Low-confidence match');
+		return flags;
+	}
+
 	function isBulkEligible(candidate: (typeof data.candidates)[number]) {
 		return candidate.dedupeResult === 'new' && !candidate.matchedCanonicalId;
 	}
@@ -90,16 +125,22 @@
 
 	// Priority badge classes using KB color system
 	function priorityClass(priority: string) {
-		if (priority === 'high') return 'border-[color:color-mix(in_srgb,var(--color-ember-300)_60%,transparent)] bg-[color:color-mix(in_srgb,var(--color-ember-50)_90%,white)] text-[var(--color-ember-900)]';
-		if (priority === 'low') return 'border-[color:color-mix(in_srgb,var(--color-granite-300)_60%,transparent)] bg-[color:color-mix(in_srgb,var(--color-alpine-snow-100)_94%,white)] text-[var(--color-granite-700)]';
+		if (priority === 'high')
+			return 'border-[color:color-mix(in_srgb,var(--color-ember-300)_60%,transparent)] bg-[color:color-mix(in_srgb,var(--color-ember-50)_90%,white)] text-[var(--color-ember-900)]';
+		if (priority === 'low')
+			return 'border-[color:color-mix(in_srgb,var(--color-granite-300)_60%,transparent)] bg-[color:color-mix(in_srgb,var(--color-alpine-snow-100)_94%,white)] text-[var(--color-granite-700)]';
 		return 'border-[color:color-mix(in_srgb,var(--color-granite-300)_60%,transparent)] bg-[color:color-mix(in_srgb,var(--color-alpine-snow-100)_94%,white)] text-[var(--color-granite-700)]';
 	}
 
 	function dedupeClass(result: string) {
-		if (result === 'new') return 'border-[color:color-mix(in_srgb,var(--color-pinyon-300)_60%,transparent)] bg-[color:color-mix(in_srgb,var(--color-pinyon-50)_90%,white)] text-[var(--color-pinyon-800)]';
-		if (result === 'duplicate') return 'border-[color:color-mix(in_srgb,var(--color-flicker-300)_60%,transparent)] bg-[color:color-mix(in_srgb,var(--color-flicker-50)_90%,white)] text-[var(--color-flicker-900)]';
-		if (result === 'update') return 'border-[color:color-mix(in_srgb,var(--color-lakebed-300)_60%,transparent)] bg-[color:color-mix(in_srgb,var(--color-lakebed-50)_90%,white)] text-[var(--color-lakebed-900)]';
-		if (result === 'ambiguous') return 'border-[color:color-mix(in_srgb,var(--color-salmonberry-300)_60%,transparent)] bg-[color:color-mix(in_srgb,var(--color-salmonberry-50)_90%,white)] text-[var(--color-salmonberry-900)]';
+		if (result === 'new')
+			return 'border-[color:color-mix(in_srgb,var(--color-pinyon-300)_60%,transparent)] bg-[color:color-mix(in_srgb,var(--color-pinyon-50)_90%,white)] text-[var(--color-pinyon-800)]';
+		if (result === 'duplicate')
+			return 'border-[color:color-mix(in_srgb,var(--color-flicker-300)_60%,transparent)] bg-[color:color-mix(in_srgb,var(--color-flicker-50)_90%,white)] text-[var(--color-flicker-900)]';
+		if (result === 'update')
+			return 'border-[color:color-mix(in_srgb,var(--color-lakebed-300)_60%,transparent)] bg-[color:color-mix(in_srgb,var(--color-lakebed-50)_90%,white)] text-[var(--color-lakebed-900)]';
+		if (result === 'ambiguous')
+			return 'border-[color:color-mix(in_srgb,var(--color-salmonberry-300)_60%,transparent)] bg-[color:color-mix(in_srgb,var(--color-salmonberry-50)_90%,white)] text-[var(--color-salmonberry-900)]';
 		return 'border-[color:color-mix(in_srgb,var(--color-granite-300)_60%,transparent)] bg-[color:color-mix(in_srgb,var(--color-alpine-snow-100)_94%,white)] text-[var(--color-granite-700)]';
 	}
 </script>
@@ -107,8 +148,8 @@
 <div class="space-y-6">
 	<AdminPageHeader
 		eyebrow="Sources"
-		title="Import review"
-		description="Review items imported from sources before they're published. Approve new items, flag updates, or reject anything that doesn't belong."
+		title="Review imported listings"
+		description="Review imported items before they go live. Publish new listings, update existing ones, or set aside anything that needs more work."
 	>
 		{#snippet meta()}
 			<span>{data.total} item{data.total !== 1 ? 's' : ''} in queue</span>
@@ -118,12 +159,23 @@
 		{/snippet}
 	</AdminPageHeader>
 
+	{#if !data.schemaHealth.ok}
+		<div
+			class="rounded-2xl border border-[color:color-mix(in_srgb,var(--color-ember-300)_55%,transparent)] bg-[color:color-mix(in_srgb,var(--color-ember-50)_78%,white)] px-5 py-4 text-sm text-[var(--color-ember-900)]"
+		>
+			{data.schemaHealth.message}
+		</div>
+	{/if}
+
 	<!-- Filters -->
 	<Card.Root>
 		<Card.Content class="space-y-4 p-4">
 			<div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
 				<form
-					onsubmit={(e) => { e.preventDefault(); doSearch(); }}
+					onsubmit={(e) => {
+						e.preventDefault();
+						doSearch();
+					}}
 					class="flex w-full max-w-md gap-2"
 				>
 					<Input bind:value={searchValue} placeholder="Search by title or source…" />
@@ -166,10 +218,10 @@
 						value={data.currentDedupeResult}
 						onchange={(e) => applyFilter('dedupeResult', (e.target as HTMLSelectElement).value)}
 					>
-						<NativeSelect.Option value="all">All match types</NativeSelect.Option>
+						<NativeSelect.Option value="all">All match statuses</NativeSelect.Option>
 						<NativeSelect.Option value="new">New item</NativeSelect.Option>
-						<NativeSelect.Option value="duplicate">Possible duplicate</NativeSelect.Option>
-						<NativeSelect.Option value="update">Updated version</NativeSelect.Option>
+						<NativeSelect.Option value="duplicate">Same listing</NativeSelect.Option>
+						<NativeSelect.Option value="update">Update to existing listing</NativeSelect.Option>
 						<NativeSelect.Option value="ambiguous">Needs review</NativeSelect.Option>
 					</NativeSelect.Root>
 					<NativeSelect.Root
@@ -188,22 +240,24 @@
 
 	<!-- Bulk actions -->
 	{#if selectedIds.length > 0 || bulkEligibleCount > 0}
-		<div class="rounded-2xl border border-[color:var(--rule)] bg-[var(--color-alpine-snow-100)]/60 p-4">
+		<div
+			class="rounded-2xl border border-[color:var(--rule)] bg-[var(--color-alpine-snow-100)]/60 p-4"
+		>
 			<div class="flex flex-wrap items-center gap-3">
 				<span class="text-sm font-medium text-[var(--dark)]">
 					{selectedIds.length} selected
 				</span>
 				{#if bulkEligibleCount > 0}
-					<button
-						type="button"
-						class="text-sm text-primary hover:underline"
-						onclick={selectAll}
-					>
+					<button type="button" class="text-sm text-primary hover:underline" onclick={selectAll}>
 						Select all {bulkEligibleCount} eligible
 					</button>
 				{/if}
 				{#if selectedIds.length > 0}
-					<button type="button" class="text-sm text-[var(--mid)] hover:underline" onclick={clearSelected}>
+					<button
+						type="button"
+						class="text-sm text-[var(--mid)] hover:underline"
+						onclick={clearSelected}
+					>
 						Clear
 					</button>
 				{/if}
@@ -217,16 +271,29 @@
 							Approve selected ({selectedIds.length})
 						</Button>
 					</form>
-					<form method="POST" action="?/bulkReject" class="inline-flex items-center rounded-lg border border-[color:var(--rule)] bg-white/60">
+					<form
+						method="POST"
+						action="?/bulkReject"
+						class="inline-flex items-center rounded-lg border border-[color:var(--rule)] bg-white/60"
+					>
 						{#each selectedIds as id}
 							<input type="hidden" name="candidateId" value={id} />
 						{/each}
-						<NativeSelect.Root name="rejectionReason" class="h-8 rounded-none rounded-l-lg border-0 border-r border-[color:var(--rule)] bg-transparent text-xs">
+						<NativeSelect.Root
+							name="rejectionReason"
+							class="h-8 rounded-none rounded-l-lg border-0 border-r border-[color:var(--rule)] bg-transparent text-xs"
+						>
 							{#each Object.entries(rejectionLabel) as [value, label]}
 								<NativeSelect.Option {value}>{label}</NativeSelect.Option>
 							{/each}
 						</NativeSelect.Root>
-						<Button type="submit" variant="ghost" size="sm" disabled={selectedIds.length === 0} class="rounded-l-none px-2.5 text-[var(--color-ember-700)] hover:bg-[color:color-mix(in_srgb,var(--color-ember-50)_80%,transparent)] hover:text-[var(--color-ember-900)]">
+						<Button
+							type="submit"
+							variant="ghost"
+							size="sm"
+							disabled={selectedIds.length === 0}
+							class="rounded-l-none px-2.5 text-[var(--color-ember-700)] hover:bg-[color:color-mix(in_srgb,var(--color-ember-50)_80%,transparent)] hover:text-[var(--color-ember-900)]"
+						>
 							<X class="mr-1.5 h-3.5 w-3.5" />
 							Reject selected
 						</Button>
@@ -241,8 +308,11 @@
 		{#each data.candidates as candidate}
 			{@const title = candidateTitle(candidate)}
 			{@const excerpt = candidateExcerpt(candidate)}
+			{@const image = candidateImage(candidate)}
 			{@const eligible = isBulkEligible(candidate)}
-			{@const isUpdate = candidate.dedupeResult === 'update' || candidate.dedupeResult === 'ambiguous'}
+			{@const isUpdate =
+				candidate.dedupeResult === 'update' || candidate.dedupeResult === 'ambiguous'}
+			{@const flags = qualityFlags(candidate)}
 			<Card.Root class="border border-[color:var(--rule)]">
 				<Card.Content class="space-y-4 p-5">
 					<!-- Header row -->
@@ -253,52 +323,96 @@
 									type="checkbox"
 									class="h-4 w-4 rounded border-[color:var(--rule)]"
 									checked={selectedIds.includes(candidate.id)}
-									onchange={(e) => toggleSelected(candidate.id, (e.currentTarget as HTMLInputElement).checked)}
+									onchange={(e) =>
+										toggleSelected(candidate.id, (e.currentTarget as HTMLInputElement).checked)}
 								/>
 							</label>
 						{/if}
+						{#if image}
+							<img src={image} alt="" class="h-20 w-28 rounded-xl object-cover" />
+						{/if}
 						<div class="min-w-0 flex-1 space-y-1">
-							<h2 class="font-serif text-lg font-semibold leading-tight text-[var(--dark)]">
+							<h2 class="font-serif text-lg leading-tight font-semibold text-[var(--dark)]">
 								{title}
 							</h2>
 							{#if excerpt}
 								<p class="text-sm leading-5 text-[var(--mid)]">{excerpt}</p>
 							{/if}
 							<p class="text-xs text-[var(--mid)]">
-								From <a href={`/admin/sources/${candidate.sourceId}`} class="font-medium hover:underline">{candidate.sourceName}</a>
+								From <a
+									href={`/admin/sources/${candidate.sourceId}`}
+									class="font-medium hover:underline">{candidate.sourceName}</a
+								>
 								· Imported {timeAgo(candidate.importedAt)}
 								{#if candidate.sourceItemUrl}
 									·
-									<a href={candidate.sourceItemUrl} target="_blank" rel="noreferrer" class="hover:underline">
+									<a
+										href={candidate.sourceItemUrl}
+										target="_blank"
+										rel="noreferrer"
+										class="hover:underline"
+									>
 										View original
 									</a>
 								{/if}
 							</p>
 						</div>
-						<div class="flex flex-wrap items-center gap-2 shrink-0">
-							<span class="inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-semibold tracking-[0.04em] uppercase {dedupeClass(candidate.dedupeResult ?? '')}">
+						<div class="flex shrink-0 flex-wrap items-center gap-2">
+							<span
+								class="inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-semibold tracking-[0.04em] uppercase {dedupeClass(
+									candidate.dedupeResult ?? ''
+								)}"
+							>
 								{friendly(dedupeLabel, candidate.dedupeResult)}
 							</span>
-							<span class="inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-semibold tracking-[0.04em] uppercase {priorityClass(candidate.priority ?? '')}">
+							<span
+								class="inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-semibold tracking-[0.04em] uppercase {priorityClass(
+									candidate.priority ?? ''
+								)}"
+							>
 								{friendly(priorityLabel, candidate.priority)}
 							</span>
-							<span class="inline-flex items-center rounded-full border border-[color:color-mix(in_srgb,var(--color-granite-300)_60%,transparent)] bg-[color:color-mix(in_srgb,var(--color-alpine-snow-100)_94%,white)] px-2.5 py-1 text-[11px] font-semibold tracking-[0.04em] text-[var(--color-granite-700)] uppercase">
+							<span
+								class="inline-flex items-center rounded-full border border-[color:color-mix(in_srgb,var(--color-granite-300)_60%,transparent)] bg-[color:color-mix(in_srgb,var(--color-alpine-snow-100)_94%,white)] px-2.5 py-1 text-[11px] font-semibold tracking-[0.04em] text-[var(--color-granite-700)] uppercase"
+							>
 								{friendly(coilLabel, candidate.coil)}
 							</span>
 						</div>
 					</div>
 
 					{#if candidate.matchedCanonicalTitle}
-						<div class="rounded-xl border border-[color:color-mix(in_srgb,var(--color-flicker-300)_50%,transparent)] bg-[color:color-mix(in_srgb,var(--color-flicker-50)_60%,white)] px-4 py-2.5 text-sm">
-							<span class="font-medium text-[var(--color-flicker-900)]">Matches existing record:</span>
-							<span class="ml-1 text-[var(--color-flicker-800)]">{candidate.matchedCanonicalTitle}</span>
+						<div
+							class="rounded-xl border border-[color:color-mix(in_srgb,var(--color-flicker-300)_50%,transparent)] bg-[color:color-mix(in_srgb,var(--color-flicker-50)_60%,white)] px-4 py-2.5 text-sm"
+						>
+							<span class="font-medium text-[var(--color-flicker-900)]"
+								>Suggested existing listing:</span
+							>
+							<span class="ml-1 text-[var(--color-flicker-800)]"
+								>{candidate.matchedCanonicalTitle}</span
+							>
+						</div>
+					{/if}
+
+					{#if flags.length > 0}
+						<div class="flex flex-wrap gap-2">
+							{#each flags as flag}
+								<span
+									class="inline-flex items-center rounded-full border border-[color:var(--rule)] bg-[var(--color-alpine-snow-100)]/70 px-2.5 py-1 text-[11px] font-semibold tracking-[0.04em] text-[var(--mid)] uppercase"
+								>
+									{flag}
+								</span>
+							{/each}
 						</div>
 					{/if}
 
 					<!-- Normalized data as friendly fields -->
 					{#if candidate.normalizedData && typeof candidate.normalizedData === 'object'}
-						<div class="rounded-xl border border-[color:var(--rule)] bg-[var(--color-alpine-snow-100)]/40 px-4 py-3">
-							<p class="mb-3 text-[11px] font-bold tracking-[0.08em] text-[var(--mid)] uppercase">Item details</p>
+						<div
+							class="rounded-xl border border-[color:var(--rule)] bg-[var(--color-alpine-snow-100)]/40 px-4 py-3"
+						>
+							<p class="mb-3 text-[11px] font-bold tracking-[0.08em] text-[var(--mid)] uppercase">
+								Item details
+							</p>
 							<CandidateFieldCard
 								data={candidate.normalizedData as Record<string, unknown>}
 								coil={candidate.coil ?? ''}
@@ -311,16 +425,17 @@
 						{#if isUpdate}
 							<Button href={`/admin/sources/review/${candidate.id}`} variant="secondary" size="sm">
 								<ArrowRight class="mr-1.5 h-3.5 w-3.5" />
-								Review changes
+								Review details
 							</Button>
 						{:else}
 							<form
 								method="POST"
 								action="?/approve"
-								use:enhance={() => async ({ result, update }) => {
-									if (result.type === 'success') toast.success('Approved');
-									await update();
-								}}
+								use:enhance={() =>
+									async ({ result, update }) => {
+										if (result.type === 'success') toast.success('Approved');
+										await update();
+									}}
 								class="inline"
 							>
 								<input type="hidden" name="id" value={candidate.id} />
@@ -334,10 +449,11 @@
 						<form
 							method="POST"
 							action="?/needsInfo"
-							use:enhance={() => async ({ result, update }) => {
-								if (result.type === 'success') toast.success('Marked as waiting on info');
-								await update();
-							}}
+							use:enhance={() =>
+								async ({ result, update }) => {
+									if (result.type === 'success') toast.success('Marked as waiting on info');
+									await update();
+								}}
 							class="inline"
 						>
 							<input type="hidden" name="id" value={candidate.id} />
@@ -350,19 +466,28 @@
 						<form
 							method="POST"
 							action="?/reject"
-							use:enhance={() => async ({ result, update }) => {
-								if (result.type === 'success') toast.success('Rejected');
-								await update();
-							}}
+							use:enhance={() =>
+								async ({ result, update }) => {
+									if (result.type === 'success') toast.success('Rejected');
+									await update();
+								}}
 							class="inline-flex items-center rounded-lg border border-[color:var(--rule)] bg-white/60"
 						>
 							<input type="hidden" name="id" value={candidate.id} />
-							<NativeSelect.Root name="rejectionReason" class="h-8 rounded-none rounded-l-lg border-0 border-r border-[color:var(--rule)] bg-transparent text-xs">
+							<NativeSelect.Root
+								name="rejectionReason"
+								class="h-8 rounded-none rounded-l-lg border-0 border-r border-[color:var(--rule)] bg-transparent text-xs"
+							>
 								{#each Object.entries(rejectionLabel) as [value, label]}
 									<NativeSelect.Option {value}>{label}</NativeSelect.Option>
 								{/each}
 							</NativeSelect.Root>
-							<Button type="submit" size="sm" variant="ghost" class="rounded-l-none px-2.5 text-[var(--color-ember-700)] hover:bg-[color:color-mix(in_srgb,var(--color-ember-50)_80%,transparent)] hover:text-[var(--color-ember-900)]">
+							<Button
+								type="submit"
+								size="sm"
+								variant="ghost"
+								class="rounded-l-none px-2.5 text-[var(--color-ember-700)] hover:bg-[color:color-mix(in_srgb,var(--color-ember-50)_80%,transparent)] hover:text-[var(--color-ember-900)]"
+							>
 								<X class="mr-1.5 h-3.5 w-3.5" />
 								Reject
 							</Button>
@@ -371,17 +496,21 @@
 						<form
 							method="POST"
 							action="?/archive"
-							use:enhance={() => async ({ result, update }) => {
-								if (result.type === 'success') toast.success('Archived');
-								await update();
-							}}
-							class="inline ml-auto"
+							use:enhance={() =>
+								async ({ result, update }) => {
+									if (result.type === 'success') toast.success('Archived');
+									await update();
+								}}
+							class="ml-auto inline"
 						>
 							<input type="hidden" name="id" value={candidate.id} />
 							<Button type="submit" size="sm" variant="ghost">Archive</Button>
 						</form>
 
-						<a href={`/admin/sources/review/${candidate.id}`} class="text-sm font-medium text-[var(--mid)] hover:text-primary hover:underline ml-1">
+						<a
+							href={`/admin/sources/review/${candidate.id}`}
+							class="ml-1 text-sm font-medium text-[var(--mid)] hover:text-primary hover:underline"
+						>
 							Full review
 						</a>
 					</div>

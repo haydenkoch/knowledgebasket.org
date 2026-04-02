@@ -19,6 +19,12 @@ import { compositeKey as buildCompositeKey } from '$lib/server/ingestion/dedupe'
 import { createJob, updateJob } from '$lib/server/jobs';
 import { createBusiness, updateBusiness } from '$lib/server/red-pages';
 import { createResource, updateResource } from '$lib/server/toolbox';
+import { createOrganization, suggestOrganizationMatches } from '$lib/server/organizations';
+import { createVenue, suggestVenueMatches } from '$lib/server/venues';
+import {
+	hasCanonicalSourceSnapshotColumn,
+	isMissingSourceOpsColumnError
+} from '$lib/server/source-ops-schema';
 import {
 	mapCandidateToComparable,
 	planCandidateMerge,
@@ -37,6 +43,40 @@ export type ImportCandidateListItem = ImportedCandidateRow & {
 
 type DatabaseExecutor = DbExecutor;
 type CanonicalRecordRow = typeof canonicalRecords.$inferSelect;
+type CanonicalRecordCompat = Omit<CanonicalRecordRow, 'sourceSnapshot'> & {
+	sourceSnapshot?: Record<string, unknown> | null;
+};
+
+const canonicalRecordSelectWithoutSnapshot = {
+	id: canonicalRecords.id,
+	coil: canonicalRecords.coil,
+	publishedRecordId: canonicalRecords.publishedRecordId,
+	canonicalTitle: canonicalRecords.canonicalTitle,
+	compositeKey: canonicalRecords.compositeKey,
+	contentFingerprint: canonicalRecords.contentFingerprint,
+	canonicalUrl: canonicalRecords.canonicalUrl,
+	externalIds: canonicalRecords.externalIds,
+	sourceCount: canonicalRecords.sourceCount,
+	primarySourceId: canonicalRecords.primarySourceId,
+	createdAt: canonicalRecords.createdAt,
+	updatedAt: canonicalRecords.updatedAt
+};
+
+const canonicalRecordSelectWithSnapshot = {
+	...canonicalRecordSelectWithoutSnapshot,
+	sourceSnapshot: canonicalRecords.sourceSnapshot
+};
+
+function canonicalRecordSelection(includeSourceSnapshot: boolean) {
+	return includeSourceSnapshot ? canonicalRecordSelectWithSnapshot : canonicalRecordSelectWithoutSnapshot;
+}
+
+function normalizeCanonicalRecord(row: CanonicalRecordCompat): CanonicalRecordRow {
+	return {
+		...row,
+		sourceSnapshot: asRecord(row.sourceSnapshot)
+	};
+}
 
 export async function getImportCandidatesForReview(opts?: {
 	status?: string;
@@ -168,155 +208,198 @@ export async function approveCandidate(
 	reviewerId: string | null,
 	opts?: { reviewNotes?: string; allowAmbiguous?: boolean }
 ): Promise<ImportedCandidateRow | null> {
-	return db.transaction(async (tx) => {
-		const [candidate] = await tx
-			.select()
-			.from(importedCandidates)
-			.where(eq(importedCandidates.id, id))
-			.limit(1);
+	const includeSourceSnapshot = await hasCanonicalSourceSnapshotColumn();
+	try {
+		return await db.transaction(async (tx) => {
+			const [candidate] = await tx
+				.select()
+				.from(importedCandidates)
+				.where(eq(importedCandidates.id, id))
+				.limit(1);
 
-		if (!candidate) return null;
-		if (candidate.dedupeResult === 'ambiguous' && !opts?.allowAmbiguous) {
-			throw new Error('Ambiguous candidates must be resolved before approval.');
-		}
+			if (!candidate) return null;
+			if (candidate.dedupeResult === 'ambiguous' && !opts?.allowAmbiguous) {
+				throw new Error('This item still needs a match decision before it can be published.');
+			}
 
-		let canonical = await findCanonicalRecord(tx, candidate);
-		const canonicalExisted = Boolean(canonical);
-		if (candidate.dedupeResult === 'update' && !canonical) {
-			throw new Error('Update candidates require a matched canonical record.');
-		}
-		const published = await publishCandidateRecord(tx, candidate, reviewerId, canonical);
-		const normalized = asRecord(candidate.normalizedData);
-		const compositeKey = readCompositeKey(candidate, normalized);
-		const canonicalTitle = readCanonicalTitle(candidate, normalized);
-		const canonicalUrl = readCanonicalUrl(candidate, normalized);
-		const externalIds = buildExternalIds(candidate);
+			let canonical = await findCanonicalRecord(tx, candidate, includeSourceSnapshot);
+			const canonicalExisted = Boolean(canonical);
+			if (candidate.dedupeResult === 'update' && !canonical) {
+				throw new Error(
+					'Choose the existing listing this update should apply to before publishing.'
+				);
+			}
+			const published = await publishCandidateRecord(tx, candidate, reviewerId, canonical);
+			const normalized = asRecord(candidate.normalizedData);
+			const compositeKey = readCompositeKey(candidate, normalized);
+			const canonicalTitle = readCanonicalTitle(candidate, normalized);
+			const canonicalUrl = readCanonicalUrl(candidate, normalized);
+			const externalIds = buildExternalIds(candidate);
 
-		if (canonical) {
-			const [updatedCanonical] = await tx
-				.update(canonicalRecords)
-				.set({
-					publishedRecordId: published.id,
-					canonicalTitle,
-					compositeKey,
-					contentFingerprint: candidate.contentFingerprint ?? canonical.contentFingerprint,
-					canonicalUrl,
-					externalIds: {
-						...asStringRecord(canonical.externalIds),
-						...externalIds
-					},
-					primarySourceId: canonical.primarySourceId ?? candidate.sourceId,
-					sourceSnapshot: published.nextSourceSnapshot
-				})
-				.where(eq(canonicalRecords.id, canonical.id))
-				.returning();
-			canonical = updatedCanonical ?? canonical;
-		} else {
-			const [createdCanonical] = await tx
-				.insert(canonicalRecords)
-				.values({
-					coil: candidate.coil,
-					publishedRecordId: published.id,
-					canonicalTitle,
-					compositeKey,
-					contentFingerprint: candidate.contentFingerprint,
-					canonicalUrl,
-					externalIds,
-					sourceSnapshot: published.nextSourceSnapshot,
-					sourceCount: 1,
-					primarySourceId: candidate.sourceId
-				})
-				.returning();
-			canonical = createdCanonical ?? null;
-		}
+			if (canonical) {
+				const [updatedCanonical] = await tx
+					.update(canonicalRecords)
+					.set(
+						includeSourceSnapshot
+							? {
+									publishedRecordId: published.id,
+									canonicalTitle,
+									compositeKey,
+									contentFingerprint: candidate.contentFingerprint ?? canonical.contentFingerprint,
+									canonicalUrl,
+									externalIds: {
+										...asStringRecord(canonical.externalIds),
+										...externalIds
+									},
+									primarySourceId: canonical.primarySourceId ?? candidate.sourceId,
+									sourceSnapshot: published.nextSourceSnapshot
+								}
+							: {
+									publishedRecordId: published.id,
+									canonicalTitle,
+									compositeKey,
+									contentFingerprint: candidate.contentFingerprint ?? canonical.contentFingerprint,
+									canonicalUrl,
+									externalIds: {
+										...asStringRecord(canonical.externalIds),
+										...externalIds
+									},
+									primarySourceId: canonical.primarySourceId ?? candidate.sourceId
+								}
+					)
+					.where(eq(canonicalRecords.id, canonical.id))
+					.returning(canonicalRecordSelection(includeSourceSnapshot));
+				canonical = updatedCanonical ? normalizeCanonicalRecord(updatedCanonical) : canonical;
+			} else {
+				const [createdCanonical] = await tx
+					.insert(canonicalRecords)
+					.values(
+						includeSourceSnapshot
+							? {
+									coil: candidate.coil,
+									publishedRecordId: published.id,
+									canonicalTitle,
+									compositeKey,
+									contentFingerprint: candidate.contentFingerprint,
+									canonicalUrl,
+									externalIds,
+									sourceSnapshot: published.nextSourceSnapshot,
+									sourceCount: 1,
+									primarySourceId: candidate.sourceId
+								}
+							: {
+									coil: candidate.coil,
+									publishedRecordId: published.id,
+									canonicalTitle,
+									compositeKey,
+									contentFingerprint: candidate.contentFingerprint,
+									canonicalUrl,
+									externalIds,
+									sourceCount: 1,
+									primarySourceId: candidate.sourceId
+								}
+					)
+					.returning(canonicalRecordSelection(includeSourceSnapshot));
+				canonical = createdCanonical ? normalizeCanonicalRecord(createdCanonical) : null;
+			}
 
-		if (!canonical) throw new Error('Failed to resolve canonical record');
+			if (!canonical) throw new Error('Failed to resolve canonical record');
 
-		const [existingLink] = await tx
-			.select({ id: sourceRecordLinks.id })
-			.from(sourceRecordLinks)
-			.where(
-				and(
-					eq(sourceRecordLinks.sourceId, candidate.sourceId),
-					eq(sourceRecordLinks.canonicalRecordId, canonical.id)
+			const [existingLink] = await tx
+				.select({ id: sourceRecordLinks.id })
+				.from(sourceRecordLinks)
+				.where(
+					and(
+						eq(sourceRecordLinks.sourceId, candidate.sourceId),
+						eq(sourceRecordLinks.canonicalRecordId, canonical.id)
+					)
 				)
-			)
-			.limit(1);
+				.limit(1);
 
-		if (canonicalExisted && !existingLink) {
+			if (canonicalExisted && !existingLink) {
+				await tx
+					.update(canonicalRecords)
+					.set({
+						sourceCount: sql`${canonicalRecords.sourceCount} + 1`
+					})
+					.where(eq(canonicalRecords.id, canonical.id));
+			}
+
 			await tx
-				.update(canonicalRecords)
-				.set({
-					sourceCount: sql`${canonicalRecords.sourceCount} + 1`
-				})
-				.where(eq(canonicalRecords.id, canonical.id));
-		}
-
-		await tx
-			.insert(sourceRecordLinks)
-			.values({
-				sourceId: candidate.sourceId,
-				canonicalRecordId: canonical.id,
-				sourceItemId: candidate.sourceItemId,
-				sourceItemUrl: candidate.sourceItemUrl,
-				sourceAttribution: candidate.sourceAttribution,
-				lastSeenAt: new Date(),
-				lastSyncAt: new Date(),
-				isPrimary: (canonical.primarySourceId ?? candidate.sourceId) === candidate.sourceId
-			})
-			.onConflictDoUpdate({
-				target: [sourceRecordLinks.sourceId, sourceRecordLinks.canonicalRecordId],
-				set: {
+				.insert(sourceRecordLinks)
+				.values({
+					sourceId: candidate.sourceId,
+					canonicalRecordId: canonical.id,
 					sourceItemId: candidate.sourceItemId,
 					sourceItemUrl: candidate.sourceItemUrl,
 					sourceAttribution: candidate.sourceAttribution,
 					lastSeenAt: new Date(),
 					lastSyncAt: new Date(),
 					isPrimary: (canonical.primarySourceId ?? candidate.sourceId) === candidate.sourceId
-				}
+				})
+				.onConflictDoUpdate({
+					target: [sourceRecordLinks.sourceId, sourceRecordLinks.canonicalRecordId],
+					set: {
+						sourceItemId: candidate.sourceItemId,
+						sourceItemUrl: candidate.sourceItemUrl,
+						sourceAttribution: candidate.sourceAttribution,
+						lastSeenAt: new Date(),
+						lastSyncAt: new Date(),
+						isPrimary: (canonical.primarySourceId ?? candidate.sourceId) === candidate.sourceId
+					}
+				});
+
+			const [updatedCandidate] = await tx
+				.update(importedCandidates)
+				.set({
+					status: reviewerId ? 'approved' : 'auto_approved',
+					reviewedAt: new Date(),
+					reviewedBy: reviewerId,
+					reviewNotes:
+						opts?.reviewNotes ??
+						(reviewerId ? candidate.reviewNotes : 'Auto-approved by source-ops'),
+					matchedCanonicalId: canonical.id
+				})
+				.where(eq(importedCandidates.id, id))
+				.returning();
+
+			await tx.insert(mergeHistory).values({
+				canonicalRecordId: canonical.id,
+				candidateId: candidate.id,
+				sourceId: candidate.sourceId,
+				mergeType: published.previousData ? 'field_update' : 'manual_merge',
+				fieldsUpdated: published.fieldsUpdated,
+				previousData: published.previousData,
+				newData: normalized,
+				mergedBy: reviewerId,
+				notes: opts?.reviewNotes ?? (reviewerId ? null : 'Auto-approved by source-ops')
 			});
 
-		const [updatedCandidate] = await tx
-			.update(importedCandidates)
-			.set({
-				status: reviewerId ? 'approved' : 'auto_approved',
-				reviewedAt: new Date(),
-				reviewedBy: reviewerId,
-				reviewNotes:
-					opts?.reviewNotes ?? (reviewerId ? candidate.reviewNotes : 'Auto-approved by source-ops'),
-				matchedCanonicalId: canonical.id
-			})
-			.where(eq(importedCandidates.id, id))
-			.returning();
-
-		await tx.insert(mergeHistory).values({
-			canonicalRecordId: canonical.id,
-			candidateId: candidate.id,
-			sourceId: candidate.sourceId,
-			mergeType: published.previousData ? 'field_update' : 'manual_merge',
-			fieldsUpdated: published.fieldsUpdated,
-			previousData: published.previousData,
-			newData: normalized,
-			mergedBy: reviewerId,
-			notes: opts?.reviewNotes ?? (reviewerId ? null : 'Auto-approved by source-ops')
+			return updatedCandidate ?? null;
 		});
-
-		return updatedCandidate ?? null;
-	});
+	} catch (error) {
+		if (isMissingSourceOpsColumnError(error)) {
+			throw new Error(
+				'Source review needs a database update before it can publish changes. Run the latest migration and try again.'
+			);
+		}
+		throw error;
+	}
 }
 
 export async function getCandidateReviewDetail(id: string) {
 	const candidate = await getCandidateById(id);
 	if (!candidate) return null;
 
+	const includeSourceSnapshot = await hasCanonicalSourceSnapshotColumn();
 	const canonical = candidate.matchedCanonicalId
 		? ((
 				await db
-					.select()
+					.select(canonicalRecordSelection(includeSourceSnapshot))
 					.from(canonicalRecords)
 					.where(eq(canonicalRecords.id, candidate.matchedCanonicalId))
 					.limit(1)
-			)[0] ?? null)
+			).map((row) => normalizeCanonicalRecord(row))[0] ?? null)
 		: null;
 	const publishedRecord = canonical?.publishedRecordId
 		? await getPublishedRecordById(db, candidate.coil, canonical.publishedRecordId)
@@ -339,6 +422,9 @@ export async function getCandidateReviewDetail(id: string) {
 					asRecord(canonical.sourceSnapshot)
 				)
 			: null;
+	const normalized = asRecord(candidate.normalizedData);
+	const suggestedOrganizations = await getSuggestedOrganizations(candidate.coil, normalized);
+	const suggestedVenues = candidate.coil === 'events' ? await getSuggestedVenues(normalized) : [];
 
 	return {
 		candidate,
@@ -347,7 +433,9 @@ export async function getCandidateReviewDetail(id: string) {
 		comparableCandidateRecord,
 		comparablePublishedRecord,
 		mergePreview,
-		suggestedMatches
+		suggestedMatches,
+		suggestedOrganizations,
+		suggestedVenues
 	};
 }
 
@@ -369,6 +457,100 @@ export async function resolveCandidateMatch(
 		.where(eq(importedCandidates.id, id))
 		.returning();
 	return row ?? null;
+}
+
+export async function updateCandidateEntityLinks(
+	id: string,
+	options: {
+		organizationId?: string | null;
+		organizationName?: string | null;
+		venueId?: string | null;
+		venueName?: string | null;
+	}
+): Promise<ImportedCandidateRow | null> {
+	const candidate = await getCandidateById(id);
+	if (!candidate) return null;
+
+	const normalized = asRecord(candidate.normalizedData);
+	if (options.organizationId !== undefined) {
+		normalized.organization_id = options.organizationId;
+	}
+	if (options.organizationName !== undefined) {
+		normalized.organization_name = options.organizationName;
+	}
+	if (options.venueId !== undefined) {
+		normalized.venue_id = options.venueId;
+	}
+	if (options.venueName !== undefined) {
+		normalized.location_name = options.venueName;
+	}
+
+	const [row] = await db
+		.update(importedCandidates)
+		.set({ normalizedData: normalized })
+		.where(eq(importedCandidates.id, id))
+		.returning();
+	return row ?? null;
+}
+
+export async function createOrganizationFromCandidate(id: string) {
+	const candidate = await getCandidateById(id);
+	if (!candidate) return null;
+	const normalized = asRecord(candidate.normalizedData);
+	const name = readString(normalized, 'organization_name');
+	if (!name) throw new Error('This imported item does not include an organization name yet.');
+
+	const organization = await createOrganization({
+		name,
+		description: null,
+		website: readString(normalized, 'url'),
+		email: null,
+		phone: null,
+		orgType: null,
+		region: readString(normalized, 'region'),
+		address: readString(normalized, 'location_address') ?? null,
+		city: readString(normalized, 'location_city') ?? null,
+		state: readString(normalized, 'location_state') ?? null,
+		zip: readString(normalized, 'location_zip') ?? null
+	});
+
+	await updateCandidateEntityLinks(id, {
+		organizationId: organization.id,
+		organizationName: organization.name
+	});
+
+	return organization;
+}
+
+export async function createVenueFromCandidate(id: string) {
+	const candidate = await getCandidateById(id);
+	if (!candidate) return null;
+	const normalized = asRecord(candidate.normalizedData);
+	const name =
+		readString(normalized, 'location_name') ??
+		readString(normalized, 'location_address') ??
+		readString(normalized, 'title');
+	if (!name) throw new Error('This imported item does not include enough venue information yet.');
+
+	const venue = await createVenue({
+		name,
+		description: null,
+		address: readString(normalized, 'location_address') ?? null,
+		city: readString(normalized, 'location_city') ?? null,
+		state: readString(normalized, 'location_state') ?? null,
+		zip: readString(normalized, 'location_zip') ?? null,
+		website: readString(normalized, 'url') ?? null,
+		imageUrl: readString(normalized, 'image_url') ?? null,
+		venueType: null,
+		organizationId: readString(normalized, 'organization_id') ?? null
+	});
+
+	await updateCandidateEntityLinks(id, {
+		venueId: venue.id,
+		venueName: venue.name
+	});
+
+	return venue;
 }
 
 export async function bulkApproveCandidates(ids: string[], reviewerId: string): Promise<number> {
@@ -401,20 +583,21 @@ export async function bulkRejectCandidates(
 
 async function findCanonicalRecord(
 	tx: DatabaseExecutor,
-	candidate: ImportedCandidateRow
+	candidate: ImportedCandidateRow,
+	includeSourceSnapshot: boolean
 ): Promise<CanonicalRecordRow | null> {
 	if (candidate.matchedCanonicalId) {
 		const [matched] = await tx
-			.select()
+			.select(canonicalRecordSelection(includeSourceSnapshot))
 			.from(canonicalRecords)
 			.where(eq(canonicalRecords.id, candidate.matchedCanonicalId))
 			.limit(1);
-		if (matched) return matched;
+		if (matched) return normalizeCanonicalRecord(matched);
 	}
 
 	if (candidate.contentFingerprint) {
 		const [matchedByFingerprint] = await tx
-			.select()
+			.select(canonicalRecordSelection(includeSourceSnapshot))
 			.from(canonicalRecords)
 			.where(
 				and(
@@ -423,7 +606,7 @@ async function findCanonicalRecord(
 				)
 			)
 			.limit(1);
-		if (matchedByFingerprint) return matchedByFingerprint;
+		if (matchedByFingerprint) return normalizeCanonicalRecord(matchedByFingerprint);
 	}
 
 	return null;
@@ -464,7 +647,13 @@ async function publishCandidateRecord(
 			if (publishedRecordId && previousData) {
 				const updated = await updateEvent(
 					publishedRecordId,
-					buildManagedPatch(payload, mergePreview, ['status', 'source', 'reviewedById']),
+					buildManagedPatch(payload, mergePreview, [
+						'status',
+						'source',
+						'reviewedById',
+						'organizationId',
+						'venueId'
+					]),
 					tx
 				);
 				if (updated) {
@@ -472,7 +661,8 @@ async function publishCandidateRecord(
 						id: updated.id,
 						previousData,
 						fieldsUpdated: mergePreview?.appliedFields.map((field) => field.field) ?? [],
-						nextSourceSnapshot: mergePreview?.nextSnapshot ?? mapCandidateToComparable(candidate.coil, normalized)
+						nextSourceSnapshot:
+							mergePreview?.nextSnapshot ?? mapCandidateToComparable(candidate.coil, normalized)
 					};
 				}
 			}
@@ -489,7 +679,12 @@ async function publishCandidateRecord(
 			if (publishedRecordId && previousData) {
 				const updated = await updateFunding(
 					publishedRecordId,
-					buildManagedPatch(payload, mergePreview, ['status', 'source', 'reviewedById']),
+					buildManagedPatch(payload, mergePreview, [
+						'status',
+						'source',
+						'reviewedById',
+						'organizationId'
+					]),
 					tx
 				);
 				if (updated) {
@@ -497,7 +692,8 @@ async function publishCandidateRecord(
 						id: updated.id,
 						previousData,
 						fieldsUpdated: mergePreview?.appliedFields.map((field) => field.field) ?? [],
-						nextSourceSnapshot: mergePreview?.nextSnapshot ?? mapCandidateToComparable(candidate.coil, normalized)
+						nextSourceSnapshot:
+							mergePreview?.nextSnapshot ?? mapCandidateToComparable(candidate.coil, normalized)
 					};
 				}
 			}
@@ -514,7 +710,12 @@ async function publishCandidateRecord(
 			if (publishedRecordId && previousData) {
 				const updated = await updateJob(
 					publishedRecordId,
-					buildManagedPatch(payload, mergePreview, ['status', 'source', 'reviewedById']),
+					buildManagedPatch(payload, mergePreview, [
+						'status',
+						'source',
+						'reviewedById',
+						'organizationId'
+					]),
 					tx
 				);
 				if (updated) {
@@ -522,7 +723,8 @@ async function publishCandidateRecord(
 						id: updated.id,
 						previousData,
 						fieldsUpdated: mergePreview?.appliedFields.map((field) => field.field) ?? [],
-						nextSourceSnapshot: mergePreview?.nextSnapshot ?? mapCandidateToComparable(candidate.coil, normalized)
+						nextSourceSnapshot:
+							mergePreview?.nextSnapshot ?? mapCandidateToComparable(candidate.coil, normalized)
 					};
 				}
 			}
@@ -539,7 +741,12 @@ async function publishCandidateRecord(
 			if (publishedRecordId && previousData) {
 				const updated = await updateBusiness(
 					publishedRecordId,
-					buildManagedPatch(payload, mergePreview, ['status', 'source', 'reviewedById']),
+					buildManagedPatch(payload, mergePreview, [
+						'status',
+						'source',
+						'reviewedById',
+						'organizationId'
+					]),
 					tx
 				);
 				if (updated) {
@@ -547,7 +754,8 @@ async function publishCandidateRecord(
 						id: updated.id,
 						previousData,
 						fieldsUpdated: mergePreview?.appliedFields.map((field) => field.field) ?? [],
-						nextSourceSnapshot: mergePreview?.nextSnapshot ?? mapCandidateToComparable(candidate.coil, normalized)
+						nextSourceSnapshot:
+							mergePreview?.nextSnapshot ?? mapCandidateToComparable(candidate.coil, normalized)
 					};
 				}
 			}
@@ -568,7 +776,8 @@ async function publishCandidateRecord(
 						'status',
 						'source',
 						'reviewedById',
-						'lastReviewedAt'
+						'lastReviewedAt',
+						'organizationId'
 					]),
 					tx
 				);
@@ -577,7 +786,8 @@ async function publishCandidateRecord(
 						id: updated.id,
 						previousData,
 						fieldsUpdated: mergePreview?.appliedFields.map((field) => field.field) ?? [],
-						nextSourceSnapshot: mergePreview?.nextSnapshot ?? mapCandidateToComparable(candidate.coil, normalized)
+						nextSourceSnapshot:
+							mergePreview?.nextSnapshot ?? mapCandidateToComparable(candidate.coil, normalized)
 					};
 				}
 			}
@@ -650,6 +860,8 @@ function mapEventCandidate(normalized: Record<string, unknown>, reviewerId: stri
 	return {
 		title: readString(normalized, 'title') ?? 'Untitled event',
 		description: readString(normalized, 'description') ?? undefined,
+		organizationId: readString(normalized, 'organization_id') ?? undefined,
+		venueId: readString(normalized, 'venue_id') ?? undefined,
 		location: buildEventLocation(normalized),
 		address: readString(normalized, 'location_address') ?? undefined,
 		region:
@@ -679,6 +891,7 @@ function mapFundingCandidate(normalized: Record<string, unknown>, reviewerId: st
 	return {
 		title: readString(normalized, 'title') ?? 'Untitled funding',
 		description: readString(normalized, 'description') ?? null,
+		organizationId: readString(normalized, 'organization_id') ?? null,
 		funderName:
 			readString(normalized, 'funder_name') ?? readString(normalized, 'organization_name') ?? null,
 		fundingType: readString(normalized, 'funding_type') ?? null,
@@ -703,6 +916,7 @@ function mapJobCandidate(normalized: Record<string, unknown>, reviewerId: string
 	return {
 		title: readString(normalized, 'title') ?? 'Untitled job',
 		description: readString(normalized, 'description') ?? null,
+		organizationId: readString(normalized, 'organization_id') ?? null,
 		employerName: readString(normalized, 'organization_name') ?? null,
 		jobType: readString(normalized, 'job_type') ?? null,
 		tags: readStringArray(normalized, 'tags') ?? null,
@@ -735,6 +949,7 @@ function mapRedPagesCandidate(normalized: Record<string, unknown>, reviewerId: s
 	return {
 		name: readString(normalized, 'title') ?? 'Untitled listing',
 		description: readString(normalized, 'description') ?? null,
+		organizationId: readString(normalized, 'organization_id') ?? null,
 		ownerName: readString(normalized, 'organization_name') ?? null,
 		serviceType: readString(normalized, 'organization_type') ?? null,
 		serviceArea: readString(normalized, 'service_area') ?? null,
@@ -760,6 +975,7 @@ function mapToolboxCandidate(normalized: Record<string, unknown>, reviewerId: st
 	return {
 		title: readString(normalized, 'title') ?? 'Untitled resource',
 		description: readString(normalized, 'description') ?? null,
+		organizationId: readString(normalized, 'organization_id') ?? null,
 		sourceName:
 			readString(normalized, 'publisher') ?? readString(normalized, 'organization_name') ?? null,
 		resourceType: readString(normalized, 'resource_type') ?? 'other',
@@ -882,6 +1098,41 @@ async function getSuggestedCanonicalMatches(candidate: ImportCandidateListItem) 
 			)
 		)
 		.limit(10);
+}
+
+async function getSuggestedOrganizations(
+	coil: ImportedCandidateRow['coil'],
+	normalized: Record<string, unknown>
+) {
+	if (!['events', 'funding', 'jobs', 'red_pages', 'toolbox'].includes(coil)) return [];
+	const organizationName = readString(normalized, 'organization_name');
+	if (!organizationName) return [];
+
+	return suggestOrganizationMatches({
+		name: organizationName,
+		website:
+			readString(normalized, 'organization_url') ??
+			readString(normalized, 'funder_url') ??
+			readString(normalized, 'url'),
+		city: readString(normalized, 'location_city') ?? readString(normalized, 'city'),
+		state: readString(normalized, 'location_state') ?? readString(normalized, 'state'),
+		address: readString(normalized, 'location_address') ?? readString(normalized, 'address'),
+		limit: 6
+	});
+}
+
+async function getSuggestedVenues(normalized: Record<string, unknown>) {
+	const name =
+		readString(normalized, 'location_name') ?? readString(normalized, 'location_address');
+	if (!name) return [];
+	return suggestVenueMatches({
+		name,
+		address: readString(normalized, 'location_address'),
+		city: readString(normalized, 'location_city'),
+		state: readString(normalized, 'location_state'),
+		organizationId: readString(normalized, 'organization_id'),
+		limit: 6
+	});
 }
 
 function mapPublishedRecordToComparable(

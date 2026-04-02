@@ -349,8 +349,12 @@ Additional notes:
 
 - the 20 starter sources seed correctly from `kb-data`
 - curated HTML/RSS source configs are now seeded from `kb-data` into the app DB
+- the Native California source now uses `ical_generic` plus HTML detail enrichment instead of public-side runtime feed merging
+- source review can run in compatibility mode if `canonical_records.source_snapshot` is missing, but the latest migration should still be applied so merge history has a persisted source baseline
+- organization and venue aliases are now additive schema changes and should be present locally before testing duplicate merge workflows
 - the repo still has no historical Drizzle baseline, so generated migrations must be inspected carefully
 - bootstrap-style full-schema output from Drizzle should still be treated as suspect and manually reduced to additive changes only
+- schema-health results are cached in-process, so after applying migrations during local dev you should restart the Svelte server before trusting admin warnings
 
 ## Remaining Gaps And Follow-Ups
 
@@ -358,6 +362,8 @@ These are the main follow-ups after the current implementation pass:
 
 - improve weak/publicly limited starter sources whose sites still do not expose good structured listings even after config curation
 - add richer field-by-field reviewer controls if operators need manual override at approve time
+- deepen detail enrichment beyond single-image/single-page extraction when event pages expose galleries, schedule fragments, or richer org/venue metadata
+- decide whether schema-health caching should auto-refresh in development so warnings clear without a restart
 - consider provenance on public list/search surfaces only if it improves UX enough to justify the clutter
 - add stronger operational reporting if scheduler volume grows beyond what fetch-log and batch summaries comfortably show
 - decide whether a persisted system reviewer identity is worth adding for audit clarity
@@ -381,14 +387,15 @@ Start by reading:
 - /Users/hayden/Desktop/kb-data/source-ops/docs/07-integration-plan.md
 
 Current state:
-- Source registry, ingestion runtime, scheduler endpoint, review queue, and live-record publishing are implemented in the app repo.
+- Source registry, ingestion runtime, scheduler endpoint, review queue, live-record publishing, and source-aware merge previews are implemented in the app repo.
 - Adapter families currently implemented: ical, RSS, HTML selector, generic API JSON, Grants.gov, USAJobs, and CSV.
-- Admin source testing, persisted imports, retry-now execution, due-source runs, and candidate-level review are live.
+- Admin source testing, persisted imports, retry-now execution, due-source runs, candidate-level review, and search reindex operations are live.
 - Auto-approve exists but is intentionally narrow and only applies to eligible new candidates.
+- Organization/venue linking, creation from imported data, aliases, duplicate suggestions, and merge flows are now part of the admin stack.
 
 Focus on:
 1. Tightening adapter configs and normalization quality for real seeded sources.
-2. Hardening merge rules for update candidates across coils.
+2. Hardening merge rules for update candidates across coils and enriching source baselines once snapshot storage is guaranteed everywhere.
 3. Adding public provenance/attribution rendering if needed.
 4. Improving operator diagnostics only if current fetch-log and batch views prove insufficient.
 

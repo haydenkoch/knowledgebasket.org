@@ -1,18 +1,16 @@
 # Source Ops Handoff
 
-This document captures the current source-ops implementation status in the app repo, the external design/source-data workspace it depends on, what has been verified, and what remains to finish the source system end to end in a fresh thread.
+This document is the current source-ops handoff and operator runbook for the app repo. It reflects what is actually implemented in `site/` today, what still needs refinement, and how to operate the system safely.
 
-## Current Status Snapshot
+## Current Status
 
-As of the latest source-ops pass in the app repo:
+The source system is now a real end-to-end workflow, not just a registry MVP.
 
-- The source registry, seeded starter sources, admin list/detail pages, health page, and review queue are all live.
-- The ingestion runtime now exists under `src/lib/server/ingestion/` with:
-  - adapter registry
-  - dedupe engine
-  - scheduler/due-source runner
-  - persisted fetch/import pipeline
-- Implemented adapter families:
+Implemented:
+
+- Source registry schema, services, seed data, fetch logs, batches, canonical/source-link tables, and admin surfaces
+- Ingestion runtime under `src/lib/server/ingestion/`
+- Adapter registry plus these adapter families:
   - `ical_generic`
   - `rss_generic`
   - `html_selector`
@@ -20,28 +18,33 @@ As of the latest source-ops pass in the app repo:
   - `grants_gov_api`
   - `usajobs_api`
   - `csv_import`
-- `/admin/sources/[id]` supports:
-  - test preview
-  - persisted import
-  - retry-now execution
-  - batch/fetch/operator summaries
-- `POST /api/source-ops/run-due` exists as the authenticated cron-triggered scheduler entrypoint.
-- `/admin/sources/health` now includes due-now counts, manual run controls, latest scheduler summary, adapter stats, and batch quality diagnostics.
-- `/admin/sources/review/[id]` now exists for update/ambiguous candidate decisions with canonical-match resolution and live-record comparison.
-- `approveCandidate()` now publishes real live coil records and supports auto-approved imports without inventing a fake user row.
+- Preview-only source testing on `/admin/sources/[id]`
+- Persisted imports that create `source_fetch_log`, `import_batches`, and `imported_candidates`
+- Dedupe fingerprinting and canonical matching during ingest
+- Review queue plus candidate-level review page for update and ambiguous cases
+- Approval publishing into real live coil tables through existing content services
+- Scheduled due-source execution through `POST /api/source-ops/run-due`
+- Advisory-lock protection for scheduler-wide and per-source concurrent runs
+- Controlled auto-approve for eligible new candidates
 
-## Remaining Gaps
+Still intentionally out of scope:
 
-The source system is substantially beyond the registry MVP, but a few follow-ups are still worth tracking:
+- Public attribution/provenance rendering on live content pages
+- Multi-coil automated ingestion for a single source
+- Headless-browser scraping
+- A persisted “system reviewer” user row for auto-approvals
 
-- Some seeded HTML/RSS sources still rely on generic heuristics or source-specific fallbacks rather than fully curated adapter config.
-- Auto-approve currently records system approval via notes/status rather than a dedicated persisted “system reviewer” user.
-- There is still no public-facing attribution/provenance rendering on live content pages.
-- Multi-coil automated ingestion remains intentionally out of scope.
+## Repo Source Of Truth
 
-## External Context
+The app repo is now the implementation source of truth for source-ops behavior.
 
-The broader source-ops design and research live outside the app repo at:
+The external `kb-data/source-ops` workspace is still useful for:
+
+- source inventory and starter seed data
+- original design rationale
+- adapter and dedupe reference material
+
+Relevant external references:
 
 - [/Users/hayden/Desktop/kb-data/source-ops/README.md](/Users/hayden/Desktop/kb-data/source-ops/README.md)
 - [/Users/hayden/Desktop/kb-data/source-ops/docs/CODEX-HANDOFF.md](/Users/hayden/Desktop/kb-data/source-ops/docs/CODEX-HANDOFF.md)
@@ -50,205 +53,300 @@ The broader source-ops design and research live outside the app repo at:
 - [/Users/hayden/Desktop/kb-data/source-ops/docs/05-review-and-moderation-flow.md](/Users/hayden/Desktop/kb-data/source-ops/docs/05-review-and-moderation-flow.md)
 - [/Users/hayden/Desktop/kb-data/source-ops/data/seed-sources.json](/Users/hayden/Desktop/kb-data/source-ops/data/seed-sources.json)
 - [/Users/hayden/Desktop/kb-data/source-ops/data/source-inventory.json](/Users/hayden/Desktop/kb-data/source-ops/data/source-inventory.json)
-- [/Users/hayden/Desktop/kb-data/source-ops/src/adapters/ingestion-adapter-interface.ts](/Users/hayden/Desktop/kb-data/source-ops/src/adapters/ingestion-adapter-interface.ts)
-- [/Users/hayden/Desktop/kb-data/source-ops/src/lib/dedupe.ts](/Users/hayden/Desktop/kb-data/source-ops/src/lib/dedupe.ts)
 
-The app repo should treat `kb-data/source-ops` as the design/data source of truth for the source system until the relevant code is fully ported into `site/`.
-
-## What Is Implemented In The App Repo
+## Key Implementation Map
 
 ### Database and services
 
-Implemented:
+- Source-ops schema: [src/lib/server/db/schema/sources.ts](/Users/hayden/Desktop/kb/site/src/lib/server/db/schema/sources.ts)
+- Schema barrel/relations: [src/lib/server/db/schema/index.ts](/Users/hayden/Desktop/kb/site/src/lib/server/db/schema/index.ts)
+- Source registry services: [src/lib/server/sources.ts](/Users/hayden/Desktop/kb/site/src/lib/server/sources.ts)
+- Fetch log services: [src/lib/server/source-fetch-log.ts](/Users/hayden/Desktop/kb/site/src/lib/server/source-fetch-log.ts)
+- Review/publish services: [src/lib/server/import-candidates.ts](/Users/hayden/Desktop/kb/site/src/lib/server/import-candidates.ts)
 
-- New source-ops schema in [sources.ts](/Users/hayden/Desktop/kb/site/src/lib/server/db/schema/sources.ts)
-- Schema barrel exports and relations in [index.ts](/Users/hayden/Desktop/kb/site/src/lib/server/db/schema/index.ts)
-- Registry service in [sources.ts](/Users/hayden/Desktop/kb/site/src/lib/server/sources.ts)
-- Review queue service in [import-candidates.ts](/Users/hayden/Desktop/kb/site/src/lib/server/import-candidates.ts)
-- Fetch log service in [source-fetch-log.ts](/Users/hayden/Desktop/kb/site/src/lib/server/source-fetch-log.ts)
-- Additive migration in [0000_graceful_true_believers.sql](/Users/hayden/Desktop/kb/site/drizzle/0000_graceful_true_believers.sql)
+### Ingestion runtime
 
-### Admin UI
+- Runtime types: [src/lib/server/ingestion/types.ts](/Users/hayden/Desktop/kb/site/src/lib/server/ingestion/types.ts)
+- Shared HTTP/parser helpers: [src/lib/server/ingestion/shared.ts](/Users/hayden/Desktop/kb/site/src/lib/server/ingestion/shared.ts)
+- Adapter registry: [src/lib/server/ingestion/registry.ts](/Users/hayden/Desktop/kb/site/src/lib/server/ingestion/registry.ts)
+- Dedupe engine: [src/lib/server/ingestion/dedupe.ts](/Users/hayden/Desktop/kb/site/src/lib/server/ingestion/dedupe.ts)
+- Health/priority scheduling helpers: [src/lib/server/ingestion/status.ts](/Users/hayden/Desktop/kb/site/src/lib/server/ingestion/status.ts)
+- Preview/import pipeline: [src/lib/server/ingestion/pipeline.ts](/Users/hayden/Desktop/kb/site/src/lib/server/ingestion/pipeline.ts)
+- Due-source scheduler: [src/lib/server/ingestion/scheduler.ts](/Users/hayden/Desktop/kb/site/src/lib/server/ingestion/scheduler.ts)
 
-Implemented:
+### Adapters
 
-- Source list: [/Users/hayden/Desktop/kb/site/src/routes/admin/sources/+page.server.ts](/Users/hayden/Desktop/kb/site/src/routes/admin/sources/+page.server.ts) and [/Users/hayden/Desktop/kb/site/src/routes/admin/sources/+page.svelte](/Users/hayden/Desktop/kb/site/src/routes/admin/sources/+page.svelte)
-- Source detail/edit: [/Users/hayden/Desktop/kb/site/src/routes/admin/sources/[id]/+page.server.ts](/Users/hayden/Desktop/kb/site/src/routes/admin/sources/[id]/+page.server.ts) and [/Users/hayden/Desktop/kb/site/src/routes/admin/sources/[id]/+page.svelte](/Users/hayden/Desktop/kb/site/src/routes/admin/sources/[id]/+page.svelte)
-- Health dashboard: [/Users/hayden/Desktop/kb/site/src/routes/admin/sources/health/+page.server.ts](/Users/hayden/Desktop/kb/site/src/routes/admin/sources/health/+page.server.ts) and [/Users/hayden/Desktop/kb/site/src/routes/admin/sources/health/+page.svelte](/Users/hayden/Desktop/kb/site/src/routes/admin/sources/health/+page.svelte)
-- Review queue: [/Users/hayden/Desktop/kb/site/src/routes/admin/sources/review/+page.server.ts](/Users/hayden/Desktop/kb/site/src/routes/admin/sources/review/+page.server.ts) and [/Users/hayden/Desktop/kb/site/src/routes/admin/sources/review/+page.svelte](/Users/hayden/Desktop/kb/site/src/routes/admin/sources/review/+page.svelte)
-- Admin sidebar group added in [/Users/hayden/Desktop/kb/site/src/routes/admin/+layout.svelte](/Users/hayden/Desktop/kb/site/src/routes/admin/+layout.svelte)
+- iCal: [src/lib/server/ingestion/adapters/ical-generic.ts](/Users/hayden/Desktop/kb/site/src/lib/server/ingestion/adapters/ical-generic.ts)
+- RSS: [src/lib/server/ingestion/adapters/rss-generic.ts](/Users/hayden/Desktop/kb/site/src/lib/server/ingestion/adapters/rss-generic.ts)
+- HTML: [src/lib/server/ingestion/adapters/html-selector.ts](/Users/hayden/Desktop/kb/site/src/lib/server/ingestion/adapters/html-selector.ts)
+- Generic JSON/API: [src/lib/server/ingestion/adapters/api-json.ts](/Users/hayden/Desktop/kb/site/src/lib/server/ingestion/adapters/api-json.ts)
+- Grants.gov: [src/lib/server/ingestion/adapters/grants-gov-api.ts](/Users/hayden/Desktop/kb/site/src/lib/server/ingestion/adapters/grants-gov-api.ts)
+- USAJobs: [src/lib/server/ingestion/adapters/usajobs-api.ts](/Users/hayden/Desktop/kb/site/src/lib/server/ingestion/adapters/usajobs-api.ts)
+- CSV: [src/lib/server/ingestion/adapters/csv-import.ts](/Users/hayden/Desktop/kb/site/src/lib/server/ingestion/adapters/csv-import.ts)
+
+### Admin UI and endpoints
+
+- Source list: [src/routes/admin/sources/+page.server.ts](/Users/hayden/Desktop/kb/site/src/routes/admin/sources/+page.server.ts) and [src/routes/admin/sources/+page.svelte](/Users/hayden/Desktop/kb/site/src/routes/admin/sources/+page.svelte)
+- Source detail/test/import page: [src/routes/admin/sources/[id]/+page.server.ts](/Users/hayden/Desktop/kb/site/src/routes/admin/sources/[id]/+page.server.ts) and [src/routes/admin/sources/[id]/+page.svelte](/Users/hayden/Desktop/kb/site/src/routes/admin/sources/[id]/+page.svelte)
+- Health dashboard: [src/routes/admin/sources/health/+page.server.ts](/Users/hayden/Desktop/kb/site/src/routes/admin/sources/health/+page.server.ts) and [src/routes/admin/sources/health/+page.svelte](/Users/hayden/Desktop/kb/site/src/routes/admin/sources/health/+page.svelte)
+- Review queue: [src/routes/admin/sources/review/+page.server.ts](/Users/hayden/Desktop/kb/site/src/routes/admin/sources/review/+page.server.ts) and [src/routes/admin/sources/review/+page.svelte](/Users/hayden/Desktop/kb/site/src/routes/admin/sources/review/+page.svelte)
+- Candidate decision page: [src/routes/admin/sources/review/[id]/+page.server.ts](/Users/hayden/Desktop/kb/site/src/routes/admin/sources/review/[id]/+page.server.ts) and [src/routes/admin/sources/review/[id]/+page.svelte](/Users/hayden/Desktop/kb/site/src/routes/admin/sources/review/[id]/+page.svelte)
+- Scheduler endpoint: [src/routes/api/source-ops/run-due/+server.ts](/Users/hayden/Desktop/kb/site/src/routes/api/source-ops/run-due/+server.ts)
 
 ### Seeding
 
-Implemented:
+- Seed script: [scripts/seed-sources.ts](/Users/hayden/Desktop/kb/site/scripts/seed-sources.ts)
+- Source seed data: `kb-data/source-ops/data/seed-sources.json`
 
-- Seed script in [seed-sources.ts](/Users/hayden/Desktop/kb/site/scripts/seed-sources.ts)
-- `tsx` added to [package.json](/Users/hayden/Desktop/kb/site/package.json)
-- Script now resolves seed data from the real `kb-data` path and upserts by slug
+## Runtime Behavior
 
-Verified:
+### Preview flow
 
-- `pnpm tsx scripts/seed-sources.ts` succeeds
-- The 20 starter sources are seeded from `kb-data/source-ops/data/seed-sources.json`
-- The previous field-mapping bug was fixed so snake_case source fields now import correctly
+`previewSource(sourceId)`:
 
-## What Has Been Verified
+1. Loads the source record and validates adapter config
+2. Fetches source content
+3. Parses source items
+4. Normalizes items into a single target coil
+5. Computes fingerprints, composite keys, and dedupe outcomes
+6. Returns preview data without writing source-op rows
 
-Ran successfully:
+This powers the “Test source” flow on `/admin/sources/[id]`.
+
+### Persisted ingest flow
+
+`ingestSource(sourceId, options)`:
+
+1. Runs the same preview pipeline
+2. Writes `source_fetch_log`
+3. Creates an `import_batches` row
+4. Upserts `imported_candidates` for `new`, `update`, and `ambiguous`
+5. Skips exact `duplicate` candidates from the review queue
+6. Updates source runtime fields:
+   - `lastCheckedAt`
+   - `lastSuccessfulFetchAt`
+   - `lastContentHash`
+   - `lastContentChangeAt`
+   - `consecutiveFailureCount`
+   - `totalItemsImported`
+   - `nextCheckAt`
+   - `healthStatus`
+7. Optionally auto-approves eligible candidates
+
+### Scheduler flow
+
+`runDueSources()`:
+
+- selects due sources with:
+  - `enabled = true`
+  - `status = 'active'`
+  - non-null `adapterType`
+  - `ingestionMethod` not in `manual_only`, `manual_with_reminder`
+  - `nextCheckAt <= now` or `lastCheckedAt is null`
+- runs sequentially with default batch size `10`
+- acquires a global advisory lock for the scheduler run
+- acquires a per-source advisory lock for each source execution
+
+`runSourceNow(sourceId, trigger)` is used for:
+
+- scheduler runs
+- admin retry actions
+- other explicit one-off execution paths
+
+### Review and publish flow
+
+Candidates move through `/admin/sources/review` and `/admin/sources/review/[id]`.
+
+Current behavior:
+
+- `new` candidates can be approved directly
+- `update` candidates must have a canonical match and then publish into the matched live record
+- `ambiguous` candidates must be resolved before approval
+- bulk approve/reject is limited to safe `new` candidates without canonical matches
+
+`approveCandidate()` now:
+
+- creates or updates the real live content row in the target coil
+- updates or creates the canonical record
+- upserts source-to-canonical links
+- writes merge history
+- marks the candidate as approved or auto-approved
+
+Supported publish targets:
+
+- `events`
+- `funding`
+- `jobs`
+- `red_pages`
+- `toolbox`
+
+## Operator Runbook
+
+### Seed the starter sources
+
+```bash
+pnpm tsx scripts/seed-sources.ts
+```
+
+What this does:
+
+- reads the starter source definitions from `kb-data`
+- upserts by slug
+- preserves the app repo as the publishing/runtime environment
+
+### Test a single source manually
+
+Use `/admin/sources/[id]` and run `Test source`.
+
+Preview output includes:
+
+- fetch summary
+- parse errors
+- normalized records
+- dedupe result counts
+- candidate preview metadata
+
+This path does not write fetch logs, batches, or candidates.
+
+### Run an import manually
+
+Use `/admin/sources/[id]` and run `Run import`.
+
+This path:
+
+- performs a persisted ingest
+- writes fetch/batch/candidate records
+- updates runtime state
+- may auto-approve candidates if the source is eligible
+
+### Retry a source immediately
+
+Use `/admin/sources/[id]` or `/admin/sources/health` and run `Retry source`.
+
+This path uses the same scheduler-backed source execution service as automated runs.
+
+### Run due sources through the API
+
+Production endpoint:
+
+- `POST /api/source-ops/run-due`
+
+Authentication:
+
+- admin or moderator session, or
+- `x-source-ops-secret` header matching `SOURCE_OPS_SECRET`
+
+Notes:
+
+- in development, the route is permissive
+- the endpoint is stateless and intended for external cron invocation
+- responses include run counts and per-source results
+
+Example:
+
+```bash
+curl -X POST \
+  -H "x-source-ops-secret: $SOURCE_OPS_SECRET" \
+  http://localhost:5173/api/source-ops/run-due
+```
+
+### Auto-approve policy
+
+Auto-approve is intentionally narrow.
+
+A candidate is only auto-approved when all of these are true:
+
+- ingest call enables auto-approve
+- source has `autoApprove = true`
+- source has `reviewRequired = false`
+- source `confidenceScore >= 4`
+- candidate dedupe result is `new`
+
+Auto-approve never applies to:
+
+- `update`
+- `ambiguous`
+
+Auto-approved candidates are published through the same real publish path as manual approvals.
+
+## Health Dashboard Meaning
+
+`/admin/sources/health` currently surfaces:
+
+- due-now count
+- latest scheduler run summary
+- per-adapter success/failure patterns
+- stale/broken/auth-required/degraded source groupings
+- duplicate-heavy sources
+- low-yield sources
+
+The dashboard is derived from existing source, fetch-log, and batch data. There is no separate telemetry table.
+
+## Verified State
+
+Verified successfully in the app repo:
 
 - `pnpm drizzle-kit generate`
 - `pnpm drizzle-kit migrate`
-- `pnpm check`
-- `pnpm build`
 - `pnpm tsx scripts/seed-sources.ts`
-
-Important note about migrations:
-
-- This repo did not have a prior Drizzle migration baseline.
-- `drizzle-kit generate` produced a bootstrap migration for the entire schema.
-- The migration file was manually reduced to additive source-ops objects only so it could apply cleanly to the existing database.
-- If more migrations are generated later, inspect them carefully for unintended full-schema bootstrap output.
-
-## What Is Not Implemented Yet
-
-The current app repo does **not** yet contain the full source-ops ingestion runtime described in `kb-data`.
-
-Missing major pieces:
-
-- No ingestion pipeline orchestrator
-- No adapter registry
-- No real adapter implementations for `ical_generic`, `html_selector`, `grants_gov_api`, `usajobs_api`, `csv_import`, etc.
-- No scheduler / due-source runner
-- No generic “test source” preview flow
-- No pipeline path that creates `import_batches` and `imported_candidates` from a live source fetch
-- No dedupe engine ported from `kb-data/source-ops/src/lib/dedupe.ts`
-- No approval flow that publishes into live coil tables (`events`, `funding`, `jobs`, `red_pages_businesses`, `toolbox_resources`)
-- No computed source health engine based on fetch results/staleness/auth failures
-- No bulk review / batch review / ambiguous-dedupe resolution UX
-
-Current limitation of review approval:
-
-- [approveCandidate()](/Users/hayden/Desktop/kb/site/src/lib/server/import-candidates.ts) only updates source-ops tables.
-- It creates or updates canonical/source-link/audit data, but does **not** create or update a live published record.
-- `canonicalRecords.publishedRecordId` is therefore currently a placeholder UUID, not a real live content row ID.
-
-## Current Reality Of “Testing Sources”
-
-There is no registry-backed source test runner yet.
-
-What exists:
-
-- The older standalone iCal helper in [ical-feed.ts](/Users/hayden/Desktop/kb/site/src/lib/server/ical-feed.ts)
-- The manual event iCal import flow at [/Users/hayden/Desktop/kb/site/src/routes/admin/events/import/+page.server.ts](/Users/hayden/Desktop/kb/site/src/routes/admin/events/import/+page.server.ts)
-
-What does not exist yet:
-
-- Click-to-test source execution from `/admin/sources/[id]`
-- Raw fetch preview for a configured source
-- Parsed-item preview
-- Normalized candidate preview
-- Dedupe preview
-- HTML scraper execution
-- API adapter execution
-
-## Recommended Next Implementation Order
-
-### Phase 1: Make source testing real
-
-Build a minimal ingestion runtime with one working adapter first:
-
-1. Create `src/lib/server/ingestion/`
-2. Port the adapter interface concepts from `kb-data`
-3. Implement `ical_generic` first using the existing [ical-feed.ts](/Users/hayden/Desktop/kb/site/src/lib/server/ical-feed.ts) logic as the starting point
-4. Add a source test action on `/admin/sources/[id]` that:
-   - fetches the source
-   - parses items
-   - normalizes them
-   - shows preview output without publishing
-
-### Phase 2: Create real candidate batches
-
-After test preview works:
-
-1. Create `import_batches` and `imported_candidates` from the ingestion run
-2. Port the dedupe helpers from `kb-data/source-ops/src/lib/dedupe.ts`
-3. Stamp candidates with `contentFingerprint`, composite key, and dedupe outcome
-
-### Phase 3: Complete approval publishing
-
-After candidates can be created:
-
-1. Update `approveCandidate()` to publish into the correct live coil service
-2. Use existing content services:
-   - `createEvent()`
-   - `createFunding()`
-   - `createJob()`
-   - red pages/toolbox equivalents
-3. Replace placeholder `publishedRecordId` with the actual created/updated record ID
-
-### Phase 4: Expand adapters
-
-After `ical_generic` works:
-
-1. `rss_generic`
-2. `html_selector`
-3. `grants_gov_api`
-4. `usajobs_api`
-5. `csv_import`
-
-## Suggested Validation Checklist For The Next Thread
-
 - `pnpm check`
+- `pnpm test`
 - `pnpm build`
-- `pnpm tsx scripts/seed-sources.ts`
-- Create or repair one known source row from `kb-data`
-- Run a test preview for one real ICS source
-- Confirm parsed items are sorted sensibly for that coil
-- Confirm normalization output matches the target coil schema
-- Confirm candidate creation works for at least one source
-- Confirm review approval creates a real live published record
 
-## Copy-Paste Prompt For A Fresh Thread
+Additional notes:
 
-Use this prompt in a new thread:
+- the 20 starter sources seed correctly from `kb-data`
+- the repo still has no historical Drizzle baseline, so generated migrations must be inspected carefully
+- bootstrap-style full-schema output from Drizzle should still be treated as suspect and manually reduced to additive changes only
+
+## Remaining Gaps And Follow-Ups
+
+These are the main follow-ups after the current implementation pass:
+
+- tighten adapter configs for seeded HTML and RSS sources that still lean on generic heuristics
+- add public-facing source attribution/provenance rendering
+- refine per-coil merge rules so imported updates preserve curator-authored edits where needed
+- add stronger operational reporting if scheduler volume grows beyond what fetch-log and batch summaries comfortably show
+- decide whether a persisted system reviewer identity is worth adding for audit clarity
+- revisit multi-coil automated ingestion only after single-coil source behavior is fully trusted
+
+## Suggested Next Thread Prompt
+
+Use this prompt if a future thread needs to continue source-ops work:
 
 ```text
-Continue the Knowledge Basket source-ops build from the current app repo state.
+Continue the Knowledge Basket source-ops implementation from the current app repo state.
 
 Start by reading:
 - /Users/hayden/Desktop/kb/site/docs/SOURCE_OPS_HANDOFF.md
+- /Users/hayden/Desktop/kb/site/src/lib/server/ingestion/pipeline.ts
+- /Users/hayden/Desktop/kb/site/src/lib/server/ingestion/scheduler.ts
+- /Users/hayden/Desktop/kb/site/src/lib/server/import-candidates.ts
+- /Users/hayden/Desktop/kb/site/src/routes/admin/sources/health/+page.server.ts
+- /Users/hayden/Desktop/kb/site/src/routes/admin/sources/review/[id]/+page.server.ts
 - /Users/hayden/Desktop/kb-data/source-ops/docs/CODEX-HANDOFF.md
 - /Users/hayden/Desktop/kb-data/source-ops/docs/07-integration-plan.md
-- /Users/hayden/Desktop/kb-data/source-ops/docs/04-ingestion-pipeline-design.md
-- /Users/hayden/Desktop/kb-data/source-ops/docs/05-review-and-moderation-flow.md
-- /Users/hayden/Desktop/kb-data/source-ops/src/adapters/ingestion-adapter-interface.ts
-- /Users/hayden/Desktop/kb-data/source-ops/src/lib/dedupe.ts
 
 Current state:
-- Source registry schema, services, admin pages, migration, and seeding are implemented in the app repo.
-- The 20 starter sources from kb-data are already seeded correctly.
-- There is no real ingestion runtime yet.
-- There is no generic source test preview yet.
-- Review approval does not publish into live coil tables yet.
+- Source registry, ingestion runtime, scheduler endpoint, review queue, and live-record publishing are implemented in the app repo.
+- Adapter families currently implemented: ical, RSS, HTML selector, generic API JSON, Grants.gov, USAJobs, and CSV.
+- Admin source testing, persisted imports, retry-now execution, due-source runs, and candidate-level review are live.
+- Auto-approve exists but is intentionally narrow and only applies to eligible new candidates.
 
-Your goal is to finish the source system beyond the registry MVP:
-1. Build a minimal ingestion runtime under src/lib/server/ingestion.
-2. Implement a real `ical_generic` adapter first, using the existing iCal helper as the base.
-3. Add a “test source” flow on /admin/sources/[id] that fetches, parses, normalizes, and previews output.
-4. Create import batches and imported candidates from the ingestion run.
-5. Port dedupe helpers from kb-data and apply them to candidates.
-6. Update approveCandidate() so approval creates or updates real live coil records using the existing content services.
+Focus on:
+1. Tightening adapter configs and normalization quality for real seeded sources.
+2. Hardening merge rules for update candidates across coils.
+3. Adding public provenance/attribution rendering if needed.
+4. Improving operator diagnostics only if current fetch-log and batch views prove insufficient.
 
 Constraints:
 - Preserve existing app behavior outside source-ops.
-- Keep changes additive where possible.
+- Keep migrations additive and manually reviewed.
 - Follow existing SvelteKit admin patterns.
-- Inspect generated Drizzle migrations carefully because this repo had no original migration baseline.
-
-Before coding, inspect the existing app code and the external kb-data docs so you can align implementation with the intended architecture rather than inventing a parallel one.
+- Do not revert unrelated worktree changes.
 ```
 
 ## Notes
 
-- The app worktree may contain many unrelated user changes. Do not revert unrelated files.
-- If a future thread updates the source-ops implementation materially, update this handoff doc so it stays useful.
+- The app worktree may contain unrelated user changes in future threads. Do not revert them.
+- If source-ops behavior changes materially again, update this handoff doc in the same pass.

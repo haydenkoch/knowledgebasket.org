@@ -37,6 +37,7 @@
 
 	const contentNav = [
 		{ href: '/admin/events', label: 'Events', icon: List },
+		{ href: '/admin/funding', label: 'Funding', icon: Globe2 },
 		{ href: '/admin/events/lists', label: 'Event Lists', icon: ListOrdered }
 	];
 

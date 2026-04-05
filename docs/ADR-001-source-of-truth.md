@@ -1,4 +1,4 @@
-# ADR-001: Code Is The Source Of Truth
+# ADR-001: Current Implementation Is The Source Of Truth
 
 ## Status
 
@@ -16,11 +16,15 @@ Treat the following as canonical:
 - server modules under `src/lib/server/**`
 - schema definitions under `src/lib/server/db/schema/**`
 - shared theme tokens under `src/lib/theme/theme.css`
+- the root project spec at `/Users/hayden/Desktop/kb/spec.md` only when it matches implementation truth
+- design-direction docs when deciding what should happen next, not what already exists
 
-Docs are supporting artifacts. If a doc conflicts with the implementation, the implementation wins until the doc is updated.
+Docs are supporting artifacts. If a doc conflicts with the implementation, the implementation wins for current-state behavior until the doc is updated.
 
 ## Consequences
 
 - Product planning must be grounded in repo inspection, not handoff assumptions.
 - Docs should be updated as part of implementation slices instead of in a later cleanup pass.
 - "Complete" in a plan or doc does not count unless the route and server behavior support the claim.
+- Design guidance should not be overwritten just because a current implementation drifted from it.
+- The active documentation map must be kept understandable even if the repo uses a flatter docs structure than older planning assumptions.

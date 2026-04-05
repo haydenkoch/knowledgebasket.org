@@ -21,6 +21,8 @@ The code is canonical.
 
 Docs in `docs/` are there to explain the current implementation and intended direction, but if a doc conflicts with route or server code, trust the code first and update the doc.
 
+Use [docs/README.md](/Users/hayden/Desktop/kb/site/docs/README.md) as the map of where product, review, and planning docs currently live.
+
 ## Current State
 
 - Public surfaces exist for all five coils.
@@ -102,6 +104,7 @@ As of the current takeover baseline:
 
 ## Key Docs
 
+- `docs/README.md`
 - `docs/TAKEOVER_AUDIT.md`
 - `docs/ADR-001-source-of-truth.md`
 - `docs/ADR-002-curated-beta-coils.md`
@@ -115,7 +118,7 @@ As of the current takeover baseline:
 The current implementation direction is:
 
 1. Stabilize the existing product.
-2. Preserve the current events filter-bar interaction model.
+2. Realign browse/filter UX toward the intended horizontal filter-bar direction instead of continuing the left-rail drift.
 3. Keep shadcn-svelte as the primary UI foundation.
 4. Standardize public/admin patterns instead of rewriting from scratch.
 5. Build out non-event moderation and admin tooling to match the now-live public submission flows.

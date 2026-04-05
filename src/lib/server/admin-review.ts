@@ -125,6 +125,7 @@ function toFundingItem(
 		coil: 'funding',
 		title: item.title,
 		status: item.status ?? 'pending',
+		href: `/admin/funding/${item.id}`,
 		excerpt: excerpt(item.description),
 		meta
 	};
@@ -143,6 +144,7 @@ function toJobItem(
 		coil: 'jobs',
 		title: item.title,
 		status: item.status ?? 'pending',
+		href: `/admin/jobs/${item.id}`,
 		excerpt: excerpt(item.description),
 		meta
 	};
@@ -162,6 +164,7 @@ function toBusinessItem(
 		coil: 'redpages',
 		title: item.name ?? item.title,
 		status: item.status ?? 'pending',
+		href: `/admin/red-pages/${item.id}`,
 		excerpt: excerpt(item.description),
 		meta
 	};
@@ -179,6 +182,7 @@ function toToolboxItem(
 		coil: 'toolbox',
 		title: item.title,
 		status: item.status ?? 'pending',
+		href: `/admin/toolbox/${item.id}`,
 		excerpt: excerpt(item.description ?? item.body),
 		meta
 	};
@@ -278,7 +282,7 @@ export async function getAdminQueueSnapshot(limitPerSection = 6): Promise<AdminQ
 			key: 'funding',
 			title: `${coilLabels.funding} submissions`,
 			description: 'Pending funding opportunities submitted by the public or staff.',
-			href: '/admin/inbox?tab=submissions',
+			href: '/admin/funding?status=pending',
 			count: pendingFunding,
 			items: fundingQueue.items.map(toFundingItem)
 		},
@@ -286,7 +290,7 @@ export async function getAdminQueueSnapshot(limitPerSection = 6): Promise<AdminQ
 			key: 'jobs',
 			title: `${coilLabels.jobs} submissions`,
 			description: 'Jobs waiting for review, cleanup, and approval.',
-			href: '/admin/inbox?tab=submissions',
+			href: '/admin/jobs?status=pending',
 			count: pendingJobs,
 			items: jobQueue.items.map(toJobItem)
 		},
@@ -294,7 +298,7 @@ export async function getAdminQueueSnapshot(limitPerSection = 6): Promise<AdminQ
 			key: 'redpages',
 			title: `${coilLabels.redpages} submissions`,
 			description: 'Business listings that need moderation and data-quality review.',
-			href: '/admin/inbox?tab=submissions',
+			href: '/admin/red-pages?status=pending',
 			count: pendingBusinesses,
 			items: businessQueue.items.map(toBusinessItem)
 		},
@@ -302,7 +306,7 @@ export async function getAdminQueueSnapshot(limitPerSection = 6): Promise<AdminQ
 			key: 'toolbox',
 			title: `${coilLabels.toolbox} submissions`,
 			description: 'Resources waiting for editorial review or publication.',
-			href: '/admin/inbox?tab=submissions',
+			href: '/admin/toolbox?status=pending',
 			count: pendingResources,
 			items: resourceQueue.items.map(toToolboxItem)
 		}
@@ -330,7 +334,7 @@ export async function getAdminQueueSnapshot(limitPerSection = 6): Promise<AdminQ
 			label: 'Funding',
 			description: 'Pending funding submissions',
 			count: pendingFunding,
-			href: '/admin/inbox?tab=submissions',
+			href: '/admin/funding?status=pending',
 			tone: 'gold'
 		},
 		{
@@ -338,7 +342,7 @@ export async function getAdminQueueSnapshot(limitPerSection = 6): Promise<AdminQ
 			label: 'Jobs',
 			description: 'Pending job submissions',
 			count: pendingJobs,
-			href: '/admin/inbox?tab=submissions',
+			href: '/admin/jobs?status=pending',
 			tone: 'lake'
 		},
 		{
@@ -346,7 +350,7 @@ export async function getAdminQueueSnapshot(limitPerSection = 6): Promise<AdminQ
 			label: 'Red Pages',
 			description: 'Pending business submissions',
 			count: pendingBusinesses,
-			href: '/admin/inbox?tab=submissions',
+			href: '/admin/red-pages?status=pending',
 			tone: 'ember'
 		},
 		{
@@ -354,7 +358,7 @@ export async function getAdminQueueSnapshot(limitPerSection = 6): Promise<AdminQ
 			label: 'Toolbox',
 			description: 'Pending resource submissions',
 			count: pendingResources,
-			href: '/admin/inbox?tab=submissions',
+			href: '/admin/toolbox?status=pending',
 			tone: 'stone'
 		}
 	];

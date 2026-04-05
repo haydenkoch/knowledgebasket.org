@@ -58,8 +58,8 @@
 <div class="space-y-8">
 	<AdminPageHeader
 		eyebrow="Moderation"
-		title="Unified inbox"
-		description="Work across events, source candidates, and pending public submissions without jumping through disconnected route trees. This is the first operational pass toward a single moderation model."
+		title="Triage inbox"
+		description="Triage imports, events, and non-event submission queues from one place. Detailed moderation for funding, jobs, Red Pages, and toolbox content now lives in their dedicated admin routes."
 	>
 		{#snippet actions()}
 			<Button href="/admin/sources/review" variant="secondary">
@@ -97,7 +97,7 @@
 			label="Public submissions"
 			value={snapshot.metrics.pendingSubmissions}
 			description="Funding, jobs, businesses, and resources"
-			href="/admin/inbox?tab=submissions"
+			href="/admin/funding?status=pending"
 			tone="ember"
 		/>
 		<AdminStatCard
@@ -266,7 +266,7 @@
 
 			<AdminSectionCard
 				title="Pending public submissions"
-				description="This is the first admin surface for non-event submissions. Moderators can now review and action funding, jobs, Red Pages, and toolbox records from one place."
+				description="Use this inbox to decide which queue needs attention next. Detailed review and editing for non-event content now happens in each coil's dedicated admin route."
 			>
 				{#snippet children()}
 					<div class="grid gap-5 px-5 py-5 xl:grid-cols-2">
@@ -283,7 +283,10 @@
 										</h3>
 										<p class="text-sm text-[var(--mid)]">{section.count} waiting for review</p>
 									</div>
-									<StatusBadge status="pending" />
+									<div class="flex items-center gap-2">
+										<StatusBadge status="pending" />
+										<Button href={section.href} variant="secondary" size="sm">Open queue</Button>
+									</div>
 								</div>
 								<div class="divide-y divide-[color:var(--rule)]">
 									{#if section.items.length === 0}
@@ -292,39 +295,26 @@
 										{#each section.items as item}
 											<div class="space-y-3 px-4 py-4">
 												<div class="space-y-1">
-													<p class="font-medium text-[var(--dark)]">{item.title}</p>
+													{#if item.href}
+														<a href={item.href} class="font-medium text-primary hover:underline">
+															{item.title}
+														</a>
+													{:else}
+														<p class="font-medium text-[var(--dark)]">{item.title}</p>
+													{/if}
 													{#if item.excerpt}
 														<p class="text-sm leading-5 text-[var(--mid)]">{item.excerpt}</p>
 													{/if}
 													<p class="text-sm text-[var(--mid)]">{item.meta.join(' · ')}</p>
 												</div>
 												<div class="flex flex-wrap items-center gap-2">
-													<form
-														method="POST"
-														action="?/review"
-														use:enhance={formEnhance(item.title)}
-													>
-														<input type="hidden" name="kind" value={item.kind} />
-														<input type="hidden" name="id" value={item.id} />
-														<input type="hidden" name="decision" value="approve" />
-														<Button type="submit" size="sm">
-															<Check class="mr-1.5 h-3.5 w-3.5" />
-															Approve
-														</Button>
-													</form>
-													<form
-														method="POST"
-														action="?/review"
-														use:enhance={formEnhance(item.title)}
-													>
-														<input type="hidden" name="kind" value={item.kind} />
-														<input type="hidden" name="id" value={item.id} />
-														<input type="hidden" name="decision" value="reject" />
-														<Button type="submit" size="sm" variant="outline">
-															<X class="mr-1.5 h-3.5 w-3.5" />
-															Reject
-														</Button>
-													</form>
+													<StatusBadge status={item.status} />
+													{#if item.href}
+														<Button href={item.href} size="sm">Open item</Button>
+													{/if}
+													<Button href={section.href} size="sm" variant="outline">
+														Open queue
+													</Button>
 												</div>
 											</div>
 										{/each}
@@ -449,7 +439,7 @@
 		<Tabs.Content value="submissions" class="mt-6">
 			<AdminSectionCard
 				title="Pending non-event submissions"
-				description="A consolidated moderation surface for funding, jobs, Red Pages, and toolbox content."
+				description="A triage view across the non-event coils. Use these cards to decide which queue to enter next, then finish moderation in the dedicated admin routes."
 			>
 				{#snippet children()}
 					<div class="grid gap-5 px-5 py-5 xl:grid-cols-2">
@@ -465,35 +455,42 @@
 											</h3>
 											<p class="text-sm text-[var(--mid)]">{section.description}</p>
 										</div>
-										<StatusBadge status="pending" />
+										<div class="flex items-center gap-2">
+											<StatusBadge status="pending" />
+											<Button href={section.href} variant="secondary" size="sm">Open queue</Button>
+										</div>
 									</div>
 								</div>
 								<div class="divide-y divide-[color:var(--rule)]">
-									{#each section.items as item}
-										<div class="space-y-3 px-4 py-4">
-											<div class="space-y-1">
-												<p class="font-medium text-[var(--dark)]">{item.title}</p>
-												{#if item.excerpt}
-													<p class="text-sm leading-5 text-[var(--mid)]">{item.excerpt}</p>
-												{/if}
-												<p class="text-sm text-[var(--mid)]">{item.meta.join(' · ')}</p>
+									{#if section.items.length === 0}
+										<div class="px-4 py-5 text-sm text-[var(--mid)]">No pending items.</div>
+									{:else}
+										{#each section.items as item}
+											<div class="space-y-3 px-4 py-4">
+												<div class="space-y-1">
+													{#if item.href}
+														<a href={item.href} class="font-medium text-primary hover:underline"
+															>{item.title}</a
+														>
+													{:else}
+														<p class="font-medium text-[var(--dark)]">{item.title}</p>
+													{/if}
+													{#if item.excerpt}
+														<p class="text-sm leading-5 text-[var(--mid)]">{item.excerpt}</p>
+													{/if}
+													<p class="text-sm text-[var(--mid)]">{item.meta.join(' · ')}</p>
+												</div>
+												<div class="flex flex-wrap items-center gap-2">
+													<StatusBadge status={item.status} />
+													{#if item.href}
+														<Button href={item.href} size="sm">Open item</Button>
+													{/if}
+													<Button href={section.href} size="sm" variant="outline">Open queue</Button
+													>
+												</div>
 											</div>
-											<div class="flex flex-wrap items-center gap-2">
-												<form method="POST" action="?/review" use:enhance={formEnhance(item.title)}>
-													<input type="hidden" name="kind" value={item.kind} />
-													<input type="hidden" name="id" value={item.id} />
-													<input type="hidden" name="decision" value="approve" />
-													<Button type="submit" size="sm">Approve</Button>
-												</form>
-												<form method="POST" action="?/review" use:enhance={formEnhance(item.title)}>
-													<input type="hidden" name="kind" value={item.kind} />
-													<input type="hidden" name="id" value={item.id} />
-													<input type="hidden" name="decision" value="reject" />
-													<Button type="submit" size="sm" variant="outline">Reject</Button>
-												</form>
-											</div>
-										</div>
-									{/each}
+										{/each}
+									{/if}
 								</div>
 							</div>
 						{/each}

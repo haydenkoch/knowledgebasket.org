@@ -8,7 +8,6 @@ import type {
 	NormalizeResult,
 	NormalizedFunding,
 	ParseResult,
-	ParsedItem,
 	SourceRecord
 } from '../types';
 

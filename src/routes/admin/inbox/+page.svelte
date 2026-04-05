@@ -160,7 +160,9 @@
 												<div class="flex flex-wrap gap-2">
 													<StatusBadge status={item.status} />
 													{#if item.priority && item.priority !== 'normal'}
-														<span class="inline-flex items-center rounded-full border border-[color:color-mix(in_srgb,var(--color-ember-300)_60%,transparent)] bg-[color:color-mix(in_srgb,var(--color-ember-50)_90%,white)] px-2.5 py-1 text-[11px] font-semibold tracking-[0.04em] text-[var(--color-ember-900)] uppercase">
+														<span
+															class="inline-flex items-center rounded-full border border-[color:color-mix(in_srgb,var(--color-ember-300)_60%,transparent)] bg-[color:color-mix(in_srgb,var(--color-ember-50)_90%,white)] px-2.5 py-1 text-[11px] font-semibold tracking-[0.04em] text-[var(--color-ember-900)] uppercase"
+														>
 															High priority
 														</span>
 													{/if}

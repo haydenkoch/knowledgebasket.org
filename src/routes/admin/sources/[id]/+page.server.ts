@@ -4,6 +4,7 @@ import { desc, eq } from 'drizzle-orm';
 import { db } from '$lib/server/db';
 import { importBatches } from '$lib/server/db/schema';
 import { ingestSource, previewSource } from '$lib/server/ingestion/pipeline';
+import { getRecentSourceRuns, getRunStages } from '$lib/server/ingestion/source-runs';
 import { runSourceNow } from '$lib/server/ingestion/scheduler';
 import { validateSourceConfig } from '$lib/server/ingestion/validation';
 import { getRecentCandidatesForSource } from '$lib/server/import-candidates';
@@ -30,7 +31,7 @@ export const load: PageServerLoad = async ({ params }) => {
 	const detail = await getSourceById(params.id);
 	if (!detail) throw error(404, 'Source not found');
 
-	const [fetchLogs, batches, candidates] = await Promise.all([
+	const [fetchLogs, batches, candidates, sourceRuns] = await Promise.all([
 		getFetchLogsForSource(params.id, 10),
 		db
 			.select()
@@ -38,8 +39,15 @@ export const load: PageServerLoad = async ({ params }) => {
 			.where(eq(importBatches.sourceId, params.id))
 			.orderBy(desc(importBatches.startedAt))
 			.limit(10),
-		getRecentCandidatesForSource(params.id, 10)
+		getRecentCandidatesForSource(params.id, 10),
+		getRecentSourceRuns(params.id, 8)
 	]);
+	const sourceRunsWithStages = await Promise.all(
+		sourceRuns.map(async (run) => ({
+			...run,
+			stages: await getRunStages(run.id)
+		}))
+	);
 
 	const lastBatchMeta =
 		batches
@@ -77,6 +85,55 @@ export const load: PageServerLoad = async ({ params }) => {
 		totalUpdated: batches.reduce((sum, batch) => sum + batch.itemsUpdated, 0),
 		totalFailed: batches.reduce((sum, batch) => sum + batch.itemsFailed, 0)
 	};
+	const candidateQualitySummary = {
+		missingImage: candidates.filter(
+			(candidate) =>
+				Array.isArray(candidate.qualityFlags) &&
+				candidate.qualityFlags.some(
+					(flag) =>
+						flag && typeof flag === 'object' && (flag as { code?: string }).code === 'missing_image'
+				)
+		).length,
+		lowConfidence: candidates.filter((candidate) => {
+			const confidence =
+				candidate.confidence && typeof candidate.confidence === 'object'
+					? Number((candidate.confidence as { overall?: unknown }).overall ?? 1)
+					: 1;
+			return Number.isFinite(confidence) && confidence < 0.75;
+		}).length,
+		enrichmentFailures: candidates.filter((candidate) => {
+			const diagnostics =
+				candidate.diagnostics && typeof candidate.diagnostics === 'object'
+					? (candidate.diagnostics as Record<string, unknown>)
+					: {};
+			return diagnostics.detailEnrichmentFailed === true;
+		}).length,
+		conflictingUrls: candidates.filter(
+			(candidate) =>
+				Array.isArray(candidate.qualityFlags) &&
+				candidate.qualityFlags.some(
+					(flag) =>
+						flag &&
+						typeof flag === 'object' &&
+						(flag as { code?: string }).code === 'conflicting_urls'
+				)
+		).length,
+		missingKeyEntity: candidates.filter(
+			(candidate) =>
+				Array.isArray(candidate.qualityFlags) &&
+				candidate.qualityFlags.some(
+					(flag) =>
+						flag &&
+						typeof flag === 'object' &&
+						[
+							'missing_organization',
+							'missing_funder',
+							'missing_employer',
+							'missing_provider'
+						].includes((flag as { code?: string }).code ?? '')
+				)
+		).length
+	};
 
 	return {
 		source: detail.source,
@@ -92,7 +149,9 @@ export const load: PageServerLoad = async ({ params }) => {
 		},
 		errorPatterns,
 		candidateOutcomeSummary,
-		batchQualitySummary
+		batchQualitySummary,
+		candidateQualitySummary,
+		sourceRuns: sourceRunsWithStages
 	};
 };
 
@@ -183,6 +242,9 @@ export function _createSourceDetailActions(
 					attributionText: parseNullableString(fd.get('attributionText')),
 					reviewRequired: fd.has('reviewRequired'),
 					autoApprove: fd.has('autoApprove'),
+					quarantined: fd.has('quarantined'),
+					quarantineReason: parseNullableString(fd.get('quarantineReason')),
+					adapterVersion: parseNullableString(fd.get('adapterVersion')),
 					confidenceScore: parseNullableString(fd.get('confidenceScore'))
 						? Number(fd.get('confidenceScore'))
 						: null,
@@ -201,6 +263,7 @@ export function _createSourceDetailActions(
 					pauseReason: parseNullableString(fd.get('pauseReason')),
 					pausedAt: parseNullableDate(fd.get('pausedAt')),
 					deprecatedAt: parseNullableDate(fd.get('deprecatedAt')),
+					qaNotes: parseJsonField(fd.get('qaNotes'), []),
 					tags: (fd.getAll('tagKey') as string[]).map((tagKey, index) => ({
 						tagKey,
 						tagValue: ((fd.getAll('tagValue') as string[])[index] ?? '').trim()
@@ -228,6 +291,22 @@ export function _createSourceDetailActions(
 				status: 'active',
 				pausedAt: null,
 				pauseReason: null
+			});
+			return { success: true };
+		},
+		quarantineSource: async ({ params, request }) => {
+			const fd = await request.formData();
+			await deps.updateSource(params.id, {
+				quarantined: true,
+				quarantineReason:
+					parseNullableString(fd.get('quarantineReason')) ?? 'Quarantined by operator'
+			});
+			return { success: true };
+		},
+		unquarantineSource: async ({ params }) => {
+			await deps.updateSource(params.id, {
+				quarantined: false,
+				quarantineReason: null
 			});
 			return { success: true };
 		},

@@ -36,9 +36,7 @@
 	}
 
 	const rows = $derived(() => {
-		const allKeys = Array.from(
-			new Set([...Object.keys(candidate), ...Object.keys(existing ?? {})])
-		)
+		const allKeys = Array.from(new Set([...Object.keys(candidate), ...Object.keys(existing ?? {})]))
 			.filter((k) => !skipFields.has(k))
 			.filter((k) => {
 				const cv = candidate[k];
@@ -75,7 +73,9 @@
 {:else}
 	{#if changedCount > 0}
 		<p class="mb-3 text-sm text-[var(--mid)]">
-			<span class="font-semibold text-[var(--dark)]">{changedCount} field{changedCount !== 1 ? 's' : ''}</span>
+			<span class="font-semibold text-[var(--dark)]"
+				>{changedCount} field{changedCount !== 1 ? 's' : ''}</span
+			>
 			would change if this update is approved. Highlighted rows show differences.
 		</p>
 	{/if}
@@ -95,16 +95,18 @@
 							? 'bg-[color:color-mix(in_srgb,var(--color-flicker-50)_60%,white)]'
 							: ''}
 					>
-						<Table.Cell class="font-medium text-xs tracking-[0.04em] text-[var(--mid)] uppercase align-top pt-3">
+						<Table.Cell
+							class="pt-3 align-top text-xs font-medium tracking-[0.04em] text-[var(--mid)] uppercase"
+						>
 							{row.label}
 							{#if row.changed}
 								<span class="ml-1 text-[var(--color-flicker-700)]">●</span>
 							{/if}
 						</Table.Cell>
-						<Table.Cell class="align-top text-sm max-w-[280px] break-words">
+						<Table.Cell class="max-w-[280px] align-top text-sm break-words">
 							{formatCell(row.candidate)}
 						</Table.Cell>
-						<Table.Cell class="align-top text-sm text-[var(--mid)] max-w-[280px] break-words">
+						<Table.Cell class="max-w-[280px] align-top text-sm break-words text-[var(--mid)]">
 							{formatCell(row.existing)}
 						</Table.Cell>
 					</Table.Row>

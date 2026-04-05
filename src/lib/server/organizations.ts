@@ -1,4 +1,4 @@
-import { and, desc, eq, ilike, inArray, or, sql } from 'drizzle-orm';
+import { desc, eq, ilike, inArray, or, sql } from 'drizzle-orm';
 import { db } from '$lib/server/db';
 import {
 	events,
@@ -255,9 +255,7 @@ export async function createOrganization(
 	};
 	const [row] = await db
 		.insert(organizations)
-		.values(
-			includeAliases ? { ...values, aliases: parseAliasesInput(data.aliases) } : values
-		)
+		.values(includeAliases ? { ...values, aliases: parseAliasesInput(data.aliases) } : values)
 		.returning(organizationSelection(includeAliases));
 	if (!row) throw new Error('Insert did not return row');
 	return normalizeOrganizationRow(row);
@@ -275,6 +273,7 @@ export async function updateOrganization(
 		...(data.aliases !== undefined ? { aliases: parseAliasesInput(data.aliases) } : {})
 	};
 	const { aliases, ...valuesWithoutAliases } = values;
+	void aliases;
 	const [row] = await db
 		.update(organizations)
 		.set(includeAliases ? values : valuesWithoutAliases)
@@ -411,10 +410,7 @@ export async function mergeOrganizations(
 		const keeper = normalizeOrganizationRow(keeperRaw);
 
 		const mergeRows = (
-			await tx
-			.select(selection)
-			.from(organizations)
-			.where(inArray(organizations.id, ids))
+			await tx.select(selection).from(organizations).where(inArray(organizations.id, ids))
 		).map((row) => normalizeOrganizationRow(row));
 		if (mergeRows.length === 0) return keeper;
 
@@ -447,6 +443,7 @@ export async function mergeOrganizations(
 			aliases: nextAliases
 		};
 		const { aliases, ...mergedValuesWithoutAliases } = mergedValues;
+		void aliases;
 
 		await tx
 			.update(organizations)

@@ -11,7 +11,6 @@ import {
 } from '../shared';
 import type {
 	AdapterConfig,
-	Coil,
 	ConfigValidationResult,
 	FetchResult,
 	IngestionAdapter,
@@ -291,7 +290,7 @@ function normalizeEvent(item: ParsedItem): NormalizedEvent {
 		is_recurring: false,
 		recurrence_rule: null,
 		event_type: categories[0] ?? null,
-		registration_url: url,
+		registration_url: null,
 		cost: null
 	};
 }

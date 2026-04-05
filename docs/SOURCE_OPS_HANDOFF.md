@@ -10,6 +10,10 @@ Implemented:
 
 - Source registry schema, services, seed data, fetch logs, batches, canonical/source-link tables, and admin surfaces
 - Ingestion runtime under `src/lib/server/ingestion/`
+- Shared staged-run persistence via `source_runs` and `source_run_stages`
+- Candidate evidence storage for field provenance, URL roles, image candidates, quality flags, confidence, and diagnostics
+- Optional AI enrichment for structured offers, people, parsed location parts, conservative field suggestions, and conflict detection
+- Shared published evidence tables for `record_links` and `record_images`
 - Adapter registry plus these adapter families:
   - `ical_generic`
   - `rss_generic`
@@ -29,11 +33,12 @@ Implemented:
 - Advisory-lock protection for scheduler-wide and per-source concurrent runs
 - Controlled auto-approve for eligible new candidates
 - Expanded source-health diagnostics, source-quality summaries, and config validation in admin
+- Source quarantine controls, adapter-version tracking, and QA note storage in the source registry
+- Shared detail enrichment improvements for lazy-loaded images, JSON-LD, organizer/venue URLs, and multi-role link capture
 - Curated starter HTML/RSS source configs in `kb-data` instead of relying on hidden adapter presets
 
 Still intentionally out of scope:
 
-- Multi-coil automated ingestion for a single source
 - Headless-browser scraping
 - A persisted “system reviewer” user row for auto-approvals
 
@@ -65,6 +70,7 @@ Relevant external references:
 - Schema barrel/relations: [src/lib/server/db/schema/index.ts](/Users/hayden/Desktop/kb/site/src/lib/server/db/schema/index.ts)
 - Source registry services: [src/lib/server/sources.ts](/Users/hayden/Desktop/kb/site/src/lib/server/sources.ts)
 - Fetch log services: [src/lib/server/source-fetch-log.ts](/Users/hayden/Desktop/kb/site/src/lib/server/source-fetch-log.ts)
+- Source run services: [src/lib/server/ingestion/source-runs.ts](/Users/hayden/Desktop/kb/site/src/lib/server/ingestion/source-runs.ts)
 - Review/publish services: [src/lib/server/import-candidates.ts](/Users/hayden/Desktop/kb/site/src/lib/server/import-candidates.ts)
 - Merge planner: [src/lib/server/import-candidate-merge.ts](/Users/hayden/Desktop/kb/site/src/lib/server/import-candidate-merge.ts)
 - Public provenance helper: [src/lib/server/source-provenance.ts](/Users/hayden/Desktop/kb/site/src/lib/server/source-provenance.ts)
@@ -72,6 +78,9 @@ Relevant external references:
 ### Ingestion runtime
 
 - Runtime types: [src/lib/server/ingestion/types.ts](/Users/hayden/Desktop/kb/site/src/lib/server/ingestion/types.ts)
+- Evidence helpers: [src/lib/server/ingestion/evidence.ts](/Users/hayden/Desktop/kb/site/src/lib/server/ingestion/evidence.ts)
+- Detail enrichment: [src/lib/server/ingestion/detail-enrichment.ts](/Users/hayden/Desktop/kb/site/src/lib/server/ingestion/detail-enrichment.ts)
+- AI enrichment: [src/lib/server/ingestion/ai-enrichment.ts](/Users/hayden/Desktop/kb/site/src/lib/server/ingestion/ai-enrichment.ts)
 - Shared HTTP/parser helpers: [src/lib/server/ingestion/shared.ts](/Users/hayden/Desktop/kb/site/src/lib/server/ingestion/shared.ts)
 - Adapter registry: [src/lib/server/ingestion/registry.ts](/Users/hayden/Desktop/kb/site/src/lib/server/ingestion/registry.ts)
 - Dedupe engine: [src/lib/server/ingestion/dedupe.ts](/Users/hayden/Desktop/kb/site/src/lib/server/ingestion/dedupe.ts)
@@ -111,10 +120,12 @@ Relevant external references:
 
 1. Loads the source record and validates adapter config
 2. Fetches source content
-3. Parses source items
-4. Normalizes items into a single target coil
-5. Computes fingerprints, composite keys, and dedupe outcomes
-6. Returns preview data without writing source-op rows
+3. Discovers feed/list/API items
+4. Normalizes records into a shared multi-coil shape
+5. Runs shared detail enrichment, structured extraction, link classification, and image discovery
+6. Optionally runs AI enrichment with `gpt-5-mini` when `OPENAI_API_KEY` is configured and the record looks incomplete or conflicted
+7. Runs entity matching, quality flagging, and dedupe checks
+8. Returns staged preview data without writing source-op rows
 
 This powers the “Test source” flow on `/admin/sources/[id]`.
 
@@ -122,12 +133,21 @@ This powers the “Test source” flow on `/admin/sources/[id]`.
 
 `ingestSource(sourceId, options)`:
 
-1. Runs the same preview pipeline
-2. Writes `source_fetch_log`
-3. Creates an `import_batches` row
-4. Upserts `imported_candidates` for `new`, `update`, and `ambiguous`
-5. Skips exact `duplicate` candidates from the review queue
-6. Updates source runtime fields:
+1. Creates a `source_runs` row for the execution
+2. Runs the same staged preview pipeline and writes `source_run_stages`
+3. Writes `source_fetch_log`
+4. Creates an `import_batches` row linked back to `source_runs`
+5. Upserts `imported_candidates` for `new`, `update`, and `ambiguous`
+6. Stores candidate evidence in JSONB:
+   - `fieldProvenance`
+   - `urlRoles`
+   - `imageCandidates`
+   - `extractedFacts`
+   - `qualityFlags`
+   - `confidence`
+   - `diagnostics`
+7. Skips exact `duplicate` candidates from the review queue
+8. Updates source runtime fields:
    - `lastCheckedAt`
    - `lastSuccessfulFetchAt`
    - `lastContentHash`
@@ -136,7 +156,8 @@ This powers the “Test source” flow on `/admin/sources/[id]`.
    - `totalItemsImported`
    - `nextCheckAt`
    - `healthStatus`
-7. Optionally auto-approves eligible candidates
+9. Updates run-level metrics such as missing-image rate, low-confidence rate, and detail-enrichment failure rate
+10. Optionally auto-approves eligible candidates
 
 ### Scheduler flow
 
@@ -144,6 +165,7 @@ This powers the “Test source” flow on `/admin/sources/[id]`.
 
 - selects due sources with:
   - `enabled = true`
+  - `quarantined = false`
   - `status = 'active'`
   - non-null `adapterType`
   - `ingestionMethod` not in `manual_only`, `manual_with_reminder`
@@ -177,6 +199,7 @@ Current behavior:
 - updates or creates the canonical record
 - stores the latest accepted source-managed values in `canonical_records.source_snapshot`
 - upserts source-to-canonical links
+- syncs shared published `record_links` and `record_images` evidence
 - writes merge history
 - marks the candidate as approved or auto-approved
 
@@ -230,6 +253,9 @@ Preview output includes:
 - fetch summary
 - parse errors
 - normalized records
+- staged diagnostics
+- quality flags, confidence, URL roles, and image candidates
+- extracted AI facts such as offers, people, location parts, and conflicts
 - dedupe result counts
 - candidate preview metadata
 
@@ -242,9 +268,22 @@ Use `/admin/sources/[id]` and run `Run import`.
 This path:
 
 - performs a persisted ingest
-- writes fetch/batch/candidate records
+- writes run, fetch, batch, and candidate records
 - updates runtime state
 - may auto-approve candidates if the source is eligible
+
+### Optional AI enrichment
+
+If `OPENAI_API_KEY` is set, the pipeline can run an `ai_enrich` stage using `gpt-5-mini` through the OpenAI Responses API with strict JSON schema output.
+
+Current behavior:
+
+- AI enrichment is optional and conservative
+- it only runs for records that still look incomplete or conflicted after deterministic parsing
+- it stores flexible facts in `imported_candidates.extracted_facts`
+- it can fill safe gaps such as `cost`, parsed city/state/ZIP, or organizer/provider names
+- it does not silently overwrite conflicting dates or other high-risk fields; those become conflicts and quality flags instead
+- per-source adapter config can tune `aiEnrichment.enabled`, `aiEnrichment.model`, `aiEnrichment.maxRecordsPerRun`, and `aiEnrichment.minDescriptionLength`
 
 ### Retry a source immediately
 
@@ -258,12 +297,15 @@ Recommended workflow for a newly added or noisy HTML/RSS source:
 
 1. Update its config in `kb-data/source-ops/data/seed-sources.json`
 2. Re-run `pnpm tsx scripts/seed-sources.ts`
-3. Open `/admin/sources/[id]`
-4. Check config validation warnings
-5. Run `Test source`
-6. Confirm normalized records and dedupe results look sane
-7. Run `Run import`
-8. Review a small sample of candidates before trusting the source more broadly
+3. Use `/admin/sources/[id]` to test the staged preview and inspect URL roles, image candidates, and quality flags
+4. Quarantine the source if scheduled runs should stop until adapter/config fixes land
+5. Re-run manually once the source preview is stable
+6. Open `/admin/sources/[id]`
+7. Check config validation warnings
+8. Run `Test source`
+9. Confirm normalized records and dedupe results look sane
+10. Run `Run import`
+11. Review a small sample of candidates before trusting the source more broadly
 
 ### Run due sources through the API
 

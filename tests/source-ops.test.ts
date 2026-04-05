@@ -7,6 +7,7 @@ import {
 	contentFingerprint,
 	runDedupeStrategies
 } from '../src/lib/server/ingestion/dedupe';
+import { applyAiEnrichment } from '../src/lib/server/ingestion/ai-enrichment';
 import { icalGenericAdapter } from '../src/lib/server/ingestion/adapters/ical-generic';
 import { enrichNormalizedRecords } from '../src/lib/server/ingestion/detail-enrichment';
 import { validateSourceConfig } from '../src/lib/server/ingestion/validation';
@@ -19,6 +20,7 @@ import {
 	events,
 	importedCandidates,
 	mergeHistory,
+	recordImages,
 	sourceRecordLinks
 } from '../src/lib/server/db/schema';
 
@@ -199,6 +201,33 @@ describe('ical generic adapter', () => {
 			})
 		);
 	});
+
+	it('promotes ATTACH images without collapsing the event URL into registration', async () => {
+		const parsed = await icalGenericAdapter.parse(
+			[
+				'BEGIN:VCALENDAR',
+				'VERSION:2.0',
+				'BEGIN:VEVENT',
+				'UID:event-attach@example.com',
+				'SUMMARY:Native California Big Time',
+				'URL:https://newsfromnativecalifornia.com/event/native-california-big-time/',
+				'ATTACH:https://newsfromnativecalifornia.com/wp-content/uploads/2026/04/big-time.jpg',
+				'DTSTART:20260510T180000Z',
+				'END:VEVENT',
+				'END:VCALENDAR'
+			].join('\n'),
+			{}
+		);
+		const normalized = await icalGenericAdapter.normalize(parsed.items, 'events', {});
+
+		expect(normalized.records[0]).toEqual(
+			expect.objectContaining({
+				url: 'https://newsfromnativecalifornia.com/event/native-california-big-time',
+				image_url: 'https://newsfromnativecalifornia.com/wp-content/uploads/2026/04/big-time.jpg',
+				registration_url: null
+			})
+		);
+	});
 });
 
 describe('detail enrichment', () => {
@@ -351,6 +380,504 @@ describe('detail enrichment', () => {
 		expect(result.records[0]).toEqual(baseRecord);
 		expect(result.warnings[0]).toContain('HTTP 500');
 	});
+
+	it('captures lazy images, structured URLs, and separate application links from the detail page', async () => {
+		vi.stubGlobal(
+			'fetch',
+			vi.fn(async () => ({
+				ok: true,
+				status: 200,
+				text: async () => `
+					<html>
+						<head>
+							<script type="application/ld+json">
+								{
+									"@context": "https://schema.org",
+									"@type": "Event",
+									"url": "https://bigtime.example.org/festival",
+									"image": "https://newsfromnativecalifornia.com/wp-content/uploads/2026/04/structured-big-time.jpg",
+									"organizer": {
+										"@type": "Organization",
+										"name": "News from Native California",
+										"url": "https://newsfromnativecalifornia.com"
+									},
+									"location": {
+										"@type": "Place",
+										"name": "UC Davis Quad",
+										"sameAs": "https://campus.example.org/quad"
+									}
+								}
+							</script>
+						</head>
+						<body>
+							<img class="hero" src="data:image/gif;base64,AAAA" data-src="https://newsfromnativecalifornia.com/wp-content/uploads/2026/04/lazy-big-time.jpg" />
+							<a class="tribe-events-event-url" href="https://bigtime.example.org/festival">Website</a>
+							<a href="https://vendors.example.org/apply">Vendor application</a>
+						</body>
+					</html>
+				`
+			}))
+		);
+
+		const result = await enrichNormalizedRecords(
+			{
+				detailEnrichment: {
+					enabled: true,
+					fetchFrom: 'sourceItemUrl',
+					linkSelectors: [
+						{
+							role: 'canonical_item',
+							selector: '.tribe-events-event-url',
+							extract: 'href'
+						},
+						{
+							role: 'application',
+							selector: 'a[href*="vendors.example.org"]',
+							extract: 'href'
+						}
+					],
+					preferPageFields: ['image_url', 'organization_name', 'location_name']
+				}
+			},
+			[
+				{
+					fields: {},
+					sourceItemId: 'evt-2',
+					sourceItemUrl: 'https://newsfromnativecalifornia.com/event/uc-davis-big-time/'
+				}
+			],
+			[
+				{
+					coil: 'events',
+					title: 'UC Davis Big Time',
+					description: null,
+					url: 'https://newsfromnativecalifornia.com/event/uc-davis-big-time/',
+					organization_name: null,
+					organization_id: null,
+					tags: [],
+					region: null,
+					image_url: null,
+					start_date: '2026-05-10T18:00:00.000Z',
+					end_date: null,
+					start_time: null,
+					end_time: null,
+					timezone: null,
+					location_name: null,
+					location_address: null,
+					location_city: null,
+					location_state: null,
+					location_zip: null,
+					is_virtual: false,
+					virtual_url: null,
+					is_recurring: false,
+					recurrence_rule: null,
+					event_type: null,
+					registration_url: null,
+					cost: null
+				}
+			]
+		);
+
+		expect(result.records[0]).toEqual(
+			expect.objectContaining({
+				image_url:
+					'https://newsfromnativecalifornia.com/wp-content/uploads/2026/04/lazy-big-time.jpg'
+			})
+		);
+		expect(result.urlRoles[0]?.detail_page?.[0]?.url).toBe(
+			'https://newsfromnativecalifornia.com/event/uc-davis-big-time'
+		);
+		expect(result.urlRoles[0]?.canonical_item?.[0]?.url).toBe(
+			'https://bigtime.example.org/festival'
+		);
+		expect(result.urlRoles[0]?.application?.[0]?.url).toBe('https://vendors.example.org/apply');
+		expect(result.urlRoles[0]?.organizer?.[0]?.url).toBe('https://newsfromnativecalifornia.com');
+		expect(result.urlRoles[0]?.venue?.[0]?.url).toBe('https://campus.example.org/quad');
+		expect(result.imageCandidates[0]?.[0]?.url).toBe(
+			'https://newsfromnativecalifornia.com/wp-content/uploads/2026/04/lazy-big-time.jpg'
+		);
+	});
+
+	it('prefers the event image over logos and submit-event promo graphics', async () => {
+		vi.stubGlobal(
+			'fetch',
+			vi.fn(async () => ({
+				ok: true,
+				status: 200,
+				text: async () => `
+					<html>
+						<body>
+							<header class="header">
+								<a class="logolink" href="https://newsfromnativecalifornia.com/">
+									<img
+										class="logoimg"
+										src="https://newsfromnativecalifornia.com/wp-content/uploads/2020/07/NNC_Logo_white_80.png"
+										alt="News from Native California"
+									/>
+								</a>
+							</header>
+							<div class="tribe-events-content">
+								<p>
+									<img
+										class="alignnone size-medium lazyload"
+										src="data:image/gif;base64,AAAA"
+										data-src="https://newsfromnativecalifornia.com/wp-content/uploads/2026/03/real-event-image-226x300.png"
+										alt=""
+										width="226"
+										height="300"
+									/>
+								</p>
+							</div>
+							<div class="tribe-events-after-html">
+								<img
+									src="/wp-content/uploads/2014/02/Submit-an-Event-e1392262100459.jpeg"
+									alt="Submit an Event"
+									width="224"
+									height="300"
+								/>
+							</div>
+							<footer class="footer">
+								<img
+									class="logoimg"
+									src="https://newsfromnativecalifornia.com/wp-content/uploads/2020/07/News_from_Native_California_logo-1.png"
+									alt="News from Native California"
+								/>
+							</footer>
+						</body>
+					</html>
+				`
+			}))
+		);
+
+		const result = await enrichNormalizedRecords(
+			{
+				detailEnrichment: {
+					enabled: true,
+					fetchFrom: 'sourceItemUrl',
+					selectors: {
+						image_url: {
+							selector:
+								'.tribe-events-event-image img, .tribe-events-featured-image img, img.wp-post-image',
+							extract: 'src'
+						}
+					},
+					preferPageFields: ['image_url']
+				}
+			},
+			[
+				{
+					fields: {},
+					sourceItemId: 'evt-logos-1',
+					sourceItemUrl:
+						'https://newsfromnativecalifornia.com/event/uc-san-diego-14th-annual-powwow/'
+				}
+			],
+			[
+				{
+					coil: 'events',
+					title: 'UC San Diego 14th Annual Powwow',
+					description: null,
+					url: 'https://newsfromnativecalifornia.com/event/uc-san-diego-14th-annual-powwow/',
+					organization_name: null,
+					organization_id: null,
+					tags: [],
+					region: null,
+					image_url: null,
+					start_date: '2026-05-17T07:00:00.000Z',
+					end_date: null,
+					start_time: '2026-05-17T07:00:00.000Z',
+					end_time: null,
+					timezone: null,
+					location_name: null,
+					location_address: null,
+					location_city: null,
+					location_state: null,
+					location_zip: null,
+					is_virtual: false,
+					virtual_url: null,
+					is_recurring: false,
+					recurrence_rule: null,
+					event_type: null,
+					registration_url: null,
+					cost: null
+				}
+			]
+		);
+
+		expect(result.records[0]?.image_url).toBe(
+			'https://newsfromnativecalifornia.com/wp-content/uploads/2026/03/real-event-image-226x300.png'
+		);
+		expect(
+			result.imageCandidates[0]?.some((candidate) => candidate.url.includes('NNC_Logo_white_80'))
+		).toBe(true);
+		expect(
+			result.imageCandidates[0]?.some((candidate) => candidate.url.includes('Submit-an-Event'))
+		).toBe(true);
+	});
+
+	it('parses Native California detail-page text for cost, corrected date, and venue parts', async () => {
+		vi.stubGlobal(
+			'fetch',
+			vi.fn(async () => ({
+				ok: true,
+				status: 200,
+				text: async () => `
+					<html>
+						<body>
+							<div class="tribe-events-content">
+								Make your own elderberry clapper stick.
+								Date: 2026-05-16
+								Location: Maidu Activity Center - 1960 Johnson Ranch Drive, Roseville, CA 95661
+								Cost: $55.00
+							</div>
+							<div class="tribe-organizer">Maidu Museum & Historic Site</div>
+							<div class="tribe-venue">Maidu Activity Center</div>
+							<div class="tribe-address">1960 Johnson Ranch Drive, Roseville, CA 95661</div>
+						</body>
+					</html>
+				`
+			}))
+		);
+
+		const result = await enrichNormalizedRecords(
+			{
+				detailEnrichment: {
+					enabled: true,
+					fetchFrom: 'sourceItemUrl',
+					selectors: {
+						description: { selector: '.tribe-events-content', extract: 'html' },
+						organization_name: { selector: '.tribe-organizer', extract: 'text' },
+						location_name: { selector: '.tribe-venue', extract: 'text' },
+						location_address: { selector: '.tribe-address', extract: 'text' }
+					},
+					preferPageFields: [
+						'description',
+						'organization_name',
+						'location_name',
+						'location_address',
+						'location_city',
+						'location_state',
+						'location_zip',
+						'start_date',
+						'cost'
+					]
+				}
+			},
+			[
+				{
+					fields: {},
+					sourceItemId: 'evt-3',
+					sourceItemUrl:
+						'https://newsfromnativecalifornia.com/event/elderberry-clapper-stick-workshop'
+				}
+			],
+			[
+				{
+					coil: 'events',
+					title: 'Elderberry Clapper Stick Workshop',
+					description: null,
+					url: 'https://newsfromnativecalifornia.com/event/elderberry-clapper-stick-workshop',
+					organization_name: null,
+					organization_id: null,
+					tags: [],
+					region: null,
+					image_url: null,
+					start_date: '2001-05-16T07:00:00.000Z',
+					end_date: null,
+					start_time: '2001-05-16T07:00:00.000Z',
+					end_time: null,
+					timezone: null,
+					location_name: '1960 Johnson Ranch Drive, Roseville, CA, United States',
+					location_address: '1960 Johnson Ranch Drive, Roseville, CA, United States',
+					location_city: null,
+					location_state: null,
+					location_zip: null,
+					is_virtual: false,
+					virtual_url: null,
+					is_recurring: false,
+					recurrence_rule: null,
+					event_type: null,
+					registration_url: null,
+					cost: null
+				}
+			]
+		);
+
+		expect(result.records[0]).toEqual(
+			expect.objectContaining({
+				organization_name: 'Maidu Museum & Historic Site',
+				location_name: 'Maidu Activity Center',
+				location_address: '1960 Johnson Ranch Drive, Roseville, CA 95661',
+				location_city: 'Roseville',
+				location_state: 'CA',
+				location_zip: '95661',
+				start_date: '2026-05-16T07:00:00.000Z',
+				cost: '$55.00'
+			})
+		);
+	});
+});
+
+describe('ai enrichment', () => {
+	beforeEach(() => {
+		vi.restoreAllMocks();
+		process.env.OPENAI_API_KEY = 'test-key';
+	});
+
+	it('extracts flexible facts, fills safe gaps, and preserves conflicts for review', async () => {
+		vi.stubGlobal(
+			'fetch',
+			vi.fn(async () => ({
+				ok: true,
+				status: 200,
+				json: async () => ({
+					model: 'gpt-5-mini',
+					output_text: JSON.stringify({
+						offers: [
+							{
+								label: 'Workshop fee',
+								amount: 55,
+								currency: 'USD',
+								priceText: '$55.00',
+								notes: null,
+								confidence: 0.91
+							}
+						],
+						people: [
+							{
+								name: 'Michael Ramirez',
+								role: 'Instructor',
+								affiliation: 'Konkow Maidu',
+								confidence: 0.84
+							}
+						],
+						locationParts: {
+							name: 'Maidu Activity Center',
+							street: '1960 Johnson Ranch Drive',
+							city: 'Roseville',
+							state: 'CA',
+							postalCode: '95661',
+							country: 'US',
+							confidence: 0.89
+						},
+						fieldSuggestions: [
+							{
+								field: 'organization_name',
+								value: 'Maidu Museum & Historic Site',
+								confidence: 0.62,
+								reason: 'Organizer named in page copy'
+							}
+						],
+						conflicts: [
+							{
+								field: 'start_date',
+								existingValue: '2001-05-16T07:00:00.000Z',
+								proposedValue: '2026-05-16',
+								reason: 'Description text contains a later event date',
+								confidence: 0.93
+							}
+						],
+						notes: ['Description includes both venue name and full mailing address']
+					})
+				})
+			}))
+		);
+
+		const source = {
+			id: 'source-1',
+			name: 'News from Native California',
+			slug: 'news-from-native-california',
+			sourceUrl: 'https://newsfromnativecalifornia.com',
+			adapterConfig: {
+				aiEnrichment: {
+					enabled: true,
+					maxRecordsPerRun: 1,
+					minDescriptionLength: 20
+				}
+			}
+		} as never;
+
+		const result = await applyAiEnrichment(
+			source,
+			[
+				{
+					fields: {
+						description:
+							'Make your own elderberry clapper stick... Date: 2026-05-16 Location: Maidu Activity Center - 1960 Johnson Ranch Drive, Roseville, CA 95661 Cost: $55.00'
+					},
+					sourceItemId: 'evt-1',
+					sourceItemUrl:
+						'https://newsfromnativecalifornia.com/event/elderberry-clapper-stick-workshop'
+				}
+			],
+			[
+				{
+					coil: 'events',
+					title: 'Elderberry Clapper Stick Workshop',
+					description:
+						'Make your own elderberry clapper stick, a musical instrument used throughout history by California Indigenous peoples. Learn about its cultural significance while shaping, decorating, and assembling your instrument.',
+					url: 'https://newsfromnativecalifornia.com/event/elderberry-clapper-stick-workshop',
+					organization_name: null,
+					organization_id: null,
+					tags: [],
+					region: null,
+					image_url: null,
+					start_date: '2001-05-16T07:00:00.000Z',
+					end_date: null,
+					start_time: '2001-05-16T07:00:00.000Z',
+					end_time: null,
+					timezone: null,
+					location_name: '1960 Johnson Ranch Drive, Roseville, CA, United States',
+					location_address: '1960 Johnson Ranch Drive, Roseville, CA, United States',
+					location_city: null,
+					location_state: null,
+					location_zip: null,
+					is_virtual: false,
+					virtual_url: null,
+					is_recurring: false,
+					recurrence_rule: null,
+					event_type: null,
+					registration_url:
+						'https://newsfromnativecalifornia.com/event/elderberry-clapper-stick-workshop',
+					cost: null
+				}
+			],
+			[{}],
+			[
+				{
+					detail_page: [
+						{
+							url: 'https://newsfromnativecalifornia.com/event/elderberry-clapper-stick-workshop',
+							role: 'detail_page',
+							source: 'detail_page',
+							confidence: 1
+						}
+					]
+				}
+			],
+			[{}]
+		);
+
+		expect(result.records[0]).toEqual(
+			expect.objectContaining({
+				cost: '$55.00',
+				location_name: 'Maidu Activity Center',
+				location_city: 'Roseville',
+				location_state: 'CA',
+				location_zip: '95661'
+			})
+		);
+		expect(result.extractedFacts[0]).toEqual(
+			expect.objectContaining({
+				offers: expect.arrayContaining([expect.objectContaining({ amount: 55, currency: 'USD' })]),
+				conflicts: expect.arrayContaining([
+					expect.objectContaining({ field: 'start_date', proposedValue: '2026-05-16' })
+				])
+			})
+		);
+		expect(result.fieldProvenance[0]?.cost?.[0]?.source).toBe('ai');
+		expect(result.stats.completed).toBe(1);
+	});
 });
 
 describe('source detail actions', () => {
@@ -374,7 +901,8 @@ describe('source detail actions', () => {
 			normalizeResult: null,
 			candidates: [],
 			dedupeCounts: { new: 0, duplicate: 0, update: 0, ambiguous: 0 },
-			durationMs: 12
+			durationMs: 12,
+			stages: []
 		};
 
 		const previewSource = vi.fn(async () => preview);
@@ -425,6 +953,7 @@ describe('source detail actions', () => {
 			candidates: [],
 			dedupeCounts: { new: 0, duplicate: 0, update: 0, ambiguous: 0 },
 			durationMs: 20,
+			stages: [],
 			candidatesCreated: 1,
 			duplicatesSkipped: 0,
 			updatesQueued: 0,
@@ -448,6 +977,45 @@ describe('source detail actions', () => {
 				success: true,
 				previewMode: 'import',
 				importResult
+			})
+		);
+	});
+
+	it('passes quarantine and source-ops metadata through updateSource', async () => {
+		const updateSource = vi.fn(async () => null);
+		const actions = _createSourceDetailActions({
+			updateSource: updateSource as never,
+			previewSource: vi.fn() as never,
+			ingestSource: vi.fn() as never,
+			runSourceNow: vi.fn() as never
+		});
+
+		const request = new Request('http://localhost', {
+			method: 'POST',
+			body: new URLSearchParams({
+				name: 'News from Native California',
+				sourceUrl: 'https://newsfromnativecalifornia.com/events/list/?ical=1',
+				adapterConfig: '{}',
+				riskProfile: '{}',
+				dedupeConfig: '{}',
+				qaNotes: '["Watch for vendor links"]',
+				adapterVersion: '2026-04-ingestion-hardening',
+				quarantineReason: 'Needs selector review'
+			})
+		});
+
+		await actions.updateSource!({
+			params: { id: 'source-1' },
+			request
+		} as never);
+
+		expect(updateSource).toHaveBeenCalledWith(
+			'source-1',
+			expect.objectContaining({
+				adapterVersion: '2026-04-ingestion-hardening',
+				quarantineReason: 'Needs selector review',
+				qaNotes: ['Watch for vendor links'],
+				quarantined: false
 			})
 		);
 	});
@@ -936,6 +1504,111 @@ describe('approveCandidate publishing', () => {
 			})
 		);
 	});
+
+	it('dedupes repeated image evidence before inserting record_images rows', async () => {
+		const createEvent = vi.fn(async () => ({ id: 'evt-dup-img' }));
+		const updateEvent = vi.fn();
+		const fakeDb = createFakeDb({
+			candidates: [
+				{
+					id: 'cand-dup-img',
+					sourceId: 'source-1',
+					batchId: 'batch-1',
+					coil: 'events',
+					status: 'pending_review',
+					priority: 'normal',
+					rawData: {},
+					normalizedData: {
+						coil: 'events',
+						title: 'Agave Roast',
+						description: 'Event with repeated image evidence',
+						url: 'https://newsfromnativecalifornia.com/event/agave-roast',
+						organization_name: 'Malki Museum',
+						organization_id: null,
+						tags: [],
+						region: 'CA',
+						image_url:
+							'https://malkimuseum.org/cdn/shop/files/2026_Agave_Roast_Flyer.jpg?v=1772654502&width=1070',
+						start_date: '2026-05-10T18:00:00.000Z',
+						end_date: null,
+						start_time: null,
+						end_time: null,
+						timezone: 'America/Los_Angeles',
+						location_name: 'Malki Museum',
+						location_address: 'Banning, CA',
+						location_city: 'Banning',
+						location_state: 'CA',
+						location_zip: null,
+						is_virtual: false,
+						virtual_url: null,
+						is_recurring: false,
+						recurrence_rule: null,
+						event_type: null,
+						registration_url: null,
+						cost: null
+					},
+					sourceItemId: 'event-dup-img@example.com',
+					sourceItemUrl: 'https://newsfromnativecalifornia.com/event/agave-roast',
+					dedupeResult: 'new',
+					dedupeStrategyUsed: null,
+					matchedCanonicalId: null,
+					contentFingerprint: 'fingerprint-dup-img',
+					sourceAttribution: 'Source: News from Native California',
+					reviewedAt: null,
+					reviewedBy: null,
+					reviewNotes: null,
+					rejectionReason: null,
+					fieldProvenance: {},
+					urlRoles: {},
+					imageCandidates: [
+						{
+							url: 'https://malkimuseum.org/cdn/shop/files/2026_Agave_Roast_Flyer.jpg?v=1772654502&width=1070',
+							role: 'inline',
+							source: 'inline',
+							sourceUrl: 'https://newsfromnativecalifornia.com/event/agave-roast',
+							confidence: 0.74,
+							isMeaningful: true,
+							width: 1070,
+							height: 1384
+						},
+						{
+							url: 'https://malkimuseum.org/cdn/shop/files/2026_Agave_Roast_Flyer.jpg?v=1772654502&width=1070',
+							role: 'feed',
+							source: 'feed',
+							sourceUrl: 'https://newsfromnativecalifornia.com/event/agave-roast',
+							confidence: 0.8,
+							isMeaningful: true
+						}
+					],
+					importedAt: new Date(),
+					updatedAt: new Date(),
+					expiresAt: null
+				}
+			]
+		});
+
+		vi.doMock('$lib/server/db', () => ({ db: fakeDb }));
+		vi.doMock('$lib/server/events', () => ({ createEvent, updateEvent }));
+		vi.doMock('$lib/server/funding', () => ({ createFunding: vi.fn(), updateFunding: vi.fn() }));
+		vi.doMock('$lib/server/jobs', () => ({ createJob: vi.fn(), updateJob: vi.fn() }));
+		vi.doMock('$lib/server/red-pages', () => ({
+			createBusiness: vi.fn(),
+			updateBusiness: vi.fn()
+		}));
+		vi.doMock('$lib/server/toolbox', () => ({ createResource: vi.fn(), updateResource: vi.fn() }));
+
+		const { approveCandidate } = await import('../src/lib/server/import-candidates');
+		await approveCandidate('cand-dup-img', 'reviewer-1');
+
+		expect(fakeDb.state.recordImages).toHaveLength(1);
+		expect(fakeDb.state.recordImages[0]).toEqual(
+			expect.objectContaining({
+				imageUrl:
+					'https://malkimuseum.org/cdn/shop/files/2026_Agave_Roast_Flyer.jpg?v=1772654502&width=1070',
+				isPrimary: true
+			})
+		);
+	});
 });
 
 describe('seeded automated source configs', () => {
@@ -1089,6 +1762,7 @@ function createFakeDb(initial: {
 	canonicalRecords?: Array<Record<string, unknown>>;
 	sourceRecordLinks?: Array<Record<string, unknown>>;
 	mergeHistory?: Array<Record<string, unknown>>;
+	recordImages?: Array<Record<string, unknown>>;
 	events?: Array<Record<string, unknown>>;
 	schemaColumns?: Array<{ table_name: string; column_name: string }>;
 }) {
@@ -1102,6 +1776,7 @@ function createFakeDb(initial: {
 		canonicalRecords: [...(initial.canonicalRecords ?? [])],
 		sourceRecordLinks: [...(initial.sourceRecordLinks ?? [])],
 		mergeHistory: [...(initial.mergeHistory ?? [])],
+		recordImages: [...(initial.recordImages ?? [])],
 		events: [...(initial.events ?? [])],
 		schemaColumns: [
 			...(initial.schemaColumns ?? [
@@ -1133,14 +1808,12 @@ function createFakeDb(initial: {
 		}),
 		insert(table: unknown) {
 			return {
-				values(values: Record<string, unknown>) {
+				values(values: Record<string, unknown> | Array<Record<string, unknown>>) {
 					if (tableName(table) === tableName(canonicalRecords)) {
 						const row = { id: `canon-${state.canonicalRecords.length + 1}`, ...values };
 						state.canonicalRecords.push(row);
 						return {
-							returning: async (selection?: Record<string, unknown>) => [
-								projectRow(row, selection)
-							]
+							returning: async (selection?: Record<string, unknown>) => [projectRow(row, selection)]
 						};
 					}
 					if (tableName(table) === tableName(sourceRecordLinks)) {
@@ -1162,6 +1835,18 @@ function createFakeDb(initial: {
 					if (tableName(table) === tableName(mergeHistory)) {
 						state.mergeHistory.push({ id: `merge-${state.mergeHistory.length + 1}`, ...values });
 						return [];
+					}
+					if (tableName(table) === tableName(recordImages)) {
+						const rows = Array.isArray(values) ? values : [values];
+						state.recordImages.push(
+							...rows.map((row, index) => ({
+								id: `img-${state.recordImages.length + index + 1}`,
+								...row
+							}))
+						);
+						return {
+							returning: async () => rows
+						};
 					}
 					return {
 						returning: async () => []
@@ -1189,7 +1874,14 @@ function createFakeDb(initial: {
 				}
 			};
 		},
-		delete: vi.fn()
+		delete: vi.fn((table: unknown) => ({
+			where: async () => {
+				if (tableName(table) === tableName(recordImages)) {
+					state.recordImages = [];
+				}
+				return [];
+			}
+		}))
 	};
 
 	return {

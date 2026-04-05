@@ -38,7 +38,7 @@
 		</Card.Root>
 	{/if}
 	<div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-		<div class="flex items-center gap-3 min-w-0">
+		<div class="flex min-w-0 items-center gap-3">
 			<h1 class="truncate text-2xl font-bold">{data.event.title}</h1>
 			<StatusBadge status={data.event.status ?? 'unknown'} />
 			{#if data.event.slug && data.event.status === 'published'}

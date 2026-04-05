@@ -1,6 +1,6 @@
-import { and, desc, eq, ilike, inArray, or, sql } from 'drizzle-orm';
+import { desc, eq, ilike, inArray, or, sql } from 'drizzle-orm';
 import { db } from '$lib/server/db';
-import { events, organizations, venues } from '$lib/server/db/schema';
+import { events, venues } from '$lib/server/db/schema';
 
 export type VenueRow = typeof venues.$inferSelect;
 export type VenueInsert = typeof venues.$inferInsert;
@@ -227,6 +227,7 @@ export async function updateVenue(
 		...(data.aliases !== undefined ? { aliases: parseAliasesInput(data.aliases) } : {})
 	};
 	const { aliases, ...valuesWithoutAliases } = values;
+	void aliases;
 	const [row] = await db
 		.update(venues)
 		.set(includeAliases ? values : valuesWithoutAliases)
@@ -343,9 +344,9 @@ export async function mergeVenues(keeperId: string, mergeIds: string[]): Promise
 		if (!keeperRaw) return null;
 		const keeper = normalizeVenueRow(keeperRaw);
 
-		const mergeRows = (
-			await tx.select(selection).from(venues).where(inArray(venues.id, ids))
-		).map((row) => normalizeVenueRow(row));
+		const mergeRows = (await tx.select(selection).from(venues).where(inArray(venues.id, ids))).map(
+			(row) => normalizeVenueRow(row)
+		);
 		if (mergeRows.length === 0) return keeper;
 
 		const nextAliases = Array.from(
@@ -363,9 +364,7 @@ export async function mergeVenues(keeperId: string, mergeIds: string[]): Promise
 				includeAliases
 					? {
 							description:
-								keeper.description ??
-								mergeRows.find((row) => row.description)?.description ??
-								null,
+								keeper.description ?? mergeRows.find((row) => row.description)?.description ?? null,
 							address: keeper.address ?? mergeRows.find((row) => row.address)?.address ?? null,
 							city: keeper.city ?? mergeRows.find((row) => row.city)?.city ?? null,
 							state: keeper.state ?? mergeRows.find((row) => row.state)?.state ?? null,
@@ -373,8 +372,7 @@ export async function mergeVenues(keeperId: string, mergeIds: string[]): Promise
 							lat: keeper.lat ?? mergeRows.find((row) => row.lat != null)?.lat ?? null,
 							lng: keeper.lng ?? mergeRows.find((row) => row.lng != null)?.lng ?? null,
 							website: keeper.website ?? mergeRows.find((row) => row.website)?.website ?? null,
-							imageUrl:
-								keeper.imageUrl ?? mergeRows.find((row) => row.imageUrl)?.imageUrl ?? null,
+							imageUrl: keeper.imageUrl ?? mergeRows.find((row) => row.imageUrl)?.imageUrl ?? null,
 							venueType:
 								keeper.venueType ?? mergeRows.find((row) => row.venueType)?.venueType ?? null,
 							organizationId:
@@ -385,9 +383,7 @@ export async function mergeVenues(keeperId: string, mergeIds: string[]): Promise
 						}
 					: {
 							description:
-								keeper.description ??
-								mergeRows.find((row) => row.description)?.description ??
-								null,
+								keeper.description ?? mergeRows.find((row) => row.description)?.description ?? null,
 							address: keeper.address ?? mergeRows.find((row) => row.address)?.address ?? null,
 							city: keeper.city ?? mergeRows.find((row) => row.city)?.city ?? null,
 							state: keeper.state ?? mergeRows.find((row) => row.state)?.state ?? null,
@@ -395,8 +391,7 @@ export async function mergeVenues(keeperId: string, mergeIds: string[]): Promise
 							lat: keeper.lat ?? mergeRows.find((row) => row.lat != null)?.lat ?? null,
 							lng: keeper.lng ?? mergeRows.find((row) => row.lng != null)?.lng ?? null,
 							website: keeper.website ?? mergeRows.find((row) => row.website)?.website ?? null,
-							imageUrl:
-								keeper.imageUrl ?? mergeRows.find((row) => row.imageUrl)?.imageUrl ?? null,
+							imageUrl: keeper.imageUrl ?? mergeRows.find((row) => row.imageUrl)?.imageUrl ?? null,
 							venueType:
 								keeper.venueType ?? mergeRows.find((row) => row.venueType)?.venueType ?? null,
 							organizationId:

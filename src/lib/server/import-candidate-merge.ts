@@ -91,12 +91,9 @@ const FIELD_GROUPS: DescriptorMap = {
 			field: 'virtual_url',
 			keys: ['is_virtual', 'virtual_url'],
 			apply: (normalized) => ({
-				virtualEventUrl:
-					readBoolean(normalized, 'is_virtual')
-						? (readString(normalized, 'virtual_url') ??
-							readString(normalized, 'url') ??
-							undefined)
-						: undefined,
+				virtualEventUrl: readBoolean(normalized, 'is_virtual')
+					? (readString(normalized, 'virtual_url') ?? readString(normalized, 'url') ?? undefined)
+					: undefined,
 				eventFormat: readBoolean(normalized, 'is_virtual') ? 'online' : undefined
 			})
 		},
@@ -183,8 +180,7 @@ const FIELD_GROUPS: DescriptorMap = {
 			field: 'url',
 			keys: ['url', 'application_url'],
 			apply: (normalized) => ({
-				applyUrl:
-					readString(normalized, 'application_url') ?? readString(normalized, 'url') ?? null
+				applyUrl: readString(normalized, 'application_url') ?? readString(normalized, 'url') ?? null
 			})
 		},
 		{
@@ -239,8 +235,7 @@ const FIELD_GROUPS: DescriptorMap = {
 				location: buildJobLocation(normalized),
 				city: readString(normalized, 'location_city') ?? null,
 				state: readString(normalized, 'location_state') ?? null,
-				region:
-					readString(normalized, 'region') ?? readString(normalized, 'location_state') ?? null
+				region: readString(normalized, 'region') ?? readString(normalized, 'location_state') ?? null
 			})
 		},
 		{
@@ -270,7 +265,9 @@ const FIELD_GROUPS: DescriptorMap = {
 		{
 			field: 'closing_date',
 			keys: ['closing_date'],
-			apply: (normalized) => ({ applicationDeadline: toDate(readString(normalized, 'closing_date')) })
+			apply: (normalized) => ({
+				applicationDeadline: toDate(readString(normalized, 'closing_date'))
+			})
 		},
 		{
 			field: 'department',
@@ -281,8 +278,7 @@ const FIELD_GROUPS: DescriptorMap = {
 			field: 'url',
 			keys: ['url', 'application_url'],
 			apply: (normalized) => ({
-				applyUrl:
-					readString(normalized, 'application_url') ?? readString(normalized, 'url') ?? null
+				applyUrl: readString(normalized, 'application_url') ?? readString(normalized, 'url') ?? null
 			})
 		},
 		{
@@ -398,9 +394,7 @@ const FIELD_GROUPS: DescriptorMap = {
 			keys: ['publisher', 'organization_name'],
 			apply: (normalized) => ({
 				sourceName:
-					readString(normalized, 'publisher') ??
-					readString(normalized, 'organization_name') ??
-					null
+					readString(normalized, 'publisher') ?? readString(normalized, 'organization_name') ?? null
 			})
 		},
 		{
@@ -530,7 +524,8 @@ export function mapCandidateToComparable(
 			return {
 				title: readString(normalized, 'title'),
 				description: readString(normalized, 'description'),
-				publisher: readString(normalized, 'publisher') ?? readString(normalized, 'organization_name'),
+				publisher:
+					readString(normalized, 'publisher') ?? readString(normalized, 'organization_name'),
 				resource_type: readString(normalized, 'resource_type'),
 				format: readString(normalized, 'format'),
 				url: readString(normalized, 'url'),
@@ -613,11 +608,7 @@ export function planCandidateMerge(
 	return { appliedFields, preservedFields, unchangedFields, patch, nextSnapshot };
 }
 
-function assignSnapshotValues(
-	snapshot: Record<string, unknown>,
-	keys: string[],
-	value: unknown
-) {
+function assignSnapshotValues(snapshot: Record<string, unknown>, keys: string[], value: unknown) {
 	if (keys.length === 1) {
 		snapshot[keys[0] ?? ''] = value;
 		return;

@@ -136,7 +136,8 @@
 							<div class="space-y-1">
 								<p class="font-semibold text-[var(--dark)]">Waiting on more info</p>
 								<p class="text-sm text-[var(--mid)]">
-									{snapshot.metrics.needsInfoSources} imported items are blocked — they need more context or a manual decision before publishing.
+									{snapshot.metrics.needsInfoSources} imported items are blocked — they need more context
+									or a manual decision before publishing.
 								</p>
 								<a
 									href="/admin/sources/review?status=needs_info"
@@ -156,7 +157,10 @@
 							<div class="space-y-1">
 								<p class="font-semibold text-[var(--dark)]">Sources needing follow-up</p>
 								<p class="text-sm text-[var(--mid)]">
-									{snapshot.metrics.brokenSources} source{snapshot.metrics.brokenSources !== 1 ? 's' : ''} broken or needing auth, and {snapshot.metrics.staleSources} overdue for a check. Fresh content may be delayed.
+									{snapshot.metrics.brokenSources} source{snapshot.metrics.brokenSources !== 1
+										? 's'
+										: ''} broken or needing auth, and {snapshot.metrics.staleSources} overdue for a check.
+									Fresh content may be delayed.
 								</p>
 								<a
 									href="/admin/sources/health"

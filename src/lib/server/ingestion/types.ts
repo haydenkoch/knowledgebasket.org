@@ -21,14 +21,189 @@ export type FetchErrorCategory =
 	| 'parse'
 	| 'unknown';
 
+export type IngestionStage =
+	| 'fetch'
+	| 'discover'
+	| 'detail_enrich'
+	| 'structured_extract'
+	| 'ai_enrich'
+	| 'link_classify'
+	| 'image_discover'
+	| 'normalize'
+	| 'entity_match'
+	| 'quality_flag'
+	| 'dedupe'
+	| 'persist';
+
+export type IngestionStageStatus = 'running' | 'success' | 'failure' | 'partial' | 'skipped';
+
+export type UrlRole =
+	| 'source_page'
+	| 'detail_page'
+	| 'canonical_item'
+	| 'registration'
+	| 'application'
+	| 'organizer'
+	| 'venue'
+	| 'feed'
+	| 'image_source'
+	| 'attachment';
+
+export type ImageRole =
+	| 'feed'
+	| 'detail'
+	| 'structured'
+	| 'attachment'
+	| 'inline'
+	| 'logo'
+	| 'fallback'
+	| 'unknown';
+
 export type AdapterConfig = Record<string, unknown>;
+
+export type EvidenceSource =
+	| 'feed'
+	| 'detail_page'
+	| 'structured_data'
+	| 'adapter'
+	| 'inferred'
+	| 'manual'
+	| 'ai'
+	| 'attachment'
+	| 'inline'
+	| 'meta';
+
+export interface FieldProvenanceEntry {
+	value: unknown;
+	source: EvidenceSource;
+	confidence?: number;
+	note?: string | null;
+}
+
+export type FieldProvenanceMap = Record<string, FieldProvenanceEntry[]>;
+
+export interface UrlEvidence {
+	url: string;
+	role: UrlRole;
+	source: EvidenceSource;
+	label?: string | null;
+	confidence?: number;
+	extracted?: boolean;
+	inferred?: boolean;
+}
+
+export type UrlRoleMap = Partial<Record<UrlRole, UrlEvidence[]>>;
+
+export interface ImageCandidate {
+	url: string;
+	role: ImageRole;
+	source: EvidenceSource;
+	sourceUrl?: string | null;
+	confidence?: number;
+	isMeaningful?: boolean;
+	width?: number | null;
+	height?: number | null;
+	mimeType?: string | null;
+	note?: string | null;
+	[key: string]: unknown;
+}
+
+export interface QualityFlag {
+	code: string;
+	severity: 'info' | 'warning' | 'error';
+	message: string;
+	field?: string | null;
+}
+
+export interface EntityMatchSuggestion {
+	entityType: 'organization' | 'venue';
+	entityId: string;
+	label: string;
+	score: number;
+	reasons: string[];
+}
+
+export interface CandidateConfidence {
+	overall?: number;
+	fields?: Record<string, number>;
+	entities?: EntityMatchSuggestion[];
+}
+
+export interface ExtractedOffer {
+	label: string | null;
+	amount: number | null;
+	currency: string | null;
+	priceText: string | null;
+	notes: string | null;
+	confidence: number | null;
+}
+
+export interface ExtractedPerson {
+	name: string;
+	role: string | null;
+	affiliation: string | null;
+	confidence: number | null;
+}
+
+export interface ExtractedLocationParts {
+	name: string | null;
+	street: string | null;
+	city: string | null;
+	state: string | null;
+	postalCode: string | null;
+	country: string | null;
+	confidence: number | null;
+}
+
+export interface ExtractedFieldSuggestion {
+	field: string;
+	value: string | null;
+	confidence: number | null;
+	reason: string | null;
+}
+
+export interface ExtractedFieldConflict {
+	field: string;
+	existingValue: string | null;
+	proposedValue: string | null;
+	reason: string | null;
+	confidence: number | null;
+}
+
+export interface AiExtractedFacts {
+	offers: ExtractedOffer[];
+	people: ExtractedPerson[];
+	locationParts: ExtractedLocationParts | null;
+	fieldSuggestions: ExtractedFieldSuggestion[];
+	conflicts: ExtractedFieldConflict[];
+	notes: string[];
+	model?: string | null;
+}
+
+export interface StageDiagnostic {
+	stage: IngestionStage;
+	status: IngestionStageStatus;
+	startedAt: string;
+	completedAt?: string;
+	durationMs: number;
+	itemCount?: number;
+	warnings: string[];
+	errors: string[];
+	metrics?: Record<string, unknown>;
+	details?: Record<string, unknown>;
+}
 
 export type DetailEnrichmentField =
 	| 'description'
 	| 'image_url'
 	| 'organization_name'
+	| 'start_date'
 	| 'location_name'
 	| 'location_address'
+	| 'location_city'
+	| 'location_state'
+	| 'location_zip'
+	| 'cost'
 	| 'registration_url';
 
 export type DetailEnrichmentSelector =
@@ -108,6 +283,7 @@ export interface NormalizedEvent extends NormalizedRecordBase {
 	location_city: string | null;
 	location_state: string | null;
 	location_zip: string | null;
+	venue_id?: string | null;
 	is_virtual: boolean;
 	virtual_url: string | null;
 	is_recurring: boolean;
@@ -256,6 +432,13 @@ export interface PreviewCandidate {
 	priority: 'low' | 'normal' | 'high';
 	sourceAttribution: string | null;
 	expiresAt: Date | null;
+	fieldProvenance: FieldProvenanceMap;
+	urlRoles: UrlRoleMap;
+	imageCandidates: ImageCandidate[];
+	extractedFacts: AiExtractedFacts;
+	qualityFlags: QualityFlag[];
+	confidence: CandidateConfidence;
+	diagnostics: Record<string, unknown>;
 }
 
 export interface IngestionPreviewResult {
@@ -267,6 +450,7 @@ export interface IngestionPreviewResult {
 	candidates: PreviewCandidate[];
 	dedupeCounts: Record<DedupeResult, number>;
 	durationMs: number;
+	stages: StageDiagnostic[];
 }
 
 export interface IngestionResult extends IngestionPreviewResult {

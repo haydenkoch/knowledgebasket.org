@@ -41,10 +41,13 @@
 				<div>
 					<dt class="text-muted-foreground">Role</dt>
 					<dd class="font-medium">
-						{data.user?.role === 'admin' ? 'Administrator — full access to all settings and content'
-						: data.user?.role === 'moderator' ? 'Moderator — can review and publish content'
-						: data.user?.role === 'contributor' ? 'Contributor — can submit content for review'
-						: data.user?.role ?? '—'}
+						{data.user?.role === 'admin'
+							? 'Administrator — full access to all settings and content'
+							: data.user?.role === 'moderator'
+								? 'Moderator — can review and publish content'
+								: data.user?.role === 'contributor'
+									? 'Contributor — can submit content for review'
+									: (data.user?.role ?? '—')}
 					</dd>
 				</div>
 			</dl>

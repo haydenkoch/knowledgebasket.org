@@ -1,89 +1,77 @@
 import { and, eq, inArray, or, sql } from 'drizzle-orm';
 import { db } from '$lib/server/db';
 import { importBatches, importedCandidates, sourceFetchLog, sources } from '$lib/server/db/schema';
+import { suggestOrganizationMatches } from '$lib/server/organizations';
 import { getSourceById } from '$lib/server/sources';
+import { suggestVenueMatches } from '$lib/server/venues';
 import { approveCandidate } from '$lib/server/import-candidates';
+import {
+	applyBestImage,
+	computeConfidence,
+	computeQualityFlags,
+	addUrlEvidence,
+	addFieldProvenance
+} from './evidence';
+import { applyAiEnrichment, shouldRunAiEnrichment } from './ai-enrichment';
+import { enrichNormalizedRecords } from './detail-enrichment';
 import {
 	compositeKey,
 	contentFingerprint,
 	createDedupeLookup,
+	normalizeUrl,
 	runDedupeStrategies
 } from './dedupe';
-import { enrichNormalizedRecords } from './detail-enrichment';
 import { adapterRegistry } from './registry';
+import { createSourceRun, recordSourceRunStage, updateSourceRun } from './source-runs';
 import { computeCandidatePriority, computeHealthStatus, computeNextCheckAt } from './status';
 import { buildAdapterConfig } from './validation';
 import type {
+	CandidateConfidence,
 	DedupeResult,
+	EntityMatchSuggestion,
+	FieldProvenanceMap,
+	ImageCandidate,
 	IngestionExecutionOptions,
 	IngestionPreviewResult,
 	IngestionResult,
+	IngestionStage,
+	IngestionStageStatus,
 	NormalizedRecord,
 	PreviewCandidate,
-	SourceRecord
+	SourceRecord,
+	StageDiagnostic,
+	UrlEvidence,
+	UrlRoleMap,
+	AiExtractedFacts
 } from './types';
+
+type ParsedItem = {
+	fields: Record<string, unknown>;
+	sourceItemId: string | null;
+	sourceItemUrl: string | null;
+};
+
+type CandidateArtifacts = {
+	records: NormalizedRecord[];
+	fieldProvenance: FieldProvenanceMap[];
+	urlRoles: UrlRoleMap[];
+	imageCandidates: ImageCandidate[][];
+	extractedFacts: AiExtractedFacts[];
+	qualityFlags: Array<ReturnType<typeof computeQualityFlags>>;
+	confidence: CandidateConfidence[];
+	diagnostics: Array<Record<string, unknown>>;
+};
+
+const ACTIVE_IMPORTED_CANDIDATE_STATUSES = [
+	'pending_review',
+	'needs_info',
+	'approved',
+	'auto_approved'
+] as const;
 
 export async function previewSource(sourceId: string): Promise<IngestionPreviewResult> {
 	const source = await loadSourceRecord(sourceId);
-	const adapter = getAdapterForSource(source);
-	const startedAt = Date.now();
-
-	const fetchResult = await adapter.fetch(source);
-	if (!fetchResult.success || !fetchResult.rawContent) {
-		return {
-			sourceId,
-			adapterType: adapter.adapterType,
-			fetchResult,
-			parseResult: null,
-			normalizeResult: null,
-			candidates: [],
-			dedupeCounts: emptyDedupeCounts(),
-			durationMs: Date.now() - startedAt
-		};
-	}
-
-	const config = buildAdapterConfig(source);
-	const parseResult = await adapter.parse(fetchResult.rawContent, config);
-	let normalizeResult = parseResult.success
-		? await adapter.normalize(parseResult.items, source.coils[0], config)
-		: null;
-
-	if (parseResult.success && normalizeResult?.success) {
-		const enrichment = await enrichNormalizedRecords(
-			config,
-			parseResult.items,
-			normalizeResult.records
-		);
-		normalizeResult = {
-			...normalizeResult,
-			records: enrichment.records,
-			errors: [
-				...normalizeResult.errors,
-				...enrichment.warnings.map((message, index) => ({
-					itemIndex: index,
-					message,
-					field: 'detailEnrichment',
-					rawValue: null
-				}))
-			]
-		};
-	}
-
-	const candidates =
-		parseResult.success && normalizeResult
-			? await buildPreviewCandidates(source, parseResult.items, normalizeResult.records)
-			: [];
-
-	return {
-		sourceId,
-		adapterType: adapter.adapterType,
-		fetchResult,
-		parseResult,
-		normalizeResult,
-		candidates,
-		dedupeCounts: countDedupeResults(candidates),
-		durationMs: Date.now() - startedAt
-	};
+	return runPreview(source);
 }
 
 export async function ingestSource(
@@ -91,19 +79,44 @@ export async function ingestSource(
 	options: IngestionExecutionOptions = {}
 ): Promise<IngestionResult> {
 	const source = await loadSourceRecord(sourceId);
-	const preview = await previewSource(sourceId);
+	const preview = await runPreview(source);
 	const now = new Date();
 	const errors = collectPreviewErrors(preview);
 	const contentChanged = preview.fetchResult.contentHash
 		? preview.fetchResult.contentHash !== source.lastContentHash
 		: null;
 
-	let fetchLogId: string | null = null;
-	let batchId: string | null = null;
-	let autoApprovedCount = 0;
 	const trigger = options.trigger ?? 'manual_import';
 	const triggerRunId = options.triggerRunId ?? null;
 	const triggeredBy = options.triggeredBy ?? null;
+
+	const sourceRun = await createSourceRun({
+		sourceId: source.id,
+		trigger,
+		triggerRunId,
+		triggeredBy,
+		adapterType: preview.adapterType,
+		adapterVersion: source.adapterVersion ?? '2026-04-ingestion-hardening',
+		fetchUrl: source.fetchUrl ?? source.sourceUrl
+	});
+
+	for (const stage of preview.stages) {
+		await recordSourceRunStage(sourceRun.id, stage.stage, {
+			status: stage.status,
+			startedAt: new Date(stage.startedAt),
+			completedAt: stage.completedAt ? new Date(stage.completedAt) : null,
+			durationMs: stage.durationMs,
+			itemCount: stage.itemCount ?? null,
+			warnings: stage.warnings,
+			errors: stage.errors,
+			metrics: stage.metrics,
+			details: stage.details
+		});
+	}
+
+	let fetchLogId: string | null = null;
+	let batchId: string | null = null;
+	let autoApprovedCount = 0;
 
 	if (!preview.fetchResult.success) {
 		const [fetchLog] = await db
@@ -130,6 +143,16 @@ export async function ingestSource(
 			contentChanged,
 			contentHash: preview.fetchResult.contentHash,
 			errorCategory: preview.fetchResult.errorCategory
+		});
+
+		await updateSourceRun(sourceRun.id, {
+			status: 'failed',
+			completedAt: now,
+			durationMs: preview.durationMs,
+			contentHash: preview.fetchResult.contentHash,
+			contentChanged,
+			errors,
+			metrics: buildRunMetrics(preview)
 		});
 
 		return {
@@ -171,6 +194,7 @@ export async function ingestSource(
 		.insert(importBatches)
 		.values({
 			sourceId: source.id,
+			sourceRunId: sourceRun.id,
 			fetchLogId,
 			status: 'running',
 			itemsFetched: preview.parseResult?.totalFound ?? 0,
@@ -226,6 +250,27 @@ export async function ingestSource(
 		itemsImportedDelta: candidatesCreated
 	});
 
+	await updateSourceRun(sourceRun.id, {
+		status: errors.length > 0 ? 'failed' : 'completed',
+		completedAt: now,
+		durationMs: preview.durationMs,
+		contentHash: preview.fetchResult.contentHash,
+		contentChanged,
+		itemsFetched: preview.parseResult?.totalFound ?? 0,
+		itemsParsed: preview.parseResult?.items.length ?? 0,
+		itemsNormalized: preview.normalizeResult?.records.length ?? 0,
+		itemsNew: dedupeCounts.new,
+		itemsDuplicate: dedupeCounts.duplicate,
+		itemsUpdated: dedupeCounts.update,
+		itemsFailed:
+			(preview.parseResult?.errors.length ?? 0) + (preview.normalizeResult?.errors.length ?? 0),
+		candidatesCreated,
+		autoApprovedCount,
+		warnings: preview.stages.flatMap((stage) => stage.warnings),
+		errors,
+		metrics: buildRunMetrics(preview)
+	});
+
 	return {
 		...preview,
 		success: true,
@@ -239,14 +284,261 @@ export async function ingestSource(
 	};
 }
 
+async function runPreview(source: SourceRecord): Promise<IngestionPreviewResult> {
+	const adapter = getAdapterForSource(source);
+	const config = buildAdapterConfig(source);
+	const stages: StageDiagnostic[] = [];
+	const startedAt = Date.now();
+
+	const fetchResult = await executeStage(
+		stages,
+		'fetch',
+		async () => adapter.fetch(source),
+		(result) => ({
+			itemCount: result.success ? 1 : 0,
+			errors: result.errorMessage ? [result.errorMessage] : [],
+			metrics: {
+				httpStatusCode: result.httpStatusCode,
+				responseTimeMs: result.responseTimeMs
+			}
+		})
+	);
+
+	if (!fetchResult.success || !fetchResult.rawContent) {
+		return {
+			sourceId: source.id,
+			adapterType: adapter.adapterType,
+			fetchResult,
+			parseResult: null,
+			normalizeResult: null,
+			candidates: [],
+			dedupeCounts: emptyDedupeCounts(),
+			durationMs: Date.now() - startedAt,
+			stages
+		};
+	}
+
+	const parseResult = await executeStage(
+		stages,
+		'discover',
+		async () => adapter.parse(fetchResult.rawContent!, config),
+		(result) => ({
+			itemCount: result.items.length,
+			errors: result.errors.map((error) => error.message)
+		})
+	);
+
+	let normalizeResult = parseResult.success
+		? await executeStage(
+				stages,
+				'normalize',
+				async () => adapter.normalize(parseResult.items, source.coils[0], config),
+				(result) => ({
+					itemCount: result.records.length,
+					errors: result.errors.map((error) => error.message)
+				})
+			)
+		: null;
+
+	if (!parseResult.success || !normalizeResult) {
+		return {
+			sourceId: source.id,
+			adapterType: adapter.adapterType,
+			fetchResult,
+			parseResult,
+			normalizeResult,
+			candidates: [],
+			dedupeCounts: emptyDedupeCounts(),
+			durationMs: Date.now() - startedAt,
+			stages
+		};
+	}
+
+	const enrichment = await executeStage(
+		stages,
+		'detail_enrich',
+		async () => enrichNormalizedRecords(config, parseResult.items, normalizeResult!.records),
+		(result) => ({
+			itemCount: result.records.length,
+			warnings: result.warnings,
+			metrics: {
+				imageCandidateCount: result.imageCandidates.reduce((sum, items) => sum + items.length, 0)
+			}
+		})
+	);
+
+	normalizeResult = {
+		...normalizeResult,
+		records: enrichment.records,
+		errors: [
+			...normalizeResult.errors,
+			...enrichment.warnings.map((message, index) => ({
+				itemIndex: index,
+				message,
+				field: 'detailEnrichment',
+				rawValue: null
+			}))
+		]
+	};
+
+	const structuredStageMetrics = enrichment.diagnostics.reduce(
+		(sum, item) => sum + Number(item.structuredDataCount ?? 0),
+		0
+	);
+	stages.push(
+		buildSyntheticStage('structured_extract', {
+			itemCount: normalizeResult.records.length,
+			metrics: {
+				structuredDataCount: structuredStageMetrics
+			}
+		})
+	);
+
+	const classified = await executeStage(
+		stages,
+		'link_classify',
+		async () =>
+			classifyLinkArtifacts(source, parseResult.items, normalizeResult!.records, enrichment),
+		(result) => ({
+			itemCount: result.records.length,
+			metrics: {
+				urlRoleCount: result.urlRoles.reduce(
+					(sum, map) =>
+						sum +
+						Object.values(map).reduce(
+							(inner, entries) => inner + ((entries as Array<unknown> | undefined)?.length ?? 0),
+							0
+						),
+					0
+				)
+			}
+		})
+	);
+
+	const imaged = await executeStage(
+		stages,
+		'image_discover',
+		async () => applyImageArtifacts(parseResult.items, classified),
+		(result) => ({
+			itemCount: result.records.length,
+			metrics: {
+				imageCandidateCount: result.imageCandidates.reduce((sum, items) => sum + items.length, 0)
+			}
+		})
+	);
+
+	const aiEnriched = await executeStage(
+		stages,
+		'ai_enrich',
+		async () => {
+			if (!shouldRunAiEnrichment(source)) {
+				return {
+					...imaged,
+					extractedFacts: imaged.records.map(() => emptyAiExtractedFacts()),
+					stats: {
+						attempted: 0,
+						completed: 0,
+						skipped: imaged.records.length,
+						conflicts: 0
+					}
+				};
+			}
+
+			const enriched = await applyAiEnrichment(
+				source,
+				parseResult.items,
+				imaged.records,
+				imaged.fieldProvenance,
+				imaged.urlRoles,
+				imaged.diagnostics
+			);
+			return {
+				...imaged,
+				records: enriched.records,
+				fieldProvenance: enriched.fieldProvenance,
+				urlRoles: enriched.urlRoles,
+				extractedFacts: enriched.extractedFacts,
+				diagnostics: enriched.diagnostics,
+				stats: enriched.stats
+			};
+		},
+		(result) => ({
+			status: result.stats.completed === 0 && result.stats.attempted === 0 ? 'skipped' : 'success',
+			itemCount: result.records.length,
+			errors: result.diagnostics
+				.filter((entry) => entry.aiEnrichmentFailed === true)
+				.map((entry) => String(entry.aiEnrichmentError ?? 'AI enrichment failed')),
+			metrics: result.stats
+		})
+	);
+
+	const matched = await executeStage(
+		stages,
+		'entity_match',
+		async () => attachEntityMatches(aiEnriched),
+		(result) => ({
+			itemCount: result.records.length,
+			metrics: {
+				entitySuggestionCount: result.confidence.reduce(
+					(sum, entry) => sum + (entry.entities?.length ?? 0),
+					0
+				)
+			}
+		})
+	);
+
+	const flagged = await executeStage(
+		stages,
+		'quality_flag',
+		async () => applyQualityArtifacts(matched),
+		(result) => ({
+			itemCount: result.records.length,
+			metrics: {
+				flagCount: result.qualityFlags.reduce((sum, flags) => sum + flags.length, 0)
+			}
+		})
+	);
+
+	const candidates = await executeStage(
+		stages,
+		'dedupe',
+		async () =>
+			buildPreviewCandidates(source, parseResult.items, flagged.records, {
+				fieldProvenance: flagged.fieldProvenance,
+				urlRoles: flagged.urlRoles,
+				imageCandidates: flagged.imageCandidates,
+				extractedFacts: flagged.extractedFacts,
+				qualityFlags: flagged.qualityFlags,
+				confidence: flagged.confidence,
+				diagnostics: flagged.diagnostics
+			}),
+		(result) => ({
+			itemCount: result.length,
+			metrics: countDedupeResults(result)
+		})
+	);
+
+	return {
+		sourceId: source.id,
+		adapterType: adapter.adapterType,
+		fetchResult,
+		parseResult,
+		normalizeResult: {
+			...normalizeResult,
+			records: flagged.records
+		},
+		candidates,
+		dedupeCounts: countDedupeResults(candidates),
+		durationMs: Date.now() - startedAt,
+		stages
+	};
+}
+
 async function buildPreviewCandidates(
 	source: SourceRecord,
-	parsedItems: Array<{
-		fields: Record<string, unknown>;
-		sourceItemId: string | null;
-		sourceItemUrl: string | null;
-	}>,
-	normalizedRecords: NormalizedRecord[]
+	parsedItems: ParsedItem[],
+	normalizedRecords: NormalizedRecord[],
+	artifacts: Omit<CandidateArtifacts, 'records'>
 ): Promise<PreviewCandidate[]> {
 	const dedupeLookup = createDedupeLookup();
 	const candidates: PreviewCandidate[] = [];
@@ -280,7 +572,14 @@ async function buildPreviewCandidates(
 				normalizedData as unknown as Record<string, unknown>
 			),
 			sourceAttribution: source.attributionText ?? source.name,
-			expiresAt: computeCandidateExpiry(normalizedData)
+			expiresAt: computeCandidateExpiry(normalizedData),
+			fieldProvenance: artifacts.fieldProvenance[index] ?? {},
+			urlRoles: artifacts.urlRoles[index] ?? {},
+			imageCandidates: artifacts.imageCandidates[index] ?? [],
+			extractedFacts: artifacts.extractedFacts[index] ?? emptyAiExtractedFacts(),
+			qualityFlags: artifacts.qualityFlags[index] ?? [],
+			confidence: artifacts.confidence[index] ?? {},
+			diagnostics: artifacts.diagnostics[index] ?? {}
 		});
 	}
 
@@ -313,6 +612,13 @@ async function upsertImportedCandidate(
 		reviewedBy: null,
 		reviewNotes: null,
 		rejectionReason: null,
+		fieldProvenance: candidate.fieldProvenance,
+		urlRoles: candidate.urlRoles,
+		imageCandidates: candidate.imageCandidates,
+		extractedFacts: candidate.extractedFacts,
+		qualityFlags: candidate.qualityFlags,
+		confidence: candidate.confidence,
+		diagnostics: candidate.diagnostics,
 		expiresAt: candidate.expiresAt
 	};
 
@@ -358,12 +664,434 @@ async function findActiveCandidate(sourceId: string, candidate: PreviewCandidate
 		.where(
 			and(
 				or(...conditions)!,
-				inArray(importedCandidates.status, ['pending_review', 'needs_info', 'auto_approved'])
+				inArray(importedCandidates.status, [...ACTIVE_IMPORTED_CANDIDATE_STATUSES])
 			)
 		)
 		.limit(1);
 
 	return existing ?? null;
+}
+
+async function classifyLinkArtifacts(
+	source: SourceRecord,
+	parsedItems: ParsedItem[],
+	records: NormalizedRecord[],
+	enrichment: Awaited<ReturnType<typeof enrichNormalizedRecords>>
+): Promise<CandidateArtifacts> {
+	const nextRecords: NormalizedRecord[] = [];
+	const fieldProvenance: FieldProvenanceMap[] = [];
+	const urlRoles: UrlRoleMap[] = [];
+	const imageCandidates: ImageCandidate[][] = [];
+	const extractedFacts: AiExtractedFacts[] = [];
+	const qualityFlags: Array<ReturnType<typeof computeQualityFlags>> = [];
+	const confidence: CandidateConfidence[] = [];
+	const diagnostics: Array<Record<string, unknown>> = [];
+
+	for (let index = 0; index < records.length; index += 1) {
+		const record = records[index]!;
+		const parsedItem = parsedItems[index];
+		let map = enrichment.urlRoles[index] ?? {};
+		let provenance = mergeBaseFieldProvenance(record, enrichment.fieldProvenance[index] ?? {});
+		const candidateDiagnostics = {
+			...(enrichment.diagnostics[index] ?? {}),
+			sourceFetchUrl: source.fetchUrl ?? source.sourceUrl
+		};
+
+		if (source.fetchUrl) {
+			map = addUrlEvidence(map, {
+				url: source.fetchUrl,
+				role: 'feed',
+				source: 'feed',
+				confidence: 1,
+				extracted: true
+			});
+		}
+
+		if (parsedItem?.sourceItemUrl) {
+			map = addUrlEvidence(map, {
+				url: parsedItem.sourceItemUrl,
+				role: 'detail_page',
+				source: 'feed',
+				confidence: 0.98,
+				extracted: true
+			});
+		}
+
+		const directRoles = directRolesForRecord(record, parsedItem);
+		for (const evidence of directRoles) {
+			map = addUrlEvidence(map, evidence);
+		}
+
+		const nextRecord = applyPreferredUrls(record, map);
+		if (nextRecord.url && nextRecord.url !== record.url) {
+			provenance = addFieldProvenance(provenance, 'url', {
+				value: nextRecord.url,
+				source: 'inferred',
+				confidence: 0.86,
+				note: 'Preferred canonical item URL after link classification'
+			});
+		}
+
+		if (
+			nextRecord.coil === 'events' &&
+			nextRecord.registration_url &&
+			nextRecord.registration_url !== (record.coil === 'events' ? record.registration_url : null)
+		) {
+			provenance = addFieldProvenance(provenance, 'registration_url', {
+				value: nextRecord.registration_url,
+				source: 'inferred',
+				confidence: 0.84,
+				note: 'Preferred registration/application URL after link classification'
+			});
+		}
+
+		nextRecords.push(nextRecord);
+		fieldProvenance.push(provenance);
+		urlRoles.push(map);
+		imageCandidates.push(enrichment.imageCandidates[index] ?? []);
+		extractedFacts.push(emptyAiExtractedFacts());
+		qualityFlags.push([]);
+		confidence.push({});
+		diagnostics.push(candidateDiagnostics);
+	}
+
+	return {
+		records: nextRecords,
+		fieldProvenance,
+		urlRoles,
+		imageCandidates,
+		extractedFacts,
+		qualityFlags,
+		confidence,
+		diagnostics
+	};
+}
+
+async function applyImageArtifacts(
+	parsedItems: ParsedItem[],
+	artifacts: CandidateArtifacts
+): Promise<CandidateArtifacts> {
+	const nextRecords: NormalizedRecord[] = [];
+	const nextImages: ImageCandidate[][] = [];
+
+	for (let index = 0; index < artifacts.records.length; index += 1) {
+		const record = artifacts.records[index]!;
+		const rawData = parsedItems[index]?.fields ?? {};
+		const candidates = [...(artifacts.imageCandidates[index] ?? [])];
+
+		if (record.image_url) {
+			candidates.push({
+				url: record.image_url,
+				role: 'feed',
+				source: 'feed',
+				confidence: 0.8,
+				isMeaningful: true
+			});
+		}
+
+		for (const attachment of readStringArray(rawData.attachments)) {
+			candidates.push({
+				url: attachment,
+				role: 'attachment',
+				source: 'attachment',
+				confidence: 0.92,
+				isMeaningful: true
+			});
+		}
+
+		const withImage = applyBestImage(record, candidates);
+		if (withImage.image_url && withImage.image_url !== record.image_url) {
+			artifacts.fieldProvenance[index] = addFieldProvenance(
+				artifacts.fieldProvenance[index] ?? {},
+				'image_url',
+				{
+					value: withImage.image_url,
+					source: 'inferred',
+					confidence: 0.9,
+					note: 'Best image candidate selected after image discovery'
+				}
+			);
+		}
+
+		nextRecords.push(withImage);
+		nextImages.push(candidates);
+	}
+
+	return {
+		...artifacts,
+		records: nextRecords,
+		imageCandidates: nextImages
+	};
+}
+
+async function attachEntityMatches(artifacts: CandidateArtifacts): Promise<CandidateArtifacts> {
+	const nextRecords: NormalizedRecord[] = [];
+	const nextConfidence: CandidateConfidence[] = [];
+
+	for (let index = 0; index < artifacts.records.length; index += 1) {
+		const record = { ...artifacts.records[index]! };
+		const map = artifacts.urlRoles[index] ?? {};
+		const entitySuggestions: EntityMatchSuggestion[] = [];
+
+		const organizationName = organizationNameForRecord(record);
+		if (organizationName) {
+			const orgSuggestions = await suggestOrganizationMatches({
+				name: organizationName,
+				website:
+					firstUrl(map.organizer) ??
+					firstUrl(map.canonical_item) ??
+					(record.coil === 'funding' ? record.funder_url : null),
+				city:
+					record.coil === 'events'
+						? record.location_city
+						: record.coil === 'jobs'
+							? record.location_city
+							: undefined,
+				state:
+					record.coil === 'events'
+						? record.location_state
+						: record.coil === 'jobs'
+							? record.location_state
+							: undefined,
+				address:
+					record.coil === 'events'
+						? record.location_address
+						: record.coil === 'red_pages'
+							? record.address
+							: undefined,
+				limit: 4
+			});
+			entitySuggestions.push(
+				...orgSuggestions.map((suggestion) => ({
+					entityType: 'organization' as const,
+					entityId: suggestion.organization.id,
+					label: suggestion.organization.name,
+					score: suggestion.score,
+					reasons: suggestion.reasons
+				}))
+			);
+
+			if ('organization_id' in record && !record.organization_id && orgSuggestions[0]?.score >= 8) {
+				(record as Record<string, unknown>).organization_id = orgSuggestions[0]!.organization.id;
+			}
+		}
+
+		if (record.coil === 'events') {
+			const venueName = record.location_name ?? record.location_address;
+			if (venueName) {
+				const venueSuggestions = await suggestVenueMatches({
+					name: venueName,
+					address: record.location_address,
+					city: record.location_city,
+					state: record.location_state,
+					organizationId: record.organization_id,
+					limit: 4
+				});
+				entitySuggestions.push(
+					...venueSuggestions.map((suggestion) => ({
+						entityType: 'venue' as const,
+						entityId: suggestion.venue.id,
+						label: suggestion.venue.name,
+						score: suggestion.score,
+						reasons: suggestion.reasons
+					}))
+				);
+				if (!record.venue_id && venueSuggestions[0]?.score >= 8) {
+					record.venue_id = venueSuggestions[0]!.venue.id;
+				}
+			}
+		}
+
+		nextRecords.push(record);
+		nextConfidence.push({
+			...(artifacts.confidence[index] ?? {}),
+			entities: entitySuggestions
+		});
+	}
+
+	return {
+		...artifacts,
+		records: nextRecords,
+		confidence: nextConfidence
+	};
+}
+
+async function applyQualityArtifacts(artifacts: CandidateArtifacts): Promise<CandidateArtifacts> {
+	const qualityFlags = artifacts.records.map((record, index) =>
+		computeQualityFlags(
+			record,
+			artifacts.urlRoles[index] ?? {},
+			artifacts.imageCandidates[index] ?? [],
+			artifacts.diagnostics[index] ?? {},
+			artifacts.confidence[index],
+			artifacts.extractedFacts[index]
+		)
+	);
+
+	const confidence = artifacts.records.map((record, index) =>
+		computeConfidence(record, qualityFlags[index]!, artifacts.confidence[index]?.entities ?? [])
+	);
+
+	return {
+		...artifacts,
+		qualityFlags,
+		confidence
+	};
+}
+
+function mergeBaseFieldProvenance(record: NormalizedRecord, existing: FieldProvenanceMap) {
+	let merged = existing;
+	for (const [field, value] of Object.entries(record)) {
+		if (
+			value === null ||
+			value === undefined ||
+			(Array.isArray(value) && value.length === 0) ||
+			(typeof value === 'string' && value.trim().length === 0)
+		) {
+			continue;
+		}
+		merged = addFieldProvenance(merged, field, {
+			value,
+			source: 'feed',
+			confidence: 0.82
+		});
+	}
+	return merged;
+}
+
+function directRolesForRecord(
+	record: NormalizedRecord,
+	parsedItem: ParsedItem | undefined
+): UrlEvidence[] {
+	const roles: UrlEvidence[] = [];
+	const detailUrl = normalizeUrl(parsedItem?.sourceItemUrl);
+
+	if (record.coil === 'events') {
+		if (record.url) {
+			roles.push({
+				url: record.url,
+				role:
+					detailUrl && normalizeUrl(record.url) === detailUrl ? 'detail_page' : 'canonical_item',
+				source: 'adapter',
+				confidence: 0.84,
+				extracted: true
+			});
+		}
+		if (record.registration_url) {
+			roles.push({
+				url: record.registration_url,
+				role: 'registration',
+				source: 'adapter',
+				confidence: 0.84,
+				extracted: true
+			});
+		}
+	} else if (record.coil === 'funding' && record.application_url) {
+		roles.push({
+			url: record.application_url,
+			role: 'application',
+			source: 'adapter',
+			confidence: 0.84,
+			extracted: true
+		});
+		if (record.url) {
+			roles.push({
+				url: record.url,
+				role: 'canonical_item',
+				source: 'adapter',
+				confidence: 0.76,
+				extracted: true
+			});
+		}
+	} else if (record.coil === 'jobs' && record.application_url) {
+		roles.push({
+			url: record.application_url,
+			role: 'application',
+			source: 'adapter',
+			confidence: 0.84,
+			extracted: true
+		});
+		if (record.url) {
+			roles.push({
+				url: record.url,
+				role: 'canonical_item',
+				source: 'adapter',
+				confidence: 0.76,
+				extracted: true
+			});
+		}
+	} else if (record.coil === 'red_pages' && record.website) {
+		roles.push({
+			url: record.website,
+			role: 'canonical_item',
+			source: 'adapter',
+			confidence: 0.82,
+			extracted: true
+		});
+	} else if (record.coil === 'toolbox' && record.url) {
+		roles.push({
+			url: record.url,
+			role: 'canonical_item',
+			source: 'adapter',
+			confidence: 0.82,
+			extracted: true
+		});
+	}
+
+	return roles;
+}
+
+function applyPreferredUrls(record: NormalizedRecord, urlRoles: UrlRoleMap): NormalizedRecord {
+	const canonical = firstUrl(urlRoles.canonical_item) ?? firstUrl(urlRoles.detail_page);
+	const registration = firstUrl(urlRoles.registration) ?? firstUrl(urlRoles.application);
+
+	switch (record.coil) {
+		case 'events':
+			return {
+				...record,
+				url: canonical ?? record.url,
+				registration_url: registration ?? record.registration_url
+			};
+		case 'funding':
+			return {
+				...record,
+				url: canonical ?? record.url,
+				application_url: firstUrl(urlRoles.application) ?? record.application_url
+			};
+		case 'jobs':
+			return {
+				...record,
+				url: canonical ?? record.url,
+				application_url: firstUrl(urlRoles.application) ?? record.application_url
+			};
+		case 'red_pages':
+			return {
+				...record,
+				website: canonical ?? record.website,
+				url: canonical ?? record.url
+			};
+		case 'toolbox':
+			return {
+				...record,
+				url: canonical ?? record.url
+			};
+	}
+}
+
+function organizationNameForRecord(record: NormalizedRecord) {
+	switch (record.coil) {
+		case 'events':
+		case 'jobs':
+		case 'red_pages':
+		case 'toolbox':
+			return record.organization_name;
+		case 'funding':
+			return record.funder_name ?? record.organization_name;
+	}
+}
+
+function firstUrl(entries: UrlEvidence[] | undefined) {
+	return entries?.[0]?.url ?? null;
 }
 
 async function loadSourceRecord(sourceId: string): Promise<SourceRecord> {
@@ -463,7 +1191,8 @@ function collectPreviewErrors(preview: IngestionPreviewResult): string[] {
 	if (preview.fetchResult.errorMessage) errors.push(preview.fetchResult.errorMessage);
 	for (const error of preview.parseResult?.errors ?? []) errors.push(error.message);
 	for (const error of preview.normalizeResult?.errors ?? []) errors.push(error.message);
-	return errors;
+	for (const stage of preview.stages) errors.push(...stage.errors);
+	return Array.from(new Set(errors.filter(Boolean)));
 }
 
 function buildBatchErrors(
@@ -484,8 +1213,16 @@ function buildBatchErrors(
 			source_slug: meta.sourceSlug,
 			recorded_at: new Date().toISOString()
 		},
+		...preview.stages.map((stage) => ({
+			stage: stage.stage,
+			status: stage.status,
+			duration_ms: stage.durationMs,
+			errors: stage.errors,
+			warnings: stage.warnings,
+			metrics: stage.metrics ?? {}
+		})),
 		...(preview.parseResult?.errors ?? []).map((error) => ({
-			stage: 'parse',
+			stage: 'discover',
 			item_index: error.itemIndex,
 			error: error.message
 		})),
@@ -507,6 +1244,125 @@ function shouldAutoApproveCandidate(
 		source.autoApprove &&
 		!source.reviewRequired &&
 		(source.confidenceScore ?? 0) >= 4 &&
-		candidate.dedupe.result === 'new'
+		candidate.dedupe.result === 'new' &&
+		(candidate.confidence.overall ?? 0) >= 0.82
 	);
+}
+
+async function executeStage<T>(
+	stages: StageDiagnostic[],
+	stage: IngestionStage,
+	run: () => Promise<T>,
+	collect?: (result: T) => {
+		status?: IngestionStageStatus;
+		itemCount?: number;
+		warnings?: string[];
+		errors?: string[];
+		metrics?: Record<string, unknown>;
+		details?: Record<string, unknown>;
+	}
+): Promise<T> {
+	const startedAt = new Date();
+	try {
+		const result = await run();
+		const details = collect?.(result) ?? {};
+		stages.push({
+			stage,
+			status: details.status ?? (details.errors?.length ? 'partial' : 'success'),
+			startedAt: startedAt.toISOString(),
+			completedAt: new Date().toISOString(),
+			durationMs: Date.now() - startedAt.getTime(),
+			itemCount: details.itemCount,
+			warnings: details.warnings ?? [],
+			errors: details.errors ?? [],
+			metrics: details.metrics ?? {},
+			details: details.details ?? {}
+		});
+		return result;
+	} catch (error) {
+		stages.push({
+			stage,
+			status: 'failure',
+			startedAt: startedAt.toISOString(),
+			completedAt: new Date().toISOString(),
+			durationMs: Date.now() - startedAt.getTime(),
+			warnings: [],
+			errors: [error instanceof Error ? error.message : 'Unknown stage failure'],
+			metrics: {},
+			details: {}
+		});
+		throw error;
+	}
+}
+
+function buildSyntheticStage(
+	stage: IngestionStage,
+	input: {
+		status?: IngestionStageStatus;
+		itemCount?: number;
+		warnings?: string[];
+		errors?: string[];
+		metrics?: Record<string, unknown>;
+		details?: Record<string, unknown>;
+	}
+): StageDiagnostic {
+	const now = new Date().toISOString();
+	return {
+		stage,
+		status: input.status ?? (input.errors?.length ? 'partial' : 'success'),
+		startedAt: now,
+		completedAt: now,
+		durationMs: 0,
+		itemCount: input.itemCount,
+		warnings: input.warnings ?? [],
+		errors: input.errors ?? [],
+		metrics: input.metrics ?? {},
+		details: input.details ?? {}
+	};
+}
+
+function buildRunMetrics(preview: IngestionPreviewResult) {
+	const totalCandidates = preview.candidates.length || 1;
+	const missingImageCount = preview.candidates.filter((candidate) =>
+		candidate.qualityFlags.some((flag) => flag.code === 'missing_image')
+	).length;
+	const lowConfidenceCount = preview.candidates.filter(
+		(candidate) => (candidate.confidence.overall ?? 1) < 0.75
+	).length;
+	const enrichmentFailureCount = preview.candidates.filter(
+		(candidate) => candidate.diagnostics.detailEnrichmentFailed === true
+	).length;
+	const aiConflictCount = preview.candidates.filter(
+		(candidate) => (candidate.extractedFacts.conflicts?.length ?? 0) > 0
+	).length;
+
+	return {
+		missingImageRate: missingImageCount / totalCandidates,
+		lowConfidenceRate: lowConfidenceCount / totalCandidates,
+		detailEnrichmentFailureRate: enrichmentFailureCount / totalCandidates,
+		aiConflictRate: aiConflictCount / totalCandidates,
+		duplicateRate: preview.dedupeCounts.duplicate / totalCandidates,
+		ambiguousRate: preview.dedupeCounts.ambiguous / totalCandidates
+	};
+}
+
+function readStringArray(value: unknown) {
+	if (Array.isArray(value)) {
+		return value.filter(
+			(entry): entry is string => typeof entry === 'string' && entry.trim().length > 0
+		);
+	}
+	return [];
+}
+
+function emptyAiExtractedFacts(): AiExtractedFacts {
+	return {
+		offers: [],
+		people: [],
+		locationParts: null,
+		fieldSuggestions: [],
+		conflicts: [],
+		notes: [],
+		model: null
+	};
 }

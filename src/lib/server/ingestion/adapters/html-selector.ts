@@ -1,4 +1,4 @@
-import { load } from 'cheerio';
+import { load, type CheerioAPI } from 'cheerio';
 import { normalizeUrl } from '../dedupe';
 import {
 	absoluteUrl,
@@ -38,6 +38,13 @@ type HtmlSelectorConfig = AdapterConfig & {
 	maxItems?: number;
 	__sourceSlug?: string;
 	__sourceUrl?: string;
+};
+
+type HtmlNode = Parameters<CheerioAPI>[0];
+type ExtractTarget = {
+	attr(name: string): string | undefined;
+	html(): string | null | undefined;
+	text(): string;
 };
 
 export const htmlSelectorAdapter: IngestionAdapter = {
@@ -135,11 +142,7 @@ export const htmlSelectorAdapter: IngestionAdapter = {
 	}
 };
 
-function extractItem(
-	$: ReturnType<typeof load>,
-	element: any,
-	config: HtmlSelectorConfig
-): ParsedItem {
+function extractItem($: CheerioAPI, element: HtmlNode, config: HtmlSelectorConfig): ParsedItem {
 	const root = $(element);
 	if (config.fieldRules && Object.keys(config.fieldRules).length > 0) {
 		const fields: Record<string, unknown> = {};
@@ -191,7 +194,7 @@ function extractItem(
 	};
 }
 
-function extractRuleValue(target: any, rule: FieldRule) {
+function extractRuleValue(target: ExtractTarget, rule: FieldRule) {
 	switch (rule.extract) {
 		case 'href':
 			return target.attr('href') ?? null;
@@ -251,7 +254,7 @@ function normalizeEvent(item: ParsedItem): NormalizedEvent {
 		is_recurring: false,
 		recurrence_rule: null,
 		event_type: splitTags(item.fields.category)[0] ?? null,
-		registration_url: normalizeUrl(readString(item.fields.url)),
+		registration_url: null,
 		cost: null
 	};
 }

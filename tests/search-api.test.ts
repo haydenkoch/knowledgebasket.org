@@ -15,7 +15,7 @@ describe('search API mode reporting', () => {
 		await server?.stop();
 	});
 
-	it('reports all-coil mode when Meilisearch is configured', async () => {
+	it('falls back to events-only mode when Meilisearch is configured but unavailable', async () => {
 		const response = await fetch(`${server.baseUrl}/api/search?q=tribal`);
 		expect(response.status).toBe(200);
 
@@ -25,6 +25,6 @@ describe('search API mode reporting', () => {
 		};
 
 		expect(payload.query).toBe('tribal');
-		expect(payload.mode).toBe('all');
+		expect(payload.mode).toBe('events-only');
 	});
 });

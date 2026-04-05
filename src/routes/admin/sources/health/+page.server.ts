@@ -9,6 +9,7 @@ import {
 	runDueSources,
 	runSourceNow
 } from '$lib/server/ingestion/scheduler';
+import { getSourceRunHealthMetrics } from '$lib/server/ingestion/source-runs';
 import { validateSourceConfig } from '$lib/server/ingestion/validation';
 import { getRecentFailures, getFetchLogSummary } from '$lib/server/source-fetch-log';
 import { getSourceHealthSummary, getSourcesForAdmin } from '$lib/server/sources';
@@ -23,6 +24,7 @@ export const load: PageServerLoad = async () => {
 		broken,
 		authRequired,
 		degraded,
+		quarantined,
 		recentFailures,
 		adapterStats,
 		duplicateHeavy,
@@ -31,7 +33,8 @@ export const load: PageServerLoad = async () => {
 		approvalRates,
 		recentSchedulerRuns,
 		repeatedErrors,
-		needsCuration
+		needsCuration,
+		runHealthMetrics
 	] = await Promise.all([
 		getSourceHealthSummary(),
 		getFetchLogSummary(),
@@ -41,6 +44,7 @@ export const load: PageServerLoad = async () => {
 		getSourcesForAdmin({ healthStatus: 'broken', limit: 10, sort: 'checked' }),
 		getSourcesForAdmin({ healthStatus: 'auth_required', limit: 10, sort: 'checked' }),
 		getSourcesForAdmin({ healthStatus: 'degraded', limit: 10, sort: 'checked' }),
+		getSourcesForAdmin({ quarantined: true, limit: 10, sort: 'checked' }),
 		getRecentFailures(15),
 		getAdapterStats(),
 		getDuplicateHeavySources(),
@@ -49,7 +53,8 @@ export const load: PageServerLoad = async () => {
 		getApprovalRates(),
 		getRecentSchedulerRuns(),
 		getRepeatedErrors(),
-		getNeedsCurationSources()
+		getNeedsCurationSources(),
+		getSourceRunHealthMetrics()
 	]);
 
 	return {
@@ -61,6 +66,7 @@ export const load: PageServerLoad = async () => {
 		broken: broken.items,
 		authRequired: authRequired.items,
 		degraded: degraded.items,
+		quarantined: quarantined.items,
 		recentFailures,
 		adapterStats,
 		duplicateHeavy,
@@ -69,7 +75,8 @@ export const load: PageServerLoad = async () => {
 		approvalRates,
 		recentSchedulerRuns,
 		repeatedErrors,
-		needsCuration
+		needsCuration,
+		runHealthMetrics
 	};
 };
 
@@ -265,7 +272,8 @@ async function getRecentSchedulerRuns(limit = 6) {
 		.slice(0, limit)
 		.map(([triggerRunId, rows]) => ({
 			triggerRunId,
-			startedAt: rows.map((row) => row.startedAt).sort((a, b) => a.getTime() - b.getTime())[0] ?? null,
+			startedAt:
+				rows.map((row) => row.startedAt).sort((a, b) => a.getTime() - b.getTime())[0] ?? null,
 			completedAt:
 				rows
 					.map((row) => row.completedAt)
@@ -311,10 +319,17 @@ async function getNeedsCurationSources() {
 			if (source.healthStatus === 'broken' || source.healthStatus === 'auth_required') {
 				reasons.push(source.healthStatus.replace(/_/g, ' '));
 			}
-			if (duplicateMap.get(source.id)?.duplicateRatio != null && duplicateMap.get(source.id)!.duplicateRatio >= 0.7) {
+			if (source.quarantined) reasons.push('quarantined');
+			if (
+				duplicateMap.get(source.id)?.duplicateRatio != null &&
+				duplicateMap.get(source.id)!.duplicateRatio >= 0.7
+			) {
 				reasons.push('duplicate heavy');
 			}
-			if (lowYieldMap.get(source.id)?.yieldRatio != null && lowYieldMap.get(source.id)!.yieldRatio <= 0.2) {
+			if (
+				lowYieldMap.get(source.id)?.yieldRatio != null &&
+				lowYieldMap.get(source.id)!.yieldRatio <= 0.2
+			) {
 				reasons.push('low yield');
 			}
 			return {

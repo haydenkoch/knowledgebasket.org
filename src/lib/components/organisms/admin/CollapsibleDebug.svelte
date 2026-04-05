@@ -28,9 +28,7 @@
 	<Collapsible.Trigger
 		class="flex w-full items-center gap-2 rounded-lg border border-[color:var(--rule)] bg-[var(--color-alpine-snow-100)]/60 px-3 py-2 text-left text-xs font-medium text-[var(--mid)] transition-colors hover:bg-[var(--color-alpine-snow-200)]/60"
 	>
-		<ChevronDown
-			class="h-3.5 w-3.5 transition-transform duration-150 {open ? 'rotate-180' : ''}"
-		/>
+		<ChevronDown class="h-3.5 w-3.5 transition-transform duration-150 {open ? 'rotate-180' : ''}" />
 		{label}
 	</Collapsible.Trigger>
 	<Collapsible.Content>
@@ -47,7 +45,8 @@
 			>
 				<Copy class="h-3.5 w-3.5" />
 			</Button>
-			<pre class="max-h-80 overflow-auto p-4 text-xs leading-5 text-[var(--mid)]">{formatted()}</pre>
+			<pre
+				class="max-h-80 overflow-auto p-4 text-xs leading-5 text-[var(--mid)]">{formatted()}</pre>
 		</div>
 	</Collapsible.Content>
 </Collapsible.Root>

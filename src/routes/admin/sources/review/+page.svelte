@@ -100,7 +100,26 @@
 		if (candidate.coil === 'events' && !venue) flags.push('Missing venue details');
 		if (description.length > 0 && description.length < 80) flags.push('Short description');
 		if (candidate.dedupeResult === 'ambiguous') flags.push('Low-confidence match');
+		if (Array.isArray(candidate.qualityFlags)) {
+			for (const entry of candidate.qualityFlags) {
+				if (!entry || typeof entry !== 'object') continue;
+				const code = (entry as { code?: string }).code ?? '';
+				if (code === 'conflicting_dates') flags.push('Date conflict');
+				if (code === 'ai_detected_conflict') flags.push('AI found a conflict');
+			}
+		}
 		return flags;
+	}
+
+	function aiSummary(candidate: (typeof data.candidates)[number]) {
+		const facts =
+			candidate.extractedFacts && typeof candidate.extractedFacts === 'object'
+				? (candidate.extractedFacts as Record<string, unknown>)
+				: {};
+		const offers = Array.isArray(facts.offers) ? facts.offers.length : 0;
+		const conflicts = Array.isArray(facts.conflicts) ? facts.conflicts.length : 0;
+		if (offers === 0 && conflicts === 0) return null;
+		return `${offers} offer${offers === 1 ? '' : 's'} · ${conflicts} conflict${conflicts === 1 ? '' : 's'}`;
 	}
 
 	function isBulkEligible(candidate: (typeof data.candidates)[number]) {
@@ -313,6 +332,7 @@
 			{@const isUpdate =
 				candidate.dedupeResult === 'update' || candidate.dedupeResult === 'ambiguous'}
 			{@const flags = qualityFlags(candidate)}
+			{@const aiFactsSummary = aiSummary(candidate)}
 			<Card.Root class="border border-[color:var(--rule)]">
 				<Card.Content class="space-y-4 p-5">
 					<!-- Header row -->
@@ -402,6 +422,12 @@
 									{flag}
 								</span>
 							{/each}
+						</div>
+					{/if}
+
+					{#if aiFactsSummary}
+						<div class="text-xs font-medium tracking-[0.04em] text-[var(--mid)] uppercase">
+							AI extracted: {aiFactsSummary}
 						</div>
 					{/if}
 

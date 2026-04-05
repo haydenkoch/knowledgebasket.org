@@ -114,6 +114,47 @@
 		const title = record.title;
 		return typeof title === 'string' && title.trim() ? title : 'Untitled candidate';
 	}
+
+	function qualityCodes(value: unknown): string[] {
+		if (!Array.isArray(value)) return [];
+		return value
+			.map((entry) =>
+				entry && typeof entry === 'object' ? ((entry as { code?: string }).code ?? null) : null
+			)
+			.filter((entry): entry is string => Boolean(entry));
+	}
+
+	function confidenceScore(value: unknown): number | null {
+		if (!value || typeof value !== 'object') return null;
+		const overall = Number((value as { overall?: unknown }).overall ?? NaN);
+		return Number.isFinite(overall) ? overall : null;
+	}
+
+	function urlRoleNames(value: unknown): string[] {
+		if (!value || typeof value !== 'object') return [];
+		return Object.entries(value as Record<string, unknown>)
+			.filter(([, entries]) => Array.isArray(entries) && entries.length > 0)
+			.map(([role]) => role);
+	}
+
+	function extractedFacts(value: unknown) {
+		return value && typeof value === 'object' ? (value as Record<string, unknown>) : {};
+	}
+
+	function extractedFactCount(value: unknown, key: 'offers' | 'conflicts') {
+		const facts = extractedFacts(value);
+		return Array.isArray(facts[key]) ? facts[key].length : 0;
+	}
+
+	function stageIssueCount(run: {
+		stages?: Array<{ status: string; warnings?: unknown; errors?: unknown }>;
+	}) {
+		return (run.stages ?? []).filter((stage) => {
+			const hasWarnings = Array.isArray(stage.warnings) && stage.warnings.length > 0;
+			const hasErrors = Array.isArray(stage.errors) && stage.errors.length > 0;
+			return stage.status !== 'success' || hasWarnings || hasErrors;
+		}).length;
+	}
 </script>
 
 <div class="space-y-6">
@@ -123,7 +164,9 @@
 			<div class="mt-2 flex flex-wrap gap-2">
 				<StatusBadge status={data.source.status} />
 				<HealthBadge health={data.source.healthStatus} />
-				<span class="inline-flex items-center rounded-full border border-[color:var(--rule)] bg-[var(--color-alpine-snow-100)] px-2.5 py-1 text-[11px] font-semibold tracking-[0.04em] text-[var(--mid)] uppercase">
+				<span
+					class="inline-flex items-center rounded-full border border-[color:var(--rule)] bg-[var(--color-alpine-snow-100)] px-2.5 py-1 text-[11px] font-semibold tracking-[0.04em] text-[var(--mid)] uppercase"
+				>
 					{data.source.enabled ? 'Enabled' : 'Disabled'}
 				</span>
 			</div>
@@ -185,6 +228,27 @@
 			</form>
 			<form
 				method="POST"
+				action={data.source.quarantined ? '?/unquarantineSource' : '?/quarantineSource'}
+				use:enhance={() => {
+					return async ({ result, update }) => {
+						if (result.type === 'success')
+							toast.success(
+								data.source.quarantined ? 'Source removed from quarantine' : 'Source quarantined'
+							);
+						await update();
+					};
+				}}
+				class="flex gap-2"
+			>
+				{#if !data.source.quarantined}
+					<Input name="quarantineReason" placeholder="Quarantine reason" class="w-56" />
+				{/if}
+				<Button type="submit" variant="outline">
+					{data.source.quarantined ? 'Remove quarantine' : 'Quarantine'}
+				</Button>
+			</form>
+			<form
+				method="POST"
 				action="?/pauseSource"
 				use:enhance={() => {
 					return async ({ result, update }) => {
@@ -231,10 +295,16 @@
 	{/if}
 
 	{#if form?.runResult}
-		<div class="rounded-xl border border-[color:color-mix(in_srgb,var(--color-lakebed-300)_50%,transparent)] bg-[color:color-mix(in_srgb,var(--color-lakebed-50)_70%,white)] px-5 py-4 text-sm">
-			<div class="font-semibold text-[var(--color-lakebed-900)]">{form.runResult.success ? 'Run completed' : 'Run failed'}</div>
+		<div
+			class="rounded-xl border border-[color:color-mix(in_srgb,var(--color-lakebed-300)_50%,transparent)] bg-[color:color-mix(in_srgb,var(--color-lakebed-50)_70%,white)] px-5 py-4 text-sm"
+		>
+			<div class="font-semibold text-[var(--color-lakebed-900)]">
+				{form.runResult.success ? 'Run completed' : 'Run failed'}
+			</div>
 			<div class="mt-1 text-[var(--color-lakebed-800)]">
-				{form.runResult.candidatesCreated} new item{form.runResult.candidatesCreated !== 1 ? 's' : ''} found ·
+				{form.runResult.candidatesCreated} new item{form.runResult.candidatesCreated !== 1
+					? 's'
+					: ''} found ·
 				{form.runResult.autoApprovedCount} auto-approved
 			</div>
 			{#if form.runResult.error}
@@ -243,27 +313,40 @@
 		</div>
 	{/if}
 
-	<div class="grid gap-4 lg:grid-cols-2 xl:grid-cols-4">
-		<div class="rounded-xl border border-[color:var(--rule)] bg-[var(--color-alpine-snow-100)]/50 p-4">
+	<div class="grid gap-4 lg:grid-cols-2 xl:grid-cols-5">
+		<div
+			class="rounded-xl border border-[color:var(--rule)] bg-[var(--color-alpine-snow-100)]/50 p-4"
+		>
 			<div class="text-[11px] font-bold tracking-[0.08em] text-[var(--mid)] uppercase">Setup</div>
 			<div class="mt-1 text-sm font-medium">
 				{data.validation.valid ? 'Ready to run' : 'Needs attention'}
 			</div>
 			<div class="mt-1 text-xs text-[var(--mid)]">
-				{data.validation.adapterDisplayName ?? friendly(ingestionLabel, data.source.adapterType) ?? 'No import method set'}
+				{data.validation.adapterDisplayName ??
+					friendly(ingestionLabel, data.source.adapterType) ??
+					'No import method set'}
 			</div>
 		</div>
-		<div class="rounded-xl border border-[color:var(--rule)] bg-[var(--color-alpine-snow-100)]/50 p-4">
-			<div class="text-[11px] font-bold tracking-[0.08em] text-[var(--mid)] uppercase">Items imported</div>
+		<div
+			class="rounded-xl border border-[color:var(--rule)] bg-[var(--color-alpine-snow-100)]/50 p-4"
+		>
+			<div class="text-[11px] font-bold tracking-[0.08em] text-[var(--mid)] uppercase">
+				Items imported
+			</div>
 			<div class="mt-1 text-sm font-medium">
 				{data.batchQualitySummary.totalNew} new · {data.batchQualitySummary.totalUpdated} updates
 			</div>
 			<div class="mt-1 text-xs text-[var(--mid)]">
-				{data.batchQualitySummary.totalDuplicate} duplicates · {data.batchQualitySummary.totalFailed} failed
+				{data.batchQualitySummary.totalDuplicate} duplicates · {data.batchQualitySummary
+					.totalFailed} failed
 			</div>
 		</div>
-		<div class="rounded-xl border border-[color:var(--rule)] bg-[var(--color-alpine-snow-100)]/50 p-4">
-			<div class="text-[11px] font-bold tracking-[0.08em] text-[var(--mid)] uppercase">Published</div>
+		<div
+			class="rounded-xl border border-[color:var(--rule)] bg-[var(--color-alpine-snow-100)]/50 p-4"
+		>
+			<div class="text-[11px] font-bold tracking-[0.08em] text-[var(--mid)] uppercase">
+				Published
+			</div>
 			<div class="mt-1 text-sm font-medium">
 				{data.candidateOutcomeSummary.approved + data.candidateOutcomeSummary.autoApproved} approved
 			</div>
@@ -271,15 +354,47 @@
 				{data.candidateOutcomeSummary.pending} pending · {data.candidateOutcomeSummary.rejected} rejected
 			</div>
 		</div>
-		<div class="rounded-xl border border-[color:var(--rule)] bg-[var(--color-alpine-snow-100)]/50 p-4">
-			<div class="text-[11px] font-bold tracking-[0.08em] text-[var(--mid)] uppercase">Error types</div>
+		<div
+			class="rounded-xl border border-[color:var(--rule)] bg-[var(--color-alpine-snow-100)]/50 p-4"
+		>
+			<div class="text-[11px] font-bold tracking-[0.08em] text-[var(--mid)] uppercase">
+				Error types
+			</div>
 			<div class="mt-1 text-sm font-medium">{Object.keys(data.errorPatterns).length}</div>
 			<div class="mt-1 text-xs text-[var(--mid)]">Distinct error patterns seen</div>
 		</div>
+		<div
+			class="rounded-xl border border-[color:var(--rule)] bg-[var(--color-alpine-snow-100)]/50 p-4"
+		>
+			<div class="text-[11px] font-bold tracking-[0.08em] text-[var(--mid)] uppercase">
+				Quality flags
+			</div>
+			<div class="mt-1 text-sm font-medium">
+				{data.candidateQualitySummary.missingImage} missing images
+			</div>
+			<div class="mt-1 text-xs text-[var(--mid)]">
+				{data.candidateQualitySummary.lowConfidence} low confidence ·
+				{data.candidateQualitySummary.enrichmentFailures} enrichment failures
+			</div>
+		</div>
 	</div>
 
+	{#if data.source.quarantined}
+		<div
+			class="rounded-xl border border-[color:color-mix(in_srgb,var(--color-ember-300)_60%,transparent)] bg-[color:color-mix(in_srgb,var(--color-ember-50)_88%,white)] px-5 py-4 text-sm text-[var(--color-ember-900)]"
+		>
+			<div class="font-semibold tracking-[0.04em] uppercase">Source quarantined</div>
+			<div class="mt-1">
+				{data.source.quarantineReason ??
+					'This source is held out of scheduled runs until an operator clears it.'}
+			</div>
+		</div>
+	{/if}
+
 	{#if !data.validation.valid || data.validation.warnings.length > 0}
-		<div class="rounded-xl border border-[color:color-mix(in_srgb,var(--color-flicker-300)_50%,transparent)] bg-[color:color-mix(in_srgb,var(--color-flicker-50)_60%,white)] p-4 text-sm text-[var(--color-flicker-900)]">
+		<div
+			class="rounded-xl border border-[color:color-mix(in_srgb,var(--color-flicker-300)_50%,transparent)] bg-[color:color-mix(in_srgb,var(--color-flicker-50)_60%,white)] p-4 text-sm text-[var(--color-flicker-900)]"
+		>
 			<div class="font-medium">Configuration issue</div>
 			{#if data.validation.errors.length > 0}
 				<div class="mt-2 space-y-1">
@@ -344,6 +459,44 @@
 					</div>
 				</div>
 
+				{#if result.stages.length > 0}
+					<div class="rounded-md border p-3">
+						<div class="text-sm font-medium">Pipeline stages</div>
+						<div class="mt-3 overflow-x-auto">
+							<Table.Root>
+								<Table.Header>
+									<Table.Row>
+										<Table.Head>Stage</Table.Head>
+										<Table.Head>Status</Table.Head>
+										<Table.Head>Items</Table.Head>
+										<Table.Head>Duration</Table.Head>
+										<Table.Head>Notes</Table.Head>
+									</Table.Row>
+								</Table.Header>
+								<Table.Body>
+									{#each result.stages as stage}
+										<Table.Row>
+											<Table.Cell>{stage.stage.replace(/_/g, ' ')}</Table.Cell>
+											<Table.Cell>{stage.status}</Table.Cell>
+											<Table.Cell>{stage.itemCount ?? '—'}</Table.Cell>
+											<Table.Cell>{stage.durationMs ?? '—'} ms</Table.Cell>
+											<Table.Cell class="max-w-sm text-xs text-muted-foreground">
+												{#if stage.errors.length > 0}
+													{stage.errors[0]}
+												{:else if stage.warnings.length > 0}
+													{stage.warnings[0]}
+												{:else}
+													—
+												{/if}
+											</Table.Cell>
+										</Table.Row>
+									{/each}
+								</Table.Body>
+							</Table.Root>
+						</div>
+					</div>
+				{/if}
+
 				<div class="grid gap-4 xl:grid-cols-[0.75fr_1.25fr]">
 					<div class="space-y-4">
 						<div class="rounded-md border p-3">
@@ -407,27 +560,102 @@
 							<div class="rounded-xl border border-[color:var(--rule)] p-4">
 								<div class="flex flex-wrap items-center gap-2">
 									<div class="font-medium">{previewTitle(candidate.normalizedData)}</div>
-									<span class="inline-flex items-center rounded-full border border-[color:var(--rule)] bg-[var(--color-alpine-snow-100)] px-2.5 py-1 text-[11px] font-semibold tracking-[0.04em] text-[var(--mid)] uppercase">
+									<span
+										class="inline-flex items-center rounded-full border border-[color:var(--rule)] bg-[var(--color-alpine-snow-100)] px-2.5 py-1 text-[11px] font-semibold tracking-[0.04em] text-[var(--mid)] uppercase"
+									>
 										{friendly(dedupeLabel, candidate.dedupe.result)}
 									</span>
 									{#if candidate.priority !== 'normal'}
-										<span class="inline-flex items-center rounded-full border border-[color:color-mix(in_srgb,var(--color-ember-300)_60%,transparent)] bg-[color:color-mix(in_srgb,var(--color-ember-50)_90%,white)] px-2.5 py-1 text-[11px] font-semibold tracking-[0.04em] text-[var(--color-ember-900)] uppercase">
+										<span
+											class="inline-flex items-center rounded-full border border-[color:color-mix(in_srgb,var(--color-ember-300)_60%,transparent)] bg-[color:color-mix(in_srgb,var(--color-ember-50)_90%,white)] px-2.5 py-1 text-[11px] font-semibold tracking-[0.04em] text-[var(--color-ember-900)] uppercase"
+										>
 											{friendly(priorityLabel, candidate.priority)}
 										</span>
 									{/if}
 								</div>
 								{#if candidate.dedupe.match?.canonicalTitle}
-									<p class="mt-1 text-xs text-[var(--mid)]">Matches: {candidate.dedupe.match.canonicalTitle}</p>
+									<p class="mt-1 text-xs text-[var(--mid)]">
+										Matches: {candidate.dedupe.match.canonicalTitle}
+									</p>
 								{/if}
-								<div class="mt-3">
-									<CandidateFieldCard data={candidate.normalizedData as unknown as Record<string, unknown>} />
+								<div class="mt-3 flex flex-wrap gap-2 text-xs">
+									{#if confidenceScore(candidate.confidence) !== null}
+										<span
+											class={`inline-flex items-center rounded-full border px-2.5 py-1 font-semibold ${badgeClass((confidenceScore(candidate.confidence) ?? 1) >= 0.85 ? 'healthy' : (confidenceScore(candidate.confidence) ?? 1) >= 0.7 ? 'degraded' : 'broken')}`}
+										>
+											Confidence {(confidenceScore(candidate.confidence) ?? 0).toFixed(2)}
+										</span>
+									{/if}
+									{#each qualityCodes(candidate.qualityFlags) as code}
+										<span
+											class="inline-flex items-center rounded-full border border-[color:color-mix(in_srgb,var(--color-flicker-300)_55%,transparent)] bg-[color:color-mix(in_srgb,var(--color-flicker-50)_92%,white)] px-2.5 py-1 font-semibold text-[var(--color-flicker-900)]"
+										>
+											{code.replace(/_/g, ' ')}
+										</span>
+									{/each}
+									{#each urlRoleNames(candidate.urlRoles) as role}
+										<span
+											class="inline-flex items-center rounded-full border border-[color:var(--rule)] bg-[var(--color-alpine-snow-100)] px-2.5 py-1 font-semibold text-[var(--mid)]"
+										>
+											{role.replace(/_/g, ' ')}
+										</span>
+									{/each}
+									{#if candidate.imageCandidates.length > 0}
+										<span
+											class="inline-flex items-center rounded-full border border-[color:var(--rule)] bg-[var(--color-alpine-snow-100)] px-2.5 py-1 font-semibold text-[var(--mid)]"
+										>
+											{candidate.imageCandidates.length} image candidate{candidate.imageCandidates
+												.length === 1
+												? ''
+												: 's'}
+										</span>
+									{/if}
+									{#if extractedFactCount(candidate.extractedFacts, 'offers') > 0}
+										<span
+											class="inline-flex items-center rounded-full border border-[color:var(--rule)] bg-[var(--color-alpine-snow-100)] px-2.5 py-1 font-semibold text-[var(--mid)]"
+										>
+											{extractedFactCount(candidate.extractedFacts, 'offers')} offer{extractedFactCount(
+												candidate.extractedFacts,
+												'offers'
+											) === 1
+												? ''
+												: 's'}
+										</span>
+									{/if}
+									{#if extractedFactCount(candidate.extractedFacts, 'conflicts') > 0}
+										<span
+											class="inline-flex items-center rounded-full border border-[color:color-mix(in_srgb,var(--color-flicker-300)_55%,transparent)] bg-[color:color-mix(in_srgb,var(--color-flicker-50)_92%,white)] px-2.5 py-1 font-semibold text-[var(--color-flicker-900)]"
+										>
+											{extractedFactCount(candidate.extractedFacts, 'conflicts')} conflict{extractedFactCount(
+												candidate.extractedFacts,
+												'conflicts'
+											) === 1
+												? ''
+												: 's'}
+										</span>
+									{/if}
 								</div>
 								<div class="mt-3">
-									<CollapsibleDebug label="Raw data" data={{ normalized: candidate.normalizedData, raw: candidate.rawData }} />
+									<CandidateFieldCard
+										data={candidate.normalizedData as unknown as Record<string, unknown>}
+									/>
+								</div>
+								<div class="mt-3">
+									<CollapsibleDebug
+										label="Raw data"
+										data={{
+											normalized: candidate.normalizedData,
+											raw: candidate.rawData,
+											extractedFacts: candidate.extractedFacts,
+											diagnostics: candidate.diagnostics
+										}}
+									/>
 								</div>
 							</div>
 						{:else}
-							<div class="rounded-xl border border-dashed border-[color:var(--rule)] p-6 text-center text-sm text-[var(--mid)]">
+							<div
+								class="rounded-xl border border-dashed border-[color:var(--rule)] p-6 text-center text-sm text-[var(--mid)]"
+							>
 								No candidate rows were produced.
 							</div>
 						{/each}
@@ -696,6 +924,18 @@
 						</Field.Content>
 					</Field.Field>
 					<Field.Field>
+						<Field.Label for="adapterVersion">Adapter version</Field.Label>
+						<Field.Content>
+							<Input
+								id="adapterVersion"
+								name="adapterVersion"
+								value={data.source.adapterVersion ?? ''}
+							/>
+						</Field.Content>
+					</Field.Field>
+				</div>
+				<div class="grid gap-4 md:grid-cols-2">
+					<Field.Field>
 						<Field.Label for="nextCheckAt">Next check at</Field.Label>
 						<Field.Content>
 							<Input
@@ -707,7 +947,7 @@
 						</Field.Content>
 					</Field.Field>
 				</div>
-				<div class="grid gap-4 md:grid-cols-3">
+				<div class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
 					<Field.Field>
 						<Field.Label for="pausedAt">Paused at</Field.Label>
 						<Field.Content>
@@ -734,6 +974,16 @@
 						<Field.Label for="pauseReason">Pause reason</Field.Label>
 						<Field.Content>
 							<Input id="pauseReason" name="pauseReason" value={data.source.pauseReason ?? ''} />
+						</Field.Content>
+					</Field.Field>
+					<Field.Field>
+						<Field.Label for="quarantineReason">Quarantine reason</Field.Label>
+						<Field.Content>
+							<Input
+								id="quarantineReason"
+								name="quarantineReason"
+								value={data.source.quarantineReason ?? ''}
+							/>
 						</Field.Content>
 					</Field.Field>
 				</div>
@@ -781,8 +1031,12 @@
 						/>
 						<span>Attribution required</span>
 					</label>
+					<label class="flex items-center gap-2">
+						<input type="checkbox" name="quarantined" checked={data.source.quarantined} />
+						<span>Quarantined</span>
+					</label>
 				</div>
-				<div class="grid gap-4 xl:grid-cols-3">
+				<div class="grid gap-4 xl:grid-cols-4">
 					<Field.Field>
 						<Field.Label for="adapterConfig">Adapter config (JSON)</Field.Label>
 						<Field.Content>
@@ -815,6 +1069,18 @@
 								name="dedupeConfig"
 								rows={10}
 								value={JSON.stringify(data.source.dedupeConfig ?? {}, null, 2)}
+								class="font-mono text-xs"
+							/>
+						</Field.Content>
+					</Field.Field>
+					<Field.Field>
+						<Field.Label for="qaNotes">QA notes (JSON)</Field.Label>
+						<Field.Content>
+							<Textarea
+								id="qaNotes"
+								name="qaNotes"
+								rows={10}
+								value={JSON.stringify(data.source.qaNotes ?? [], null, 2)}
 								class="font-mono text-xs"
 							/>
 						</Field.Content>
@@ -883,6 +1149,10 @@
 				<div class="mt-1 text-sm font-medium">
 					Approved {data.publishSummary.approved} · Auto-approved {data.publishSummary.autoApproved}
 				</div>
+				<div class="text-xs text-muted-foreground">
+					Missing image {data.candidateQualitySummary.missingImage} · Missing entity {data
+						.candidateQualitySummary.missingKeyEntity}
+				</div>
 			</div>
 			<div class="rounded-md border p-3">
 				<div class="text-xs tracking-wide text-muted-foreground uppercase">Top error pattern</div>
@@ -891,6 +1161,61 @@
 						? `${Object.entries(data.errorPatterns)[0][0]} (${Object.entries(data.errorPatterns)[0][1]})`
 						: 'No repeated errors'}
 				</div>
+			</div>
+		</Card.Content>
+	</Card.Root>
+
+	<Card.Root>
+		<Card.Header>
+			<Card.Title>Recent source runs</Card.Title>
+			<Card.Description
+				>Run history with staged diagnostics, retry visibility, and quality rates.</Card.Description
+			>
+		</Card.Header>
+		<Card.Content class="p-0">
+			<div class="overflow-x-auto">
+				<Table.Root class="min-w-[880px]">
+					<Table.Header>
+						<Table.Row>
+							<Table.Head>Status</Table.Head>
+							<Table.Head>Started</Table.Head>
+							<Table.Head>Trigger</Table.Head>
+							<Table.Head>Duration</Table.Head>
+							<Table.Head>Created / Updated</Table.Head>
+							<Table.Head>Missing image</Table.Head>
+							<Table.Head>Low confidence</Table.Head>
+							<Table.Head>Stage issues</Table.Head>
+						</Table.Row>
+					</Table.Header>
+					<Table.Body>
+						{#each data.sourceRuns as run}
+							<Table.Row>
+								<Table.Cell>{run.status}</Table.Cell>
+								<Table.Cell>{run.startedAt.toLocaleString()}</Table.Cell>
+								<Table.Cell>{run.trigger.replace(/_/g, ' ')}</Table.Cell>
+								<Table.Cell>{run.durationMs ?? '—'} ms</Table.Cell>
+								<Table.Cell>{run.itemsNew} / {run.itemsUpdated}</Table.Cell>
+								<Table.Cell>
+									{typeof run.metrics?.missingImageRate === 'number'
+										? `${Math.round(run.metrics.missingImageRate * 100)}%`
+										: '—'}
+								</Table.Cell>
+								<Table.Cell>
+									{typeof run.metrics?.lowConfidenceRate === 'number'
+										? `${Math.round(run.metrics.lowConfidenceRate * 100)}%`
+										: '—'}
+								</Table.Cell>
+								<Table.Cell>{stageIssueCount(run)}</Table.Cell>
+							</Table.Row>
+						{:else}
+							<Table.Row>
+								<Table.Cell colspan={8} class="h-20 text-center text-muted-foreground">
+									No source runs yet
+								</Table.Cell>
+							</Table.Row>
+						{/each}
+					</Table.Body>
+				</Table.Root>
 			</div>
 		</Card.Content>
 	</Card.Root>

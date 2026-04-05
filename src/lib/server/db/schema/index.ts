@@ -43,9 +43,13 @@ import {
 	sourceTags,
 	sourceFetchLog,
 	importBatches,
+	sourceRuns,
+	sourceRunStages,
 	importedCandidates,
 	canonicalRecords,
 	sourceRecordLinks,
+	recordLinks,
+	recordImages,
 	mergeHistory
 } from './sources';
 
@@ -217,9 +221,12 @@ export const sourcesRelations = relations(sources, ({ one, many }) => ({
 	owner: one(user, { fields: [sources.ownerUserId], references: [user.id] }),
 	tags: many(sourceTags),
 	fetchLogs: many(sourceFetchLog),
+	runs: many(sourceRuns),
 	batches: many(importBatches),
 	candidates: many(importedCandidates),
-	recordLinks: many(sourceRecordLinks)
+	recordLinks: many(sourceRecordLinks),
+	publishedLinks: many(recordLinks),
+	publishedImages: many(recordImages)
 }));
 
 export const sourceTagsRelations = relations(sourceTags, ({ one }) => ({
@@ -232,11 +239,32 @@ export const sourceFetchLogRelations = relations(sourceFetchLog, ({ one }) => ({
 
 export const importBatchesRelations = relations(importBatches, ({ one, many }) => ({
 	source: one(sources, { fields: [importBatches.sourceId], references: [sources.id] }),
+	sourceRun: one(sourceRuns, {
+		fields: [importBatches.sourceRunId],
+		references: [sourceRuns.id]
+	}),
 	fetchLog: one(sourceFetchLog, {
 		fields: [importBatches.fetchLogId],
 		references: [sourceFetchLog.id]
 	}),
 	candidates: many(importedCandidates)
+}));
+
+export const sourceRunsRelations = relations(sourceRuns, ({ one, many }) => ({
+	source: one(sources, { fields: [sourceRuns.sourceId], references: [sources.id] }),
+	triggeredByUser: one(user, {
+		fields: [sourceRuns.triggeredBy],
+		references: [user.id]
+	}),
+	stages: many(sourceRunStages),
+	batches: many(importBatches)
+}));
+
+export const sourceRunStagesRelations = relations(sourceRunStages, ({ one }) => ({
+	sourceRun: one(sourceRuns, {
+		fields: [sourceRunStages.sourceRunId],
+		references: [sourceRuns.id]
+	})
 }));
 
 export const importedCandidatesRelations = relations(importedCandidates, ({ one }) => ({
@@ -257,6 +285,8 @@ export const canonicalRecordsRelations = relations(canonicalRecords, ({ one, man
 		references: [sources.id]
 	}),
 	sourceLinks: many(sourceRecordLinks),
+	recordLinks: many(recordLinks),
+	recordImages: many(recordImages),
 	mergeHistory: many(mergeHistory)
 }));
 
@@ -265,6 +295,30 @@ export const sourceRecordLinksRelations = relations(sourceRecordLinks, ({ one })
 	canonical: one(canonicalRecords, {
 		fields: [sourceRecordLinks.canonicalRecordId],
 		references: [canonicalRecords.id]
+	})
+}));
+
+export const recordLinksRelations = relations(recordLinks, ({ one }) => ({
+	source: one(sources, { fields: [recordLinks.sourceId], references: [sources.id] }),
+	canonical: one(canonicalRecords, {
+		fields: [recordLinks.canonicalRecordId],
+		references: [canonicalRecords.id]
+	}),
+	candidate: one(importedCandidates, {
+		fields: [recordLinks.candidateId],
+		references: [importedCandidates.id]
+	})
+}));
+
+export const recordImagesRelations = relations(recordImages, ({ one }) => ({
+	source: one(sources, { fields: [recordImages.sourceId], references: [sources.id] }),
+	canonical: one(canonicalRecords, {
+		fields: [recordImages.canonicalRecordId],
+		references: [canonicalRecords.id]
+	}),
+	candidate: one(importedCandidates, {
+		fields: [recordImages.candidateId],
+		references: [importedCandidates.id]
 	})
 }));
 

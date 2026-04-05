@@ -8,6 +8,8 @@ import {
 	importedCandidates,
 	jobs,
 	mergeHistory,
+	recordImages,
+	recordLinks,
 	redPagesBusinesses,
 	sourceRecordLinks,
 	sources,
@@ -21,6 +23,7 @@ import { createBusiness, updateBusiness } from '$lib/server/red-pages';
 import { createResource, updateResource } from '$lib/server/toolbox';
 import { createOrganization, suggestOrganizationMatches } from '$lib/server/organizations';
 import { createVenue, suggestVenueMatches } from '$lib/server/venues';
+import { selectPrimaryImageCandidate } from '$lib/server/ingestion/evidence';
 import {
 	hasCanonicalSourceSnapshotColumn,
 	isMissingSourceOpsColumnError
@@ -30,6 +33,7 @@ import {
 	planCandidateMerge,
 	type MergePreview
 } from '$lib/server/import-candidate-merge';
+import type { ImageCandidate, ImageRole, UrlRole } from '$lib/server/ingestion/types';
 
 export type ImportedCandidateRow = typeof importedCandidates.$inferSelect;
 export type ImportedCandidateInsert = typeof importedCandidates.$inferInsert;
@@ -68,7 +72,9 @@ const canonicalRecordSelectWithSnapshot = {
 };
 
 function canonicalRecordSelection(includeSourceSnapshot: boolean) {
-	return includeSourceSnapshot ? canonicalRecordSelectWithSnapshot : canonicalRecordSelectWithoutSnapshot;
+	return includeSourceSnapshot
+		? canonicalRecordSelectWithSnapshot
+		: canonicalRecordSelectWithoutSnapshot;
 }
 
 function normalizeCanonicalRecord(row: CanonicalRecordCompat): CanonicalRecordRow {
@@ -304,6 +310,7 @@ export async function approveCandidate(
 			}
 
 			if (!canonical) throw new Error('Failed to resolve canonical record');
+			await syncPublishedEvidence(tx, candidate, canonical.id, published.id);
 
 			const [existingLink] = await tx
 				.select({ id: sourceRecordLinks.id })
@@ -643,7 +650,12 @@ async function publishCandidateRecord(
 
 	switch (candidate.coil) {
 		case 'events': {
-			const payload = mapEventCandidate(normalized, reviewerId);
+			const payload = mapEventCandidate(
+				normalized,
+				reviewerId,
+				asRecord(candidate.urlRoles),
+				asArray(candidate.imageCandidates)
+			);
 			if (publishedRecordId && previousData) {
 				const updated = await updateEvent(
 					publishedRecordId,
@@ -675,7 +687,12 @@ async function publishCandidateRecord(
 			};
 		}
 		case 'funding': {
-			const payload = mapFundingCandidate(normalized, reviewerId);
+			const payload = mapFundingCandidate(
+				normalized,
+				reviewerId,
+				asRecord(candidate.urlRoles),
+				asArray(candidate.imageCandidates)
+			);
 			if (publishedRecordId && previousData) {
 				const updated = await updateFunding(
 					publishedRecordId,
@@ -706,7 +723,12 @@ async function publishCandidateRecord(
 			};
 		}
 		case 'jobs': {
-			const payload = mapJobCandidate(normalized, reviewerId);
+			const payload = mapJobCandidate(
+				normalized,
+				reviewerId,
+				asRecord(candidate.urlRoles),
+				asArray(candidate.imageCandidates)
+			);
 			if (publishedRecordId && previousData) {
 				const updated = await updateJob(
 					publishedRecordId,
@@ -737,7 +759,12 @@ async function publishCandidateRecord(
 			};
 		}
 		case 'red_pages': {
-			const payload = mapRedPagesCandidate(normalized, reviewerId);
+			const payload = mapRedPagesCandidate(
+				normalized,
+				reviewerId,
+				asRecord(candidate.urlRoles),
+				asArray(candidate.imageCandidates)
+			);
 			if (publishedRecordId && previousData) {
 				const updated = await updateBusiness(
 					publishedRecordId,
@@ -768,7 +795,12 @@ async function publishCandidateRecord(
 			};
 		}
 		case 'toolbox': {
-			const payload = mapToolboxCandidate(normalized, reviewerId);
+			const payload = mapToolboxCandidate(
+				normalized,
+				reviewerId,
+				asRecord(candidate.urlRoles),
+				asArray(candidate.imageCandidates)
+			);
 			if (publishedRecordId && previousData) {
 				const updated = await updateResource(
 					publishedRecordId,
@@ -855,8 +887,109 @@ async function getPublishedRecordById(
 	}
 }
 
-function mapEventCandidate(normalized: Record<string, unknown>, reviewerId: string | null) {
+async function syncPublishedEvidence(
+	tx: DatabaseExecutor,
+	candidate: ImportedCandidateRow,
+	canonicalRecordId: string,
+	publishedRecordId: string
+) {
+	const urlRoles = asRecord(candidate.urlRoles);
+	const imageCandidates = readImageCandidates(asArray(candidate.imageCandidates));
+
+	const deleteLinksQuery = tx.delete(recordLinks) as
+		| { where?: (predicate: unknown) => Promise<unknown> | unknown }
+		| undefined;
+	if (deleteLinksQuery?.where) {
+		await deleteLinksQuery.where(
+			and(
+				eq(recordLinks.coil, candidate.coil),
+				eq(recordLinks.publishedRecordId, publishedRecordId),
+				eq(recordLinks.sourceId, candidate.sourceId)
+			)
+		);
+	}
+
+	const linkValues = (Object.entries(urlRoles) as Array<[UrlRole, unknown]>).flatMap(
+		([role, entries]) =>
+			asArray(entries)
+				.map((entry) => asRecord(entry))
+				.map((entry) => {
+					const url = readString(entry, 'url');
+					if (!url) return null;
+					return {
+						coil: candidate.coil,
+						publishedRecordId,
+						canonicalRecordId,
+						sourceId: candidate.sourceId,
+						candidateId: candidate.id,
+						url,
+						role,
+						sourceUrl: readString(entry, 'sourceUrl') ?? candidate.sourceItemUrl,
+						provenance: entry,
+						confidence: readNumber(entry, 'confidence'),
+						extracted: entry.extracted !== false,
+						inferred: entry.inferred === true,
+						isPrimary:
+							role === 'canonical_item' ||
+							(role === 'detail_page' &&
+								!Object.prototype.hasOwnProperty.call(urlRoles, 'canonical_item'))
+					};
+				})
+				.filter((entry): entry is NonNullable<typeof entry> => Boolean(entry))
+	);
+
+	if (linkValues.length > 0) {
+		await tx.insert(recordLinks).values(linkValues);
+	}
+
+	const deleteImagesQuery = tx.delete(recordImages) as
+		| { where?: (predicate: unknown) => Promise<unknown> | unknown }
+		| undefined;
+	if (deleteImagesQuery?.where) {
+		await deleteImagesQuery.where(
+			and(
+				eq(recordImages.coil, candidate.coil),
+				eq(recordImages.publishedRecordId, publishedRecordId),
+				eq(recordImages.sourceId, candidate.sourceId)
+			)
+		);
+	}
+
+	const primaryImage = selectPrimaryImageCandidate(imageCandidates)?.url ?? null;
+	const imageValues = imageCandidates
+		.map((entry) => ({
+			coil: candidate.coil,
+			publishedRecordId,
+			canonicalRecordId,
+			sourceId: candidate.sourceId,
+			candidateId: candidate.id,
+			imageUrl: entry.url,
+			sourceUrl: entry.sourceUrl ?? candidate.sourceItemUrl,
+			role: entry.role as ImageRole,
+			width: entry.width ?? null,
+			height: entry.height ?? null,
+			mimeType: entry.mimeType ?? null,
+			qualityScore: entry.confidence ?? null,
+			isMeaningful: entry.isMeaningful !== false,
+			isPrimary: entry.url === primaryImage,
+			metadata: entry
+		}))
+		.filter((entry) => entry.imageUrl);
+
+	const dedupedImageValues = dedupeRecordImagesByUrl(imageValues);
+	if (dedupedImageValues.length > 0) {
+		await tx.insert(recordImages).values(dedupedImageValues);
+	}
+}
+
+function mapEventCandidate(
+	normalized: Record<string, unknown>,
+	reviewerId: string | null,
+	urlRoles: Record<string, unknown>,
+	imageCandidatesRaw: unknown[]
+) {
 	const publishedAt = new Date();
+	const imageCandidates = readImageCandidates(imageCandidatesRaw);
 	return {
 		title: readString(normalized, 'title') ?? 'Untitled event',
 		description: readString(normalized, 'description') ?? undefined,
@@ -866,12 +999,20 @@ function mapEventCandidate(normalized: Record<string, unknown>, reviewerId: stri
 		address: readString(normalized, 'location_address') ?? undefined,
 		region:
 			readString(normalized, 'region') ?? readString(normalized, 'location_state') ?? undefined,
-		eventUrl: readString(normalized, 'url') ?? undefined,
+		eventUrl:
+			firstRoleUrl(urlRoles, 'canonical_item') ??
+			firstRoleUrl(urlRoles, 'detail_page') ??
+			readString(normalized, 'url') ??
+			undefined,
 		startDate: readDate(normalized, 'start_date') ?? undefined,
 		endDate: readDate(normalized, 'end_date') ?? undefined,
 		hostOrg: readString(normalized, 'organization_name') ?? undefined,
 		type: readString(normalized, 'event_type') ?? undefined,
-		registrationUrl: readString(normalized, 'registration_url') ?? undefined,
+		registrationUrl:
+			firstRoleUrl(urlRoles, 'registration') ??
+			firstRoleUrl(urlRoles, 'application') ??
+			readString(normalized, 'registration_url') ??
+			undefined,
 		timezone: readString(normalized, 'timezone') ?? undefined,
 		virtualEventUrl: readBoolean(normalized, 'is_virtual')
 			? (readString(normalized, 'virtual_url') ?? readString(normalized, 'url') ?? undefined)
@@ -879,7 +1020,10 @@ function mapEventCandidate(normalized: Record<string, unknown>, reviewerId: stri
 		eventFormat: readBoolean(normalized, 'is_virtual') ? 'online' : undefined,
 		cost: readString(normalized, 'cost') ?? undefined,
 		tags: readStringArray(normalized, 'tags'),
-		imageUrl: readString(normalized, 'image_url') ?? undefined,
+		imageUrl:
+			selectPrimaryImageCandidate(imageCandidates)?.url ??
+			readString(normalized, 'image_url') ??
+			undefined,
 		status: 'published',
 		source: 'source-import',
 		reviewedById: reviewerId ?? undefined,
@@ -887,7 +1031,13 @@ function mapEventCandidate(normalized: Record<string, unknown>, reviewerId: stri
 	};
 }
 
-function mapFundingCandidate(normalized: Record<string, unknown>, reviewerId: string | null) {
+function mapFundingCandidate(
+	normalized: Record<string, unknown>,
+	reviewerId: string | null,
+	urlRoles: Record<string, unknown>,
+	imageCandidatesRaw: unknown[]
+) {
+	const imageCandidates = readImageCandidates(imageCandidatesRaw);
 	return {
 		title: readString(normalized, 'title') ?? 'Untitled funding',
 		description: readString(normalized, 'description') ?? null,
@@ -903,8 +1053,16 @@ function mapFundingCandidate(normalized: Record<string, unknown>, reviewerId: st
 		amountDescription: readString(normalized, 'amount_description') ?? null,
 		region: readString(normalized, 'region') ?? null,
 		eligibilityType: readString(normalized, 'eligibility') ?? null,
-		applyUrl: readString(normalized, 'application_url') ?? readString(normalized, 'url') ?? null,
-		imageUrl: readString(normalized, 'image_url') ?? null,
+		applyUrl:
+			firstRoleUrl(urlRoles, 'application') ??
+			firstRoleUrl(urlRoles, 'canonical_item') ??
+			readString(normalized, 'application_url') ??
+			readString(normalized, 'url') ??
+			null,
+		imageUrl:
+			selectPrimaryImageCandidate(imageCandidates)?.url ??
+			readString(normalized, 'image_url') ??
+			null,
 		status: 'published',
 		source: 'source-import',
 		publishedAt: new Date(),
@@ -912,7 +1070,13 @@ function mapFundingCandidate(normalized: Record<string, unknown>, reviewerId: st
 	};
 }
 
-function mapJobCandidate(normalized: Record<string, unknown>, reviewerId: string | null) {
+function mapJobCandidate(
+	normalized: Record<string, unknown>,
+	reviewerId: string | null,
+	urlRoles: Record<string, unknown>,
+	imageCandidatesRaw: unknown[]
+) {
+	const imageCandidates = readImageCandidates(imageCandidatesRaw);
 	return {
 		title: readString(normalized, 'title') ?? 'Untitled job',
 		description: readString(normalized, 'description') ?? null,
@@ -933,11 +1097,19 @@ function mapJobCandidate(normalized: Record<string, unknown>, reviewerId: string
 		compensationMax: readNumber(normalized, 'salary_max'),
 		compensationType: readString(normalized, 'salary_period') ?? null,
 		compensationDescription: readString(normalized, 'salary_description') ?? null,
-		applyUrl: readString(normalized, 'application_url') ?? readString(normalized, 'url') ?? null,
+		applyUrl:
+			firstRoleUrl(urlRoles, 'application') ??
+			firstRoleUrl(urlRoles, 'canonical_item') ??
+			readString(normalized, 'application_url') ??
+			readString(normalized, 'url') ??
+			null,
 		applicationDeadline: readDate(normalized, 'closing_date'),
 		indigenousPriority: readBoolean(normalized, 'indian_preference'),
 		department: readString(normalized, 'department') ?? null,
-		imageUrl: readString(normalized, 'image_url') ?? null,
+		imageUrl:
+			selectPrimaryImageCandidate(imageCandidates)?.url ??
+			readString(normalized, 'image_url') ??
+			null,
 		status: 'published',
 		source: 'source-import',
 		publishedAt: new Date(),
@@ -945,7 +1117,13 @@ function mapJobCandidate(normalized: Record<string, unknown>, reviewerId: string
 	};
 }
 
-function mapRedPagesCandidate(normalized: Record<string, unknown>, reviewerId: string | null) {
+function mapRedPagesCandidate(
+	normalized: Record<string, unknown>,
+	reviewerId: string | null,
+	urlRoles: Record<string, unknown>,
+	imageCandidatesRaw: unknown[]
+) {
+	const imageCandidates = readImageCandidates(imageCandidatesRaw);
 	return {
 		name: readString(normalized, 'title') ?? 'Untitled listing',
 		description: readString(normalized, 'description') ?? null,
@@ -955,7 +1133,11 @@ function mapRedPagesCandidate(normalized: Record<string, unknown>, reviewerId: s
 		serviceArea: readString(normalized, 'service_area') ?? null,
 		tags: readStringArray(normalized, 'tags') ?? null,
 		tribalAffiliation: readString(normalized, 'tribal_affiliation') ?? null,
-		website: readString(normalized, 'website') ?? readString(normalized, 'url') ?? null,
+		website:
+			firstRoleUrl(urlRoles, 'canonical_item') ??
+			readString(normalized, 'website') ??
+			readString(normalized, 'url') ??
+			null,
 		email: readString(normalized, 'email') ?? null,
 		phone: readString(normalized, 'phone') ?? null,
 		address: readString(normalized, 'address') ?? null,
@@ -963,7 +1145,10 @@ function mapRedPagesCandidate(normalized: Record<string, unknown>, reviewerId: s
 		state: readString(normalized, 'state') ?? null,
 		zip: readString(normalized, 'zip') ?? null,
 		region: readString(normalized, 'region') ?? readString(normalized, 'state') ?? null,
-		imageUrl: readString(normalized, 'image_url') ?? null,
+		imageUrl:
+			selectPrimaryImageCandidate(imageCandidates)?.url ??
+			readString(normalized, 'image_url') ??
+			null,
 		status: 'published',
 		source: 'source-import',
 		publishedAt: new Date(),
@@ -971,7 +1156,13 @@ function mapRedPagesCandidate(normalized: Record<string, unknown>, reviewerId: s
 	};
 }
 
-function mapToolboxCandidate(normalized: Record<string, unknown>, reviewerId: string | null) {
+function mapToolboxCandidate(
+	normalized: Record<string, unknown>,
+	reviewerId: string | null,
+	urlRoles: Record<string, unknown>,
+	imageCandidatesRaw: unknown[]
+) {
+	const imageCandidates = readImageCandidates(imageCandidatesRaw);
 	return {
 		title: readString(normalized, 'title') ?? 'Untitled resource',
 		description: readString(normalized, 'description') ?? null,
@@ -983,8 +1174,11 @@ function mapToolboxCandidate(normalized: Record<string, unknown>, reviewerId: st
 		categories: readStringArray(normalized, 'topics') ?? null,
 		tags: readStringArray(normalized, 'tags') ?? null,
 		contentMode: 'link',
-		externalUrl: readString(normalized, 'url') ?? null,
-		imageUrl: readString(normalized, 'image_url') ?? null,
+		externalUrl: firstRoleUrl(urlRoles, 'canonical_item') ?? readString(normalized, 'url') ?? null,
+		imageUrl:
+			selectPrimaryImageCandidate(imageCandidates)?.url ??
+			readString(normalized, 'image_url') ??
+			null,
 		publishDate: readDate(normalized, 'publication_date'),
 		lastReviewedAt: new Date(),
 		status: 'published',
@@ -1013,13 +1207,21 @@ function readCanonicalUrl(candidate: ImportedCandidateRow, normalized: Record<st
 }
 
 function readCompositeKey(candidate: ImportedCandidateRow, normalized: Record<string, unknown>) {
-	return buildCompositeKey(normalized as any).hash ?? candidate.contentFingerprint;
+	const dedupeRecord = {
+		...normalized,
+		coil: candidate.coil
+	} as Parameters<typeof buildCompositeKey>[0];
+	return buildCompositeKey(dedupeRecord).hash ?? candidate.contentFingerprint;
 }
 
 function asRecord(data: unknown): Record<string, unknown> {
 	return data && typeof data === 'object' && !Array.isArray(data)
 		? (data as Record<string, unknown>)
 		: {};
+}
+
+function asArray(data: unknown): unknown[] {
+	return Array.isArray(data) ? data : [];
 }
 
 function asStringRecord(data: unknown): Record<string, string> {
@@ -1032,6 +1234,85 @@ function asStringRecord(data: unknown): Record<string, string> {
 function readString(data: Record<string, unknown>, key: string): string | null {
 	const value = data[key];
 	return typeof value === 'string' && value.trim() ? value.trim() : null;
+}
+
+function readImageCandidates(values: unknown[]): ImageCandidate[] {
+	return values
+		.map((entry) => asRecord(entry))
+		.map((entry) => ({
+			url: readString(entry, 'url') ?? '',
+			role: (readString(entry, 'role') ?? 'unknown') as ImageCandidate['role'],
+			source: (readString(entry, 'source') ?? 'adapter') as ImageCandidate['source'],
+			sourceUrl: readString(entry, 'sourceUrl'),
+			confidence: readNumber(entry, 'confidence') ?? undefined,
+			isMeaningful: entry.isMeaningful === false ? false : true,
+			width: readNumber(entry, 'width') ?? undefined,
+			height: readNumber(entry, 'height') ?? undefined,
+			mimeType: readString(entry, 'mimeType') ?? undefined
+		}))
+		.filter((entry) => entry.url.length > 0);
+}
+
+function dedupeRecordImagesByUrl<
+	T extends {
+		imageUrl: string;
+		qualityScore: number | null;
+		isMeaningful: boolean;
+		isPrimary: boolean;
+		width: number | null;
+		height: number | null;
+		metadata: Record<string, unknown>;
+	}
+>(values: T[]) {
+	const byUrl = new Map<string, T>();
+
+	for (const value of values) {
+		const existing = byUrl.get(value.imageUrl);
+		if (!existing) {
+			byUrl.set(value.imageUrl, value);
+			continue;
+		}
+
+		const existingScore =
+			(existing.isPrimary ? 1000 : 0) +
+			(existing.isMeaningful ? 100 : 0) +
+			(existing.qualityScore ?? 0);
+		const nextScore =
+			(value.isPrimary ? 1000 : 0) + (value.isMeaningful ? 100 : 0) + (value.qualityScore ?? 0);
+		const preferred = nextScore > existingScore ? value : existing;
+		const secondary = preferred === value ? existing : value;
+
+		byUrl.set(value.imageUrl, {
+			...preferred,
+			isPrimary: preferred.isPrimary || secondary.isPrimary,
+			isMeaningful: preferred.isMeaningful || secondary.isMeaningful,
+			width: preferred.width ?? secondary.width,
+			height: preferred.height ?? secondary.height,
+			qualityScore: Math.max(preferred.qualityScore ?? 0, secondary.qualityScore ?? 0),
+			metadata: {
+				...secondary.metadata,
+				...preferred.metadata,
+				duplicateSources: [
+					...new Set(
+						[
+							readString(preferred.metadata, 'source'),
+							readString(secondary.metadata, 'source')
+						].filter(Boolean)
+					)
+				]
+			}
+		});
+	}
+
+	return [...byUrl.values()];
+}
+
+function firstRoleUrl(urlRoles: Record<string, unknown>, role: string) {
+	const entry = asArray(urlRoles[role])
+		.map((item) => asRecord(item))
+		.map((item) => readString(item, 'url'))
+		.find(Boolean);
+	return entry ?? null;
 }
 
 function readStringArray(data: Record<string, unknown>, key: string): string[] | undefined {

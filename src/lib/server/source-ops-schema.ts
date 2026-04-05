@@ -33,9 +33,9 @@ export async function getSourceOpsSchemaHealth(): Promise<SourceOpsSchemaHealth>
 			);
 
 			const existing = new Set(rows.map((row) => `${row.table_name}.${row.column_name}`));
-			const missing = REQUIRED_COLUMNS.map((entry) => `${entry.tableName}.${entry.columnName}`).filter(
-				(key) => !existing.has(key)
-			);
+			const missing = REQUIRED_COLUMNS.map(
+				(entry) => `${entry.tableName}.${entry.columnName}`
+			).filter((key) => !existing.has(key));
 
 			return {
 				ok: missing.length === 0,

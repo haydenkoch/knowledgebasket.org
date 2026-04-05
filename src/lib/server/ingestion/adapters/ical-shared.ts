@@ -7,6 +7,7 @@ export interface ParsedIcalEvent {
 	description: string | null;
 	location: string | null;
 	url: string | null;
+	attachments: string[];
 	start: Date;
 	end: Date | null;
 	timezone: string | null;
@@ -28,6 +29,7 @@ type RawIcalEvent = {
 	timezone?: string;
 	xtimezone?: string;
 	categories?: string[] | string;
+	attach?: string | string[] | Array<{ val?: string | null }>;
 	datetype?: 'date' | 'date-time';
 };
 
@@ -54,6 +56,7 @@ export function parseIcalEvents(rawContent: string): ParsedIcalEvent[] {
 			description: value.description ? stripHtml(value.description) : null,
 			location: value.location?.trim() || null,
 			url: value.url?.trim() || null,
+			attachments: normalizeAttachments(value.attach),
 			start,
 			end,
 			timezone: value.timezone ?? value.xtimezone ?? null,
@@ -83,4 +86,17 @@ function normalizeCategories(value: string[] | string | undefined): string[] {
 			.filter(Boolean);
 	}
 	return [];
+}
+
+function normalizeAttachments(value: RawIcalEvent['attach']): string[] {
+	if (!value) return [];
+	const list = Array.isArray(value) ? value : [value];
+	return list
+		.map((entry) => {
+			if (typeof entry === 'string') return entry.trim();
+			if (entry && typeof entry === 'object' && typeof entry.val === 'string')
+				return entry.val.trim();
+			return '';
+		})
+		.filter(Boolean);
 }

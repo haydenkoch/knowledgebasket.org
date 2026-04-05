@@ -70,7 +70,26 @@
 		if (candidate.coil === 'events' && !venue) flags.push('Missing venue details');
 		if (description.length > 0 && description.length < 80) flags.push('Short description');
 		if (candidate.dedupeResult === 'ambiguous') flags.push('Low-confidence match');
+		if (Array.isArray(candidate.qualityFlags)) {
+			for (const entry of candidate.qualityFlags) {
+				if (!entry || typeof entry !== 'object') continue;
+				const code = (entry as { code?: string }).code ?? '';
+				if (code === 'conflicting_dates') flags.push('Date conflict');
+				if (code === 'ai_detected_conflict') flags.push('AI found a conflict');
+			}
+		}
 		return flags;
+	}
+
+	function extractedFacts() {
+		return candidate.extractedFacts && typeof candidate.extractedFacts === 'object'
+			? (candidate.extractedFacts as Record<string, unknown>)
+			: {};
+	}
+
+	function extractedFactCount(key: 'offers' | 'conflicts') {
+		const facts = extractedFacts();
+		return Array.isArray(facts[key]) ? facts[key].length : 0;
 	}
 
 	function hasOrganizationField() {
@@ -144,6 +163,25 @@
 											{flag}
 										</span>
 									{/each}
+								</div>
+							{/if}
+							{#if extractedFactCount('offers') > 0}
+								<div class="text-sm text-[var(--mid)]">
+									AI extracted {extractedFactCount('offers')} offer{extractedFactCount('offers') ===
+									1
+										? ''
+										: 's'}.
+								</div>
+							{/if}
+							{#if extractedFactCount('conflicts') > 0}
+								<div
+									class="rounded-xl border border-[color:color-mix(in_srgb,var(--color-flicker-300)_50%,transparent)] bg-[color:color-mix(in_srgb,var(--color-flicker-50)_60%,white)] p-3 text-sm text-[var(--color-flicker-900)]"
+								>
+									AI flagged {extractedFactCount('conflicts')} possible conflict{extractedFactCount(
+										'conflicts'
+									) === 1
+										? ''
+										: 's'} for review.
 								</div>
 							{/if}
 						</div>
@@ -284,7 +322,12 @@
 			<!-- Raw data (always hidden by default) -->
 			<CollapsibleDebug
 				label="Advanced details"
-				data={{ normalized: candidate.normalizedData, raw: candidate.rawData }}
+				data={{
+					normalized: candidate.normalizedData,
+					raw: candidate.rawData,
+					extractedFacts: candidate.extractedFacts,
+					diagnostics: candidate.diagnostics
+				}}
 			/>
 		</div>
 

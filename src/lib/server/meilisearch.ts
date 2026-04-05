@@ -70,6 +70,10 @@ const SEARCHABLE_ATTRIBUTES: Record<CoilKey, string[]> = {
 };
 
 const MEILISEARCH_TIMEOUT_MS = 1500;
+const HEALTH_CACHE_TTL_MS = 30_000;
+
+let lastHealthCheckAt = 0;
+let lastHealthStatus = false;
 
 function getClient(): MeiliSearch | null {
 	const host = env.MEILISEARCH_HOST;
@@ -317,4 +321,32 @@ export async function reindexAllEvents(events: (EventItem & { id: string })[]): 
 
 export function isMeilisearchConfigured(): boolean {
 	return !!env.MEILISEARCH_HOST;
+}
+
+export async function isMeilisearchAvailable(force = false): Promise<boolean> {
+	const host = env.MEILISEARCH_HOST?.trim();
+	if (!host) return false;
+
+	const now = Date.now();
+	if (!force && now - lastHealthCheckAt < HEALTH_CACHE_TTL_MS) {
+		return lastHealthStatus;
+	}
+
+	try {
+		const healthUrl = new URL('/health', host.endsWith('/') ? host : `${host}/`).toString();
+		const response = await withTimeout(
+			fetch(healthUrl, {
+				headers: env.MEILISEARCH_API_KEY
+					? { Authorization: `Bearer ${env.MEILISEARCH_API_KEY}` }
+					: undefined
+			}),
+			'meilisearch health'
+		);
+		lastHealthStatus = response.ok;
+	} catch {
+		lastHealthStatus = false;
+	}
+
+	lastHealthCheckAt = now;
+	return lastHealthStatus;
 }

@@ -97,7 +97,7 @@
 		lists: 'Lists',
 		funding: 'Funding',
 		jobs: 'Jobs',
-		toolbox: 'Toolbox',
+		toolbox: 'Toolbox'
 	};
 
 	function breadcrumbText(segment: string): string {
@@ -125,7 +125,9 @@
 					class="h-9 w-9 rounded-lg bg-[var(--color-lakebed-950)] object-contain p-1.5"
 				/>
 				<div class="min-w-0">
-					<div class="font-display text-base leading-none font-bold text-[var(--dark)]">Knowledge Basket</div>
+					<div class="font-display text-base leading-none font-bold text-[var(--dark)]">
+						Knowledge Basket
+					</div>
 					<div class="mt-0.5 text-[10px] tracking-[0.12em] text-[var(--mid)] uppercase">Admin</div>
 				</div>
 			</a>
@@ -276,8 +278,18 @@
 			<div class="flex items-center gap-2">
 				<ShieldCheck class="h-4 w-4 shrink-0 text-[var(--color-pinyon-700)]" />
 				<div class="min-w-0 flex-1">
-					<p class="truncate text-sm font-medium text-[var(--dark)]">{data.user?.name ?? data.user?.email}</p>
-					<p class="text-[11px] text-[var(--mid)]">{data.user?.role === 'admin' ? 'Administrator' : data.user?.role === 'moderator' ? 'Moderator' : data.user?.role === 'contributor' ? 'Contributor' : data.user?.role ?? 'Staff'}</p>
+					<p class="truncate text-sm font-medium text-[var(--dark)]">
+						{data.user?.name ?? data.user?.email}
+					</p>
+					<p class="text-[11px] text-[var(--mid)]">
+						{data.user?.role === 'admin'
+							? 'Administrator'
+							: data.user?.role === 'moderator'
+								? 'Moderator'
+								: data.user?.role === 'contributor'
+									? 'Contributor'
+									: (data.user?.role ?? 'Staff')}
+					</p>
 				</div>
 				<form method="post" action="/auth/logout" use:enhance>
 					<button
@@ -335,7 +347,7 @@
 			</div>
 		</div>
 
-		<div class="mx-auto max-w-[1480px] px-4 pb-6 pt-0 sm:px-6">
+		<div class="mx-auto max-w-[1480px] px-4 pt-0 pb-6 sm:px-6">
 			{@render children()}
 		</div>
 	</main>

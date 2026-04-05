@@ -147,10 +147,18 @@
 					<!-- Search + sort -->
 					<div class="flex flex-wrap items-center gap-3">
 						<form
-							onsubmit={(e) => { e.preventDefault(); doSearch(); }}
+							onsubmit={(e) => {
+								e.preventDefault();
+								doSearch();
+							}}
 							class="flex gap-2"
 						>
-							<Input type="text" bind:value={searchValue} placeholder="Search events…" class="max-w-xs" />
+							<Input
+								type="text"
+								bind:value={searchValue}
+								placeholder="Search events…"
+								class="max-w-xs"
+							/>
 							<Button type="submit" variant="secondary">Search</Button>
 						</form>
 						<div class="flex items-center gap-2 text-sm text-[var(--mid)]">
@@ -175,19 +183,26 @@
 
 					<!-- Bulk actions bar -->
 					{#if selectedIds.length > 0}
-						<div class="flex flex-wrap items-center gap-3 rounded-xl border border-[color:var(--rule)] bg-[var(--color-alpine-snow-100)]/60 px-4 py-3 text-sm">
+						<div
+							class="flex flex-wrap items-center gap-3 rounded-xl border border-[color:var(--rule)] bg-[var(--color-alpine-snow-100)]/60 px-4 py-3 text-sm"
+						>
 							<span class="font-medium text-[var(--dark)]">{selectedIds.length} selected</span>
-							<button type="button" class="text-xs text-[var(--mid)] hover:underline" onclick={() => (selectedIds = [])}>
+							<button
+								type="button"
+								class="text-xs text-[var(--mid)] hover:underline"
+								onclick={() => (selectedIds = [])}
+							>
 								Clear
 							</button>
 							<div class="ml-auto flex flex-wrap items-center gap-2">
 								<form
 									method="POST"
 									action="?/bulkApprove"
-									use:enhance={() => ({ result, update }) => {
-										if (result.type === 'success') toast.success('Events approved');
-										update();
-									}}
+									use:enhance={() =>
+										({ result, update }) => {
+											if (result.type === 'success') toast.success('Events approved');
+											update();
+										}}
 									class="contents"
 								>
 									{#each selectedIds as id}
@@ -208,23 +223,29 @@
 									<AlertDialog.Content>
 										<AlertDialog.Header>
 											<AlertDialog.Title>Delete {selectedIds.length} events?</AlertDialog.Title>
-											<AlertDialog.Description>This cannot be undone. The selected events will be permanently deleted.</AlertDialog.Description>
+											<AlertDialog.Description
+												>This cannot be undone. The selected events will be permanently deleted.</AlertDialog.Description
+											>
 										</AlertDialog.Header>
 										<AlertDialog.Footer>
 											<AlertDialog.Cancel>Cancel</AlertDialog.Cancel>
 											<form
 												method="POST"
 												action="?/bulkDelete"
-												use:enhance={() => ({ result, update }) => {
-													if (result.type === 'success') toast.success('Events deleted');
-													update();
-												}}
+												use:enhance={() =>
+													({ result, update }) => {
+														if (result.type === 'success') toast.success('Events deleted');
+														update();
+													}}
 												class="contents"
 											>
 												{#each selectedIds as id}
 													<input type="hidden" name="ids" value={id} />
 												{/each}
-												<AlertDialog.Action type="submit" class="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+												<AlertDialog.Action
+													type="submit"
+													class="text-destructive-foreground bg-destructive hover:bg-destructive/90"
+												>
 													Delete
 												</AlertDialog.Action>
 											</form>
@@ -241,7 +262,11 @@
 							<Table.Header>
 								<Table.Row>
 									<Table.Head class="w-10">
-										<Checkbox checked={allSelected} onCheckedChange={(c) => setAllSelected(!!c)} aria-label="Select all" />
+										<Checkbox
+											checked={allSelected}
+											onCheckedChange={(c) => setAllSelected(!!c)}
+											aria-label="Select all"
+										/>
 									</Table.Head>
 									<Table.Head>Title</Table.Head>
 									<Table.Head>Status</Table.Head>
@@ -268,7 +293,9 @@
 										<Table.Cell class="text-sm text-[var(--mid)]">
 											{event.organizationName ?? event.hostOrg ?? '—'}
 										</Table.Cell>
-										<Table.Cell class="text-sm text-[var(--mid)]">{event.startDate ?? '—'}</Table.Cell>
+										<Table.Cell class="text-sm text-[var(--mid)]"
+											>{event.startDate ?? '—'}</Table.Cell
+										>
 										<Table.Cell class="text-sm text-[var(--mid)]">
 											{#if event.createdAt}
 												<div>{timeAgo(event.createdAt)}</div>
@@ -281,16 +308,32 @@
 										</Table.Cell>
 										<Table.Cell class="text-right">
 											<div class="flex items-center justify-end gap-1">
-												<Button href="/admin/events/{event.id}" variant="ghost" size="icon-sm" title="Edit">
+												<Button
+													href="/admin/events/{event.id}"
+													variant="ghost"
+													size="icon-sm"
+													title="Edit"
+												>
 													<Pencil class="h-4 w-4" />
 												</Button>
 												{#if event.slug}
-													<Button href="/events/{event.slug}" variant="ghost" size="icon-sm" title="View on site" target="_blank">
+													<Button
+														href="/events/{event.slug}"
+														variant="ghost"
+														size="icon-sm"
+														title="View on site"
+														target="_blank"
+													>
 														<Eye class="h-4 w-4" />
 													</Button>
 												{/if}
 												{#if event.contactEmail}
-													<Button href="mailto:{event.contactEmail}" variant="ghost" size="icon-sm" title="Email contact">
+													<Button
+														href="mailto:{event.contactEmail}"
+														variant="ghost"
+														size="icon-sm"
+														title="Email contact"
+													>
 														<Mail class="h-4 w-4" />
 													</Button>
 												{/if}

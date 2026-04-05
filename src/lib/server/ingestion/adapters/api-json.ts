@@ -1,6 +1,5 @@
 import {
 	fetchJson,
-	fetchText,
 	parseDateLike,
 	parseNumberLike,
 	resolveAdapterHeaders,
@@ -18,7 +17,6 @@ import type {
 	NormalizedFunding,
 	NormalizedRedPagesEntry,
 	ParseResult,
-	ParsedItem,
 	SourceRecord
 } from '../types';
 

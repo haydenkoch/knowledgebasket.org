@@ -59,9 +59,7 @@ export async function getSourceProvenanceByPublishedRecord(
 		sourceUrl: primary.source.homepageUrl ?? primary.source.sourceUrl,
 		sourceItemUrl: primary.link.sourceItemUrl ?? undefined,
 		attributionText:
-			primary.link.sourceAttribution ??
-			primary.source.attributionText ??
-			primary.source.name,
+			primary.link.sourceAttribution ?? primary.source.attributionText ?? primary.source.name,
 		lastSyncedAt: toIso(primary.link.lastSyncAt ?? primary.link.lastSeenAt ?? null),
 		sourceCount: Math.max(canonical.sourceCount ?? 1, links.length)
 	};

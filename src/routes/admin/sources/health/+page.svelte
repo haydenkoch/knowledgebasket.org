@@ -10,14 +10,20 @@
 	import AdminStatCard from '$lib/components/organisms/admin/AdminStatCard.svelte';
 	import HealthBadge from '$lib/components/organisms/admin/HealthBadge.svelte';
 	import StatusBadge from '$lib/components/organisms/admin/StatusBadge.svelte';
-	import { friendly, pct, timeAgo, ingestionLabel, healthLabel, sourceStatusLabel, curationReasonLabel } from '$lib/admin/labels.js';
+	import {
+		friendly,
+		pct,
+		timeAgo,
+		ingestionLabel,
+		healthLabel,
+		sourceStatusLabel,
+		curationReasonLabel
+	} from '$lib/admin/labels.js';
 
 	let { data, form } = $props();
 
 	function friendlyCurationReasons(reasons: string[]): string {
-		return reasons
-			.map((r) => curationReasonLabel[r] ?? r.replace(/_/g, ' '))
-			.join(', ');
+		return reasons.map((r) => curationReasonLabel[r] ?? r.replace(/_/g, ' ')).join(', ');
 	}
 </script>
 
@@ -31,12 +37,13 @@
 			<form
 				method="POST"
 				action="?/runDueNow"
-				use:enhance={() => async ({ result, update }) => {
-					if (result.type === 'success') toast.success('Run completed');
-					else if (result.type === 'failure')
-						toast.error((result.data as { error?: string })?.error ?? 'Run failed');
-					await update();
-				}}
+				use:enhance={() =>
+					async ({ result, update }) => {
+						if (result.type === 'success') toast.success('Run completed');
+						else if (result.type === 'failure')
+							toast.error((result.data as { error?: string })?.error ?? 'Run failed');
+						await update();
+					}}
 			>
 				<Button type="submit" variant="secondary">Run scheduled sources now</Button>
 			</form>
@@ -48,7 +55,9 @@
 	</AdminPageHeader>
 
 	{#if form?.runResult}
-		<div class="rounded-2xl border border-[color:color-mix(in_srgb,var(--color-lakebed-300)_50%,transparent)] bg-[color:color-mix(in_srgb,var(--color-lakebed-50)_70%,white)] px-5 py-4 text-sm">
+		<div
+			class="rounded-2xl border border-[color:color-mix(in_srgb,var(--color-lakebed-300)_50%,transparent)] bg-[color:color-mix(in_srgb,var(--color-lakebed-50)_70%,white)] px-5 py-4 text-sm"
+		>
 			<p class="font-semibold text-[var(--color-lakebed-900)]">Run complete</p>
 			<p class="mt-1 text-[var(--color-lakebed-800)]">
 				Checked {form.runResult.totalProcessed} of {form.runResult.totalSelected} sources ·
@@ -58,10 +67,26 @@
 		</div>
 	{/if}
 
-	<div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-		<AdminStatCard label="Total sources" value={data.summary.total} href="/admin/sources" tone="lake" />
-		<AdminStatCard label="Currently enabled" value={data.summary.enabled} href="/admin/sources?enabled=true" tone="forest" />
+	<div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+		<AdminStatCard
+			label="Total sources"
+			value={data.summary.total}
+			href="/admin/sources"
+			tone="lake"
+		/>
+		<AdminStatCard
+			label="Currently enabled"
+			value={data.summary.enabled}
+			href="/admin/sources?enabled=true"
+			tone="forest"
+		/>
 		<AdminStatCard label="Due for a check" value={data.dueNowCount} tone="gold" />
+		<AdminStatCard
+			label="Quarantined"
+			value={data.summary.quarantined}
+			href="/admin/sources?quarantined=true"
+			tone="ember"
+		/>
 		<AdminStatCard
 			label="Fetch attempts"
 			value={data.fetchSummary.totalAttempts}
@@ -85,16 +110,26 @@
 				<AdminSectionCard title="Last automated check">
 					{#snippet children()}
 						<div class="grid gap-4 px-5 py-5 md:grid-cols-3">
-							<div class="rounded-xl border border-[color:var(--rule)] bg-[var(--color-alpine-snow-100)]/50 p-4 text-center">
-								<div class="font-display text-2xl font-bold text-[var(--dark)]">{run.totalSources}</div>
+							<div
+								class="rounded-xl border border-[color:var(--rule)] bg-[var(--color-alpine-snow-100)]/50 p-4 text-center"
+							>
+								<div class="font-display text-2xl font-bold text-[var(--dark)]">
+									{run.totalSources}
+								</div>
 								<div class="mt-1 text-sm text-[var(--mid)]">Sources checked</div>
 							</div>
-							<div class="rounded-xl border border-[color:var(--rule)] bg-[var(--color-alpine-snow-100)]/50 p-4 text-center">
+							<div
+								class="rounded-xl border border-[color:var(--rule)] bg-[var(--color-alpine-snow-100)]/50 p-4 text-center"
+							>
 								<div class="font-display text-2xl font-bold text-[var(--dark)]">{run.totalNew}</div>
 								<div class="mt-1 text-sm text-[var(--mid)]">New items found</div>
 							</div>
-							<div class="rounded-xl border border-[color:var(--rule)] bg-[var(--color-alpine-snow-100)]/50 p-4 text-center">
-								<div class="font-display text-2xl font-bold text-[var(--dark)]">{run.totalUpdated}</div>
+							<div
+								class="rounded-xl border border-[color:var(--rule)] bg-[var(--color-alpine-snow-100)]/50 p-4 text-center"
+							>
+								<div class="font-display text-2xl font-bold text-[var(--dark)]">
+									{run.totalUpdated}
+								</div>
 								<div class="mt-1 text-sm text-[var(--mid)]">Updates queued</div>
 							</div>
 						</div>
@@ -112,7 +147,9 @@
 				{#snippet children()}
 					<div class="flex flex-wrap gap-3 px-5 py-5">
 						{#each Object.entries(data.summary.healthCounts) as [status, count]}
-							<div class="flex items-center gap-2 rounded-xl border border-[color:var(--rule)] bg-[var(--color-alpine-snow-100)]/50 px-4 py-2.5">
+							<div
+								class="flex items-center gap-2 rounded-xl border border-[color:var(--rule)] bg-[var(--color-alpine-snow-100)]/50 px-4 py-2.5"
+							>
 								<HealthBadge health={status} />
 								<span class="font-display text-lg font-bold text-[var(--dark)]">{count}</span>
 							</div>
@@ -123,14 +160,21 @@
 
 			<!-- What needs attention now -->
 			{#if data.broken.length > 0 || data.authRequired.length > 0 || data.stale.length > 0 || data.degraded.length > 0}
-				<AdminSectionCard title="Needs attention" description="Sources with active issues that may be blocking fresh content.">
+				<AdminSectionCard
+					title="Needs attention"
+					description="Sources with active issues that may be blocking fresh content."
+				>
 					{#snippet children()}
 						<div class="divide-y divide-[color:var(--rule)]">
 							{#each data.broken as source}
 								<div class="flex items-center justify-between gap-4 px-5 py-3">
 									<div class="min-w-0">
-										<a href={`/admin/sources/${source.id}`} class="font-medium hover:underline">{source.name}</a>
-										<p class="text-xs text-[var(--mid)]">{source.consecutiveFailureCount} consecutive failures</p>
+										<a href={`/admin/sources/${source.id}`} class="font-medium hover:underline"
+											>{source.name}</a
+										>
+										<p class="text-xs text-[var(--mid)]">
+											{source.consecutiveFailureCount} consecutive failures
+										</p>
 									</div>
 									<HealthBadge health="broken" />
 								</div>
@@ -138,9 +182,13 @@
 							{#each data.authRequired as source}
 								<div class="flex items-center justify-between gap-4 px-5 py-3">
 									<div class="min-w-0">
-										<a href={`/admin/sources/${source.id}`} class="font-medium hover:underline">{source.name}</a>
+										<a href={`/admin/sources/${source.id}`} class="font-medium hover:underline"
+											>{source.name}</a
+										>
 										<p class="text-xs text-[var(--mid)]">
-											{friendly(ingestionLabel, source.ingestionMethod)} · {source.ownerName ?? source.ownerEmail ?? 'No owner'}
+											{friendly(ingestionLabel, source.ingestionMethod)} · {source.ownerName ??
+												source.ownerEmail ??
+												'No owner'}
 										</p>
 									</div>
 									<HealthBadge health="auth_required" />
@@ -149,9 +197,13 @@
 							{#each data.stale as source}
 								<div class="flex items-center justify-between gap-4 px-5 py-3">
 									<div class="min-w-0">
-										<a href={`/admin/sources/${source.id}`} class="font-medium hover:underline">{source.name}</a>
+										<a href={`/admin/sources/${source.id}`} class="font-medium hover:underline"
+											>{source.name}</a
+										>
 										<p class="text-xs text-[var(--mid)]">
-											Next check: {source.nextCheckAt ? timeAgo(source.nextCheckAt) : 'Not scheduled'}
+											Next check: {source.nextCheckAt
+												? timeAgo(source.nextCheckAt)
+												: 'Not scheduled'}
 										</p>
 									</div>
 									<HealthBadge health="stale" />
@@ -160,8 +212,12 @@
 							{#each data.degraded as source}
 								<div class="flex items-center justify-between gap-4 px-5 py-3">
 									<div class="min-w-0">
-										<a href={`/admin/sources/${source.id}`} class="font-medium hover:underline">{source.name}</a>
-										<p class="text-xs text-[var(--mid)]">Last checked: {timeAgo(source.lastCheckedAt)}</p>
+										<a href={`/admin/sources/${source.id}`} class="font-medium hover:underline"
+											>{source.name}</a
+										>
+										<p class="text-xs text-[var(--mid)]">
+											Last checked: {timeAgo(source.lastCheckedAt)}
+										</p>
 									</div>
 									<HealthBadge health="degraded" />
 								</div>
@@ -188,7 +244,9 @@
 								<Table.Body>
 									{#each data.recentSchedulerRuns as run}
 										<Table.Row>
-											<Table.Cell class="text-[var(--mid)]">{run.startedAt ? timeAgo(run.startedAt) : '—'}</Table.Cell>
+											<Table.Cell class="text-[var(--mid)]"
+												>{run.startedAt ? timeAgo(run.startedAt) : '—'}</Table.Cell
+											>
 											<Table.Cell>{run.totalSources}</Table.Cell>
 											<Table.Cell>{run.totalNew}</Table.Cell>
 											<Table.Cell>{run.totalUpdated}</Table.Cell>
@@ -205,7 +263,10 @@
 		<!-- Performance tab -->
 		<Tabs.Content value="performance" class="mt-6 space-y-6">
 			<div class="grid gap-6 xl:grid-cols-2">
-				<AdminSectionCard title="Import method performance" description="How each import method is performing across all sources.">
+				<AdminSectionCard
+					title="Import method performance"
+					description="How each import method is performing across all sources."
+				>
 					{#snippet children()}
 						<div class="overflow-x-auto">
 							<Table.Root>
@@ -227,7 +288,9 @@
 										</Table.Row>
 									{:else}
 										<Table.Row>
-											<Table.Cell colspan={4} class="h-20 text-center text-[var(--mid)]">No data yet</Table.Cell>
+											<Table.Cell colspan={4} class="h-20 text-center text-[var(--mid)]"
+												>No data yet</Table.Cell
+											>
 										</Table.Row>
 									{/each}
 								</Table.Body>
@@ -236,7 +299,10 @@
 					{/snippet}
 				</AdminSectionCard>
 
-				<AdminSectionCard title="Low-yield sources" description="Sources that rarely find new items.">
+				<AdminSectionCard
+					title="Low-yield sources"
+					description="Sources that rarely find new items."
+				>
 					{#snippet children()}
 						<div class="overflow-x-auto">
 							<Table.Root>
@@ -252,7 +318,10 @@
 									{#each data.lowYield as row}
 										<Table.Row>
 											<Table.Cell>
-												<a href={`/admin/sources/${row.sourceId}`} class="font-medium hover:underline">{row.sourceName}</a>
+												<a
+													href={`/admin/sources/${row.sourceId}`}
+													class="font-medium hover:underline">{row.sourceName}</a
+												>
 											</Table.Cell>
 											<Table.Cell>{pct(row.yieldRatio)}</Table.Cell>
 											<Table.Cell class="text-[var(--mid)]">{row.totalFetched}</Table.Cell>
@@ -260,7 +329,9 @@
 										</Table.Row>
 									{:else}
 										<Table.Row>
-											<Table.Cell colspan={4} class="h-20 text-center text-[var(--mid)]">No data yet</Table.Cell>
+											<Table.Cell colspan={4} class="h-20 text-center text-[var(--mid)]"
+												>No data yet</Table.Cell
+											>
 										</Table.Row>
 									{/each}
 								</Table.Body>
@@ -269,7 +340,10 @@
 					{/snippet}
 				</AdminSectionCard>
 
-				<AdminSectionCard title="Mostly updates" description="Sources where most imported items are updates rather than new.">
+				<AdminSectionCard
+					title="Mostly updates"
+					description="Sources where most imported items are updates rather than new."
+				>
 					{#snippet children()}
 						<div class="overflow-x-auto">
 							<Table.Root>
@@ -285,7 +359,10 @@
 									{#each data.updateHeavy as row}
 										<Table.Row>
 											<Table.Cell>
-												<a href={`/admin/sources/${row.sourceId}`} class="font-medium hover:underline">{row.sourceName}</a>
+												<a
+													href={`/admin/sources/${row.sourceId}`}
+													class="font-medium hover:underline">{row.sourceName}</a
+												>
 											</Table.Cell>
 											<Table.Cell>{pct(row.updateRatio)}</Table.Cell>
 											<Table.Cell class="text-[var(--mid)]">{row.totalUpdated}</Table.Cell>
@@ -293,7 +370,9 @@
 										</Table.Row>
 									{:else}
 										<Table.Row>
-											<Table.Cell colspan={4} class="h-20 text-center text-[var(--mid)]">No data yet</Table.Cell>
+											<Table.Cell colspan={4} class="h-20 text-center text-[var(--mid)]"
+												>No data yet</Table.Cell
+											>
 										</Table.Row>
 									{/each}
 								</Table.Body>
@@ -302,7 +381,10 @@
 					{/snippet}
 				</AdminSectionCard>
 
-				<AdminSectionCard title="Approval rates" description="How often imported items get approved after review.">
+				<AdminSectionCard
+					title="Approval rates"
+					description="How often imported items get approved after review."
+				>
 					{#snippet children()}
 						<div class="overflow-x-auto">
 							<Table.Root>
@@ -318,7 +400,10 @@
 									{#each data.approvalRates as row}
 										<Table.Row>
 											<Table.Cell>
-												<a href={`/admin/sources/${row.sourceId}`} class="font-medium hover:underline">{row.sourceName}</a>
+												<a
+													href={`/admin/sources/${row.sourceId}`}
+													class="font-medium hover:underline">{row.sourceName}</a
+												>
 											</Table.Cell>
 											<Table.Cell>{pct(row.approvalRatio)}</Table.Cell>
 											<Table.Cell class="text-[var(--mid)]">{row.totalReviewed}</Table.Cell>
@@ -326,7 +411,9 @@
 										</Table.Row>
 									{:else}
 										<Table.Row>
-											<Table.Cell colspan={4} class="h-20 text-center text-[var(--mid)]">No data yet</Table.Cell>
+											<Table.Cell colspan={4} class="h-20 text-center text-[var(--mid)]"
+												>No data yet</Table.Cell
+											>
 										</Table.Row>
 									{/each}
 								</Table.Body>
@@ -336,7 +423,60 @@
 				</AdminSectionCard>
 			</div>
 
-			<AdminSectionCard title="Many duplicates" description="Sources that frequently import items already in the database.">
+			<AdminSectionCard
+				title="Run quality signals"
+				description="Recent staged-run quality metrics by source."
+			>
+				{#snippet children()}
+					<div class="overflow-x-auto">
+						<Table.Root>
+							<Table.Header>
+								<Table.Row>
+									<Table.Head>Source</Table.Head>
+									<Table.Head>Runs</Table.Head>
+									<Table.Head>Failures</Table.Head>
+									<Table.Head>Missing image</Table.Head>
+									<Table.Head>Low confidence</Table.Head>
+									<Table.Head>Enrichment failures</Table.Head>
+									<Table.Head>AI conflicts</Table.Head>
+									<Table.Head>Avg duration</Table.Head>
+								</Table.Row>
+							</Table.Header>
+							<Table.Body>
+								{#each data.runHealthMetrics as row}
+									<Table.Row>
+										<Table.Cell>
+											<a href={`/admin/sources/${row.sourceId}`} class="font-medium hover:underline"
+												>{row.sourceName}</a
+											>
+										</Table.Cell>
+										<Table.Cell>{row.totalRuns}</Table.Cell>
+										<Table.Cell>{row.failedRuns}</Table.Cell>
+										<Table.Cell>{pct(row.missingImageRate)}</Table.Cell>
+										<Table.Cell>{pct(row.lowConfidenceRate)}</Table.Cell>
+										<Table.Cell>{pct(row.enrichmentFailureRate)}</Table.Cell>
+										<Table.Cell>{pct(row.aiConflictRate)}</Table.Cell>
+										<Table.Cell class="text-[var(--mid)]"
+											>{Math.round(row.avgDurationMs)} ms</Table.Cell
+										>
+									</Table.Row>
+								{:else}
+									<Table.Row>
+										<Table.Cell colspan={8} class="h-20 text-center text-[var(--mid)]"
+											>No staged run data yet</Table.Cell
+										>
+									</Table.Row>
+								{/each}
+							</Table.Body>
+						</Table.Root>
+					</div>
+				{/snippet}
+			</AdminSectionCard>
+
+			<AdminSectionCard
+				title="Many duplicates"
+				description="Sources that frequently import items already in the database."
+			>
 				{#snippet children()}
 					<div class="overflow-x-auto">
 						<Table.Root>
@@ -353,7 +493,9 @@
 								{#each data.duplicateHeavy as row}
 									<Table.Row>
 										<Table.Cell>
-											<a href={`/admin/sources/${row.sourceId}`} class="font-medium hover:underline">{row.sourceName}</a>
+											<a href={`/admin/sources/${row.sourceId}`} class="font-medium hover:underline"
+												>{row.sourceName}</a
+											>
 										</Table.Cell>
 										<Table.Cell>{pct(row.duplicateRatio)}</Table.Cell>
 										<Table.Cell class="text-[var(--mid)]">{row.totalDuplicate}</Table.Cell>
@@ -362,11 +504,17 @@
 											<form
 												method="POST"
 												action="?/retrySource"
-												use:enhance={() => async ({ result, update }) => {
-													if (result.type === 'success') toast.success('Source retried');
-													else toast.error(result.type === 'failure' ? ((result.data as { error?: string })?.error ?? 'Retry failed') : 'Retry failed');
-													await update();
-												}}
+												use:enhance={() =>
+													async ({ result, update }) => {
+														if (result.type === 'success') toast.success('Source retried');
+														else
+															toast.error(
+																result.type === 'failure'
+																	? ((result.data as { error?: string })?.error ?? 'Retry failed')
+																	: 'Retry failed'
+															);
+														await update();
+													}}
 											>
 												<input type="hidden" name="sourceId" value={row.sourceId} />
 												<Button type="submit" variant="outline" size="sm">Retry</Button>
@@ -375,7 +523,9 @@
 									</Table.Row>
 								{:else}
 									<Table.Row>
-										<Table.Cell colspan={5} class="h-20 text-center text-[var(--mid)]">No data yet</Table.Cell>
+										<Table.Cell colspan={5} class="h-20 text-center text-[var(--mid)]"
+											>No data yet</Table.Cell
+										>
 									</Table.Row>
 								{/each}
 							</Table.Body>
@@ -388,7 +538,10 @@
 		<!-- Issues tab -->
 		<Tabs.Content value="issues" class="mt-6 space-y-6">
 			{#if data.needsCuration.length > 0}
-				<AdminSectionCard title="Needs curation" description="Sources with flags that may require manual attention.">
+				<AdminSectionCard
+					title="Needs curation"
+					description="Sources with flags that may require manual attention."
+				>
 					{#snippet children()}
 						<div class="overflow-x-auto">
 							<Table.Root>
@@ -404,11 +557,18 @@
 									{#each data.needsCuration as row}
 										<Table.Row>
 											<Table.Cell>
-												<a href={`/admin/sources/${row.sourceId}`} class="font-medium hover:underline">{row.sourceName}</a>
+												<a
+													href={`/admin/sources/${row.sourceId}`}
+													class="font-medium hover:underline">{row.sourceName}</a
+												>
 											</Table.Cell>
-											<Table.Cell class="text-[var(--mid)]">{friendly(ingestionLabel, row.adapterType)}</Table.Cell>
+											<Table.Cell class="text-[var(--mid)]"
+												>{friendly(ingestionLabel, row.adapterType)}</Table.Cell
+											>
 											<Table.Cell><HealthBadge health={row.healthStatus} /></Table.Cell>
-											<Table.Cell class="text-sm text-[var(--mid)]">{friendlyCurationReasons(row.reasons)}</Table.Cell>
+											<Table.Cell class="text-sm text-[var(--mid)]"
+												>{friendlyCurationReasons(row.reasons)}</Table.Cell
+											>
 										</Table.Row>
 									{/each}
 								</Table.Body>
@@ -419,14 +579,50 @@
 			{/if}
 
 			<div class="grid gap-6 xl:grid-cols-2">
-				<AdminSectionCard title="Broken sources" description="Failing to fetch — may need reconfiguration.">
+				<AdminSectionCard
+					title="Quarantined sources"
+					description="Sources held out of automated runs until they are reviewed."
+				>
+					{#snippet children()}
+						<div class="divide-y divide-[color:var(--rule)]">
+							{#each data.quarantined as source}
+								<div class="flex items-center justify-between gap-3 px-5 py-3">
+									<div>
+										<a href={`/admin/sources/${source.id}`} class="font-medium hover:underline"
+											>{source.name}</a
+										>
+										<p class="text-xs text-[var(--mid)]">
+											{source.quarantineReason ?? 'No quarantine reason recorded'}
+										</p>
+									</div>
+									<span
+										class="inline-flex items-center rounded-full border border-[color:color-mix(in_srgb,var(--color-ember-300)_60%,transparent)] bg-[color:color-mix(in_srgb,var(--color-ember-50)_90%,white)] px-2.5 py-1 text-[11px] font-semibold tracking-[0.04em] text-[var(--color-ember-900)] uppercase"
+									>
+										Quarantined
+									</span>
+								</div>
+							{:else}
+								<div class="px-5 py-6 text-sm text-[var(--mid)]">No quarantined sources.</div>
+							{/each}
+						</div>
+					{/snippet}
+				</AdminSectionCard>
+
+				<AdminSectionCard
+					title="Broken sources"
+					description="Failing to fetch — may need reconfiguration."
+				>
 					{#snippet children()}
 						<div class="divide-y divide-[color:var(--rule)]">
 							{#each data.broken as source}
 								<div class="flex items-center justify-between gap-3 px-5 py-3">
 									<div>
-										<a href={`/admin/sources/${source.id}`} class="font-medium hover:underline">{source.name}</a>
-										<p class="text-xs text-[var(--mid)]">{source.consecutiveFailureCount} failures in a row</p>
+										<a href={`/admin/sources/${source.id}`} class="font-medium hover:underline"
+											>{source.name}</a
+										>
+										<p class="text-xs text-[var(--mid)]">
+											{source.consecutiveFailureCount} failures in a row
+										</p>
 									</div>
 									<StatusBadge status={source.status} />
 								</div>
@@ -437,13 +633,18 @@
 					{/snippet}
 				</AdminSectionCard>
 
-				<AdminSectionCard title="Authentication needed" description="Sources that require updated credentials.">
+				<AdminSectionCard
+					title="Authentication needed"
+					description="Sources that require updated credentials."
+				>
 					{#snippet children()}
 						<div class="divide-y divide-[color:var(--rule)]">
 							{#each data.authRequired as source}
 								<div class="flex items-center justify-between gap-3 px-5 py-3">
 									<div>
-										<a href={`/admin/sources/${source.id}`} class="font-medium hover:underline">{source.name}</a>
+										<a href={`/admin/sources/${source.id}`} class="font-medium hover:underline"
+											>{source.name}</a
+										>
 										<p class="text-xs text-[var(--mid)]">
 											{friendly(ingestionLabel, source.ingestionMethod)} ·
 											{source.ownerName ?? source.ownerEmail ?? 'No owner assigned'}
@@ -458,15 +659,22 @@
 					{/snippet}
 				</AdminSectionCard>
 
-				<AdminSectionCard title="Stale sources" description="Overdue for their next scheduled check.">
+				<AdminSectionCard
+					title="Stale sources"
+					description="Overdue for their next scheduled check."
+				>
 					{#snippet children()}
 						<div class="divide-y divide-[color:var(--rule)]">
 							{#each data.stale as source}
 								<div class="flex items-center justify-between gap-3 px-5 py-3">
 									<div>
-										<a href={`/admin/sources/${source.id}`} class="font-medium hover:underline">{source.name}</a>
+										<a href={`/admin/sources/${source.id}`} class="font-medium hover:underline"
+											>{source.name}</a
+										>
 										<p class="text-xs text-[var(--mid)]">
-											Next check: {source.nextCheckAt ? timeAgo(source.nextCheckAt) : 'Not scheduled'}
+											Next check: {source.nextCheckAt
+												? timeAgo(source.nextCheckAt)
+												: 'Not scheduled'}
 										</p>
 									</div>
 									<StatusBadge status={source.status} />
@@ -478,14 +686,21 @@
 					{/snippet}
 				</AdminSectionCard>
 
-				<AdminSectionCard title="Degraded sources" description="Partially working but showing signs of trouble.">
+				<AdminSectionCard
+					title="Degraded sources"
+					description="Partially working but showing signs of trouble."
+				>
 					{#snippet children()}
 						<div class="divide-y divide-[color:var(--rule)]">
 							{#each data.degraded as source}
 								<div class="flex items-center justify-between gap-3 px-5 py-3">
 									<div>
-										<a href={`/admin/sources/${source.id}`} class="font-medium hover:underline">{source.name}</a>
-										<p class="text-xs text-[var(--mid)]">Last checked: {timeAgo(source.lastCheckedAt)}</p>
+										<a href={`/admin/sources/${source.id}`} class="font-medium hover:underline"
+											>{source.name}</a
+										>
+										<p class="text-xs text-[var(--mid)]">
+											Last checked: {timeAgo(source.lastCheckedAt)}
+										</p>
 									</div>
 									<HealthBadge health="degraded" />
 								</div>
@@ -501,7 +716,10 @@
 		<!-- Error log tab -->
 		<Tabs.Content value="errors" class="mt-6 space-y-6">
 			{#if data.repeatedErrors.length > 0}
-				<AdminSectionCard title="Repeated errors" description="Sources that keep failing with the same error.">
+				<AdminSectionCard
+					title="Repeated errors"
+					description="Sources that keep failing with the same error."
+				>
 					{#snippet children()}
 						<div class="overflow-x-auto">
 							<Table.Root>
@@ -517,11 +735,22 @@
 									{#each data.repeatedErrors as row}
 										<Table.Row>
 											<Table.Cell>
-												<a href={`/admin/sources/${row.sourceId}`} class="font-medium hover:underline">{row.sourceName}</a>
+												<a
+													href={`/admin/sources/${row.sourceId}`}
+													class="font-medium hover:underline">{row.sourceName}</a
+												>
 											</Table.Cell>
-											<Table.Cell class="text-[var(--mid)]">{row.errorCategory ?? 'Unknown'}</Table.Cell>
-											<Table.Cell class="max-w-sm text-sm text-[var(--mid)]" title={row.errorMessage ?? ''}>
-												{row.errorMessage ? row.errorMessage.slice(0, 120) + (row.errorMessage.length > 120 ? '…' : '') : '—'}
+											<Table.Cell class="text-[var(--mid)]"
+												>{row.errorCategory ?? 'Unknown'}</Table.Cell
+											>
+											<Table.Cell
+												class="max-w-sm text-sm text-[var(--mid)]"
+												title={row.errorMessage ?? ''}
+											>
+												{row.errorMessage
+													? row.errorMessage.slice(0, 120) +
+														(row.errorMessage.length > 120 ? '…' : '')
+													: '—'}
 											</Table.Cell>
 											<Table.Cell>{row.count}</Table.Cell>
 										</Table.Row>
@@ -533,7 +762,10 @@
 				</AdminSectionCard>
 			{/if}
 
-			<AdminSectionCard title="Recent failure log" description="The most recent fetch failures across all sources.">
+			<AdminSectionCard
+				title="Recent failure log"
+				description="The most recent fetch failures across all sources."
+			>
 				{#snippet children()}
 					<div class="overflow-x-auto">
 						<Table.Root>
@@ -549,21 +781,32 @@
 								{#each data.recentFailures as failure}
 									<Table.Row>
 										<Table.Cell>
-											<a href={`/admin/sources/${failure.log.sourceId}`} class="font-medium hover:underline">
+											<a
+												href={`/admin/sources/${failure.log.sourceId}`}
+												class="font-medium hover:underline"
+											>
 												{failure.sourceName}
 											</a>
 										</Table.Cell>
 										<Table.Cell><StatusBadge status={failure.log.status} /></Table.Cell>
-										<Table.Cell class="max-w-sm text-sm text-[var(--mid)]" title={failure.log.errorMessage ?? ''}>
+										<Table.Cell
+											class="max-w-sm text-sm text-[var(--mid)]"
+											title={failure.log.errorMessage ?? ''}
+										>
 											{failure.log.errorMessage
-												? failure.log.errorMessage.slice(0, 120) + (failure.log.errorMessage.length > 120 ? '…' : '')
-												: failure.log.errorCategory ?? '—'}
+												? failure.log.errorMessage.slice(0, 120) +
+													(failure.log.errorMessage.length > 120 ? '…' : '')
+												: (failure.log.errorCategory ?? '—')}
 										</Table.Cell>
-										<Table.Cell class="text-[var(--mid)]">{timeAgo(failure.log.attemptedAt)}</Table.Cell>
+										<Table.Cell class="text-[var(--mid)]"
+											>{timeAgo(failure.log.attemptedAt)}</Table.Cell
+										>
 									</Table.Row>
 								{:else}
 									<Table.Row>
-										<Table.Cell colspan={4} class="h-20 text-center text-[var(--mid)]">No recent failures</Table.Cell>
+										<Table.Cell colspan={4} class="h-20 text-center text-[var(--mid)]"
+											>No recent failures</Table.Cell
+										>
 									</Table.Row>
 								{/each}
 							</Table.Body>

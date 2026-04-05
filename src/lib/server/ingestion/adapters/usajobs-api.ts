@@ -192,7 +192,7 @@ export const usaJobsApiAdapter: IngestionAdapter = {
 };
 
 function readRecord(value: unknown) {
-	return value && typeof value === 'object' ? (value as Record<string, any>) : {};
+	return value && typeof value === 'object' ? (value as Record<string, unknown>) : {};
 }
 
 function readString(value: unknown): string | null {

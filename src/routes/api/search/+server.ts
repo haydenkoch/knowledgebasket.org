@@ -1,6 +1,6 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { searchAll, isMeilisearchConfigured } from '$lib/server/meilisearch';
+import { searchAll, isMeilisearchAvailable } from '$lib/server/meilisearch';
 import { searchEventsFromDb } from '$lib/server/events';
 import type { CoilKey } from '$lib/data/kb';
 
@@ -14,7 +14,7 @@ const emptyResults: Record<CoilKey, { title: string; slug?: string }[]> = {
 
 export const GET: RequestHandler = async ({ url }) => {
 	const q = (url.searchParams.get('q') as string)?.trim() ?? '';
-	const mode = isMeilisearchConfigured() ? 'all' : 'events-only';
+	const mode = (await isMeilisearchAvailable()) ? 'all' : 'events-only';
 	if (q.length < 2) {
 		return json({ query: q, results: emptyResults, mode });
 	}

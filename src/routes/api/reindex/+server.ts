@@ -2,8 +2,8 @@ import { dev } from '$app/environment';
 import { env } from '$env/dynamic/private';
 import { error, json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { getEvents } from '$lib/server/events';
-import { reindexAllEvents } from '$lib/server/meilisearch';
+import type { CoilKey } from '$lib/data/kb';
+import { reindexAllPublishedContent, reindexPublishedContentCoil } from '$lib/server/search-ops';
 
 /**
  * Reindex all events from DB into Meilisearch. Call after db:seed or when search is out of sync.
@@ -19,7 +19,23 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 		throw error(403, 'Forbidden');
 	}
 
-	const events = await getEvents({ includeIcal: false });
-	await reindexAllEvents(events);
-	return json({ ok: true, indexed: events.length });
+	const url = new URL(request.url);
+	const scope = url.searchParams.get('scope')?.trim() as CoilKey | 'all' | null;
+
+	if (
+		scope &&
+		scope !== 'all' &&
+		!['events', 'funding', 'redpages', 'jobs', 'toolbox'].includes(scope)
+	) {
+		throw error(400, 'Invalid scope');
+	}
+
+	if (scope && scope !== 'all') {
+		const count = await reindexPublishedContentCoil(scope);
+		return json({ ok: true, scope, indexed: count });
+	}
+
+	const summary = await reindexAllPublishedContent();
+	const indexed = Object.values(summary).reduce((sum, count) => sum + count, 0);
+	return json({ ok: true, scope: 'all', indexed, summary });
 };

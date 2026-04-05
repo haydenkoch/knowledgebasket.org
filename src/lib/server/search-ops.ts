@@ -3,6 +3,7 @@ import { getEvents, searchEventsFromDb } from '$lib/server/events';
 import { getPublishedFunding } from '$lib/server/funding';
 import { getPublishedJobs } from '$lib/server/jobs';
 import {
+	isMeilisearchAvailable,
 	isMeilisearchConfigured,
 	reindexAllEvents,
 	reindexCoil,
@@ -134,6 +135,7 @@ export async function reindexAllPublishedContent(): Promise<SearchReindexSummary
 
 export async function getSearchOperationsSnapshot(query = '') {
 	const meilisearchConfigured = isMeilisearchConfigured();
+	const meilisearchAvailable = await isMeilisearchAvailable();
 	const [events, funding, redpages, jobs, toolbox, organizations, venues, sources] =
 		await Promise.all([
 			getEvents({ includeIcal: false }),
@@ -163,7 +165,7 @@ export async function getSearchOperationsSnapshot(query = '') {
 	};
 
 	if (query.trim().length >= 2) {
-		if (meilisearchConfigured) {
+		if (meilisearchAvailable) {
 			contentResults = await searchAll(query, { limit: 6 });
 		} else {
 			const eventResults = await searchEventsFromDb(query);
@@ -179,7 +181,8 @@ export async function getSearchOperationsSnapshot(query = '') {
 
 	return {
 		meilisearchConfigured,
-		searchMode: meilisearchConfigured ? 'all' : 'events-only',
+		meilisearchAvailable,
+		searchMode: meilisearchAvailable ? 'all' : 'events-only',
 		publishedCounts,
 		contentResults,
 		entityResults: {

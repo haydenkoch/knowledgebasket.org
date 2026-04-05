@@ -17,6 +17,7 @@ export async function selectDueSources(
 		.where(
 			and(
 				eq(sources.enabled, true),
+				eq(sources.quarantined, false),
 				eq(sources.status, 'active'),
 				sql`${sources.adapterType} is not null`,
 				sql`${sources.ingestionMethod} not in ('manual_only', 'manual_with_reminder')`,
@@ -34,6 +35,7 @@ export async function countDueSources(now = new Date()): Promise<number> {
 		.where(
 			and(
 				eq(sources.enabled, true),
+				eq(sources.quarantined, false),
 				eq(sources.status, 'active'),
 				sql`${sources.adapterType} is not null`,
 				sql`${sources.ingestionMethod} not in ('manual_only', 'manual_with_reminder')`,

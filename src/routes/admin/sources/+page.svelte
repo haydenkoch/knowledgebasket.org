@@ -80,10 +80,30 @@
 	</AdminPageHeader>
 
 	<div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-		<AdminStatCard label="Total sources" value={data.healthSummary.total} href="/admin/sources" tone="lake" />
-		<AdminStatCard label="Enabled" value={data.healthSummary.enabled} href="/admin/sources?enabled=true" tone="forest" />
-		<AdminStatCard label="Active" value={data.healthSummary.active} href="/admin/sources?status=active" tone="gold" />
-		<AdminStatCard label="Flagged for review" value={data.healthSummary.reviewRequired} href="/admin/sources/health" tone="ember" />
+		<AdminStatCard
+			label="Total sources"
+			value={data.healthSummary.total}
+			href="/admin/sources"
+			tone="lake"
+		/>
+		<AdminStatCard
+			label="Enabled"
+			value={data.healthSummary.enabled}
+			href="/admin/sources?enabled=true"
+			tone="forest"
+		/>
+		<AdminStatCard
+			label="Active"
+			value={data.healthSummary.active}
+			href="/admin/sources?status=active"
+			tone="gold"
+		/>
+		<AdminStatCard
+			label="Flagged for review"
+			value={data.healthSummary.reviewRequired}
+			href="/admin/sources/health"
+			tone="ember"
+		/>
 	</div>
 
 	<!-- Add source dialog -->
@@ -96,26 +116,31 @@
 			<form
 				method="POST"
 				action="?/createSource"
-				use:enhance={() => async ({ result, update }) => {
-					if (result.type === 'success') {
-						toast.success('Source created');
-						createOpen = false;
-					} else if (result.type === 'failure') {
-						toast.error((result.data as { error?: string })?.error ?? 'Create failed');
-					}
-					await update();
-				}}
+				use:enhance={() =>
+					async ({ result, update }) => {
+						if (result.type === 'success') {
+							toast.success('Source created');
+							createOpen = false;
+						} else if (result.type === 'failure') {
+							toast.error((result.data as { error?: string })?.error ?? 'Create failed');
+						}
+						await update();
+					}}
 				class="space-y-6"
 			>
 				<div class="space-y-4">
-					<p class="text-[11px] font-bold tracking-[0.08em] text-[var(--mid)] uppercase">Basic info</p>
+					<p class="text-[11px] font-bold tracking-[0.08em] text-[var(--mid)] uppercase">
+						Basic info
+					</p>
 					<div class="grid gap-4 md:grid-cols-2">
 						<div class="space-y-2">
 							<Label for="name">Name <span class="text-[var(--color-ember-600)]">*</span></Label>
 							<Input id="name" name="name" required placeholder="e.g. NCAI Events Calendar" />
 						</div>
 						<div class="space-y-2">
-							<Label for="sourceUrl">Feed or source URL <span class="text-[var(--color-ember-600)]">*</span></Label>
+							<Label for="sourceUrl"
+								>Feed or source URL <span class="text-[var(--color-ember-600)]">*</span></Label
+							>
 							<Input id="sourceUrl" name="sourceUrl" type="url" required placeholder="https://…" />
 						</div>
 					</div>
@@ -128,15 +153,23 @@
 							<Label for="sourceCategory">Organization type</Label>
 							<NativeSelect.Root id="sourceCategory" name="sourceCategory">
 								<NativeSelect.Option value="">Unspecified</NativeSelect.Option>
-								<NativeSelect.Option value="government_federal">Government (Federal)</NativeSelect.Option>
-								<NativeSelect.Option value="government_state">Government (State)</NativeSelect.Option>
-								<NativeSelect.Option value="government_tribal">Government (Tribal)</NativeSelect.Option>
+								<NativeSelect.Option value="government_federal"
+									>Government (Federal)</NativeSelect.Option
+								>
+								<NativeSelect.Option value="government_state"
+									>Government (State)</NativeSelect.Option
+								>
+								<NativeSelect.Option value="government_tribal"
+									>Government (Tribal)</NativeSelect.Option
+								>
 								<NativeSelect.Option value="nonprofit">Nonprofit</NativeSelect.Option>
 								<NativeSelect.Option value="foundation">Foundation</NativeSelect.Option>
 								<NativeSelect.Option value="aggregator">Aggregator</NativeSelect.Option>
 								<NativeSelect.Option value="news_media">News media</NativeSelect.Option>
 								<NativeSelect.Option value="academic">Academic</NativeSelect.Option>
-								<NativeSelect.Option value="professional_association">Professional association</NativeSelect.Option>
+								<NativeSelect.Option value="professional_association"
+									>Professional association</NativeSelect.Option
+								>
 								<NativeSelect.Option value="private_business">Private business</NativeSelect.Option>
 								<NativeSelect.Option value="community">Community</NativeSelect.Option>
 							</NativeSelect.Root>
@@ -144,31 +177,46 @@
 					</div>
 					<div class="space-y-2">
 						<Label for="description">Description</Label>
-						<Textarea id="description" name="description" rows={3} placeholder="What does this source publish? Who runs it?" />
+						<Textarea
+							id="description"
+							name="description"
+							rows={3}
+							placeholder="What does this source publish? Who runs it?"
+						/>
 					</div>
 				</div>
 
 				<div class="space-y-4">
-					<p class="text-[11px] font-bold tracking-[0.08em] text-[var(--mid)] uppercase">How it's imported</p>
+					<p class="text-[11px] font-bold tracking-[0.08em] text-[var(--mid)] uppercase">
+						How it's imported
+					</p>
 					<div class="grid gap-4 md:grid-cols-2">
 						<div class="space-y-2">
 							<Label for="ingestionMethod">Import method</Label>
 							<NativeSelect.Root id="ingestionMethod" name="ingestionMethod">
 								<NativeSelect.Option value="manual_only">Manual entry</NativeSelect.Option>
-								<NativeSelect.Option value="manual_with_reminder">Manual with reminders</NativeSelect.Option>
+								<NativeSelect.Option value="manual_with_reminder"
+									>Manual with reminders</NativeSelect.Option
+								>
 								<NativeSelect.Option value="rss_import">RSS feed</NativeSelect.Option>
 								<NativeSelect.Option value="ical_import">Calendar feed</NativeSelect.Option>
 								<NativeSelect.Option value="api_import">API connection</NativeSelect.Option>
 								<NativeSelect.Option value="html_scrape">Web page import</NativeSelect.Option>
 								<NativeSelect.Option value="directory_sync">Directory sync</NativeSelect.Option>
-								<NativeSelect.Option value="document_extraction">Document parsing</NativeSelect.Option>
-								<NativeSelect.Option value="newsletter_triage">Email / newsletter</NativeSelect.Option>
+								<NativeSelect.Option value="document_extraction"
+									>Document parsing</NativeSelect.Option
+								>
+								<NativeSelect.Option value="newsletter_triage"
+									>Email / newsletter</NativeSelect.Option
+								>
 								<NativeSelect.Option value="hybrid">Mixed methods</NativeSelect.Option>
 							</NativeSelect.Root>
 						</div>
 						<div class="space-y-2">
 							<Label>Content types</Label>
-							<div class="grid grid-cols-2 gap-2 rounded-lg border border-[color:var(--rule)] p-3 text-sm">
+							<div
+								class="grid grid-cols-2 gap-2 rounded-lg border border-[color:var(--rule)] p-3 text-sm"
+							>
 								{#each coilOptions as coil}
 									<label class="flex cursor-pointer items-center gap-2">
 										<input type="checkbox" name="coils" value={coil.value} class="rounded" />
@@ -181,7 +229,9 @@
 				</div>
 
 				<div class="space-y-3">
-					<p class="text-[11px] font-bold tracking-[0.08em] text-[var(--mid)] uppercase">Settings</p>
+					<p class="text-[11px] font-bold tracking-[0.08em] text-[var(--mid)] uppercase">
+						Settings
+					</p>
 					<div class="flex flex-wrap gap-5 text-sm">
 						<label class="flex cursor-pointer items-center gap-2">
 							<input type="checkbox" name="enabled" class="rounded" />
@@ -195,13 +245,14 @@
 				</div>
 
 				<Dialog.Footer>
-					<Button type="button" variant="outline" onclick={() => (createOpen = false)}>Cancel</Button>
+					<Button type="button" variant="outline" onclick={() => (createOpen = false)}
+						>Cancel</Button
+					>
 					<Button type="submit">Create source</Button>
 				</Dialog.Footer>
 			</form>
 		</Dialog.Content>
 	</Dialog.Root>
-
 
 	{#if data.sources.length === 0 && !data.currentSearch}
 		<Empty.Root>
@@ -223,7 +274,10 @@
 					<!-- Search + filters -->
 					<div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
 						<form
-							onsubmit={(e) => { e.preventDefault(); doSearch(); }}
+							onsubmit={(e) => {
+								e.preventDefault();
+								doSearch();
+							}}
 							class="flex w-full max-w-md gap-2"
 						>
 							<Input type="text" bind:value={searchValue} placeholder="Search sources…" />
@@ -297,7 +351,12 @@
 										<Table.Cell>
 											<div class="font-medium">{source.name}</div>
 											{#if source.homepageUrl}
-												<a href={source.homepageUrl} target="_blank" rel="noreferrer" class="text-xs text-[var(--mid)] hover:underline">{source.homepageUrl}</a>
+												<a
+													href={source.homepageUrl}
+													target="_blank"
+													rel="noreferrer"
+													class="text-xs text-[var(--mid)] hover:underline">{source.homepageUrl}</a
+												>
 											{/if}
 										</Table.Cell>
 										<Table.Cell>
@@ -313,7 +372,9 @@
 											<div class="flex flex-wrap gap-1">
 												{#if source.coils.length > 0}
 													{#each source.coils as coil}
-														<span class="inline-flex rounded-full border border-[color:var(--rule)] bg-[var(--color-alpine-snow-100)] px-2 py-0.5 text-xs text-[var(--mid)]">
+														<span
+															class="inline-flex rounded-full border border-[color:var(--rule)] bg-[var(--color-alpine-snow-100)] px-2 py-0.5 text-xs text-[var(--mid)]"
+														>
 															{friendly(coilLabel, coil)}
 														</span>
 													{/each}
@@ -349,11 +410,23 @@
 					<div class="flex items-center justify-between text-sm text-[var(--mid)]">
 						<span>Showing {data.sources.length} of {data.total} sources</span>
 						<div class="flex items-center gap-2">
-							<Button type="button" variant="outline" size="sm" disabled={data.currentPage <= 1} onclick={() => goPage(data.currentPage - 1)}>
+							<Button
+								type="button"
+								variant="outline"
+								size="sm"
+								disabled={data.currentPage <= 1}
+								onclick={() => goPage(data.currentPage - 1)}
+							>
 								Previous
 							</Button>
 							<span>Page {data.currentPage} of {totalPages}</span>
-							<Button type="button" variant="outline" size="sm" disabled={data.currentPage >= totalPages} onclick={() => goPage(data.currentPage + 1)}>
+							<Button
+								type="button"
+								variant="outline"
+								size="sm"
+								disabled={data.currentPage >= totalPages}
+								onclick={() => goPage(data.currentPage + 1)}
+							>
 								Next
 							</Button>
 						</div>

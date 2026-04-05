@@ -1,6 +1,6 @@
 import type { PageServerLoad } from './$types';
 import type { CoilKey } from '$lib/data/kb';
-import { isMeilisearchConfigured, searchAll, type SearchDoc } from '$lib/server/meilisearch';
+import { isMeilisearchAvailable, searchAll, type SearchDoc } from '$lib/server/meilisearch';
 import { searchEventsFromDb } from '$lib/server/events';
 
 const emptyResults: Record<CoilKey, SearchDoc[]> = {
@@ -13,7 +13,7 @@ const emptyResults: Record<CoilKey, SearchDoc[]> = {
 
 export const load: PageServerLoad = async ({ url }) => {
 	const query = url.searchParams.get('q')?.trim() ?? '';
-	const searchMode = isMeilisearchConfigured() ? 'all' : 'events-only';
+	const searchMode = (await isMeilisearchAvailable()) ? 'all' : 'events-only';
 
 	let results = emptyResults;
 	if (query.length >= 2) {

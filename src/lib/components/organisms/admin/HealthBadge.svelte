@@ -6,7 +6,8 @@
 			'border-[color:color-mix(in_srgb,var(--color-pinyon-300)_60%,transparent)] bg-[color:color-mix(in_srgb,var(--color-pinyon-50)_92%,white)] text-[var(--color-pinyon-800)]',
 		degraded:
 			'border-[color:color-mix(in_srgb,var(--color-flicker-300)_60%,transparent)] bg-[color:color-mix(in_srgb,var(--color-flicker-50)_90%,white)] text-[var(--color-flicker-900)]',
-		stale: 'border-[color:color-mix(in_srgb,var(--color-flicker-300)_60%,transparent)] bg-[color:color-mix(in_srgb,var(--color-flicker-50)_90%,white)] text-[var(--color-flicker-900)]',
+		stale:
+			'border-[color:color-mix(in_srgb,var(--color-flicker-300)_60%,transparent)] bg-[color:color-mix(in_srgb,var(--color-flicker-50)_90%,white)] text-[var(--color-flicker-900)]',
 		unhealthy:
 			'border-[color:color-mix(in_srgb,var(--color-ember-300)_60%,transparent)] bg-[color:color-mix(in_srgb,var(--color-ember-50)_92%,white)] text-[var(--color-ember-900)]',
 		broken:

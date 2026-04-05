@@ -56,9 +56,11 @@
 		{/snippet}
 		{#snippet meta()}
 			<span>
-				{data.snapshot.meilisearchConfigured
+				{data.snapshot.meilisearchAvailable
 					? 'Search is connected across all indexed content'
-					: 'Search is not fully connected yet'}
+					: data.snapshot.meilisearchConfigured
+						? 'Search is configured but currently unavailable'
+						: 'Search is not fully connected yet'}
 			</span>
 			<span>
 				{data.snapshot.searchMode === 'all'
@@ -87,15 +89,20 @@
 		{/each}
 	</div>
 
-	{#if !data.snapshot.meilisearchConfigured}
+	{#if !data.snapshot.meilisearchAvailable}
 		<div
 			class="rounded-2xl border border-[color:color-mix(in_srgb,var(--color-flicker-300)_50%,transparent)] bg-[color:color-mix(in_srgb,var(--color-flicker-50)_70%,white)] px-5 py-4 text-sm text-[var(--color-flicker-900)]"
 		>
 			<div class="flex items-start gap-3">
 				<CircleAlert class="mt-0.5 h-4 w-4 shrink-0" />
 				<p>
-					This connection is not set up yet. Public search will fall back to events only until
-					Meilisearch is configured.
+					{#if data.snapshot.meilisearchConfigured}
+						Meilisearch is configured but not reachable right now. Public search will fall back to
+						events only until the connection is healthy again.
+					{:else}
+						This connection is not set up yet. Public search will fall back to events only until
+						Meilisearch is configured.
+					{/if}
 				</p>
 			</div>
 		</div>

@@ -60,6 +60,7 @@ export async function getSourcesForAdmin(opts?: {
 	status?: string;
 	healthStatus?: string;
 	enabled?: string | boolean;
+	quarantined?: string | boolean;
 	coil?: string;
 	search?: string;
 	page?: number;
@@ -87,6 +88,14 @@ export async function getSourcesForAdmin(opts?: {
 		conditions.push(eq(sources.enabled, true));
 	} else if (opts?.enabled === 'false') {
 		conditions.push(eq(sources.enabled, false));
+	}
+
+	if (typeof opts?.quarantined === 'boolean') {
+		conditions.push(eq(sources.quarantined, opts.quarantined));
+	} else if (opts?.quarantined === 'true') {
+		conditions.push(eq(sources.quarantined, true));
+	} else if (opts?.quarantined === 'false') {
+		conditions.push(eq(sources.quarantined, false));
 	}
 
 	if (opts?.coil && opts.coil !== 'all') {
@@ -250,6 +259,7 @@ export async function getSourceHealthSummary(): Promise<{
 	enabled: number;
 	active: number;
 	reviewRequired: number;
+	quarantined: number;
 	healthCounts: Record<string, number>;
 }> {
 	const [summary] = await db
@@ -257,7 +267,8 @@ export async function getSourceHealthSummary(): Promise<{
 			total: sql<number>`count(*)::int`,
 			enabled: sql<number>`count(*) filter (where ${sources.enabled} = true)::int`,
 			active: sql<number>`count(*) filter (where ${sources.status} = 'active')::int`,
-			reviewRequired: sql<number>`count(*) filter (where ${sources.reviewRequired} = true)::int`
+			reviewRequired: sql<number>`count(*) filter (where ${sources.reviewRequired} = true)::int`,
+			quarantined: sql<number>`count(*) filter (where ${sources.quarantined} = true)::int`
 		})
 		.from(sources);
 
@@ -277,6 +288,7 @@ export async function getSourceHealthSummary(): Promise<{
 		enabled: summary?.enabled ?? 0,
 		active: summary?.active ?? 0,
 		reviewRequired: summary?.reviewRequired ?? 0,
+		quarantined: summary?.quarantined ?? 0,
 		healthCounts
 	};
 }

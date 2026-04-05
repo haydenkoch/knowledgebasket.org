@@ -1,11 +1,5 @@
 import { createHash } from 'node:crypto';
-import type {
-	AdapterConfig,
-	ConfigValidationResult,
-	IngestionAdapter,
-	ParsedItem,
-	SourceRecord
-} from '../types';
+import type { AdapterConfig, ConfigValidationResult, IngestionAdapter, ParsedItem } from '../types';
 import type { NormalizeResult, ParseResult, FetchResult, Coil, NormalizedEvent } from '../types';
 import { normalizeUrl } from '../dedupe';
 import { parseIcalEvents } from './ical-shared';
@@ -82,6 +76,7 @@ export const icalGenericAdapter: IngestionAdapter = {
 					description: event.description,
 					location: event.location,
 					url: event.url,
+					attachments: event.attachments,
 					dtstart: event.start.toISOString(),
 					dtend: event.end?.toISOString() ?? null,
 					timezone: event.timezone,
@@ -204,6 +199,7 @@ function normalizeEventItem(item: ParsedItem, config: ICalAdapterConfig): Normal
 	const url = normalizeUrl(getString(item.fields.url));
 	const description = getString(item.fields.description);
 	const categories = asStringArray(item.fields.categories);
+	const attachments = asStringArray(item.fields.attachments);
 	const timezone = getString(item.fields.timezone) ?? config.defaultTimezone ?? null;
 	const { city, state, zip } = parseLocation(location);
 	const isVirtual = detectVirtualEvent(location, url, description);
@@ -217,7 +213,7 @@ function normalizeEventItem(item: ParsedItem, config: ICalAdapterConfig): Normal
 		organization_id: null,
 		tags: categories,
 		region: state ?? null,
-		image_url: null,
+		image_url: attachments[0] ?? null,
 		start_date: startDate,
 		end_date: endDate,
 		start_time: startDate,
@@ -233,7 +229,7 @@ function normalizeEventItem(item: ParsedItem, config: ICalAdapterConfig): Normal
 		is_recurring: Boolean(item.fields.isRecurring),
 		recurrence_rule: getString(item.fields.recurrenceRule),
 		event_type: categories[0] ?? null,
-		registration_url: url,
+		registration_url: null,
 		cost: null
 	};
 }

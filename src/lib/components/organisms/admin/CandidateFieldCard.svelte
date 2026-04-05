@@ -35,9 +35,7 @@
 		if (value === null || value === undefined) return '—';
 		if (Array.isArray(value)) {
 			if (value.length === 0) return '—';
-			return value
-				.map((v) => (typeof v === 'string' ? v : JSON.stringify(v)))
-				.join(', ');
+			return value.map((v) => (typeof v === 'string' ? v : JSON.stringify(v))).join(', ');
 		}
 		if (value instanceof Date) return value.toLocaleDateString();
 		if (typeof value === 'boolean') return value ? 'Yes' : 'No';
@@ -48,7 +46,9 @@
 	}
 
 	function isUrl(value: unknown): boolean {
-		return typeof value === 'string' && (value.startsWith('http://') || value.startsWith('https://'));
+		return (
+			typeof value === 'string' && (value.startsWith('http://') || value.startsWith('https://'))
+		);
 	}
 
 	const fields = $derived(
@@ -62,16 +62,18 @@
 	<dl class="divide-y divide-[color:var(--rule)]">
 		{#each fields as [key, value]}
 			<div class="grid grid-cols-[140px_1fr] gap-3 px-1 py-2.5">
-				<dt class="text-xs font-semibold tracking-[0.04em] text-[var(--mid)] uppercase self-start pt-0.5">
+				<dt
+					class="self-start pt-0.5 text-xs font-semibold tracking-[0.04em] text-[var(--mid)] uppercase"
+				>
 					{candidateFieldLabel[key] ?? key.replace(/_/g, ' ')}
 				</dt>
-				<dd class="text-sm text-[var(--dark)] break-words">
+				<dd class="text-sm break-words text-[var(--dark)]">
 					{#if isUrl(value)}
 						<a
 							href={String(value)}
 							target="_blank"
 							rel="noreferrer"
-							class="text-primary hover:underline break-all"
+							class="break-all text-primary hover:underline"
 						>
 							{String(value)}
 						</a>

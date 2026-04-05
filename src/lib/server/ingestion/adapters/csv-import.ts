@@ -1,13 +1,7 @@
 import { parse as parseCsv } from 'csv-parse/sync';
 import * as XLSX from 'xlsx';
 import { normalizeUrl } from '../dedupe';
-import {
-	absoluteUrl,
-	fetchText,
-	inferDownloadUrlFromHtml,
-	selectSourceUrl,
-	splitTags
-} from '../shared';
+import { fetchText, inferDownloadUrlFromHtml, selectSourceUrl, splitTags } from '../shared';
 import type {
 	AdapterConfig,
 	ConfigValidationResult,
@@ -15,8 +9,7 @@ import type {
 	IngestionAdapter,
 	NormalizeResult,
 	NormalizedRedPagesEntry,
-	ParseResult,
-	SourceRecord
+	ParseResult
 } from '../types';
 
 type CsvImportConfig = AdapterConfig & {

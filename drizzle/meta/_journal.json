@@ -22,6 +22,20 @@
       "when": 1775108400000,
       "tag": "0002_entity_aliases",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1775126400000,
+      "tag": "0003_ingestion_observability",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1775131200000,
+      "tag": "0004_ai_enrichment",
+      "breakpoints": true
     }
   ]
 }

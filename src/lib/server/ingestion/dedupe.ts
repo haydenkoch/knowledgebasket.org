@@ -3,7 +3,6 @@ import { and, eq } from 'drizzle-orm';
 import { db } from '$lib/server/db';
 import { canonicalRecords, sourceRecordLinks } from '$lib/server/db/schema';
 import type {
-	Coil,
 	DedupeCheckResult,
 	DedupeLookup,
 	DedupeMatch,

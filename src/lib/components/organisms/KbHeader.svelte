@@ -2,12 +2,13 @@
 	import { page } from '$app/stores';
 	import { enhance } from '$app/forms';
 	import logoFallback from '$lib/assets/favicon.svg';
-	import * as Sheet from '$lib/components/ui/sheet/index.js';
+	import * as NavigationMenu from '$lib/components/ui/navigation-menu/index.js';
 	import * as Popover from '$lib/components/ui/popover/index.js';
-	import MenuIcon from '@lucide/svelte/icons/menu';
+	import * as Sidebar from '$lib/components/ui/sidebar/index.js';
 	import ChevronDown from '@lucide/svelte/icons/chevron-down';
 	import LogOut from '@lucide/svelte/icons/log-out';
 	import UserIcon from '@lucide/svelte/icons/user';
+	import { useSidebar } from '$lib/components/ui/sidebar/index.js';
 
 	let {
 		logoUrl,
@@ -26,21 +27,17 @@
 	];
 
 	const secondaryLinks = [{ href: '/about', label: 'About' }];
-
 	const pathname = $derived($page.url.pathname);
+	const sidebar = useSidebar();
 
 	function isActive(href: string): boolean {
 		if (href === '/') return pathname === '/';
 		return pathname === href || pathname.startsWith(href + '/');
 	}
 
-	let mobileOpen = $state(false);
-
-	// Close mobile menu on navigation
 	$effect(() => {
-		// Reading pathname registers the dependency
 		void pathname;
-		mobileOpen = false;
+		sidebar.setOpenMobile(false);
 	});
 
 	const displayName = $derived(user?.name || user?.email?.split('@')[0] || 'Account');
@@ -49,7 +46,8 @@
 
 <header class="kb-header">
 	<div class="kb-header__inner">
-		<!-- Brand -->
+		<Sidebar.Trigger class="kb-header__menu-btn" />
+
 		<a href="/" class="kb-header__brand" aria-label="Knowledge Basket — Home">
 			<img src={logoUrl ?? logoFallback} alt="" class="kb-header__logo" />
 			<span class="kb-header__name">
@@ -58,25 +56,25 @@
 			</span>
 		</a>
 
-		<!-- Desktop nav -->
 		<nav class="kb-header__desktop-nav" aria-label="Main navigation">
-			<ul class="kb-header__link-list" role="list">
-				{#each navLinks as link}
-					<li>
-						<a
-							href={link.href}
-							class="kb-header__link"
-							class:kb-header__link--active={isActive(link.href)}
-							aria-current={isActive(link.href) ? 'page' : undefined}
-						>
-							{link.label}
-						</a>
-					</li>
-				{/each}
-			</ul>
+			<NavigationMenu.Root class="w-full">
+				<NavigationMenu.List class="kb-header__link-list">
+					{#each navLinks as link}
+						<NavigationMenu.Item>
+							<NavigationMenu.Link
+								href={link.href}
+								class="kb-header__link"
+								active={isActive(link.href)}
+								aria-current={isActive(link.href) ? 'page' : undefined}
+							>
+								{link.label}
+							</NavigationMenu.Link>
+						</NavigationMenu.Item>
+					{/each}
+				</NavigationMenu.List>
+			</NavigationMenu.Root>
 		</nav>
 
-		<!-- Desktop secondary links + auth -->
 		<div class="kb-header__secondary">
 			{#each secondaryLinks as link}
 				<a
@@ -120,113 +118,10 @@
 			{/if}
 		</div>
 
-		<!-- Mobile menu button -->
-		<button
-			class="kb-header__menu-btn"
-			onclick={() => (mobileOpen = true)}
-			aria-label="Open navigation menu"
-			aria-expanded={mobileOpen}
-			aria-controls="mobile-nav"
-		>
-			<MenuIcon size={22} strokeWidth={2} />
-		</button>
 	</div>
-
-	<!-- Mobile Sheet -->
-	<Sheet.Root bind:open={mobileOpen}>
-		<Sheet.Content side="left" class="kb-mobile-nav">
-			<Sheet.Header class="kb-mobile-nav__header">
-				<Sheet.Title class="sr-only">Navigation</Sheet.Title>
-				<a href="/" class="kb-mobile-nav__brand" aria-label="Knowledge Basket — Home">
-					<img src={logoUrl ?? logoFallback} alt="" class="kb-mobile-nav__logo" />
-					<span class="kb-mobile-nav__name">
-						Knowledge Basket
-						<span class="kb-mobile-nav__org">Indigenous Futures Society</span>
-					</span>
-				</a>
-			</Sheet.Header>
-
-			<nav id="mobile-nav" aria-label="Main navigation">
-				<ul class="kb-mobile-nav__list" role="list">
-					{#each navLinks as link}
-						<li>
-							<a
-								href={link.href}
-								class="kb-mobile-nav__link"
-								class:kb-mobile-nav__link--active={isActive(link.href)}
-								aria-current={isActive(link.href) ? 'page' : undefined}
-							>
-								{link.label}
-							</a>
-						</li>
-					{/each}
-				</ul>
-
-				<div class="kb-mobile-nav__divider" role="separator"></div>
-
-				<ul class="kb-mobile-nav__list" role="list">
-					{#each secondaryLinks as link}
-						<li>
-							<a
-								href={link.href}
-								class="kb-mobile-nav__link kb-mobile-nav__link--secondary"
-								class:kb-mobile-nav__link--active={isActive(link.href)}
-								aria-current={isActive(link.href) ? 'page' : undefined}
-							>
-								{link.label}
-							</a>
-						</li>
-					{/each}
-				</ul>
-
-				<div class="kb-mobile-nav__divider" role="separator"></div>
-
-				<ul class="kb-mobile-nav__list" role="list">
-					{#if user}
-						<li class="kb-mobile-nav__user-info">
-							<span class="kb-mobile-nav__user-name">{displayName}</span>
-							{#if isStaff}
-								<span class="kb-mobile-nav__role">{user.role}</span>
-							{/if}
-						</li>
-						{#if isStaff}
-							<li>
-								<a href="/admin" class="kb-mobile-nav__link kb-mobile-nav__link--secondary">
-									Admin panel
-								</a>
-							</li>
-						{/if}
-						<li>
-							<form method="post" action="/auth/logout" use:enhance>
-								<button
-									type="submit"
-									class="kb-mobile-nav__link kb-mobile-nav__link--secondary kb-mobile-nav__signout"
-								>
-									<LogOut class="kb-mobile-nav__signout-icon" />
-									Sign out
-								</button>
-							</form>
-						</li>
-					{:else}
-						<li>
-							<a href="/auth/login" class="kb-mobile-nav__link kb-mobile-nav__link--secondary">
-								Sign in
-							</a>
-						</li>
-						<li>
-							<a href="/auth/register" class="kb-mobile-nav__link kb-mobile-nav__link--secondary">
-								Create account
-							</a>
-						</li>
-					{/if}
-				</ul>
-			</nav>
-		</Sheet.Content>
-	</Sheet.Root>
 </header>
 
 <style>
-	/* ── Outer shell ─────────────────────────────────────────────────────── */
 	.kb-header {
 		position: sticky;
 		top: 0;
@@ -236,7 +131,6 @@
 		box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
 	}
 
-	/* ── Inner container ─────────────────────────────────────────────────── */
 	.kb-header__inner {
 		display: flex;
 		align-items: center;
@@ -253,7 +147,6 @@
 		}
 	}
 
-	/* ── Brand ───────────────────────────────────────────────────────────── */
 	.kb-header__brand {
 		display: flex;
 		align-items: center;
@@ -302,7 +195,6 @@
 		margin-top: 1px;
 	}
 
-	/* ── Desktop navigation ──────────────────────────────────────────────── */
 	.kb-header__desktop-nav {
 		display: none;
 		flex: 1;
@@ -316,52 +208,57 @@
 		}
 	}
 
-	.kb-header__link-list {
-		display: flex;
-		align-items: center;
-		gap: 2px;
-		list-style: none;
-		margin: 0;
-		padding: 0;
+	:global(.kb-header__link-list) {
+		display: flex !important;
+		align-items: center !important;
+		gap: 2px !important;
+		list-style: none !important;
+		margin: 0 !important;
+		padding: 0 !important;
+		border: none !important;
+		background: transparent !important;
+		backdrop-filter: none !important;
 	}
 
-	.kb-header__link {
+	:global(.kb-header__link) {
 		position: relative;
-		display: flex;
-		align-items: center;
-		font-family: var(--font-sans);
-		font-size: 13px;
-		font-weight: 600;
-		letter-spacing: 0.02em;
-		padding: 8px 14px;
-		min-height: 44px;
-		color: rgba(255, 255, 255, 0.65);
-		text-decoration: none;
-		white-space: nowrap;
-		border-radius: 6px;
+		display: flex !important;
+		align-items: center !important;
+		font-family: var(--font-sans) !important;
+		font-size: 13px !important;
+		font-weight: 600 !important;
+		letter-spacing: 0.02em !important;
+		padding: 8px 14px !important;
+		min-height: 44px !important;
+		color: rgba(255, 255, 255, 0.65) !important;
+		text-decoration: none !important;
+		white-space: nowrap !important;
+		border-radius: 6px !important;
+		background: transparent !important;
+		box-shadow: none !important;
 		transition:
 			color 0.15s ease,
-			background-color 0.15s ease;
+			background-color 0.15s ease !important;
 		touch-action: manipulation;
 	}
 
-	.kb-header__link:hover {
-		color: #ffffff;
-		background-color: rgba(255, 255, 255, 0.08);
-		text-decoration: none;
+	:global(.kb-header__link:hover) {
+		color: #ffffff !important;
+		background-color: rgba(255, 255, 255, 0.08) !important;
+		text-decoration: none !important;
 	}
 
-	.kb-header__link:focus-visible {
-		outline: 2px solid var(--color-flicker-400);
-		outline-offset: -2px;
-		color: #ffffff;
+	:global(.kb-header__link:focus-visible) {
+		outline: 2px solid var(--color-flicker-400) !important;
+		outline-offset: -2px !important;
+		color: #ffffff !important;
 	}
 
-	.kb-header__link--active {
-		color: #ffffff;
+	:global(.kb-header__link[data-active='true']) {
+		color: #ffffff !important;
 	}
 
-	.kb-header__link--active::after {
+	:global(.kb-header__link[data-active='true']::after) {
 		content: '';
 		position: absolute;
 		bottom: 4px;
@@ -372,7 +269,6 @@
 		border-radius: 1px;
 	}
 
-	/* ── Secondary links (About + auth) ─────────────────────────────────── */
 	.kb-header__secondary {
 		display: none;
 		align-items: center;
@@ -437,7 +333,6 @@
 		text-decoration: none;
 	}
 
-	/* ── User menu button ────────────────────────────────────────────────── */
 	:global(.kb-header__user-btn) {
 		display: flex !important;
 		align-items: center !important;
@@ -491,7 +386,6 @@
 		opacity: 0.6 !important;
 	}
 
-	/* ── User dropdown menu ──────────────────────────────────────────────── */
 	:global(.kb-user-menu) {
 		min-width: 180px !important;
 		padding: 6px !important;
@@ -583,220 +477,36 @@
 		flex-shrink: 0 !important;
 	}
 
-	/* ── Mobile menu button ──────────────────────────────────────────────── */
-	.kb-header__menu-btn {
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		width: 44px;
-		height: 44px;
-		margin-left: auto;
-		padding: 0;
-		background: transparent;
-		border: none;
-		border-radius: 8px;
-		color: rgba(255, 255, 255, 0.8);
-		cursor: pointer;
-		touch-action: manipulation;
-		-webkit-tap-highlight-color: transparent;
+	:global(.kb-header__menu-btn) {
+		display: flex !important;
+		align-items: center !important;
+		justify-content: center !important;
+		width: 44px !important;
+		height: 44px !important;
+		padding: 0 !important;
+		background: transparent !important;
+		border: none !important;
+		border-radius: 8px !important;
+		color: rgba(255, 255, 255, 0.8) !important;
 		transition:
 			color 0.15s ease,
-			background-color 0.15s ease;
+			background-color 0.15s ease !important;
 	}
 
-	.kb-header__menu-btn:hover {
-		color: #ffffff;
-		background-color: rgba(255, 255, 255, 0.1);
+	:global(.kb-header__menu-btn:hover) {
+		color: #ffffff !important;
+		background-color: rgba(255, 255, 255, 0.1) !important;
 	}
 
-	.kb-header__menu-btn:focus-visible {
-		outline: 2px solid var(--color-flicker-400);
-		outline-offset: -2px;
-		color: #ffffff;
+	:global(.kb-header__menu-btn:focus-visible) {
+		outline: 2px solid var(--color-flicker-400) !important;
+		outline-offset: -2px !important;
+		color: #ffffff !important;
 	}
 
 	@media (min-width: 768px) {
-		.kb-header__menu-btn {
-			display: none;
+		:global(.kb-header__menu-btn) {
+			display: none !important;
 		}
-	}
-
-	/* ── Mobile nav (inside Sheet) ───────────────────────────────────────── */
-	:global(.kb-mobile-nav) {
-		background: var(--color-lakebed-950) !important;
-		border-color: rgba(255, 255, 255, 0.1) !important;
-	}
-
-	:global(.kb-mobile-nav [data-slot='sheet-close']) {
-		color: rgba(255, 255, 255, 0.6);
-	}
-
-	:global(.kb-mobile-nav [data-slot='sheet-close']:hover) {
-		color: #ffffff;
-	}
-
-	:global(.kb-mobile-nav__header) {
-		padding-bottom: 0 !important;
-	}
-
-	.kb-mobile-nav__brand {
-		display: flex;
-		align-items: center;
-		gap: 10px;
-		text-decoration: none;
-		color: inherit;
-		padding: 4px 0;
-		touch-action: manipulation;
-	}
-	.kb-mobile-nav__brand:hover {
-		text-decoration: none;
-	}
-	.kb-mobile-nav__brand:focus-visible {
-		outline: 2px solid var(--color-flicker-400);
-		outline-offset: 4px;
-		border-radius: 6px;
-	}
-
-	.kb-mobile-nav__logo {
-		width: 32px;
-		height: 32px;
-		border-radius: 50%;
-		object-fit: cover;
-		border: 2px solid rgba(255, 255, 255, 0.15);
-	}
-
-	.kb-mobile-nav__name {
-		font-family: var(--font-sans);
-		font-size: 13px;
-		font-weight: 700;
-		letter-spacing: 0.04em;
-		text-transform: uppercase;
-		color: #ffffff;
-		line-height: 1.25;
-	}
-
-	.kb-mobile-nav__org {
-		display: block;
-		font-size: 10.5px;
-		font-weight: 400;
-		letter-spacing: 0.01em;
-		text-transform: none;
-		color: rgba(255, 255, 255, 0.5);
-		margin-top: 1px;
-	}
-
-	.kb-mobile-nav__list {
-		list-style: none;
-		margin: 0;
-		padding: 0;
-		display: flex;
-		flex-direction: column;
-		gap: 2px;
-	}
-
-	.kb-mobile-nav__link {
-		display: flex;
-		align-items: center;
-		font-family: var(--font-sans);
-		font-size: 15px;
-		font-weight: 600;
-		letter-spacing: 0.01em;
-		color: rgba(255, 255, 255, 0.7);
-		text-decoration: none;
-		padding: 12px 16px;
-		min-height: 48px;
-		border-radius: 8px;
-		transition:
-			color 0.15s ease,
-			background-color 0.15s ease;
-		touch-action: manipulation;
-		width: 100%;
-		background: transparent;
-		border: none;
-		cursor: pointer;
-		text-align: left;
-	}
-
-	.kb-mobile-nav__link:hover {
-		color: #ffffff;
-		background-color: rgba(255, 255, 255, 0.08);
-		text-decoration: none;
-	}
-
-	.kb-mobile-nav__link:focus-visible {
-		outline: 2px solid var(--color-flicker-400);
-		outline-offset: -2px;
-		color: #ffffff;
-	}
-
-	.kb-mobile-nav__link--active {
-		color: #ffffff;
-		background-color: rgba(255, 255, 255, 0.1);
-		border-left: 3px solid var(--color-flicker-400);
-		padding-left: 13px;
-	}
-
-	.kb-mobile-nav__link--secondary {
-		font-size: 13px;
-		font-weight: 500;
-		letter-spacing: 0.04em;
-		text-transform: uppercase;
-		color: rgba(255, 255, 255, 0.5);
-		min-height: 44px;
-		padding: 10px 16px;
-	}
-
-	.kb-mobile-nav__link--secondary:hover {
-		color: rgba(255, 255, 255, 0.9);
-	}
-
-	.kb-mobile-nav__divider {
-		height: 1px;
-		background: rgba(255, 255, 255, 0.1);
-		margin: 8px 16px;
-	}
-
-	.kb-mobile-nav__user-info {
-		display: flex;
-		align-items: center;
-		gap: 8px;
-		padding: 10px 16px;
-	}
-
-	.kb-mobile-nav__user-name {
-		font-family: var(--font-sans);
-		font-size: 12px;
-		font-weight: 700;
-		letter-spacing: 0.04em;
-		text-transform: uppercase;
-		color: rgba(255, 255, 255, 0.8);
-	}
-
-	.kb-mobile-nav__role {
-		font-family: var(--font-sans);
-		font-size: 10px;
-		font-weight: 600;
-		letter-spacing: 0.06em;
-		text-transform: uppercase;
-		color: var(--color-flicker-300);
-		background: rgba(255, 255, 255, 0.08);
-		border: 1px solid rgba(255, 255, 255, 0.1);
-		border-radius: 3px;
-		padding: 1px 5px;
-	}
-
-	.kb-mobile-nav__signout {
-		color: rgba(255, 100, 100, 0.7) !important;
-	}
-
-	.kb-mobile-nav__signout:hover {
-		color: rgba(255, 130, 130, 0.9) !important;
-		background-color: rgba(255, 100, 100, 0.08) !important;
-	}
-
-	:global(.kb-mobile-nav__signout-icon) {
-		width: 14px !important;
-		height: 14px !important;
-		margin-right: 6px !important;
 	}
 </style>

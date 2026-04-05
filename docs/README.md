@@ -7,6 +7,12 @@ Knowledge Basket does not currently use a deep `docs/specs/**` or `docs/tasks/**
 - Current implementation is authoritative for present-state behavior.
 - Design-direction docs are authoritative for future-facing UX and product recommendations.
 - Stale docs are not authoritative and should be updated when they conflict with code.
+- Current browse/filter direction is to keep and refine the public left sidebar pattern, not replace it with a horizontal filter bar.
+- Current shell direction is:
+  - preserve the public header look and feel
+  - use a sidebar-style mobile main nav
+  - use a bottom drawer for mobile result filters
+  - keep search exposed outside the mobile filter drawer where practical
 
 For implementation truth, use:
 

@@ -10,16 +10,19 @@ Knowledge Basket should keep using `shadcn-svelte` primitives as the primary UI 
 
 ## What To Preserve
 
-### Events filter bar
+### Browse filter rail
 
-The current events filter bar is one of the strongest product-specific interactions in the app. It combines:
+The current public left filter rail is an intentional product pattern and should be preserved across coil browse surfaces. Improve it rather than replacing it with a horizontal filter bar.
 
-- inline search
-- view switching
-- date exploration
-- facet refinement
+The pattern should combine:
 
-That interaction model should be preserved. Improve it by tightening focus states, URL persistence, popover consistency, mobile containment, and slider performance. Do not replace it with a different navigation pattern unless there is a critical product reason.
+- clear inline search
+- strong facet refinement
+- consistent clear/reset behavior
+- good sticky behavior on desktop
+- safe overflow and collapse behavior on smaller screens
+
+Improve it by tightening focus states, URL persistence, mobile containment, sticky behavior, spacing, and filter readability. Do not replace it with a horizontal filter bar unless product direction changes again.
 
 ### shadcn-svelte base
 
@@ -88,6 +91,24 @@ Standardize toward:
 - no duplicated navigation blocks competing with each other
 
 The goal is to make the product feel like one app, not five adjacent route trees.
+
+### Main navigation direction
+
+The public header should keep its current KB-specific visual identity.
+
+- Do not redesign the header just because the underlying primitives change.
+- Desktop primary navigation should stay visually close to the current navbar, even when implemented with shadcn-svelte `navigation-menu` primitives underneath.
+- Mobile main navigation should behave like a sidebar-style overlay, not a browse filter drawer.
+- Main navigation and browse filters should remain clearly separate interaction systems.
+
+### Mobile browse filters
+
+On mobile, result filtering should behave differently from main navigation:
+
+- keep search visible in the page chrome or results toolbar when possible
+- open deeper filter controls from a bottom drawer
+- use the drawer for refinement, not for replacing the whole browse page shell
+- keep desktop browse behavior anchored by the left filter rail
 
 ## Lists, Cards, And Detail Pages
 

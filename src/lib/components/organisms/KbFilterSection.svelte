@@ -46,30 +46,30 @@
 
 <style>
 	.kb-filter-section {
-		margin-bottom: 24px;
-		padding-bottom: 20px;
-		border-bottom: 1px solid color-mix(in srgb, var(--rule, #e5e5e5) 60%, transparent);
+		margin-bottom: 1rem;
+		padding-bottom: 1rem;
+		border-bottom: 1px solid color-mix(in srgb, var(--rule, #e5e5e5) 65%, transparent);
 	}
 	.kb-filter-section:last-of-type {
-		border-bottom: none;
-		margin-bottom: 8px;
+		margin-bottom: 0;
 		padding-bottom: 0;
+		border-bottom: none;
 	}
 	.kb-filter-title {
 		font-family: var(--font-sans);
-		font-size: 11px;
+		font-size: 0.72rem;
 		font-weight: 700;
-		letter-spacing: 0.08em;
+		letter-spacing: 0.1em;
 		text-transform: uppercase;
 		color: var(--muted-foreground);
-		margin: 0 0 10px;
+		margin: 0 0 0.7rem;
 	}
 	.kb-filter-empty {
 		font-family: var(--font-sans);
-		font-size: 13px;
+		font-size: 0.83rem;
 		color: var(--muted-foreground);
 		margin: 0;
-		opacity: 0.6;
+		opacity: 0.78;
 	}
 	.kb-filter-list {
 		list-style: none;
@@ -77,7 +77,7 @@
 		padding: 0;
 		display: flex;
 		flex-direction: column;
-		gap: 2px;
+		gap: 0.35rem;
 	}
 	.kb-filter-btn {
 		display: flex;
@@ -85,40 +85,45 @@
 		justify-content: space-between;
 		width: 100%;
 		text-align: left;
-		padding: 7px 12px;
-		border-radius: 6px;
-		border: none;
-		background: transparent;
+		padding: 0.62rem 0.8rem;
+		border-radius: calc(var(--radius-md) + 1px);
+		border: 1px solid transparent;
+		background: color-mix(in srgb, var(--muted) 38%, transparent);
 		font-family: var(--font-sans);
-		font-size: 13px;
+		font-size: 0.86rem;
 		cursor: pointer;
 		color: var(--foreground);
 		transition:
 			background 0.12s ease,
-			color 0.12s ease;
+			border-color 0.12s ease,
+			color 0.12s ease,
+			transform 0.12s ease;
 	}
 	.kb-filter-btn:hover {
-		background: var(--accent);
-		color: var(--accent-foreground);
+		background: color-mix(in srgb, var(--accent) 78%, white);
+		border-color: color-mix(in srgb, var(--border) 90%, transparent);
+		transform: translateX(2px);
 	}
 	.kb-filter-btn:focus-visible {
 		outline: 2px solid var(--ring);
-		outline-offset: -2px;
+		outline-offset: 1px;
 	}
 	.kb-filter-btn--active {
-		background: var(--accent);
+		background: color-mix(in srgb, var(--primary) 13%, white);
+		border-color: color-mix(in srgb, var(--primary) 22%, transparent);
 		font-weight: 600;
-		color: var(--accent-foreground);
+		color: var(--foreground);
 	}
 	.kb-filter-count {
-		font-size: 11px;
+		font-size: 0.68rem;
 		line-height: 1;
-		color: var(--muted-foreground);
-		background: var(--muted);
+		color: color-mix(in srgb, var(--muted-foreground) 92%, var(--foreground));
+		background: color-mix(in srgb, var(--muted) 88%, white);
 		border-radius: 9999px;
-		padding: 2px 7px;
-		min-width: 20px;
+		padding: 0.22rem 0.45rem;
+		min-width: 1.45rem;
 		text-align: center;
+		font-weight: 700;
 	}
 	.kb-filter-count--active {
 		background: var(--primary);

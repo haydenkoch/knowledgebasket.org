@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { browser } from '$app/environment';
 	import { FileText, BookOpen, ClipboardList, Pin, Paperclip, Package } from '@lucide/svelte';
 	import KbHero from '$lib/components/organisms/KbHero.svelte';
 	import KbTwoColumnLayout from '$lib/components/organisms/KbTwoColumnLayout.svelte';
@@ -30,10 +31,18 @@
 			category: { field: 'category' }
 		},
 		searchFields: ['source', 'mediaType', 'category'],
-		perPage: 100 // we handle subsection filtering + pagination ourselves
+		perPage: 100, // we handle subsection filtering + pagination ourselves
+		pageParam: false
 	});
 
-	let activeSubsection = $state('');
+	function getInitialSubsection() {
+		if (!browser) return '';
+		return new URL(window.location.href).searchParams.get('section') ?? '';
+	}
+
+	let activeSubsection = $state(getInitialSubsection());
+	let lastSubsection = $state(getInitialSubsection());
+	let lastToolboxSearch = $state(browser ? window.location.search : '');
 
 	function subsectionMatch(item: ToolboxItem, subId: string): boolean {
 		if (!subId) return true;
@@ -72,6 +81,43 @@
 	$effect(() => {
 		pageBinding = currentPage;
 	});
+	$effect(() => {
+		if (activeSubsection !== lastSubsection) {
+			pageBinding = 1;
+			lastSubsection = activeSubsection;
+		}
+	});
+	$effect(() => {
+		if (!browser) return;
+
+		const syncFromUrl = () => {
+			const url = new URL(window.location.href);
+			activeSubsection = url.searchParams.get('section') ?? '';
+			pageBinding = Math.max(1, Number.parseInt(url.searchParams.get('page') ?? '1', 10) || 1);
+			lastToolboxSearch = window.location.search;
+			lastSubsection = activeSubsection;
+		};
+
+		window.addEventListener('popstate', syncFromUrl);
+		return () => {
+			window.removeEventListener('popstate', syncFromUrl);
+		};
+	});
+	$effect(() => {
+		if (!browser) return;
+
+		const url = new URL(window.location.href);
+		if (activeSubsection) url.searchParams.set('section', activeSubsection);
+		else url.searchParams.delete('section');
+		if (currentPage > 1) url.searchParams.set('page', String(currentPage));
+		else url.searchParams.delete('page');
+
+		const nextSearch = url.search;
+		if (nextSearch !== lastToolboxSearch) {
+			window.history.replaceState(window.history.state, '', url.toString());
+			lastToolboxSearch = nextSearch;
+		}
+	});
 
 	const mediaTypeIcons: Record<string, typeof FileText> = {
 		Toolkit: Package,
@@ -88,7 +134,10 @@
 	function handleClearAll() {
 		filters.clearFilters();
 		activeSubsection = '';
+		pageBinding = 1;
 	}
+
+	const activeFilterCount = $derived(filters.activeFilterCount + (activeSubsection ? 1 : 0));
 </script>
 
 <svelte:head>
@@ -126,9 +175,9 @@
 	<KbSidebar
 		searchPlaceholder="Search toolbox…"
 		bind:searchQuery={filters.searchQuery}
-		hasActiveFilters={filters.getFacetSelection('mediaType').length > 0 ||
-			filters.getFacetSelection('category').length > 0 ||
-			activeSubsection !== ''}
+		hasActiveFilters={activeFilterCount > 0}
+		{activeFilterCount}
+		resultsLabel={`${filteredTotal} resources`}
 		onClear={handleClearAll}
 	>
 		<KbFilterSection
@@ -166,7 +215,13 @@
 		{stats}
 	/>
 
-	<KbTwoColumnLayout {sidebar}>
+	<KbTwoColumnLayout
+		{sidebar}
+		bind:mobileSearchQuery={filters.searchQuery}
+		mobileSearchPlaceholder="Search toolbox…"
+		mobileActiveFilterCount={activeFilterCount}
+		onMobileClear={handleClearAll}
+	>
 		{#snippet children()}
 			{#if data.dataUnavailable}
 				<Alert class="mb-6 border-amber-300 bg-amber-50 text-amber-950">
@@ -193,10 +248,19 @@
 				{/each}
 			</div>
 
-			<div class="mb-5 flex items-center justify-between border-b border-[var(--rule)] pb-4">
+			<div
+				class="mb-5 flex flex-wrap items-center justify-between gap-3 border-b border-[var(--rule)] pb-4"
+			>
 				<div class="font-sans text-sm text-[var(--muted-foreground)]">
 					Showing <strong class="text-[var(--dark)]">{filteredTotal}</strong> resources
 				</div>
+				{#if activeFilterCount > 0}
+					<div
+						class="rounded-full bg-[color-mix(in_srgb,var(--primary)_12%,transparent)] px-3 py-1 font-sans text-[11px] font-bold tracking-[0.08em] text-[var(--primary)] uppercase"
+					>
+						{activeFilterCount} active refinements
+					</div>
+				{/if}
 			</div>
 
 			{#if filteredTotal === 0}

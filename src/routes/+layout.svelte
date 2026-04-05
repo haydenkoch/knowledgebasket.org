@@ -3,9 +3,12 @@
 	import favicon from '$lib/assets/favicon.svg';
 	import { page } from '$app/stores';
 	import KbHeader from '$lib/components/organisms/KbHeader.svelte';
+	import KbPublicNavSidebar from '$lib/components/organisms/KbPublicNavSidebar.svelte';
+	import * as Sidebar from '$lib/components/ui/sidebar/index.js';
 	import * as Tooltip from '$lib/components/ui/tooltip/index.js';
 
 	let { data, children } = $props();
+	let publicNavOpen = $state(false);
 
 	const isAdmin = $derived($page.url.pathname.startsWith('/admin'));
 	const isAuth = $derived($page.url.pathname.startsWith('/auth'));
@@ -30,11 +33,16 @@
 {#if isAdmin || isAuth}
 	{@render children()}
 {:else}
-	<a href="#main" class="skip-link">Skip to main content</a>
-	<KbHeader logoUrl={data.brandLogoUrl} user={data.user} />
-	<Tooltip.Provider>
-		<main id="main" class="min-h-screen bg-[var(--background)] text-[var(--foreground)]">
-			{@render children()}
-		</main>
-	</Tooltip.Provider>
+	<Sidebar.Provider bind:open={publicNavOpen} class="block min-h-screen">
+		<KbPublicNavSidebar logoUrl={data.brandLogoUrl} user={data.user} />
+		<div class="flex min-h-screen w-full flex-col">
+			<a href="#main" class="skip-link">Skip to main content</a>
+			<KbHeader logoUrl={data.brandLogoUrl} user={data.user} />
+			<Tooltip.Provider>
+				<main id="main" class="min-h-screen bg-[var(--background)] text-[var(--foreground)]">
+					{@render children()}
+				</main>
+			</Tooltip.Provider>
+		</div>
+	</Sidebar.Provider>
 {/if}

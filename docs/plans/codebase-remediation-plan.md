@@ -109,7 +109,7 @@ Realign the user experience with the actual design direction: reduce scaffold fe
 
 ### Ordered workstreams
 
-1. Events filter-direction realignment
+1. Public left-rail refinement
 2. Non-event coil layout and hierarchy cleanup
 3. Global search interaction/accessibility upgrade
 4. Admin usability and workflow polish
@@ -121,7 +121,6 @@ Realign the user experience with the actual design direction: reduce scaffold fe
   - `src/routes/events/+page.svelte`
   - `src/lib/components/organisms/EventsSidebar.svelte`
   - `src/lib/components/organisms/KbSidebar.svelte`
-  - `src/lib/components/reference/*`
 - generic non-event layout:
   - `src/lib/components/organisms/KbTwoColumnLayout.svelte`
   - `src/routes/funding/+page.svelte`
@@ -135,18 +134,26 @@ Realign the user experience with the actual design direction: reduce scaffold fe
   - `src/routes/layout.css`
   - `src/lib/components/organisms/KbHeader.svelte`
   - relevant public/admin list and card components
+- primary shell/navigation behavior:
+  - `src/lib/components/organisms/KbHeader.svelte`
+  - `src/lib/components/organisms/KbPublicNavSidebar.svelte`
+  - `src/routes/+layout.svelte`
+  - shared nav primitives under `src/lib/components/ui/navigation-menu/**`
+  - shared mobile filter drawer primitives under `src/lib/components/ui/drawer/**`
 
 ### Dependencies and sequencing
 
 - Only begin this phase once Phase 2 gives non-event coils real operational support.
-- Start with Events, because it is currently the pattern donor and currently the most directionally wrong relative to the filter-bar guidance.
-- Then redesign non-event layouts using the design direction as the baseline rather than copying Events literally.
+- Start with Events and the shared sidebar/layout primitives, because they are the pattern donors for the rest of the public coils.
+- Then refine non-event layouts using the preserved left-rail pattern as the baseline rather than trying to swap layout models.
+- Preserve the current public header styling while changing navigation primitives underneath it.
+- Treat mobile main nav and mobile browse filters as separate systems: sidebar-style nav overlay for site navigation, bottom drawer for result refinement.
 - Upgrade global search accessibility before broader public polish so one primary navigation surface stops dragging product quality down.
 
 ### Expected payoff
 
 - The public product will feel more intentional and less scaffolded.
-- The app will align better with stated design direction.
+- The app will align better with the preserved left-rail design direction.
 - Accessibility and responsiveness quality will move closer to launch-grade expectations.
 - Admin flows will become less dense and more purpose-built.
 
@@ -215,7 +222,7 @@ After correctness, operations, and core UX are stable, activate the dormant capa
 3. Make search/index behavior coherent and trustworthy.
 4. Build dedicated non-event admin and moderation foundations.
 5. Decompose large operational/admin files where needed.
-6. Realign UX around the intended product direction, especially replacing left-rail drift.
+6. Refine the public left-rail browse/filter system into a stronger, more polished shared product pattern.
 7. Only then deepen feature scope and dormant platform ambitions.
 
 ## Things to avoid touching too early

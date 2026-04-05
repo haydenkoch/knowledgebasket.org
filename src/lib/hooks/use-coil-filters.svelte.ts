@@ -2,6 +2,7 @@
  * Generic coil filter + pagination state.
  * Extracts the common pattern from funding, jobs, red-pages, and toolbox pages.
  */
+import { browser } from '$app/environment';
 import { matchSearch, filterByFacets, facetCounts } from '$lib/utils/format';
 
 export interface CoilFiltersConfig<T> {
@@ -13,18 +14,61 @@ export interface CoilFiltersConfig<T> {
 	searchFields?: (keyof T)[];
 	/** Items per page (default 6) */
 	perPage?: number;
+	/** URL query param used for pagination. Set to false to disable URL-backed pagination. */
+	pageParam?: string | false;
 }
 
 export function useCoilFilters<T extends { title: string; description?: string }>(
 	config: CoilFiltersConfig<T>
 ) {
 	const perPage = config.perPage ?? 6;
+	const pageParam = config.pageParam ?? 'page';
+	const facetKeys = Object.keys(config.facets);
+	const emptySelections = () => Object.fromEntries(facetKeys.map((k) => [k, [] as string[]]));
 
-	let searchQuery = $state('');
-	let facetSelections = $state<Record<string, string[]>>(
-		Object.fromEntries(Object.keys(config.facets).map((k) => [k, []]))
+	function getCurrentUrl(): URL | null {
+		return browser ? new URL(window.location.href) : null;
+	}
+
+	function readUrlState(url: URL | null): {
+		searchQuery: string;
+		facetSelections: Record<string, string[]>;
+		pageBinding: number;
+	} {
+		if (!url) {
+			return {
+				searchQuery: '',
+				facetSelections: emptySelections(),
+				pageBinding: 1
+			};
+		}
+
+		return {
+			searchQuery: url.searchParams.get('q')?.trim() ?? '',
+			facetSelections: Object.fromEntries(
+				facetKeys.map((key) => [key, url.searchParams.getAll(key).filter(Boolean)])
+			),
+			pageBinding:
+				pageParam === false
+					? 1
+					: Math.max(1, Number.parseInt(url.searchParams.get(pageParam) ?? '1', 10) || 1)
+		};
+	}
+
+	function serializeFilterState(query: string, selections: Record<string, string[]>) {
+		return `${query}::${JSON.stringify(selections)}`;
+	}
+
+	const initialUrlState = readUrlState(getCurrentUrl());
+
+	let searchQuery = $state(initialUrlState.searchQuery);
+	let facetSelections = $state<Record<string, string[]>>(initialUrlState.facetSelections);
+	let pageBinding = $state(initialUrlState.pageBinding);
+	let suppressPageReset = false;
+	let lastFilterState = $state(
+		serializeFilterState(initialUrlState.searchQuery, initialUrlState.facetSelections)
 	);
-	let pageBinding = $state(1);
+	let lastSerializedSearch = browser ? window.location.search : '';
 
 	const items = $derived(config.items());
 
@@ -63,6 +107,65 @@ export function useCoilFilters<T extends { title: string; description?: string }
 		pageBinding = currentPage;
 	});
 
+	$effect(() => {
+		const nextFilterState = serializeFilterState(searchQuery, facetSelections);
+		if (!suppressPageReset && nextFilterState !== lastFilterState) {
+			pageBinding = 1;
+		}
+		lastFilterState = nextFilterState;
+	});
+
+	$effect(() => {
+		if (!browser) return;
+
+		const syncFromUrl = () => {
+			const nextUrlState = readUrlState(new URL(window.location.href));
+			suppressPageReset = true;
+			searchQuery = nextUrlState.searchQuery;
+			facetSelections = nextUrlState.facetSelections;
+			pageBinding = nextUrlState.pageBinding;
+			lastFilterState = serializeFilterState(
+				nextUrlState.searchQuery,
+				nextUrlState.facetSelections
+			);
+			lastSerializedSearch = window.location.search;
+			queueMicrotask(() => {
+				suppressPageReset = false;
+			});
+		};
+
+		window.addEventListener('popstate', syncFromUrl);
+		return () => {
+			window.removeEventListener('popstate', syncFromUrl);
+		};
+	});
+
+	$effect(() => {
+		if (!browser) return;
+
+		const url = new URL(window.location.href);
+		if (searchQuery.trim()) url.searchParams.set('q', searchQuery.trim());
+		else url.searchParams.delete('q');
+
+		for (const key of facetKeys) {
+			url.searchParams.delete(key);
+			for (const value of facetSelections[key] ?? []) {
+				url.searchParams.append(key, value);
+			}
+		}
+
+		if (pageParam !== false) {
+			if (currentPage > 1) url.searchParams.set(pageParam, String(currentPage));
+			else url.searchParams.delete(pageParam);
+		}
+
+		const nextSearch = url.search;
+		if (nextSearch !== lastSerializedSearch) {
+			window.history.replaceState(window.history.state, '', url.toString());
+			lastSerializedSearch = nextSearch;
+		}
+	});
+
 	function toggleFacet(facetKey: string, value: string) {
 		const current = facetSelections[facetKey] ?? [];
 		facetSelections = {
@@ -73,12 +176,19 @@ export function useCoilFilters<T extends { title: string; description?: string }
 
 	function clearFilters() {
 		searchQuery = '';
-		facetSelections = Object.fromEntries(Object.keys(config.facets).map((k) => [k, []]));
+		facetSelections = emptySelections();
+		pageBinding = 1;
 	}
 
 	function getFacetSelection(key: string): string[] {
 		return facetSelections[key] ?? [];
 	}
+
+	const activeFilterCount = $derived(
+		(searchQuery.trim() ? 1 : 0) +
+			Object.values(facetSelections).reduce((sum, values) => sum + values.length, 0)
+	);
+	const hasActiveFilters = $derived(activeFilterCount > 0);
 
 	return {
 		get searchQuery() {
@@ -116,6 +226,12 @@ export function useCoilFilters<T extends { title: string; description?: string }
 		},
 		get facetValues() {
 			return facetValues;
+		},
+		get activeFilterCount() {
+			return activeFilterCount;
+		},
+		get hasActiveFilters() {
+			return hasActiveFilters;
 		},
 		getFacetSelection,
 		toggleFacet,

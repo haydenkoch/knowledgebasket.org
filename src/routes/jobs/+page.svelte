@@ -70,10 +70,9 @@
 	<KbSidebar
 		searchPlaceholder="Search jobs…"
 		bind:searchQuery={filters.searchQuery}
-		hasActiveFilters={filters.getFacetSelection('type').length > 0 ||
-			filters.getFacetSelection('sector').length > 0 ||
-			filters.getFacetSelection('level').length > 0 ||
-			filters.getFacetSelection('workArrangement').length > 0}
+		hasActiveFilters={filters.hasActiveFilters}
+		activeFilterCount={filters.activeFilterCount}
+		resultsLabel={`${filters.filteredTotal} jobs`}
 		onClear={() => filters.clearFilters()}
 	>
 		<KbFilterSection
@@ -133,7 +132,13 @@
 		{stats}
 	/>
 
-	<KbTwoColumnLayout {sidebar}>
+	<KbTwoColumnLayout
+		{sidebar}
+		bind:mobileSearchQuery={filters.searchQuery}
+		mobileSearchPlaceholder="Search jobs…"
+		mobileActiveFilterCount={filters.activeFilterCount}
+		onMobileClear={() => filters.clearFilters()}
+	>
 		{#snippet children()}
 			{#if data.dataUnavailable}
 				<Alert class="mb-6 border-amber-300 bg-amber-50 text-amber-950">
@@ -145,10 +150,19 @@
 				</Alert>
 			{/if}
 
-			<div class="mb-5 flex items-center justify-between border-b border-[var(--rule)] pb-4">
+			<div
+				class="mb-5 flex flex-wrap items-center justify-between gap-3 border-b border-[var(--rule)] pb-4"
+			>
 				<div class="font-sans text-sm text-[var(--muted-foreground)]">
 					Showing <strong class="text-[var(--dark)]">{filters.filteredTotal}</strong> jobs
 				</div>
+				{#if filters.activeFilterCount > 0}
+					<div
+						class="rounded-full bg-[color-mix(in_srgb,var(--primary)_12%,transparent)] px-3 py-1 font-sans text-[11px] font-bold tracking-[0.08em] text-[var(--primary)] uppercase"
+					>
+						{filters.activeFilterCount} active refinements
+					</div>
+				{/if}
 			</div>
 
 			{#if filters.filteredTotal === 0}

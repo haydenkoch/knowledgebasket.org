@@ -118,7 +118,15 @@ As of the current takeover baseline:
 The current implementation direction is:
 
 1. Stabilize the existing product.
-2. Realign browse/filter UX toward the intended horizontal filter-bar direction instead of continuing the left-rail drift.
-3. Keep shadcn-svelte as the primary UI foundation.
+2. Preserve the public left-rail browse/filter layout and improve its ergonomics, responsiveness, and product polish.
+3. Keep shadcn-svelte as the primary UI foundation, but preserve the current public header look and feel rather than redesigning it while swapping primitives underneath.
 4. Standardize public/admin patterns instead of rewriting from scratch.
 5. Build out non-event moderation and admin tooling to match the now-live public submission flows.
+
+### Public shell notes
+
+- Desktop main navigation should keep the current KB header styling and information density.
+- Under the hood, desktop primary nav can use shadcn-svelte `navigation-menu` patterns, but it should not read like a visual redesign.
+- Mobile main navigation should use a sidebar-style overlay, not a filter drawer or generic sheet pattern.
+- Public browse filters should stay in the left rail on desktop.
+- On mobile, browse search should stay exposed in-page while deeper result filters open from a bottom drawer.

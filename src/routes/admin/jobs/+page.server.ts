@@ -1,0 +1,64 @@
+import type { Actions, PageServerLoad } from './$types';
+import {
+	bulkApproveJobs,
+	bulkDeleteJobs,
+	bulkRejectJobs,
+	getJobsForAdmin,
+	getJobStatusCounts
+} from '$lib/server/jobs';
+
+export const load: PageServerLoad = async ({ url }) => {
+	const status = url.searchParams.get('status') ?? 'all';
+	const search = url.searchParams.get('search') ?? '';
+	const page = parseInt(url.searchParams.get('page') ?? '1', 10);
+	const sort = (url.searchParams.get('sort') ?? 'updated') as 'updated' | 'deadline' | 'title';
+	const order = (url.searchParams.get('order') ?? 'desc') as 'asc' | 'desc';
+
+	const [{ items, total }, statusCounts] = await Promise.all([
+		getJobsForAdmin({
+			status,
+			search,
+			page,
+			limit: 25,
+			sort,
+			order
+		}),
+		getJobStatusCounts()
+	]);
+
+	return {
+		jobs: items,
+		total,
+		statusCounts,
+		currentStatus: status,
+		currentSearch: search,
+		currentPage: page,
+		currentSort: sort,
+		currentOrder: order
+	};
+};
+
+export const actions: Actions = {
+	bulkApprove: async ({ request, locals }) => {
+		const formData = await request.formData();
+		const ids = formData.getAll('ids') as string[];
+		if (ids.length === 0) return { success: false };
+		const count = await bulkApproveJobs(ids, locals.user!.id);
+		return { success: true, count };
+	},
+	bulkReject: async ({ request, locals }) => {
+		const formData = await request.formData();
+		const ids = formData.getAll('ids') as string[];
+		const reason = formData.get('reason') as string | null;
+		if (ids.length === 0) return { success: false };
+		const count = await bulkRejectJobs(ids, locals.user!.id, reason ?? undefined);
+		return { success: true, count };
+	},
+	bulkDelete: async ({ request }) => {
+		const formData = await request.formData();
+		const ids = formData.getAll('ids') as string[];
+		if (ids.length === 0) return { success: false };
+		const count = await bulkDeleteJobs(ids);
+		return { success: true, count };
+	}
+};

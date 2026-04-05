@@ -8,6 +8,8 @@
 	import { Toaster } from '$lib/components/ui/sonner/index.js';
 	import {
 		Activity,
+		BookOpen,
+		Briefcase,
 		Building2,
 		MapPin,
 		Compass,
@@ -22,6 +24,7 @@
 		Palette,
 		Plug,
 		Search,
+		Store,
 		User,
 		Inbox,
 		Globe2,
@@ -38,6 +41,9 @@
 	const contentNav = [
 		{ href: '/admin/events', label: 'Events', icon: List },
 		{ href: '/admin/funding', label: 'Funding', icon: Globe2 },
+		{ href: '/admin/jobs', label: 'Jobs', icon: Briefcase },
+		{ href: '/admin/red-pages', label: 'Red Pages', icon: Store },
+		{ href: '/admin/toolbox', label: 'Toolbox', icon: BookOpen },
 		{ href: '/admin/events/lists', label: 'Event Lists', icon: ListOrdered }
 	];
 
@@ -98,6 +104,7 @@
 		lists: 'Lists',
 		funding: 'Funding',
 		jobs: 'Jobs',
+		'red-pages': 'Red Pages',
 		toolbox: 'Toolbox'
 	};
 

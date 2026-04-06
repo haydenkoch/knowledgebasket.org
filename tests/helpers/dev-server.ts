@@ -22,6 +22,7 @@ export async function startDevServer(
 			env: {
 				...process.env,
 				ORIGIN: baseUrl,
+				PUBLIC_ASSET_BASE_URL: `${baseUrl}/assets`,
 				...envOverrides
 			},
 			stdio: ['ignore', 'pipe', 'pipe']

@@ -4,10 +4,12 @@ import {
 	HeadBucketCommand,
 	NoSuchKey,
 	PutObjectCommand,
+	PutBucketPolicyCommand,
 	S3Client,
 	S3ServiceException
 } from '@aws-sdk/client-s3';
 import { env } from '$env/dynamic/private';
+import { buildPublicAssetUrl } from '$lib/config/public-assets';
 
 const DEFAULT_REGION = 'us-east-1';
 
@@ -24,6 +26,21 @@ function getBucketName(): string {
 	const bucket = env.MINIO_BUCKET?.trim();
 	if (!bucket) throw new Error('MINIO_BUCKET is not configured');
 	return bucket;
+}
+
+function buildPublicBucketPolicy(bucket: string): string {
+	return JSON.stringify({
+		Version: '2012-10-17',
+		Statement: [
+			{
+				Sid: 'PublicReadGetObject',
+				Effect: 'Allow',
+				Principal: { AWS: ['*'] },
+				Action: ['s3:GetObject'],
+				Resource: [`arn:aws:s3:::${bucket}/*`]
+			}
+		]
+	});
 }
 
 export function isObjectStorageConfigured(): boolean {
@@ -62,14 +79,19 @@ async function ensureBucket(): Promise<void> {
 
 		try {
 			await client.send(new HeadBucketCommand({ Bucket: bucket }));
-			return;
 		} catch (error) {
 			if (!(error instanceof S3ServiceException) || error.$metadata.httpStatusCode !== 404) {
 				throw error;
 			}
+			await client.send(new CreateBucketCommand({ Bucket: bucket }));
 		}
 
-		await client.send(new CreateBucketCommand({ Bucket: bucket }));
+		await client.send(
+			new PutBucketPolicyCommand({
+				Bucket: bucket,
+				Policy: buildPublicBucketPolicy(bucket)
+			})
+		);
 	})();
 
 	try {
@@ -81,7 +103,7 @@ async function ensureBucket(): Promise<void> {
 }
 
 export function buildUploadUrl(objectKey: string): string {
-	return `/uploads/${objectKey.replace(/^\/+/, '')}`;
+	return buildPublicAssetUrl(objectKey);
 }
 
 export async function putUploadObject(

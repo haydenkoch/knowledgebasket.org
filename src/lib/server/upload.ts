@@ -1,5 +1,5 @@
 /**
- * Reusable file upload: validate type/size, store under object storage, return stable /uploads/<scope>/<file> URL.
+ * Reusable file upload: validate type/size, store under object storage, return a direct public asset URL.
  */
 import { randomUUID } from 'crypto';
 import { putUploadObject } from '$lib/server/object-storage';
@@ -24,7 +24,7 @@ export type UploadScope =
 	| 'avatars';
 
 /**
- * Upload an image file to object storage. Returns the stable public URL path.
+ * Upload an image file to object storage. Returns the direct public asset URL.
  * Validates type and size; throws if invalid.
  */
 export async function uploadImage(file: File, scope: UploadScope): Promise<string> {

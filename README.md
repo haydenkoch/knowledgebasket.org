@@ -70,6 +70,11 @@ curl http://localhost:7700/health
 
 Set `DATABASE_URL` in `site/.env`. See `.env.example` for the rest of the optional configuration.
 
+Public placeholder/branding assets are now expected to already exist in MinIO, with
+`PUBLIC_ASSET_BASE_URL` pointing at a public bucket root or CDN origin. `pnpm images:sync`
+is a one-time migration tool for a checkout that still has the legacy `static/images` files;
+steady-state environments should restore the bucket from snapshots or replication instead.
+
 ## Database And Search
 
 Useful scripts:
@@ -109,6 +114,7 @@ Launch environments should set, at minimum:
 - Email/auth: `SMTP_HOST`, `SMTP_PORT`, `SMTP_FROM`, plus `SMTP_SECURE` or `SMTP_REQUIRE_TLS`
 - Search: `MEILISEARCH_HOST`, `MEILISEARCH_API_KEY`
 - Object storage: `MINIO_ENDPOINT`, `MINIO_ACCESS_KEY`, `MINIO_SECRET_KEY`, `MINIO_BUCKET`
+- Public assets: `PUBLIC_ASSET_BASE_URL`
 - Privileged ops: `REINDEX_SECRET`, `SOURCE_OPS_SECRET`
 
 Recommended observability settings:

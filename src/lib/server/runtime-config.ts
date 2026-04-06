@@ -1,4 +1,5 @@
 import { env } from '$env/dynamic/private';
+import { env as publicEnv } from '$env/dynamic/public';
 
 type RuntimeConfigIssue = {
 	key: string;
@@ -120,6 +121,26 @@ function validateLogLevel(logLevel: string | undefined): string | null {
 		: 'LOG_LEVEL must be one of debug, info, warn, or error.';
 }
 
+function validateAbsoluteUrl(value: string | undefined, key: string): string | null {
+	if (isBlank(value)) return `${key} is required.`;
+
+	try {
+		const parsed = new URL(value!.trim());
+		if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+			return `${key} must use http or https.`;
+		}
+		if (parsed.pathname !== '/' && parsed.pathname.endsWith('/')) {
+			return `${key} must not include a trailing slash.`;
+		}
+		if (value!.trim().endsWith('/')) {
+			return `${key} must not include a trailing slash.`;
+		}
+		return null;
+	} catch {
+		return `${key} must be a valid absolute URL.`;
+	}
+}
+
 function validateProductionRuntimeConfig(
 	values: Record<string, string | undefined>,
 	options: RuntimeConfigOptions
@@ -160,6 +181,22 @@ function validateProductionRuntimeConfig(
 		]) {
 			if (isBlank(values[key])) {
 				addMissing(missing, key, `${key} is required.`);
+			}
+		}
+
+		if (isBlank(values.PUBLIC_ASSET_BASE_URL)) {
+			addMissing(
+				missing,
+				'PUBLIC_ASSET_BASE_URL',
+				'PUBLIC_ASSET_BASE_URL is required.'
+			);
+		} else {
+			const publicAssetBaseUrlIssue = validateAbsoluteUrl(
+				values.PUBLIC_ASSET_BASE_URL,
+				'PUBLIC_ASSET_BASE_URL'
+			);
+			if (publicAssetBaseUrlIssue) {
+				addInvalid(invalid, 'PUBLIC_ASSET_BASE_URL', publicAssetBaseUrlIssue);
 			}
 		}
 
@@ -204,7 +241,7 @@ function validateProductionRuntimeConfig(
 }
 
 export function getRuntimeConfigHealth(options: RuntimeConfigOptions): RuntimeConfigHealth {
-	return validateProductionRuntimeConfig(env, options);
+	return validateProductionRuntimeConfig({ ...env, ...publicEnv }, options);
 }
 
 export function resolveRuntimeOrigin(): string | undefined {

@@ -19,6 +19,7 @@ describe('runtime config validation', () => {
 				MINIO_ACCESS_KEY: 'access-key',
 				MINIO_SECRET_KEY: 'secret-key',
 				MINIO_BUCKET: 'kb-uploads',
+				PUBLIC_ASSET_BASE_URL: 'https://assets.example.com/kb-uploads',
 				REINDEX_SECRET: '12345678901234567890123456789012',
 				SOURCE_OPS_SECRET: '12345678901234567890123456789012',
 				LOG_LEVEL: 'info',
@@ -49,6 +50,7 @@ describe('runtime config validation', () => {
 				MINIO_ACCESS_KEY: 'access-key',
 				MINIO_SECRET_KEY: 'secret-key',
 				MINIO_BUCKET: 'kb-uploads',
+				PUBLIC_ASSET_BASE_URL: 'https://assets.example.com/kb-uploads',
 				REINDEX_SECRET: '12345678901234567890123456789012',
 				SOURCE_OPS_SECRET: '12345678901234567890123456789012',
 				SENTRY_DSN: 'https://key@example.ingest.sentry.io/123'
@@ -81,12 +83,45 @@ describe('runtime config validation', () => {
 				'MEILISEARCH_HOST',
 				'MEILISEARCH_API_KEY',
 				'MINIO_ENDPOINT',
+				'PUBLIC_ASSET_BASE_URL',
 				'REINDEX_SECRET',
 				'SOURCE_OPS_SECRET'
 			])
 		);
 		expect(result.invalid.map((issue) => issue.key)).toEqual(
 			expect.arrayContaining(['ORIGIN', 'BETTER_AUTH_SECRET', 'SMTP_PORT', 'LOG_LEVEL'])
+		);
+	});
+
+	it('fails when PUBLIC_ASSET_BASE_URL is not an absolute URL without a trailing slash', () => {
+		const result = inspectRuntimeConfigForTests(
+			{
+				DATABASE_URL: 'postgres://kb:secret@example.com:5432/kb',
+				ORIGIN: 'https://kb.example.com',
+				BETTER_AUTH_SECRET: '12345678901234567890123456789012',
+				SMTP_HOST: 'smtp.example.com',
+				SMTP_PORT: '465',
+				SMTP_SECURE: 'true',
+				SMTP_REQUIRE_TLS: 'false',
+				SMTP_FROM: '"Knowledge Basket" <noreply@example.com>',
+				MEILISEARCH_HOST: 'https://search.example.com',
+				MEILISEARCH_API_KEY: 'search-secret',
+				MINIO_ENDPOINT: 'https://s3.example.com',
+				MINIO_ACCESS_KEY: 'access-key',
+				MINIO_SECRET_KEY: 'secret-key',
+				MINIO_BUCKET: 'kb-uploads',
+				PUBLIC_ASSET_BASE_URL: 'https://assets.example.com/kb-uploads/',
+				REINDEX_SECRET: '12345678901234567890123456789012',
+				SOURCE_OPS_SECRET: '12345678901234567890123456789012'
+			},
+			{ enforceProduction: true }
+		);
+
+		expect(result.ok).toBe(false);
+		expect(result.invalid).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({ key: 'PUBLIC_ASSET_BASE_URL' })
+			])
 		);
 	});
 });

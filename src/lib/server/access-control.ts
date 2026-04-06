@@ -43,6 +43,14 @@ export function requirePrivilegedApiUser(locals: App.Locals): PrivilegedUser {
 	return locals.user;
 }
 
+export function requireAuthenticatedUser(locals: App.Locals): NonNullable<App.Locals['user']> {
+	if (!locals.user) {
+		throw error(401, 'Authentication required');
+	}
+
+	return locals.user;
+}
+
 export function guardAdminRequest(event: GuardableEvent): Response | null {
 	if (!event.url.pathname.startsWith('/admin')) {
 		return null;

@@ -1,7 +1,8 @@
 <script lang="ts">
 	import { Search, Sparkles, X } from '@lucide/svelte';
 	import Input from '$lib/components/ui/input/input.svelte';
-	import { Button } from '$lib/components/ui/button/index.js';
+	import { buttonVariants } from '$lib/components/ui/button/index.js';
+	import { cn } from '$lib/utils.js';
 	import type { Snippet } from 'svelte';
 
 	interface Props {
@@ -111,15 +112,13 @@
 						{/if}
 					</div>
 					{#if hasActiveFilters && onClear}
-						<Button
+						<button
 							type="button"
-							variant="ghost"
-							size="sm"
-							class="kb-sidebar__clear"
+							class={cn(buttonVariants({ variant: 'ghost', size: 'sm' }), 'kb-sidebar__clear')}
 							onclick={onClear}
 						>
 							Clear all
-						</Button>
+						</button>
 					{/if}
 				</div>
 			{/if}

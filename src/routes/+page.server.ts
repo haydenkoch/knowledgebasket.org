@@ -14,10 +14,12 @@ import { queryResourcesForHomepage } from '$lib/server/toolbox';
 import { queryBusinessesForHomepage } from '$lib/server/red-pages';
 import {
 	getHomepageConfig,
+	getHomepageDraftConfig,
 	resolveFeaturedItems,
 	DEFAULT_CONFIG,
 	type HomepageSectionConfig
 } from '$lib/server/homepage';
+import { hasPrivilegedUser } from '$lib/server/access-control';
 import type { PageServerLoad } from './$types';
 
 async function getCoilCounts() {
@@ -71,32 +73,44 @@ async function fetchSectionItems(s: HomepageSectionConfig): Promise<unknown[]> {
 	}
 }
 
-export const load: PageServerLoad = async ({ url }) => {
+export const load: PageServerLoad = async ({ url, locals }) => {
+	const draftPreview =
+		url.searchParams.get('preview') === 'draft' && hasPrivilegedUser(locals.user);
 	const [config, counts] = await Promise.all([
-		getHomepageConfig().catch(() => DEFAULT_CONFIG),
+		(draftPreview ? getHomepageDraftConfig() : getHomepageConfig()).catch(() => DEFAULT_CONFIG),
 		getCoilCounts().catch(() => ({ events: 0, funding: 0, jobs: 0, toolbox: 0, redpages: 0 }))
 	]);
 
 	const visibleSections = config.sections.filter((s) => s.visible);
 
-	// Fetch data for each section in parallel
+	// Collect all sections including container children
+	const allFetchable: HomepageSectionConfig[] = [];
+	for (const s of visibleSections) {
+		allFetchable.push(s);
+		if (s.source === 'container' && s.children) {
+			allFetchable.push(...s.children.filter((c) => c.visible));
+		}
+	}
+
+	// Fetch data for each section in parallel (featured sections resolve their own items)
 	const sectionDataEntries = await Promise.all(
-		visibleSections.map(async (s) => {
-			if (s.source === 'featured') return [s.id, []] as const;
+		allFetchable.map(async (s) => {
+			if (s.source === 'featured') {
+				const resolved = s.items?.length ? await resolveFeaturedItems(s.items).catch(() => []) : [];
+				return [s.id, resolved] as const;
+			}
+			if (s.source === 'container' || s.source === 'image' || s.source === 'richtext') {
+				return [s.id, []] as const;
+			}
 			const items = await fetchSectionItems(s).catch(() => []);
 			return [s.id, items] as const;
 		})
 	);
 	const sectionData = Object.fromEntries(sectionDataEntries) as Record<string, unknown[]>;
 
-	// Resolve featured items
-	const featured = config.featured.length
-		? await resolveFeaturedItems(config.featured).catch(() => [])
-		: [];
-
 	return {
 		origin: url.origin,
-		featured,
+		draftPreview,
 		sections: visibleSections,
 		sectionData,
 		counts

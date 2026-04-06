@@ -2,6 +2,7 @@
 	import type { EventItem } from '$lib/data/kb';
 	import { stripHtml } from '$lib/utils/format';
 	import CalendarDays from '@lucide/svelte/icons/calendar-days';
+	import MapPin from '@lucide/svelte/icons/map-pin';
 
 	let { event, index = 0 }: { event: EventItem; index?: number } = $props();
 
@@ -75,20 +76,7 @@
 		</h3>
 		{#if event.location || event.region}
 			<p class="mb-[6px] flex items-center gap-1 font-sans text-xs text-[var(--muted-foreground)]">
-				<svg
-					class="h-[14px] w-[14px] flex-none text-inherit"
-					xmlns="http://www.w3.org/2000/svg"
-					fill="none"
-					viewBox="0 0 24 24"
-					stroke="currentColor"
-					stroke-width="2"
-					aria-hidden="true"
-					><path
-						stroke-linecap="round"
-						stroke-linejoin="round"
-						d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"
-					/><circle cx="12" cy="9" r="2.5" /></svg
-				>
+				<MapPin class="h-[14px] w-[14px] flex-none text-inherit" aria-hidden="true" />
 				{event.location ?? event.region}
 			</p>
 		{/if}

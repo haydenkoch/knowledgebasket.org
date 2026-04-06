@@ -1,7 +1,6 @@
 import { env } from '$env/dynamic/private';
 import { error, json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import type { CoilKey } from '$lib/data/kb';
 import { requirePrivilegedApiUser } from '$lib/server/access-control';
 import {
 	RATE_LIMIT_POLICIES,
@@ -9,7 +8,8 @@ import {
 	consumeRateLimit
 } from '$lib/server/rate-limit';
 import { captureServerError, logServerEvent } from '$lib/server/observability';
-import { reindexAllPublishedContent, reindexPublishedContentCoil } from '$lib/server/search-ops';
+import { reindexAllPublishedContent, reindexSearchScope } from '$lib/server/search-ops';
+import { SEARCH_INDEX_SCOPES, type SearchIndexScope } from '$lib/server/search-contracts';
 
 /**
  * Reindex all events from DB into Meilisearch. Call after db:seed or when search is out of sync.
@@ -38,19 +38,15 @@ export const POST: RequestHandler = async ({ locals, request, getClientAddress, 
 	}
 
 	const requestUrl = new URL(request.url);
-	const scope = requestUrl.searchParams.get('scope')?.trim() as CoilKey | 'all' | null;
+	const scope = requestUrl.searchParams.get('scope')?.trim() as SearchIndexScope | 'all' | null;
 
-	if (
-		scope &&
-		scope !== 'all' &&
-		!['events', 'funding', 'redpages', 'jobs', 'toolbox'].includes(scope)
-	) {
+	if (scope && scope !== 'all' && !SEARCH_INDEX_SCOPES.includes(scope)) {
 		throw error(400, 'Invalid scope');
 	}
 
 	try {
 		if (scope && scope !== 'all') {
-			const count = await reindexPublishedContentCoil(scope);
+			const count = await reindexSearchScope(scope);
 			logServerEvent('search.reindexed', {
 				scope,
 				indexed: count,

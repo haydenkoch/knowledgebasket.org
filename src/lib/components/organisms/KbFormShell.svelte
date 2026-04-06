@@ -4,6 +4,7 @@
 	import * as Breadcrumb from '$lib/components/ui/breadcrumb/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import CircleCheckIcon from '@lucide/svelte/icons/circle-check';
+	import ArrowLeft from '@lucide/svelte/icons/arrow-left';
 
 	interface Props {
 		coil: CoilKey;
@@ -13,7 +14,8 @@
 		pageDescription: string;
 		noticeLabel?: string;
 		noticeText: string;
-		footerText: string;
+		footerText?: string;
+		footerContent?: Snippet;
 		success?: { heading: string; message: string; backHref: string; backLabel: string } | null;
 		children?: Snippet;
 	}
@@ -26,7 +28,8 @@
 		pageDescription,
 		noticeLabel = 'Moderation',
 		noticeText,
-		footerText,
+		footerText = '',
+		footerContent,
 		success = null,
 		children
 	}: Props = $props();
@@ -71,7 +74,9 @@
 				<h2 class="mb-2 font-serif text-2xl font-semibold text-foreground">{success.heading}</h2>
 				<p class="mx-auto max-w-sm text-sm text-muted-foreground">{success.message}</p>
 			</div>
-			<Button href={success.backHref} variant="outline">{success.backLabel}</Button>
+			<Button href={success.backHref} variant="outline"
+				><ArrowLeft class="inline h-4 w-4" /> {success.backLabel}</Button
+			>
 		</div>
 	{:else}
 		<!-- Editorial header -->
@@ -103,6 +108,12 @@
 
 		{@render children?.()}
 
-		<p class="pt-6 pb-2 text-center text-xs text-muted-foreground">{footerText}</p>
+		{#if footerContent}
+			<div class="pt-6 pb-2 text-center text-xs text-muted-foreground">
+				{@render footerContent()}
+			</div>
+		{:else if footerText}
+			<p class="pt-6 pb-2 text-center text-xs text-muted-foreground">{footerText}</p>
+		{/if}
 	{/if}
 </div>

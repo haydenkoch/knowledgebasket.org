@@ -24,6 +24,7 @@ import {
 	DEFAULT_HEADINGS,
 	cloneHomepageConfig,
 	createDefaultHomepageConfig,
+	createSection,
 	normalizeLayoutPreset,
 	genSectionId,
 	type HomepageConfig,
@@ -37,36 +38,45 @@ import {
 export * from '$lib/data/homepage';
 
 export const HOMEPAGE_CONFIG_KEY = 'homepage_config';
+export const HOMEPAGE_LIVE_CONFIG_KEY = HOMEPAGE_CONFIG_KEY;
+export const HOMEPAGE_DRAFT_CONFIG_KEY = 'homepage_config_draft';
+export const HOMEPAGE_PUBLISH_META_KEY = 'homepage_config_publish_meta';
 
-export async function getHomepageConfig(): Promise<HomepageConfig> {
-	const raw = await getSetting(HOMEPAGE_CONFIG_KEY);
+export type HomepagePublishMeta = {
+	publishedAt: string | null;
+	publishedById: string | null;
+};
+
+function parseFeaturedRefs(arr: unknown): HomepageFeaturedRef[] {
+	if (!Array.isArray(arr)) return [];
+	return (arr as Record<string, unknown>[])
+		.filter(
+			(item) =>
+				typeof item.coil === 'string' &&
+				typeof item.itemId === 'string' &&
+				(item.itemId as string).length > 0
+		)
+		.map((item) => ({
+			coil: item.coil as CoilKey,
+			itemId: item.itemId as string,
+			title: typeof item.title === 'string' ? item.title : ''
+		}));
+}
+
+function parseHomepageConfig(raw: string | null): HomepageConfig {
 	if (!raw) return createDefaultHomepageConfig();
 	try {
 		const parsed = JSON.parse(raw) as Record<string, unknown>;
-		const featured = Array.isArray(parsed.featured)
-			? (parsed.featured as Record<string, unknown>[])
-					.filter(
-						(item) =>
-							typeof item.coil === 'string' &&
-							typeof item.itemId === 'string' &&
-							item.itemId.length > 0
-					)
-					.map((item) => ({
-						coil: item.coil as CoilKey,
-						itemId: item.itemId as string,
-						title: typeof item.title === 'string' ? item.title : ''
-					}))
-			: [];
+
+		// Parse legacy global featured array (for migration)
+		const legacyFeatured = parseFeaturedRefs(parsed.featured);
 
 		let sections: HomepageSectionConfig[];
 		if (Array.isArray(parsed.sections)) {
 			sections = (parsed.sections as Record<string, unknown>[]).map((s) => {
-				// New format has `source` and `id`
-				// Old format had `coil` and optionally `mode`
 				const source = (s.source ?? s.coil ?? 'events') as SectionSource;
 				const id = typeof s.id === 'string' && s.id.trim().length > 0 ? s.id : genSectionId();
 
-				// Backwards compat: old `mode` field → new sort fields
 				let sortBy = s.sortBy as SortField | undefined;
 				let sortDir = s.sortDir as SortDir | undefined;
 				let futureOnly = s.futureOnly as boolean | undefined;
@@ -84,7 +94,7 @@ export async function getHomepageConfig(): Promise<HomepageConfig> {
 					}
 				}
 
-				return {
+				const section: HomepageSectionConfig = {
 					id,
 					source,
 					visible: s.visible !== false,
@@ -105,20 +115,157 @@ export async function getHomepageConfig(): Promise<HomepageConfig> {
 						typeof s.layoutPreset === 'string' ? s.layoutPreset : null
 					),
 					content: typeof s.content === 'string' ? s.content : undefined
-				} as HomepageSectionConfig;
+				};
+
+				// Parse per-section featured items
+				if (source === 'featured') {
+					section.items = parseFeaturedRefs(s.items);
+				}
+
+				// Parse container children
+				if (source === 'container') {
+					section.columns = (s.columns === 3 ? 3 : 2) as HomepageSectionConfig['columns'];
+					section.children = Array.isArray(s.children)
+						? (s.children as Record<string, unknown>[])
+								.map((child) => {
+									const childSource = (child.source ?? 'richtext') as SectionSource;
+									if (childSource === 'container') return null; // no nested containers
+									const childId =
+										typeof child.id === 'string' && child.id.trim().length > 0
+											? child.id
+											: genSectionId();
+									const childSection = createSection(childSource, {
+										id: childId,
+										heading:
+											typeof child.heading === 'string'
+												? child.heading
+												: DEFAULT_HEADINGS[childSource] || childSource,
+										visible: child.visible !== false,
+										limit: Math.min(Math.max((child.limit as number) || 3, 1), 12),
+										layoutPreset: normalizeLayoutPreset(
+											childSource,
+											typeof child.layoutPreset === 'string' ? child.layoutPreset : null
+										),
+										content: typeof child.content === 'string' ? child.content : undefined,
+										imageUrl: typeof child.imageUrl === 'string' ? child.imageUrl : undefined,
+										imageAlt: typeof child.imageAlt === 'string' ? child.imageAlt : undefined,
+										imageHeight: (['sm', 'md', 'lg', 'xl'].includes(child.imageHeight as string)
+											? child.imageHeight
+											: 'md') as HomepageSectionConfig['imageHeight'],
+										imageFit: (['cover', 'contain'].includes(child.imageFit as string)
+											? child.imageFit
+											: 'cover') as HomepageSectionConfig['imageFit'],
+										imageHref: typeof child.imageHref === 'string' ? child.imageHref : undefined,
+										imageRounded: child.imageRounded !== false
+									});
+									if (childSource === 'featured') {
+										childSection.items = parseFeaturedRefs(child.items);
+									}
+									if (child.sortBy) childSection.sortBy = child.sortBy as SortField;
+									if (child.sortDir) childSection.sortDir = child.sortDir as SortDir;
+									if (child.futureOnly !== undefined)
+										childSection.futureOnly = child.futureOnly as boolean;
+									if (child.searchQuery) childSection.searchQuery = child.searchQuery as string;
+									if (Array.isArray(child.excludedIds)) {
+										childSection.excludedIds = [
+											...new Set((child.excludedIds as string[]).filter(Boolean))
+										];
+									}
+									return childSection;
+								})
+								.filter((c): c is HomepageSectionConfig => c !== null)
+						: [];
+				}
+
+				// Parse image section
+				if (source === 'image') {
+					section.imageUrl = typeof s.imageUrl === 'string' ? s.imageUrl : '';
+					section.imageAlt = typeof s.imageAlt === 'string' ? s.imageAlt : '';
+					section.imageHeight = (
+						['sm', 'md', 'lg', 'xl'].includes(s.imageHeight as string) ? s.imageHeight : 'md'
+					) as HomepageSectionConfig['imageHeight'];
+					section.imageFit = (
+						['cover', 'contain'].includes(s.imageFit as string) ? s.imageFit : 'cover'
+					) as HomepageSectionConfig['imageFit'];
+					section.imageHref = typeof s.imageHref === 'string' ? s.imageHref : undefined;
+					section.imageRounded = s.imageRounded !== false;
+				}
+
+				return section;
 			});
 		} else {
 			sections = createDefaultHomepageConfig().sections;
 		}
 
-		return cloneHomepageConfig({ featured, sections });
+		// Migrate legacy global featured into the first featured section that has no items
+		if (legacyFeatured.length > 0) {
+			const firstEmpty = sections.find(
+				(s) => s.source === 'featured' && (!s.items || s.items.length === 0)
+			);
+			if (firstEmpty) {
+				firstEmpty.items = legacyFeatured;
+			}
+		}
+
+		return cloneHomepageConfig({ featured: [], sections });
 	} catch {
 		return createDefaultHomepageConfig();
 	}
 }
 
+export async function getHomepageLiveConfig(): Promise<HomepageConfig> {
+	return parseHomepageConfig(await getSetting(HOMEPAGE_LIVE_CONFIG_KEY));
+}
+
+export async function getHomepageConfig(): Promise<HomepageConfig> {
+	return getHomepageLiveConfig();
+}
+
+export async function getHomepageDraftConfig(): Promise<HomepageConfig> {
+	const draft = await getSetting(HOMEPAGE_DRAFT_CONFIG_KEY);
+	if (draft) return parseHomepageConfig(draft);
+	return cloneHomepageConfig(await getHomepageLiveConfig());
+}
+
 export async function saveHomepageConfig(config: HomepageConfig): Promise<void> {
-	await setSetting(HOMEPAGE_CONFIG_KEY, JSON.stringify(cloneHomepageConfig(config)));
+	await setSetting(HOMEPAGE_LIVE_CONFIG_KEY, JSON.stringify(cloneHomepageConfig(config)));
+}
+
+export async function saveHomepageDraftConfig(config: HomepageConfig): Promise<void> {
+	await setSetting(HOMEPAGE_DRAFT_CONFIG_KEY, JSON.stringify(cloneHomepageConfig(config)));
+}
+
+export async function getHomepagePublishMeta(): Promise<HomepagePublishMeta | null> {
+	const raw = await getSetting(HOMEPAGE_PUBLISH_META_KEY);
+	if (!raw) return null;
+	try {
+		const parsed = JSON.parse(raw) as Record<string, unknown>;
+		return {
+			publishedAt: typeof parsed.publishedAt === 'string' ? parsed.publishedAt : null,
+			publishedById: typeof parsed.publishedById === 'string' ? parsed.publishedById : null
+		};
+	} catch {
+		return null;
+	}
+}
+
+export async function publishHomepageDraftConfig(
+	publishedById: string | null
+): Promise<HomepagePublishMeta> {
+	const draft = await getHomepageDraftConfig();
+	await saveHomepageConfig(draft);
+	const meta = {
+		publishedAt: new Date().toISOString(),
+		publishedById
+	} satisfies HomepagePublishMeta;
+	await setSetting(HOMEPAGE_PUBLISH_META_KEY, JSON.stringify(meta));
+	return meta;
+}
+
+export async function resetHomepageDraftConfig(): Promise<HomepageConfig> {
+	const live = await getHomepageLiveConfig();
+	await saveHomepageDraftConfig(live);
+	return live;
 }
 
 export type ResolvedFeaturedItem = {
@@ -152,7 +299,12 @@ export async function resolveFeaturedItems(
 export async function fetchHomepageSectionPreview(
 	section: HomepageSectionConfig
 ): Promise<HomepageSectionPreviewItem[]> {
-	if (section.source === 'featured' || section.source === 'richtext') {
+	if (
+		section.source === 'featured' ||
+		section.source === 'richtext' ||
+		section.source === 'container' ||
+		section.source === 'image'
+	) {
 		return [];
 	}
 

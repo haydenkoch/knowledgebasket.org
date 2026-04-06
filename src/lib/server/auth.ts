@@ -6,10 +6,23 @@ import { getRequestEvent } from '$app/server';
 import { db } from '$lib/server/db';
 import { sendMail } from '$lib/server/email';
 
+const googleClientId = env.GOOGLE_CLIENT_ID?.trim();
+const googleClientSecret = env.GOOGLE_CLIENT_SECRET?.trim();
+
+export const googleAuthEnabled = Boolean(googleClientId && googleClientSecret);
+
 export const auth = betterAuth({
 	baseURL: env.ORIGIN,
+	trustedOrigins: [env.ORIGIN],
 	secret: env.BETTER_AUTH_SECRET,
 	database: drizzleAdapter(db, { provider: 'pg' }),
+	account: {
+		accountLinking: {
+			enabled: true,
+			trustedProviders: ['google'],
+			allowDifferentEmails: false
+		}
+	},
 	emailAndPassword: {
 		enabled: true,
 		requireEmailVerification: true,
@@ -41,7 +54,34 @@ export const auth = betterAuth({
 			});
 		}
 	},
+	socialProviders: googleAuthEnabled
+		? {
+				google: {
+					clientId: googleClientId!,
+					clientSecret: googleClientSecret!,
+					scope: ['email', 'profile'],
+					prompt: 'select_account',
+					overrideUserInfoOnSignIn: false
+				}
+			}
+		: undefined,
 	user: {
+		changeEmail: {
+			enabled: true,
+			sendChangeEmailVerification: async ({ user, newEmail, url }) => {
+				await sendMail({
+					to: user.email,
+					subject: 'Confirm your new Knowledge Basket email',
+					html: `
+						<p>Hi ${user.name ?? user.email},</p>
+						<p>We received a request to change the email on your Knowledge Basket account to <strong>${newEmail}</strong>.</p>
+						<p>To confirm this change, click the link below. This link expires in 1 hour.</p>
+						<p><a href="${url}">${url}</a></p>
+						<p>If you didn't request this, you can safely ignore this email — your account will stay on the current address.</p>
+					`
+				});
+			}
+		},
 		additionalFields: {
 			role: {
 				type: 'string',

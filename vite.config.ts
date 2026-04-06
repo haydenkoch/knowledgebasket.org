@@ -1,4 +1,5 @@
 import tailwindcss from '@tailwindcss/vite';
+import { sentrySvelteKit } from '@sentry/sveltekit';
 import { sveltekit } from '@sveltejs/kit/vite';
 import { defineConfig } from 'vite';
 import type { Plugin } from 'vite';
@@ -34,25 +35,57 @@ function tinymceSelfHosted(): Plugin {
 	};
 }
 
-export default defineConfig({
-	plugins: [tailwindcss(), sveltekit(), tinymceSelfHosted()],
-	test: {
-		environment: 'node',
-		testTimeout: 120000,
-		hookTimeout: 120000
-	},
-	build: {
-		rollupOptions: {
-			output: {
-				manualChunks(id) {
-					if (id.includes('node_modules/@schedule-x')) return 'schedule-x';
-					if (id.includes('node_modules/@internationalized')) return 'intl';
-					if (id.includes('node_modules/temporal')) return 'temporal';
-					if (id.includes('node_modules/@lucide')) return 'lucide';
-					if (id.includes('node_modules/tinymce')) return 'tinymce';
-				}
+function shouldUploadSentrySourceMaps(): boolean {
+	return Boolean(
+		process.env.SENTRY_AUTH_TOKEN && process.env.SENTRY_ORG && process.env.SENTRY_PROJECT
+	);
+}
+
+export default defineConfig(async () => {
+	const uploadSentrySourceMaps = shouldUploadSentrySourceMaps();
+	const sentryPlugins = uploadSentrySourceMaps
+		? await sentrySvelteKit({
+				adapter: 'node',
+				authToken: process.env.SENTRY_AUTH_TOKEN,
+				org: process.env.SENTRY_ORG,
+				project: process.env.SENTRY_PROJECT,
+				release: {
+					name: process.env.SENTRY_RELEASE || process.env.RAILWAY_GIT_COMMIT_SHA
+				},
+				telemetry: false
+			})
+		: [];
+
+	return {
+		plugins: [...sentryPlugins, tailwindcss(), sveltekit(), tinymceSelfHosted()],
+		server: {
+			host: 'localhost',
+			strictPort: true,
+			watch: {
+				// SvelteKit rewrites `.svelte-kit/types` proxy files during route sync.
+				// Ignoring that generated subtree prevents transient ENOENT noise in dev.
+				ignored: ['**/.svelte-kit/types/**']
 			}
 		},
-		chunkSizeWarningLimit: 600
-	}
+		test: {
+			environment: 'node',
+			testTimeout: 120000,
+			hookTimeout: 120000
+		},
+		build: {
+			sourcemap: uploadSentrySourceMaps,
+			rollupOptions: {
+				output: {
+					manualChunks(id: string) {
+						if (id.includes('node_modules/@schedule-x')) return 'schedule-x';
+						if (id.includes('node_modules/@internationalized')) return 'intl';
+						if (id.includes('node_modules/temporal')) return 'temporal';
+						if (id.includes('node_modules/@lucide')) return 'lucide';
+						if (id.includes('node_modules/tinymce')) return 'tinymce';
+					}
+				}
+			},
+			chunkSizeWarningLimit: 600
+		}
+	};
 });

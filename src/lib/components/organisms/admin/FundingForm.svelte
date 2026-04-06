@@ -1,7 +1,10 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
+	import type { SubmitFunction } from '@sveltejs/kit';
+	import { onMount, tick } from 'svelte';
 	import { toast } from 'svelte-sonner';
 	import type { FundingItem } from '$lib/data/kb';
+	import AdminEditorAssistPanel from '$lib/components/organisms/admin/AdminEditorAssistPanel.svelte';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
 	import { Textarea } from '$lib/components/ui/textarea/index.js';
@@ -14,6 +17,13 @@
 		fundingFocusOptions,
 		geographyOptions
 	} from '$lib/data/formSchema';
+	import {
+		buildChangeLine,
+		getFormValue,
+		isValidHttpUrl,
+		serializeForm,
+		type EditorChangeLine
+	} from './editor-support';
 
 	interface Props {
 		funding?: FundingItem;
@@ -21,6 +31,7 @@
 		action?: string;
 		mode?: 'create' | 'edit';
 		submitLabel?: string;
+		previewHref?: string | null;
 	}
 
 	let {
@@ -28,14 +39,24 @@
 		organizations = [],
 		action = '?/update',
 		mode = 'edit',
-		submitLabel = mode === 'create' ? 'Create funding' : 'Save funding'
+		submitLabel = mode === 'create' ? 'Create funding' : 'Save funding',
+		previewHref = null
 	}: Props = $props();
 
 	let submitting = $state(false);
 	let descriptionHtml = $state('');
+	let formEl = $state<HTMLFormElement | null>(null);
+	let initialSnapshot = $state('');
+	let hasUnsavedChanges = $state(false);
+	let validationIssues = $state<string[]>([]);
+	let changedFields = $state<EditorChangeLine[]>([]);
 
 	$effect(() => {
 		descriptionHtml = funding?.description ?? '';
+		queueMicrotask(async () => {
+			await tick();
+			syncBaseline();
+		});
 	});
 
 	const selectCls =
@@ -44,24 +65,129 @@
 	function listValue(values?: string[]) {
 		return values?.join('\n') ?? '';
 	}
+
+	function linkedName(id: string) {
+		return organizations.find((organization) => organization.id === id)?.name ?? id;
+	}
+
+	function currentFieldDiffs(formData: FormData): EditorChangeLine[] {
+		const next = [
+			buildChangeLine('Title', funding?.title, getFormValue(formData, 'title')),
+			buildChangeLine('Description', funding?.description, descriptionHtml),
+			buildChangeLine('Funder', funding?.funderName, getFormValue(formData, 'funderName')),
+			buildChangeLine('Deadline', funding?.deadline, getFormValue(formData, 'deadline')),
+			buildChangeLine(
+				'Status',
+				funding?.status ?? 'draft',
+				getFormValue(formData, 'status') || 'draft'
+			),
+			buildChangeLine(
+				'Organization',
+				funding?.organizationId ? linkedName(funding.organizationId) : null,
+				getFormValue(formData, 'organizationId')
+					? linkedName(getFormValue(formData, 'organizationId'))
+					: null
+			),
+			buildChangeLine('Apply URL', funding?.applyUrl, getFormValue(formData, 'applyUrl')),
+			buildChangeLine(
+				'Amount',
+				funding?.amountDescription,
+				getFormValue(formData, 'amountDescription')
+			)
+		];
+		return next.filter((entry): entry is EditorChangeLine => Boolean(entry));
+	}
+
+	function currentValidationIssues(formData: FormData): string[] {
+		const issues: string[] = [];
+		const title = getFormValue(formData, 'title');
+		const funderName = getFormValue(formData, 'funderName');
+		const openDate = getFormValue(formData, 'openDate');
+		const deadline = getFormValue(formData, 'deadline');
+		const amountMin = getFormValue(formData, 'amountMin');
+		const amountMax = getFormValue(formData, 'amountMax');
+		const applyUrl = getFormValue(formData, 'applyUrl');
+		const imageUrl = getFormValue(formData, 'imageUrl');
+
+		if (!title) issues.push('Title is required.');
+		if (!funderName) issues.push('Funder name is required.');
+		if (openDate && deadline && new Date(openDate).getTime() > new Date(deadline).getTime()) {
+			issues.push('Open date must be before the deadline.');
+		}
+		if (amountMin && amountMax && Number(amountMin) > Number(amountMax)) {
+			issues.push('Minimum amount cannot be greater than maximum amount.');
+		}
+		if (!isValidHttpUrl(applyUrl)) issues.push('Apply URL must be a valid http or https URL.');
+		if (!isValidHttpUrl(imageUrl)) issues.push('Image URL must be a valid http or https URL.');
+
+		return issues;
+	}
+
+	function recomputeEditorState() {
+		if (!formEl) return;
+		const formData = new FormData(formEl);
+		validationIssues = currentValidationIssues(formData);
+		changedFields = currentFieldDiffs(formData);
+		hasUnsavedChanges = serializeForm(formEl) !== initialSnapshot;
+	}
+
+	function syncBaseline() {
+		if (!formEl) return;
+		initialSnapshot = serializeForm(formEl);
+		recomputeEditorState();
+		hasUnsavedChanges = false;
+	}
+
+	function formEnhance(): SubmitFunction {
+		return () => {
+			submitting = true;
+			return async ({ result, update }) => {
+				submitting = false;
+				if (result.type === 'success')
+					toast.success(mode === 'create' ? 'Funding created' : 'Funding saved');
+				else if (result.type === 'failure')
+					toast.error((result.data as { error?: string })?.error ?? 'Error saving funding');
+				await update();
+				await tick();
+				syncBaseline();
+			};
+		};
+	}
+
+	onMount(() => {
+		const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+			if (!hasUnsavedChanges) return;
+			event.preventDefault();
+			event.returnValue = '';
+		};
+		window.addEventListener('beforeunload', handleBeforeUnload);
+		queueMicrotask(() => syncBaseline());
+		return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+	});
+
+	$effect(() => {
+		void descriptionHtml;
+		if (!formEl) return;
+		queueMicrotask(() => recomputeEditorState());
+	});
 </script>
 
 <form
+	bind:this={formEl}
 	method="POST"
 	{action}
-	use:enhance={() => {
-		submitting = true;
-		return ({ result, update }) => {
-			submitting = false;
-			if (result.type === 'success')
-				toast.success(mode === 'create' ? 'Funding created' : 'Funding saved');
-			else if (result.type === 'failure')
-				toast.error((result.data as { error?: string })?.error ?? 'Error saving funding');
-			update();
-		};
-	}}
+	use:enhance={formEnhance()}
+	oninput={recomputeEditorState}
+	onchange={recomputeEditorState}
 	class="space-y-8"
 >
+	<AdminEditorAssistPanel
+		{previewHref}
+		{hasUnsavedChanges}
+		{validationIssues}
+		changedFields={changedFields.slice(0, 6)}
+	/>
+
 	<div class="grid gap-4 sm:grid-cols-2">
 		<div class="space-y-1.5 sm:col-span-2">
 			<Label for="title">Title *</Label>

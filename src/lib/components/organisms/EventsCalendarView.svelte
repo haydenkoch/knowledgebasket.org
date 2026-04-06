@@ -2,6 +2,8 @@
 	import type { CalendarApp } from '@schedule-x/calendar';
 	import type { EventItem } from '$lib/data/kb';
 	import { ScheduleXCalendar } from '@schedule-x/svelte';
+	import ArrowRight from '@lucide/svelte/icons/arrow-right';
+	import MapPin from '@lucide/svelte/icons/map-pin';
 
 	interface Props {
 		scheduleXApp: CalendarApp | null;
@@ -50,10 +52,15 @@
 					</p>
 				{/if}
 				{#if calendarSelectedEvent.location}
-					<p class="kb-drawer-loc">📍 {calendarSelectedEvent.location}</p>
+					<p class="kb-drawer-loc">
+						<MapPin class="inline h-3.5 w-3.5" />
+						{calendarSelectedEvent.location}
+					</p>
 				{/if}
 				{#if calendarSelectedEvent.slug}
-					<a href="/events/{calendarSelectedEvent.slug}" class="kb-drawer-link">View event →</a>
+					<a href="/events/{calendarSelectedEvent.slug}" class="kb-drawer-link"
+						>View event <ArrowRight class="inline h-4 w-4" /></a
+					>
 				{/if}
 			</div>
 		</div>

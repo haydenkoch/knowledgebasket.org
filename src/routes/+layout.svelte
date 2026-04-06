@@ -4,6 +4,8 @@
 	import { page } from '$app/stores';
 	import KbHeader from '$lib/components/organisms/KbHeader.svelte';
 	import KbPublicNavSidebar from '$lib/components/organisms/KbPublicNavSidebar.svelte';
+	import ConsentManager from '$lib/components/organisms/ConsentManager.svelte';
+	import PublicCommandPalette from '$lib/components/organisms/PublicCommandPalette.svelte';
 	import * as Sidebar from '$lib/components/ui/sidebar/index.js';
 	import * as Tooltip from '$lib/components/ui/tooltip/index.js';
 
@@ -12,7 +14,16 @@
 
 	const isAdmin = $derived($page.url.pathname.startsWith('/admin'));
 	const isAuth = $derived($page.url.pathname.startsWith('/auth'));
+	const isHome = $derived($page.url.pathname === '/');
 	const faviconHref = $derived(data.brandFaviconUrl ?? favicon);
+
+	function openGlobalSearch() {
+		if (isHome) {
+			window.dispatchEvent(new CustomEvent('kb:focus-home-search'));
+		} else {
+			window.dispatchEvent(new CustomEvent('kb:open-global-search'));
+		}
+	}
 </script>
 
 <svelte:head>
@@ -37,12 +48,27 @@
 		<KbPublicNavSidebar logoUrl={data.brandLogoUrl} user={data.user} />
 		<div class="flex min-h-screen w-full flex-col">
 			<a href="#main" class="skip-link">Skip to main content</a>
-			<KbHeader logoUrl={data.brandLogoUrl} user={data.user} />
+			<svelte:boundary onerror={(e) => console.error('KbHeader error:', e)}>
+				<KbHeader logoUrl={data.brandLogoUrl} user={data.user} />
+			</svelte:boundary>
 			<Tooltip.Provider>
 				<main id="main" class="min-h-screen bg-[var(--background)] text-[var(--foreground)]">
 					{@render children()}
 				</main>
 			</Tooltip.Provider>
+			{#if !isHome && !publicNavOpen}
+				<button
+					type="button"
+					class="fixed bottom-4 left-1/2 z-40 flex -translate-x-1/2 flex-col items-center gap-1 rounded-full border border-[color:var(--rule)] bg-white/94 px-4 py-2 font-sans text-[11px] font-semibold tracking-[0.08em] text-[var(--dark)] uppercase shadow-[0_18px_30px_rgba(15,23,42,0.16)] backdrop-blur md:hidden"
+					onclick={openGlobalSearch}
+					aria-label="Open search drawer"
+				>
+					<span class="h-1 w-8 rounded-full bg-[var(--muted-foreground)]/35"></span>
+					<span>Search</span>
+				</button>
+			{/if}
+			<ConsentManager />
+			<PublicCommandPalette />
 		</div>
 	</Sidebar.Provider>
 {/if}

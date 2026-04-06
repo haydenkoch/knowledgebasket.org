@@ -8,6 +8,7 @@
 	import MapPinIcon from '@lucide/svelte/icons/map-pin';
 	import GlobeIcon from '@lucide/svelte/icons/globe';
 	import Building2Icon from '@lucide/svelte/icons/building-2';
+	import ArrowLeft from '@lucide/svelte/icons/arrow-left';
 
 	let { data } = $props();
 	const venue = $derived(data.venue);
@@ -293,6 +294,8 @@
 	{/if}
 
 	<div class="mt-10">
-		<Button variant="outline" href="/">← Back to Knowledge Basket</Button>
+		<Button variant="outline" href="/"
+			><ArrowLeft class="inline h-4 w-4" /> Back to Knowledge Basket</Button
+		>
 	</div>
 </div>

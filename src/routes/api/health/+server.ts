@@ -3,13 +3,27 @@ import { sql } from 'drizzle-orm';
 import { db } from '$lib/server/db';
 import { getSearchReadiness } from '$lib/server/meilisearch';
 import { getObjectStorageHealth } from '$lib/server/object-storage';
+import {
+	getAccountLifecycleSchemaHealth,
+	getPrivacyRequestsSchemaHealth
+} from '$lib/server/privacy-schema';
 import { getSourceHealthSummary } from '$lib/server/sources';
+import { getSourceOpsSchemaHealth } from '$lib/server/source-ops-schema';
 import { countDueSources } from '$lib/server/ingestion/scheduler';
 
 export async function GET() {
 	const timestamp = new Date().toISOString();
 
-	const [database, searchReadiness, objectStorage, sourceSummary, dueSources] = await Promise.all([
+	const [
+		database,
+		searchReadiness,
+		objectStorage,
+		sourceSummary,
+		dueSources,
+		sourceOpsSchema,
+		privacyRequestsSchema,
+		accountLifecycleSchema
+	] = await Promise.all([
 		db
 			.execute(sql`select 1 as ok`)
 			.then(() => ({ available: true }))
@@ -21,9 +35,12 @@ export async function GET() {
 			configured: false,
 			available: false,
 			state: 'offline' as const,
-			requiredIndexes: [],
-			availableIndexes: [],
-			missingIndexes: [],
+			detail: 'host-unavailable' as const,
+			settingsVersion: 'unknown',
+			indexedScopes: [],
+			missingScopes: [],
+			mismatchedScopes: [],
+			issues: [],
 			error: error instanceof Error ? error.message : 'Search unavailable'
 		})),
 		getObjectStorageHealth(),
@@ -35,12 +52,42 @@ export async function GET() {
 			healthCounts: {},
 			error: error instanceof Error ? error.message : 'Source health unavailable'
 		})),
-		countDueSources().catch(() => 0)
+		countDueSources().catch(() => 0),
+		getSourceOpsSchemaHealth().catch((error) => ({
+			ok: false,
+			missing: ['canonical_records.source_snapshot'],
+			message: error instanceof Error ? error.message : 'Source-ops schema unavailable'
+		})),
+		getPrivacyRequestsSchemaHealth().catch((error) => ({
+			ok: false,
+			missing: ['privacy_requests'],
+			message: error instanceof Error ? error.message : 'Privacy schema unavailable'
+		})),
+		getAccountLifecycleSchemaHealth().catch((error) => ({
+			ok: false,
+			missing: [
+				'privacy_requests',
+				'organization_claim_requests',
+				'organization_invites',
+				'personal_calendar_feeds'
+			],
+			message: error instanceof Error ? error.message : 'Account lifecycle schema unavailable'
+		}))
 	]);
+
+	const schemaHealth = {
+		ok: sourceOpsSchema.ok && privacyRequestsSchema.ok && accountLifecycleSchema.ok,
+		checks: {
+			sourceOps: sourceOpsSchema,
+			privacyRequests: privacyRequestsSchema,
+			accountLifecycle: accountLifecycleSchema
+		}
+	};
 
 	const status =
 		database.available &&
 		searchReadiness.state === 'ready' &&
+		schemaHealth.ok &&
 		(!objectStorage.configured || objectStorage.available)
 			? 'ok'
 			: 'degraded';
@@ -52,6 +99,7 @@ export async function GET() {
 			database,
 			search: searchReadiness,
 			objectStorage,
+			schema: schemaHealth,
 			sourceOps: {
 				totalSources: sourceSummary.total,
 				enabledSources: sourceSummary.enabled,

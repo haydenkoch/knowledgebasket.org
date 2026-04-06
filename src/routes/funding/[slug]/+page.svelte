@@ -1,13 +1,24 @@
 <script lang="ts">
 	import type { FundingItem } from '$lib/data/kb';
+	import { formatDisplayValue } from '$lib/utils/display.js';
 	import { stripHtml } from '$lib/utils/format';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import * as Breadcrumb from '$lib/components/ui/breadcrumb/index.js';
+	import CoilDetailActionRail from '$lib/components/organisms/CoilDetailActionRail.svelte';
+	import ArrowLeft from '@lucide/svelte/icons/arrow-left';
+	import ArrowRight from '@lucide/svelte/icons/arrow-right';
+	import ExternalLinkIcon from '@lucide/svelte/icons/external-link';
 	import SourceProvenanceCard from '$lib/components/public/source-provenance-card.svelte';
 
 	let { data } = $props();
 	let item = $derived(data.item as FundingItem | null);
 	const origin = $derived(data.origin ?? '');
+	const isBookmarked = $derived(Boolean(data.isBookmarked));
+	const loginHref = $derived(
+		item?.slug
+			? `/auth/login?redirect=${encodeURIComponent(`/funding/${item.slug}`)}`
+			: '/auth/login?redirect=%2Ffunding'
+	);
 
 	const canonicalUrl = $derived(
 		item?.slug ? `${origin}/funding/${item.slug}` : `${origin}/funding`
@@ -21,19 +32,52 @@
 	);
 
 	const fundingTypesDisplay = $derived(
-		item?.fundingTypes?.length ? item.fundingTypes : item?.fundingType ? [item.fundingType] : []
+		(item?.fundingTypes?.length
+			? item.fundingTypes
+			: item?.fundingType
+				? [item.fundingType]
+				: []
+		).map((value) => formatDisplayValue(value, { key: 'fundingType' }))
 	);
 	const eligibilityDisplay = $derived(
-		item?.eligibilityTypes?.length
+		(item?.eligibilityTypes?.length
 			? item.eligibilityTypes
 			: item?.eligibilityType
 				? [item.eligibilityType]
 				: []
+		).map((value) => formatDisplayValue(value, { key: 'eligibilityType' }))
+	);
+	const applicationStatusLabel = $derived(
+		item?.applicationStatus
+			? formatDisplayValue(item.applicationStatus, { key: 'applicationStatus' })
+			: null
+	);
+	const openDateLabel = $derived(
+		item?.openDate ? formatDisplayValue(item.openDate, { key: 'openDate' }) : null
+	);
+	const deadlineLabel = $derived(
+		item?.deadline ? formatDisplayValue(item.deadline, { key: 'deadline' }) : null
 	);
 
 	const cycleLabel = $derived(() => {
 		if (!item?.isRecurring) return null;
 		return item.recurringSchedule ? `Recurring — ${item.recurringSchedule}` : 'Recurring';
+	});
+
+	// Deadline countdown — parse the raw deadline (not the formatted label).
+	const deadlineCountdown = $derived.by(() => {
+		if (!item?.deadline) return null;
+		const parsed = new Date(item.deadline);
+		if (Number.isNaN(parsed.getTime())) return null;
+		const now = Date.now();
+		const ms = parsed.getTime() - now;
+		const days = Math.ceil(ms / (1000 * 60 * 60 * 24));
+		if (days < 0) return { label: 'Closed', urgent: false, closed: true };
+		if (days === 0) return { label: 'Closes today', urgent: true, closed: false };
+		if (days === 1) return { label: '1 day left', urgent: true, closed: false };
+		if (days <= 14) return { label: `${days} days left`, urgent: true, closed: false };
+		if (days <= 60) return { label: `${days} days left`, urgent: false, closed: false };
+		return null;
 	});
 </script>
 
@@ -61,49 +105,108 @@
 {#if !item}
 	<div class="mx-auto max-w-3xl px-4 py-12 sm:px-6">
 		<p class="text-[var(--muted-foreground)]">This opportunity is no longer available.</p>
-		<Button variant="outline" href="/funding" class="mt-4">← Back to Funding</Button>
+		<Button variant="outline" href="/funding" class="mt-4"
+			><ArrowLeft class="inline h-4 w-4" /> Back to Funding</Button
+		>
 	</div>
 {:else}
-	<div class="mx-auto max-w-3xl px-4 py-6 sm:px-6">
-		<Breadcrumb.Root class="mb-5">
-			<Breadcrumb.List>
-				<Breadcrumb.Item>
-					<Breadcrumb.Link href="/funding">Funding</Breadcrumb.Link>
-				</Breadcrumb.Item>
-				<Breadcrumb.Separator />
-				<Breadcrumb.Item>
-					<Breadcrumb.Page>{item.title}</Breadcrumb.Page>
-				</Breadcrumb.Item>
-			</Breadcrumb.List>
-		</Breadcrumb.Root>
-
+	<div class="kb-funding-wrap">
 		<!-- Hero header -->
-		<div class="kb-funding-hero">
-			<div class="kb-funding-hero-badges">
-				{#if item.applicationStatus}
-					<span class="kb-funding-badge kb-funding-badge--status">{item.applicationStatus}</span>
+		<div class="kb-funding-hero" class:has-image={!!item.imageUrl}>
+			<!-- Decorative grant-paper motif -->
+			<svg
+				class="kb-funding-hero-motif"
+				viewBox="0 0 400 400"
+				xmlns="http://www.w3.org/2000/svg"
+				aria-hidden="true"
+			>
+				<defs>
+					<pattern id="kb-fund-grid" width="28" height="28" patternUnits="userSpaceOnUse">
+						<path d="M28 0H0V28" fill="none" stroke="currentColor" stroke-width="0.5" />
+					</pattern>
+				</defs>
+				<rect width="400" height="400" fill="url(#kb-fund-grid)" />
+				<circle cx="340" cy="60" r="70" fill="currentColor" opacity="0.08" />
+				<circle cx="340" cy="60" r="40" fill="currentColor" opacity="0.08" />
+			</svg>
+			<div class="kb-funding-hero-body">
+				<div class="kb-funding-hero-text">
+					<div class="kb-funding-hero-badges">
+						{#if applicationStatusLabel}
+							<span class="kb-funding-badge kb-funding-badge--status">{applicationStatusLabel}</span
+							>
+						{/if}
+						{#each fundingTypesDisplay as ft (ft)}
+							<span class="kb-funding-badge">{ft}</span>
+						{/each}
+						{#if deadlineCountdown}
+							<span
+								class="kb-funding-badge kb-funding-badge--countdown"
+								class:is-urgent={deadlineCountdown.urgent}
+								class:is-closed={deadlineCountdown.closed}
+							>
+								{deadlineCountdown.label}
+							</span>
+						{/if}
+					</div>
+					{#if item.amountDescription}
+						<p class="kb-funding-amount">{item.amountDescription}</p>
+					{/if}
+					<h1 class="kb-funding-title">{item.title}</h1>
+					{#if item.funderName}
+						<p class="kb-funding-funder">Funded by {item.funderName}</p>
+					{/if}
+				</div>
+				{#if item.imageUrl}
+					<figure class="kb-funding-hero-figure">
+						<img src={item.imageUrl} alt="" loading="lazy" />
+					</figure>
 				{/if}
-				{#each fundingTypesDisplay as ft}
-					<span class="kb-funding-badge">{ft}</span>
-				{/each}
 			</div>
-			{#if item.amountDescription}
-				<p class="kb-funding-amount">{item.amountDescription}</p>
-			{/if}
-			<h1 class="kb-funding-title">{item.title}</h1>
-			{#if item.funderName}
-				<p class="kb-funding-funder">{item.funderName}</p>
-			{/if}
 		</div>
 
-		<div class="mt-8 grid gap-8 lg:grid-cols-[1fr_280px]">
+		<CoilDetailActionRail
+			isAuthed={!!data.user}
+			{isBookmarked}
+			{loginHref}
+			saveLabel="opportunity"
+			accent="var(--color-flicker-700, #ca4404)"
+		>
+			{#snippet breadcrumb()}
+				<Breadcrumb.Root>
+					<Breadcrumb.List>
+						<Breadcrumb.Item>
+							<Breadcrumb.Link href="/funding">Funding</Breadcrumb.Link>
+						</Breadcrumb.Item>
+						<Breadcrumb.Separator />
+						<Breadcrumb.Item>
+							<Breadcrumb.Page>{item.title}</Breadcrumb.Page>
+						</Breadcrumb.Item>
+					</Breadcrumb.List>
+				</Breadcrumb.Root>
+			{/snippet}
+			{#snippet meta()}
+				{#if deadlineLabel}
+					<span class="kb-funding-meta-deadline">Deadline · {deadlineLabel}</span>
+				{/if}
+			{/snippet}
+			{#snippet primary()}
+				{#if item.applyUrl}
+					<a href={item.applyUrl} target="_blank" rel="noopener" class="kb-funding-primary-btn">
+						Apply <ExternalLinkIcon class="size-[14px]" />
+					</a>
+				{/if}
+			{/snippet}
+		</CoilDetailActionRail>
+
+		<div class="kb-funding-grid">
 			<!-- Main content -->
 			<div class="min-w-0">
 				{#if item.description}
 					<section class="kb-funding-section">
 						<h2 class="kb-funding-section-title">About this opportunity</h2>
 						<div
-							class="prose prose-sm text-[var(--muted-foreground)] [&_a]:text-[var(--teal)] [&_a]:no-underline [&_a:hover]:underline"
+							class="prose prose-sm max-w-[68ch] text-[var(--muted-foreground)] [&_a]:text-[var(--teal)] [&_a]:no-underline [&_a:hover]:underline"
 						>
 							{@html item.description}
 						</div>
@@ -127,12 +230,6 @@
 
 			<!-- Sidebar -->
 			<aside class="flex flex-col gap-4">
-				{#if item.applyUrl}
-					<Button href={item.applyUrl} target="_blank" rel="noopener" class="w-full">
-						Apply Now →
-					</Button>
-				{/if}
-
 				<div class="rounded-xl border border-[var(--border)] bg-[var(--card)] p-5">
 					<h3
 						class="mb-3 font-sans text-xs font-bold tracking-wider text-[var(--muted-foreground)] uppercase"
@@ -152,14 +249,14 @@
 								</dd>
 							</div>
 						{/if}
-						{#if item.applicationStatus}
+						{#if applicationStatusLabel}
 							<div>
 								<dt
 									class="text-[11px] font-semibold tracking-[0.06em] text-[var(--muted-foreground)] uppercase"
 								>
 									Status
 								</dt>
-								<dd class="mt-0.5 text-[var(--foreground)] capitalize">{item.applicationStatus}</dd>
+								<dd class="mt-0.5 text-[var(--foreground)]">{applicationStatusLabel}</dd>
 							</div>
 						{/if}
 						{#if item.funderName}
@@ -172,24 +269,24 @@
 								<dd class="mt-0.5 text-[var(--foreground)]">{item.funderName}</dd>
 							</div>
 						{/if}
-						{#if item.openDate}
+						{#if openDateLabel}
 							<div>
 								<dt
 									class="text-[11px] font-semibold tracking-[0.06em] text-[var(--muted-foreground)] uppercase"
 								>
 									Opens
 								</dt>
-								<dd class="mt-0.5 text-[var(--foreground)]">{item.openDate}</dd>
+								<dd class="mt-0.5 text-[var(--foreground)]">{openDateLabel}</dd>
 							</div>
 						{/if}
-						{#if item.deadline}
+						{#if deadlineLabel}
 							<div>
 								<dt
 									class="text-[11px] font-semibold tracking-[0.06em] text-[var(--muted-foreground)] uppercase"
 								>
 									Deadline
 								</dt>
-								<dd class="mt-0.5 font-medium text-[var(--foreground)]">{item.deadline}</dd>
+								<dd class="mt-0.5 font-medium text-[var(--foreground)]">{deadlineLabel}</dd>
 								{#if item.fundingCycleNotes}
 									<dd class="mt-0.5 text-xs text-[var(--muted-foreground)]">
 										{item.fundingCycleNotes}
@@ -265,22 +362,87 @@
 				</div>
 				<SourceProvenanceCard provenance={item.provenance} />
 
-				<Button variant="outline" href="/funding" class="w-full">← Back to Funding</Button>
+				<Button variant="outline" href="/funding" class="w-full"
+					><ArrowLeft class="inline h-4 w-4" /> Back to Funding</Button
+				>
 			</aside>
 		</div>
 	</div>
 {/if}
 
 <style>
+	.kb-funding-wrap {
+		max-width: 1200px;
+		margin: 0 auto;
+		padding: 1.5rem 1.5rem 3rem;
+	}
 	.kb-funding-hero {
-		border-radius: 12px;
+		position: relative;
+		overflow: hidden;
+		border-radius: 18px 18px 0 0;
 		background: linear-gradient(
 			135deg,
-			var(--color-flicker-900, #461404),
-			var(--color-flicker-700, #ca4404)
+			var(--color-flicker-900, #461404) 0%,
+			var(--color-flicker-700, #ca4404) 55%,
+			var(--color-elderberry-950, #3f0d16) 100%
 		);
-		padding: 1.5rem;
+		padding: 2.25rem 2rem 2.25rem;
 		color: white;
+		isolation: isolate;
+	}
+	@media (min-width: 1024px) {
+		.kb-funding-hero {
+			padding: 3rem 2.5rem;
+		}
+	}
+	.kb-funding-hero-motif {
+		position: absolute;
+		inset: 0;
+		width: 100%;
+		height: 100%;
+		color: white;
+		opacity: 0.16;
+		z-index: 0;
+		pointer-events: none;
+	}
+	.kb-funding-hero-body {
+		position: relative;
+		z-index: 1;
+		display: flex;
+		align-items: flex-start;
+		gap: 1.5rem;
+	}
+	.kb-funding-hero-text {
+		flex: 1 1 auto;
+		min-width: 0;
+	}
+	.kb-funding-hero-figure {
+		display: none;
+		flex-shrink: 0;
+		width: 200px;
+		height: 200px;
+		border-radius: 12px;
+		overflow: hidden;
+		margin: 0;
+		border: 1px solid rgba(255, 255, 255, 0.25);
+		box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+		transform: rotate(-1.5deg);
+	}
+	.kb-funding-hero-figure img {
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+	}
+	@media (min-width: 768px) {
+		.kb-funding-hero.has-image .kb-funding-hero-figure {
+			display: block;
+		}
+	}
+	@media (min-width: 1024px) {
+		.kb-funding-hero-figure {
+			width: 240px;
+			height: 240px;
+		}
 	}
 	.kb-funding-hero-badges {
 		display: flex;
@@ -301,24 +463,96 @@
 	.kb-funding-badge--status {
 		background: rgba(255, 255, 255, 0.28);
 	}
+	.kb-funding-badge--countdown {
+		background: rgba(255, 255, 255, 0.14);
+		border: 1px solid rgba(255, 255, 255, 0.22);
+	}
+	.kb-funding-badge--countdown.is-urgent {
+		background: var(--color-flicker-400, #f97316);
+		color: rgba(0, 0, 0, 0.88);
+		border-color: transparent;
+		animation: kb-funding-pulse 2.4s ease-in-out infinite;
+	}
+	.kb-funding-badge--countdown.is-closed {
+		background: rgba(255, 255, 255, 0.12);
+		text-decoration: line-through;
+		opacity: 0.7;
+	}
+	@keyframes kb-funding-pulse {
+		0%,
+		100% {
+			box-shadow: 0 0 0 0 rgba(249, 115, 22, 0.55);
+		}
+		50% {
+			box-shadow: 0 0 0 8px rgba(249, 115, 22, 0);
+		}
+	}
 	.kb-funding-amount {
-		font-family: var(--font-serif);
-		font-size: 1.5rem;
+		font-family: var(--font-display, var(--font-serif));
+		font-size: clamp(2rem, 5vw, 3rem);
 		font-weight: 700;
-		margin: 0 0 0.25rem 0;
+		line-height: 1;
+		letter-spacing: -0.01em;
+		margin: 0 0 0.5rem 0;
+		color: white;
 	}
 	.kb-funding-title {
-		font-family: var(--font-serif);
-		font-size: clamp(1.25rem, 3.5vw, 1.75rem);
+		font-family: var(--font-display, var(--font-serif));
+		font-size: clamp(1.5rem, 3.75vw, 2.25rem);
 		font-weight: 700;
-		line-height: 1.2;
-		margin: 0 0 0.375rem 0;
+		line-height: 1.1;
+		letter-spacing: -0.005em;
+		margin: 0 0 0.5rem 0;
 		color: white;
 	}
 	.kb-funding-funder {
-		font-size: 0.9rem;
-		opacity: 0.85;
+		font-family: var(--font-serif);
+		font-style: italic;
+		font-size: 1rem;
+		opacity: 0.9;
 		margin: 0;
+	}
+	.kb-funding-meta-deadline {
+		font-weight: 600;
+		color: var(--color-flicker-700, #ca4404);
+		white-space: nowrap;
+	}
+	.kb-funding-primary-btn {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.4rem;
+		padding: 0.55rem 1.1rem;
+		border-radius: 999px;
+		background: var(--color-flicker-700, #ca4404);
+		color: white;
+		font-weight: 600;
+		font-size: 0.875rem;
+		letter-spacing: 0.01em;
+		text-decoration: none;
+		white-space: nowrap;
+		transition:
+			opacity 0.15s ease,
+			transform 0.15s ease,
+			box-shadow 0.15s ease;
+		box-shadow: 0 2px 8px rgba(202, 68, 4, 0.35);
+	}
+	.kb-funding-primary-btn:hover {
+		opacity: 0.95;
+		text-decoration: none;
+		transform: translateY(-1px);
+		box-shadow: 0 4px 12px rgba(202, 68, 4, 0.45);
+	}
+	.kb-funding-grid {
+		display: grid;
+		gap: 2rem;
+		margin-top: 2rem;
+	}
+	@media (min-width: 1024px) {
+		.kb-funding-grid {
+			grid-template-columns: minmax(0, 1fr) 320px;
+			gap: 2.5rem;
+			align-items: start;
+		}
 	}
 	.kb-funding-section {
 		margin-bottom: 1.75rem;

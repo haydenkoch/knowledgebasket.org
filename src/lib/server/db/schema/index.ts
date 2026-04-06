@@ -18,6 +18,7 @@ export * from './jobs';
 export * from './toolbox';
 export * from './content';
 export * from './sources';
+export * from './privacy';
 
 // ── Import tables for relation definitions ────────────────
 
@@ -31,10 +32,13 @@ import { jobs, jobInterests } from './jobs';
 import { toolboxResources } from './toolbox';
 import {
 	userOrgMemberships,
+	organizationClaimRequests,
+	organizationInvites,
 	orgFollows,
 	bookmarks,
 	notifications,
 	notificationPreferences,
+	personalCalendarFeeds,
 	contentLists,
 	contentListItems
 } from './content';
@@ -52,6 +56,7 @@ import {
 	recordImages,
 	mergeHistory
 } from './sources';
+import { privacyRequests } from './privacy';
 
 // ── Relations ─────────────────────────────────────────────
 
@@ -87,7 +92,9 @@ export const organizationsRelations = relations(organizations, ({ many }) => ({
 	redPagesListings: many(redPagesBusinesses),
 	toolboxResources: many(toolboxResources),
 	members: many(userOrgMemberships),
-	followers: many(orgFollows)
+	followers: many(orgFollows),
+	claimRequests: many(organizationClaimRequests),
+	invites: many(organizationInvites)
 }));
 
 export const venuesRelations = relations(venues, ({ one, many }) => ({
@@ -186,6 +193,43 @@ export const userOrgMembershipsRelations = relations(userOrgMemberships, ({ one 
 	organization: one(organizations, {
 		fields: [userOrgMemberships.organizationId],
 		references: [organizations.id]
+	}),
+	invitedBy: one(user, {
+		fields: [userOrgMemberships.invitedById],
+		references: [user.id],
+		relationName: 'organizationMembershipInviter'
+	})
+}));
+
+export const organizationClaimRequestsRelations = relations(
+	organizationClaimRequests,
+	({ one }) => ({
+		organization: one(organizations, {
+			fields: [organizationClaimRequests.organizationId],
+			references: [organizations.id]
+		}),
+		requester: one(user, {
+			fields: [organizationClaimRequests.requesterUserId],
+			references: [user.id],
+			relationName: 'organizationClaimRequester'
+		}),
+		reviewedBy: one(user, {
+			fields: [organizationClaimRequests.reviewedById],
+			references: [user.id],
+			relationName: 'organizationClaimReviewer'
+		})
+	})
+);
+
+export const organizationInvitesRelations = relations(organizationInvites, ({ one }) => ({
+	organization: one(organizations, {
+		fields: [organizationInvites.organizationId],
+		references: [organizations.id]
+	}),
+	invitedBy: one(user, {
+		fields: [organizationInvites.invitedById],
+		references: [user.id],
+		relationName: 'organizationInviteSender'
 	})
 }));
 
@@ -207,6 +251,14 @@ export const notificationsRelations = relations(notifications, ({ one }) => ({
 
 export const notificationPreferencesRelations = relations(notificationPreferences, ({ one }) => ({
 	user: one(user, { fields: [notificationPreferences.userId], references: [user.id] })
+}));
+
+export const personalCalendarFeedsRelations = relations(personalCalendarFeeds, ({ one }) => ({
+	user: one(user, { fields: [personalCalendarFeeds.userId], references: [user.id] })
+}));
+
+export const privacyRequestsRelations = relations(privacyRequests, ({ one }) => ({
+	user: one(user, { fields: [privacyRequests.userId], references: [user.id] })
 }));
 
 export const contentListsRelations = relations(contentLists, ({ many }) => ({

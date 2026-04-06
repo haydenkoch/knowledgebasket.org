@@ -43,6 +43,17 @@ After seeding published content:
 2. Verify `GET /api/health` reports search as `ready` when Meilisearch is enabled.
 3. Spot-check `/search`, `/events`, `/funding`, `/red-pages`, `/jobs`, and `/toolbox`.
 
+## Migration parity
+
+- Apply the latest Drizzle migrations before launch and after every deployment that adds schema changes.
+- Verify `GET /api/health` reports schema checks as healthy for:
+  - source ops
+  - privacy request storage
+  - account lifecycle tables
+- If schema health is degraded:
+  - do not treat the deploy as launch-ready
+  - restore parity before enabling launch-critical workflows such as privacy request handling or account deletion
+
 ## Scheduler / cron requirements
 
 - Source ingestion automation requires a recurring call to:

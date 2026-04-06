@@ -1,7 +1,10 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
+	import type { SubmitFunction } from '@sveltejs/kit';
+	import { onMount, tick } from 'svelte';
 	import { toast } from 'svelte-sonner';
 	import type { EventItem } from '$lib/data/kb';
+	import AdminEditorAssistPanel from '$lib/components/organisms/admin/AdminEditorAssistPanel.svelte';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
 	import { Textarea } from '$lib/components/ui/textarea/index.js';
@@ -9,6 +12,13 @@
 	import { Separator } from '$lib/components/ui/separator/index.js';
 	import RichTextEditor from '$lib/components/molecules/RichTextEditor.svelte';
 	import { eventTypeOptions, eventAudienceOptions, eventCostOptions } from '$lib/data/formSchema';
+	import {
+		buildChangeLine,
+		getFormValue,
+		isValidHttpUrl,
+		serializeForm,
+		type EditorChangeLine
+	} from './editor-support';
 
 	interface Props {
 		event?: EventItem & Record<string, unknown>;
@@ -20,6 +30,7 @@
 		regionOptions?: { value: string; label: string }[];
 		audienceOptions?: { value: string; label: string }[];
 		costOptions?: { value: string; label: string }[];
+		previewHref?: string | null;
 	}
 
 	let {
@@ -31,35 +42,153 @@
 		taxonomyTags = [],
 		regionOptions = [],
 		audienceOptions = [],
-		costOptions = []
+		costOptions = [],
+		previewHref = null
 	}: Props = $props();
 
 	let submitting = $state(false);
 	let descriptionHtml = $state('');
+	let formEl = $state<HTMLFormElement | null>(null);
+	let initialSnapshot = $state('');
+	let hasUnsavedChanges = $state(false);
+	let validationIssues = $state<string[]>([]);
+	let changedFields = $state<EditorChangeLine[]>([]);
 
 	$effect(() => {
 		descriptionHtml = event?.description ?? '';
+		queueMicrotask(async () => {
+			await tick();
+			syncBaseline();
+		});
 	});
 
 	const selectCls =
 		'flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring';
+
+	function linkedName(items: Array<{ id: string; name: string }>, id: string) {
+		return items.find((item) => item.id === id)?.name ?? id;
+	}
+
+	function currentFieldDiffs(formData: FormData): EditorChangeLine[] {
+		const next = [
+			buildChangeLine('Title', event?.title, getFormValue(formData, 'title')),
+			buildChangeLine('Description', event?.description, descriptionHtml),
+			buildChangeLine('Start date', event?.startDate, getFormValue(formData, 'startDate')),
+			buildChangeLine('End date', event?.endDate, getFormValue(formData, 'endDate')),
+			buildChangeLine(
+				'Status',
+				event?.status ?? 'draft',
+				getFormValue(formData, 'status') || 'draft'
+			),
+			buildChangeLine(
+				'Organization',
+				event?.organizationId ? linkedName(organizations, event.organizationId) : null,
+				getFormValue(formData, 'organizationId')
+					? linkedName(organizations, getFormValue(formData, 'organizationId'))
+					: null
+			),
+			buildChangeLine(
+				'Venue',
+				event?.venueId ? linkedName(venues, event.venueId) : null,
+				getFormValue(formData, 'venueId')
+					? linkedName(venues, getFormValue(formData, 'venueId'))
+					: null
+			),
+			buildChangeLine('Event URL', event?.eventUrl, getFormValue(formData, 'eventUrl')),
+			buildChangeLine(
+				'Registration URL',
+				event?.registrationUrl,
+				getFormValue(formData, 'registrationUrl')
+			)
+		];
+		return next.filter((entry): entry is EditorChangeLine => Boolean(entry));
+	}
+
+	function currentValidationIssues(formData: FormData): string[] {
+		const issues: string[] = [];
+		const title = getFormValue(formData, 'title');
+		const startDate = getFormValue(formData, 'startDate');
+		const endDate = getFormValue(formData, 'endDate');
+		const eventUrl = getFormValue(formData, 'eventUrl');
+		const registrationUrl = getFormValue(formData, 'registrationUrl');
+		const imageUrl = getFormValue(formData, 'imageUrl');
+
+		if (!title) issues.push('Title is required.');
+		if (startDate && endDate && new Date(endDate).getTime() < new Date(startDate).getTime()) {
+			issues.push('End date must be after the start date.');
+		}
+		if (!isValidHttpUrl(eventUrl)) issues.push('Event URL must be a valid http or https URL.');
+		if (!isValidHttpUrl(registrationUrl))
+			issues.push('Registration URL must be a valid http or https URL.');
+		if (!isValidHttpUrl(imageUrl)) issues.push('Image URL must be a valid http or https URL.');
+
+		return issues;
+	}
+
+	function recomputeEditorState() {
+		if (!formEl) return;
+		const formData = new FormData(formEl);
+		validationIssues = currentValidationIssues(formData);
+		changedFields = currentFieldDiffs(formData);
+		hasUnsavedChanges = serializeForm(formEl) !== initialSnapshot;
+	}
+
+	function syncBaseline() {
+		if (!formEl) return;
+		initialSnapshot = serializeForm(formEl);
+		recomputeEditorState();
+		hasUnsavedChanges = false;
+	}
+
+	function formEnhance(): SubmitFunction {
+		return () => {
+			submitting = true;
+			return async ({ result, update }) => {
+				submitting = false;
+				if (result.type === 'success') toast.success('Saved');
+				else if (result.type === 'failure')
+					toast.error((result.data as { error?: string })?.error ?? 'Error saving');
+				await update();
+				await tick();
+				syncBaseline();
+			};
+		};
+	}
+
+	onMount(() => {
+		const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+			if (!hasUnsavedChanges) return;
+			event.preventDefault();
+			event.returnValue = '';
+		};
+		window.addEventListener('beforeunload', handleBeforeUnload);
+		queueMicrotask(() => syncBaseline());
+		return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+	});
+
+	$effect(() => {
+		void descriptionHtml;
+		if (!formEl) return;
+		queueMicrotask(() => recomputeEditorState());
+	});
 </script>
 
 <form
+	bind:this={formEl}
 	method="POST"
 	{action}
-	use:enhance={() => {
-		submitting = true;
-		return ({ result, update }) => {
-			submitting = false;
-			if (result.type === 'success') toast.success('Saved');
-			else if (result.type === 'failure')
-				toast.error((result.data as { error?: string })?.error ?? 'Error saving');
-			update();
-		};
-	}}
+	use:enhance={formEnhance()}
+	oninput={recomputeEditorState}
+	onchange={recomputeEditorState}
 	class="space-y-8"
 >
+	<AdminEditorAssistPanel
+		{previewHref}
+		{hasUnsavedChanges}
+		{validationIssues}
+		changedFields={changedFields.slice(0, 6)}
+	/>
+
 	<!-- Core fields -->
 	<div class="grid gap-4 sm:grid-cols-2">
 		<div class="space-y-1.5 sm:col-span-2">

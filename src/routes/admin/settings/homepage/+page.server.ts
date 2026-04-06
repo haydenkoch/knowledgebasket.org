@@ -1,256 +1,294 @@
 import { fail } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import {
-	getHomepageConfig,
-	saveHomepageConfig,
-	resolveFeaturedItems,
-	fetchHomepageSectionPreview,
-	DEFAULT_CONFIG,
-	createSection,
-	type HomepageSectionConfig,
-	type SectionSource,
-	type SortField,
-	type SortDir,
 	DEFAULT_HEADINGS,
 	SOURCE_HAS_DATE_FILTER,
-	normalizeLayoutPreset
+	createSection,
+	fetchHomepageSectionPreview,
+	getHomepageDraftConfig,
+	getHomepageLiveConfig,
+	getHomepagePublishMeta,
+	publishHomepageDraftConfig,
+	resetHomepageDraftConfig,
+	saveHomepageDraftConfig,
+	normalizeLayoutPreset,
+	type HomepageSectionConfig,
+	type SectionSource,
+	type SortDir,
+	type SortField
 } from '$lib/server/homepage';
 import type { CoilKey } from '$lib/data/kb';
+
+/* ── Section payload validation (from sections/+page.server.ts) ── */
 
 const VALID_SOURCES: SectionSource[] = [
 	'featured',
 	'richtext',
+	'container',
+	'image',
 	'events',
 	'funding',
 	'jobs',
 	'redpages',
 	'toolbox'
 ];
+const VALID_SORT_FIELDS: SortField[] = [
+	'date',
+	'deadline',
+	'published',
+	'created',
+	'title',
+	'name'
+];
+const VALID_SORT_DIRS: SortDir[] = ['asc', 'desc'];
+
+type SectionsPayloadResult =
+	| { success: true; sections: HomepageSectionConfig[] }
+	| { success: false; error: string };
+
+function parseSectionsPayload(
+	raw: string,
+	existingById: Map<string, HomepageSectionConfig>
+): SectionsPayloadResult {
+	if (!raw) return { success: false, error: 'Missing section payload' };
+
+	let parsed: unknown;
+	try {
+		parsed = JSON.parse(raw);
+	} catch {
+		return { success: false, error: 'Invalid section payload' };
+	}
+
+	if (!Array.isArray(parsed)) {
+		return { success: false, error: 'Section payload must be an array' };
+	}
+
+	const normalized = parsed
+		.map((entry, index) =>
+			entry && typeof entry === 'object'
+				? normalizeSectionPayload(
+						entry as Record<string, unknown>,
+						index,
+						existingById.get(String((entry as { id?: unknown }).id ?? ''))
+					)
+				: null
+		)
+		.filter((section): section is HomepageSectionConfig => Boolean(section));
+
+	if (normalized.length === 0) {
+		return { success: false, error: 'Add at least one homepage section' };
+	}
+
+	return { success: true, sections: normalized };
+}
+
+function normalizeSectionPayload(
+	entry: Record<string, unknown>,
+	index: number,
+	existing: HomepageSectionConfig | undefined
+): HomepageSectionConfig | null {
+	const source = entry.source;
+	if (typeof source !== 'string' || !VALID_SOURCES.includes(source as SectionSource)) return null;
+
+	const base = existing ?? createSection(source as SectionSource);
+	const id = typeof entry.id === 'string' && entry.id.trim() ? entry.id : `${base.id}_${index}`;
+	const heading =
+		typeof entry.heading === 'string' && entry.heading.trim().length > 0
+			? entry.heading.trim()
+			: DEFAULT_HEADINGS[source as SectionSource];
+	const visible = entry.visible !== false;
+	const layoutPreset = normalizeLayoutPreset(
+		source as SectionSource,
+		typeof entry.layoutPreset === 'string' ? entry.layoutPreset : null
+	);
+
+	if (source === 'featured') {
+		const items = Array.isArray(entry.items)
+			? (entry.items as Array<Record<string, unknown>>)
+					.filter(
+						(item) =>
+							typeof item.coil === 'string' &&
+							typeof item.itemId === 'string' &&
+							(item.itemId as string).trim().length > 0
+					)
+					.map((item) => ({
+						coil: item.coil as CoilKey,
+						itemId: (item.itemId as string).trim(),
+						title: typeof item.title === 'string' ? item.title : ''
+					}))
+			: [];
+		return { ...base, id, source, visible, heading, layoutPreset, items };
+	}
+
+	if (source === 'richtext') {
+		return {
+			...base,
+			id,
+			source,
+			visible,
+			heading,
+			layoutPreset,
+			content: typeof entry.content === 'string' ? entry.content : (base.content ?? '')
+		};
+	}
+
+	if (source === 'container') {
+		const columns = (entry.columns === 3 ? 3 : 2) as 2 | 3;
+		const children = Array.isArray(entry.children)
+			? (entry.children as Array<Record<string, unknown>>)
+					.map((child, ci) => {
+						if (!child || typeof child !== 'object') return null;
+						const childSource = child.source as string;
+						if (!childSource || childSource === 'container') return null;
+						return normalizeSectionPayload(child, ci, undefined);
+					})
+					.filter((c): c is HomepageSectionConfig => c !== null)
+			: [];
+		return { ...base, id, source, visible, heading, columns, children };
+	}
+
+	if (source === 'image') {
+		return {
+			...base,
+			id,
+			source,
+			visible,
+			heading,
+			imageUrl: typeof entry.imageUrl === 'string' ? entry.imageUrl : '',
+			imageAlt: typeof entry.imageAlt === 'string' ? entry.imageAlt : '',
+			imageHeight: (['sm', 'md', 'lg', 'xl'].includes(entry.imageHeight as string)
+				? entry.imageHeight
+				: 'md') as HomepageSectionConfig['imageHeight'],
+			imageFit: (['cover', 'contain'].includes(entry.imageFit as string)
+				? entry.imageFit
+				: 'cover') as HomepageSectionConfig['imageFit'],
+			imageHref: typeof entry.imageHref === 'string' ? entry.imageHref : undefined,
+			imageRounded: entry.imageRounded !== false
+		};
+	}
+
+	const sortBy =
+		typeof entry.sortBy === 'string' && VALID_SORT_FIELDS.includes(entry.sortBy as SortField)
+			? (entry.sortBy as SortField)
+			: base.sortBy;
+	const sortDir =
+		typeof entry.sortDir === 'string' && VALID_SORT_DIRS.includes(entry.sortDir as SortDir)
+			? (entry.sortDir as SortDir)
+			: base.sortDir;
+	const limit = Math.min(Math.max(Number(entry.limit) || base.limit, 1), 12);
+	const futureOnly = SOURCE_HAS_DATE_FILTER[source as SectionSource]
+		? entry.futureOnly === true
+		: false;
+	const excludedIds = Array.isArray(entry.excludedIds)
+		? entry.excludedIds
+				.filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
+				.map((item) => item.trim())
+		: [];
+	const searchQuery =
+		typeof entry.searchQuery === 'string' && entry.searchQuery.trim().length > 0
+			? entry.searchQuery.trim()
+			: undefined;
+
+	return {
+		...base,
+		id,
+		source: source as Exclude<SectionSource, 'featured' | 'richtext' | 'container' | 'image'>,
+		visible,
+		heading,
+		limit,
+		sortBy,
+		sortDir,
+		futureOnly,
+		searchQuery,
+		layoutPreset,
+		excludedIds: excludedIds.length > 0 ? [...new Set(excludedIds)] : undefined
+	};
+}
+
+/* ── Load ── */
 
 export const load: PageServerLoad = async () => {
-	const config = await getHomepageConfig();
-	const featuredItems = await resolveFeaturedItems(config.featured);
+	const [draftConfig, liveConfig, publishMeta] = await Promise.all([
+		getHomepageDraftConfig(),
+		getHomepageLiveConfig(),
+		getHomepagePublishMeta()
+	]);
 
-	// Load previews for all non-featured sections
+	// Collect all previewable sections (top-level + container children)
+	const allSections: HomepageSectionConfig[] = [];
+	for (const section of draftConfig.sections) {
+		allSections.push(section);
+		if (section.source === 'container' && section.children) {
+			allSections.push(...section.children);
+		}
+	}
+
 	const previewEntries = await Promise.all(
-		config.sections
-			.filter((s) => s.source !== 'featured')
-			.map(async (s) => {
-				const items = await fetchHomepageSectionPreview(s).catch(() => []);
-				return [s.id, items] as const;
-			})
+		allSections
+			.filter((s) => !['featured', 'richtext', 'container', 'image'].includes(s.source))
+			.map(
+				async (section) =>
+					[section.id, await fetchHomepageSectionPreview(section).catch(() => [])] as const
+			)
 	);
 	const sectionPreviews = Object.fromEntries(previewEntries) as Record<
 		string,
-		{ id: string; title: string }[]
+		{ id: string; title: string; skipped: boolean }[]
 	>;
 
-	return { config, featuredItems, sectionPreviews };
+	return {
+		draftConfig,
+		liveConfig,
+		publishMeta,
+		hasChanges: JSON.stringify(draftConfig) !== JSON.stringify(liveConfig),
+		sectionPreviews
+	};
 };
 
+/* ── Actions ── */
+
 export const actions: Actions = {
-	addFeatured: async ({ request }) => {
-		const fd = await request.formData();
-		const coil = fd.get('coil') as CoilKey;
-		const itemId = fd.get('itemId') as string;
-		const title = fd.get('title') as string;
-
-		if (!coil || !itemId) return fail(400, { error: 'Invalid item' });
-
-		const config = await getHomepageConfig();
-		if (config.featured.some((f) => f.coil === coil && f.itemId === itemId)) {
-			return fail(400, { error: 'Already featured' });
-		}
-		if (config.featured.length >= 8) {
-			return fail(400, { error: 'Maximum 8 featured items' });
-		}
-
-		const resolved = await resolveFeaturedItems([{ coil, itemId, title: title || '' }]);
-		if (resolved.length === 0) return fail(400, { error: 'Item not found or not published' });
-
-		config.featured.push({ coil, itemId, title: resolved[0].item.title });
-		await saveHomepageConfig(config);
-		return { success: true };
-	},
-
-	removeFeatured: async ({ request }) => {
-		const fd = await request.formData();
-		const coil = fd.get('coil') as string;
-		const itemId = fd.get('itemId') as string;
-		const config = await getHomepageConfig();
-		config.featured = config.featured.filter((f) => !(f.coil === coil && f.itemId === itemId));
-		await saveHomepageConfig(config);
-		return { success: true };
-	},
-
-	moveFeatured: async ({ request }) => {
-		const fd = await request.formData();
-		const index = parseInt(fd.get('index') as string, 10);
-		const direction = fd.get('direction') as 'up' | 'down';
-		const config = await getHomepageConfig();
-		const arr = config.featured;
-		const newIndex = direction === 'up' ? index - 1 : index + 1;
-		if (newIndex < 0 || newIndex >= arr.length) return { success: true };
-		[arr[index], arr[newIndex]] = [arr[newIndex], arr[index]];
-		await saveHomepageConfig(config);
-		return { success: true };
-	},
-
-	addSection: async ({ request }) => {
-		const fd = await request.formData();
-		const source = fd.get('source') as SectionSource;
-		if (!VALID_SOURCES.includes(source)) return fail(400, { error: 'Invalid source' });
-		const config = await getHomepageConfig();
-		config.sections.push(createSection(source));
-		await saveHomepageConfig(config);
-		return { success: true };
-	},
-
-	removeSection: async ({ request }) => {
-		const fd = await request.formData();
-		const id = fd.get('sectionId') as string;
-		const config = await getHomepageConfig();
-		config.sections = config.sections.filter((s) => s.id !== id);
-		await saveHomepageConfig(config);
-		return { success: true };
-	},
-
-	excludeItem: async ({ request }) => {
-		const fd = await request.formData();
-		const sectionId = fd.get('sectionId') as string;
-		const itemId = fd.get('itemId') as string;
-		const config = await getHomepageConfig();
-		const section = config.sections.find((s) => s.id === sectionId);
-		if (!section) return fail(400, { error: 'Section not found' });
-		section.excludedIds = [...(section.excludedIds ?? []), itemId];
-		await saveHomepageConfig(config);
-		return { success: true };
-	},
-
-	unexcludeItem: async ({ request }) => {
-		const fd = await request.formData();
-		const sectionId = fd.get('sectionId') as string;
-		const itemId = fd.get('itemId') as string;
-		const config = await getHomepageConfig();
-		const section = config.sections.find((s) => s.id === sectionId);
-		if (!section) return fail(400, { error: 'Section not found' });
-		section.excludedIds = (section.excludedIds ?? []).filter((id) => id !== itemId);
-		await saveHomepageConfig(config);
-		return { success: true };
-	},
-
 	saveSections: async ({ request }) => {
-		const fd = await request.formData();
-		const config = await getHomepageConfig();
-		const sectionsById = new Map(config.sections.map((section) => [section.id, section] as const));
+		const formData = await request.formData();
+		const raw = String(formData.get('sectionsPayload') ?? '').trim();
 
-		const orderRaw = fd.get('sectionOrder') as string;
-		const orderedIds = orderRaw
-			? orderRaw
-					.split(',')
-					.map((id) => id.trim())
-					.filter(Boolean)
-			: config.sections.map((s) => s.id);
+		const config = await getHomepageDraftConfig();
+		const existingById = new Map(config.sections.map((section) => [section.id, section] as const));
+		const result = parseSectionsPayload(raw, existingById);
+		if (!result.success) return fail(400, { error: result.error });
 
-		const featuredOrderRaw = fd.get('featuredOrder');
-		if (typeof featuredOrderRaw === 'string' && featuredOrderRaw.trim().length > 0) {
-			try {
-				const parsed = JSON.parse(featuredOrderRaw) as Record<string, unknown>[];
-				if (Array.isArray(parsed)) {
-					config.featured = parsed
-						.filter(
-							(item) =>
-								typeof item.coil === 'string' &&
-								typeof item.itemId === 'string' &&
-								item.itemId.length > 0
-						)
-						.map((item) => ({
-							coil: item.coil as CoilKey,
-							itemId: item.itemId as string,
-							title: typeof item.title === 'string' ? item.title : ''
-						}));
-				}
-			} catch {
-				return fail(400, { error: 'Invalid featured order payload' });
-			}
-		}
-
-		// Rebuild sections in the new order so local add/remove/edit state is the source of truth.
-		const updated: HomepageSectionConfig[] = [];
-		for (const id of orderedIds) {
-			const existing = sectionsById.get(id);
-			const source = (fd.get(`source_${id}`) as SectionSource | null) ?? existing?.source;
-			if (!source || !VALID_SOURCES.includes(source)) continue;
-
-			const base = existing ?? createSection(source, { id });
-
-			const visible = fd.get(`visible_${id}`) === 'on';
-			const heading = ((fd.get(`heading_${id}`) as string | null) ?? '').trim();
-			const excludedIdsRaw = ((fd.get(`excludedIds_${id}`) as string | null) ?? '').trim();
-			const excludedIds = excludedIdsRaw
-				.split(',')
-				.map((item) => item.trim())
-				.filter(Boolean);
-
-			if (source === 'featured') {
-				updated.push({
-					...base,
-					id,
-					source,
-					visible,
-					heading,
-					layoutPreset: 'auto'
-				});
-			} else if (source === 'richtext') {
-				const content = (fd.get(`content_${id}`) as string | null) ?? base.content ?? '';
-				updated.push({
-					...base,
-					id,
-					source,
-					visible,
-					heading,
-					layoutPreset: normalizeLayoutPreset(
-						source,
-						fd.get(`layoutPreset_${id}`)?.toString() ?? base.layoutPreset
-					),
-					content
-				});
-			} else {
-				const sortBy = ((fd.get(`sortBy_${id}`) as SortField | null) ?? base.sortBy) as SortField;
-				const sortDir = ((fd.get(`sortDir_${id}`) as SortDir | null) ?? base.sortDir) as SortDir;
-				const futureOnly = SOURCE_HAS_DATE_FILTER[source]
-					? fd.get(`futureOnly_${id}`) === 'on'
-					: false;
-				const limit = Math.min(Math.max(parseInt(fd.get(`limit_${id}`) as string, 10) || 3, 1), 12);
-				const searchQuery =
-					((fd.get(`searchQuery_${id}`) as string | null) ?? '').trim() || undefined;
-				updated.push({
-					...base,
-					id,
-					source,
-					visible,
-					heading: heading || DEFAULT_HEADINGS[source],
-					sortBy,
-					sortDir,
-					futureOnly,
-					limit,
-					searchQuery,
-					layoutPreset: normalizeLayoutPreset(
-						source,
-						fd.get(`layoutPreset_${id}`)?.toString() ?? base.layoutPreset
-					),
-					excludedIds: excludedIds.length ? excludedIds : undefined
-				});
-			}
-		}
-
-		config.sections = updated;
-		await saveHomepageConfig(config);
+		config.sections = result.sections;
+		await saveHomepageDraftConfig(config);
 		return { success: true };
 	},
 
-	resetConfig: async () => {
-		await saveHomepageConfig(DEFAULT_CONFIG);
+	publishDraft: async ({ request, locals }) => {
+		const formData = await request.formData();
+		const raw = String(formData.get('sectionsPayload') ?? '').trim();
+		if (raw) {
+			const config = await getHomepageDraftConfig();
+			const existingById = new Map(
+				config.sections.map((section) => [section.id, section] as const)
+			);
+			const result = parseSectionsPayload(raw, existingById);
+			if (!result.success) return fail(400, { error: result.error });
+
+			config.sections = result.sections;
+			await saveHomepageDraftConfig(config);
+		}
+
+		await publishHomepageDraftConfig(locals.user?.id ?? null);
 		return { success: true };
+	},
+
+	resetDraft: async () => {
+		try {
+			await resetHomepageDraftConfig();
+			return { success: true };
+		} catch (error) {
+			return fail(400, {
+				error: error instanceof Error ? error.message : 'Could not reset draft homepage'
+			});
+		}
 	}
 };

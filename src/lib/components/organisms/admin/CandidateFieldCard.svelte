@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { candidateFieldLabel } from '$lib/admin/labels.js';
+	import { formatDisplayValue, humanizeIdentifier, isUrlLike } from '$lib/utils/display.js';
 
 	let {
 		data,
@@ -31,26 +32,6 @@
 		return false;
 	}
 
-	function formatValue(value: unknown): string {
-		if (value === null || value === undefined) return '—';
-		if (Array.isArray(value)) {
-			if (value.length === 0) return '—';
-			return value.map((v) => (typeof v === 'string' ? v : JSON.stringify(v))).join(', ');
-		}
-		if (value instanceof Date) return value.toLocaleDateString();
-		if (typeof value === 'boolean') return value ? 'Yes' : 'No';
-		if (typeof value === 'string' && value.startsWith('http')) {
-			return value; // will be rendered as link
-		}
-		return String(value);
-	}
-
-	function isUrl(value: unknown): boolean {
-		return (
-			typeof value === 'string' && (value.startsWith('http://') || value.startsWith('https://'))
-		);
-	}
-
 	const fields = $derived(
 		Object.entries(data ?? {}).filter(([key, value]) => !isSkipped(key, value))
 	);
@@ -61,14 +42,16 @@
 {:else}
 	<dl class="divide-y divide-[color:var(--rule)]">
 		{#each fields as [key, value]}
+			{@const formattedLabel = candidateFieldLabel[key] ?? humanizeIdentifier(key)}
+			{@const formattedValue = formatDisplayValue(value, { key })}
 			<div class="grid grid-cols-[140px_1fr] gap-3 px-1 py-2.5">
 				<dt
 					class="self-start pt-0.5 text-xs font-semibold tracking-[0.04em] text-[var(--mid)] uppercase"
 				>
-					{candidateFieldLabel[key] ?? key.replace(/_/g, ' ')}
+					{formattedLabel}
 				</dt>
 				<dd class="text-sm break-words text-[var(--dark)]">
-					{#if isUrl(value)}
+					{#if isUrlLike(value)}
 						<a
 							href={String(value)}
 							target="_blank"
@@ -78,7 +61,7 @@
 							{String(value)}
 						</a>
 					{:else}
-						{formatValue(value)}
+						{formattedValue}
 					{/if}
 				</dd>
 			</div>

@@ -20,7 +20,8 @@ export type UploadScope =
 	| 'funding'
 	| 'red-pages'
 	| 'jobs'
-	| 'toolbox';
+	| 'toolbox'
+	| 'avatars';
 
 /**
  * Upload an image file to object storage. Returns the stable public URL path.

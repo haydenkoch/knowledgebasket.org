@@ -3,6 +3,7 @@
 	import { enhance } from '$app/forms';
 	import logoFallback from '$lib/assets/favicon.svg';
 	import { Button } from '$lib/components/ui/button/index.js';
+	import AdminCommandPalette from '$lib/components/organisms/admin/AdminCommandPalette.svelte';
 	import * as Sidebar from '$lib/components/ui/sidebar/index.js';
 	import * as Breadcrumb from '$lib/components/ui/breadcrumb/index.js';
 	import { Toaster } from '$lib/components/ui/sonner/index.js';
@@ -34,10 +35,7 @@
 
 	let { data, children } = $props();
 
-	const overviewNav = [
-		{ href: '/admin', label: 'Overview', icon: Compass },
-		{ href: '/admin/inbox', label: 'Inbox', icon: Inbox }
-	];
+	const overviewNav = [{ href: '/admin', label: 'Work Queue', icon: Compass }];
 
 	const contentNav = [
 		{ href: '/admin/events', label: 'Events', icon: List },
@@ -90,6 +88,7 @@
 		sources: 'Sources',
 		review: 'Import Review',
 		health: 'Health Monitor',
+		runs: 'Runs',
 		events: 'Events',
 		organizations: 'Organizations',
 		venues: 'Venues',
@@ -97,6 +96,9 @@
 		settings: 'Settings',
 		taxonomies: 'Taxonomies',
 		homepage: 'Homepage',
+		sections: 'Sections',
+		featured: 'Featured',
+		preview: 'Preview',
 		branding: 'Branding',
 		integrations: 'Integrations',
 		search: 'Search',
@@ -346,9 +348,10 @@
 					</Breadcrumb.List>
 				</Breadcrumb.Root>
 				<div class="ml-auto flex items-center gap-2">
-					<Button href="/admin/inbox" variant="secondary" size="sm">
+					<AdminCommandPalette />
+					<Button href="/admin" variant="secondary" size="sm">
 						<Inbox class="mr-2 h-4 w-4" />
-						Inbox
+						Work queue
 					</Button>
 					<Button href="/" variant="outline" size="sm" target="_blank" rel="noreferrer">
 						<Globe2 class="mr-2 h-4 w-4" />

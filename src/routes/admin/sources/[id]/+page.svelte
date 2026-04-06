@@ -1,50 +1,20 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
+	import type { SubmitFunction } from '@sveltejs/kit';
 	import { toast } from 'svelte-sonner';
-	import type { IngestionPreviewResult, IngestionResult } from '$lib/server/ingestion/types';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import * as Field from '$lib/components/ui/field/index.js';
-	import * as Table from '$lib/components/ui/table/index.js';
 	import * as NativeSelect from '$lib/components/ui/native-select/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
 	import { Textarea } from '$lib/components/ui/textarea/index.js';
-	import { Separator } from '$lib/components/ui/separator/index.js';
-	import { Plus, Trash2 } from '@lucide/svelte';
 	import StatusBadge from '$lib/components/organisms/admin/StatusBadge.svelte';
 	import HealthBadge from '$lib/components/organisms/admin/HealthBadge.svelte';
-	import CandidateFieldCard from '$lib/components/organisms/admin/CandidateFieldCard.svelte';
-	import CollapsibleDebug from '$lib/components/organisms/admin/CollapsibleDebug.svelte';
-	import { friendly, ingestionLabel, dedupeLabel, priorityLabel } from '$lib/admin/labels.js';
+	import { friendly, ingestionLabel, dedupeLabel } from '$lib/admin/labels.js';
+	import { ArrowRight, History, Save } from '@lucide/svelte';
+	import type { PageData } from './$types';
 
-	type SourceDetailForm = {
-		error?: string;
-		previewMode?: 'test' | 'import';
-		preview?: IngestionPreviewResult;
-		importResult?: IngestionResult;
-		runResult?: {
-			success: boolean;
-			batchId: string | null;
-			fetchLogId: string | null;
-			candidatesCreated: number;
-			autoApprovedCount: number;
-			error: string | null;
-		};
-	};
-
-	let { data, form } = $props<{ data: App.PageData; form?: SourceDetailForm }>();
-
-	let tags = $state<Array<{ tagKey: string; tagValue: string }>>([]);
-
-	$effect(() => {
-		tags =
-			data.tags.length > 0
-				? data.tags.map((tag: { tagKey: string; tagValue: string }) => ({
-						tagKey: tag.tagKey,
-						tagValue: tag.tagValue
-					}))
-				: [{ tagKey: '', tagValue: '' }];
-	});
+	let { data } = $props<{ data: PageData }>();
 
 	const coilOptions = [
 		{ value: 'events', label: 'Events' },
@@ -62,276 +32,89 @@
 		{ value: 'external_id', label: 'External ID' }
 	] as const;
 
-	function addTag() {
-		tags = [...tags, { tagKey: '', tagValue: '' }];
-	}
-
-	function removeTag(index: number) {
-		tags = tags.filter((_, i) => i !== index);
-		if (tags.length === 0) tags = [{ tagKey: '', tagValue: '' }];
-	}
+	const tagsText = $derived(
+		data.tags
+			.map((tag: { tagKey: string; tagValue: string }) => `${tag.tagKey}=${tag.tagValue}`)
+			.join('\n')
+	);
 
 	function formatDateTimeLocal(value?: Date | null) {
 		return value ? value.toISOString().slice(0, 16) : '';
 	}
 
-	function badgeClass(value: string) {
-		const lookup: Record<string, string> = {
-			active: 'border-emerald-200 bg-emerald-50 text-emerald-700',
-			healthy: 'border-emerald-200 bg-emerald-50 text-emerald-700',
-			discovered: 'border-sky-200 bg-sky-50 text-sky-700',
-			configuring: 'border-sky-200 bg-sky-50 text-sky-700',
-			manual_only: 'border-indigo-200 bg-indigo-50 text-indigo-700',
-			new: 'border-emerald-200 bg-emerald-50 text-emerald-700',
-			update: 'border-sky-200 bg-sky-50 text-sky-700',
-			duplicate: 'border-slate-200 bg-slate-50 text-slate-600',
-			ambiguous: 'border-amber-200 bg-amber-50 text-amber-700',
-			paused: 'border-amber-200 bg-amber-50 text-amber-700',
-			degraded: 'border-amber-200 bg-amber-50 text-amber-700',
-			stale: 'border-orange-200 bg-orange-50 text-orange-700',
-			unhealthy: 'border-rose-200 bg-rose-50 text-rose-700',
-			broken: 'border-rose-200 bg-rose-50 text-rose-700',
-			auth_required: 'border-fuchsia-200 bg-fuchsia-50 text-fuchsia-700',
-			deprecated: 'border-slate-200 bg-slate-50 text-slate-600',
-			disabled: 'border-slate-200 bg-slate-50 text-slate-600',
-			unknown: 'border-slate-200 bg-slate-50 text-slate-600'
-		};
-		return lookup[value] ?? 'border-slate-200 bg-slate-50 text-slate-600';
-	}
-
-	let currentResult = $derived(
-		(form?.preview ?? form?.importResult ?? null) as IngestionPreviewResult | IngestionResult | null
+	const validationSummary = $derived(
+		data.validation.errors[0] ?? data.validation.warnings[0] ?? null
 	);
 
-	function isImportResult(
-		result: IngestionPreviewResult | IngestionResult | null
-	): result is IngestionResult {
-		return Boolean(result && 'batchId' in result);
-	}
-
-	function previewTitle(entry: unknown) {
-		const record = entry as Record<string, unknown>;
-		const title = record.title;
-		return typeof title === 'string' && title.trim() ? title : 'Untitled candidate';
-	}
-
-	function qualityCodes(value: unknown): string[] {
-		if (!Array.isArray(value)) return [];
-		return value
-			.map((entry) =>
-				entry && typeof entry === 'object' ? ((entry as { code?: string }).code ?? null) : null
-			)
-			.filter((entry): entry is string => Boolean(entry));
-	}
-
-	function confidenceScore(value: unknown): number | null {
-		if (!value || typeof value !== 'object') return null;
-		const overall = Number((value as { overall?: unknown }).overall ?? NaN);
-		return Number.isFinite(overall) ? overall : null;
-	}
-
-	function urlRoleNames(value: unknown): string[] {
-		if (!value || typeof value !== 'object') return [];
-		return Object.entries(value as Record<string, unknown>)
-			.filter(([, entries]) => Array.isArray(entries) && entries.length > 0)
-			.map(([role]) => role);
-	}
-
-	function extractedFacts(value: unknown) {
-		return value && typeof value === 'object' ? (value as Record<string, unknown>) : {};
-	}
-
-	function extractedFactCount(value: unknown, key: 'offers' | 'conflicts') {
-		const facts = extractedFacts(value);
-		return Array.isArray(facts[key]) ? facts[key].length : 0;
-	}
-
-	function stageIssueCount(run: {
-		stages?: Array<{ status: string; warnings?: unknown; errors?: unknown }>;
-	}) {
-		return (run.stages ?? []).filter((stage) => {
-			const hasWarnings = Array.isArray(stage.warnings) && stage.warnings.length > 0;
-			const hasErrors = Array.isArray(stage.errors) && stage.errors.length > 0;
-			return stage.status !== 'success' || hasWarnings || hasErrors;
-		}).length;
+	function enhanceToast(message: string): SubmitFunction {
+		return () => {
+			return async ({ result, update }) => {
+				if (result.type === 'success') toast.success(message);
+				else if (result.type === 'failure')
+					toast.error((result.data as { error?: string })?.error ?? 'Action failed');
+				await update();
+			};
+		};
 	}
 </script>
 
 <div class="space-y-6">
 	<div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
 		<div>
-			<h1 class="text-2xl font-bold">{data.source.name}</h1>
-			<div class="mt-2 flex flex-wrap gap-2">
+			<div class="flex flex-wrap items-center gap-2">
+				<h1 class="text-2xl font-bold">{data.source.name}</h1>
 				<StatusBadge status={data.source.status} />
 				<HealthBadge health={data.source.healthStatus} />
-				<span
-					class="inline-flex items-center rounded-full border border-[color:var(--rule)] bg-[var(--color-alpine-snow-100)] px-2.5 py-1 text-[11px] font-semibold tracking-[0.04em] text-[var(--mid)] uppercase"
-				>
-					{data.source.enabled ? 'Enabled' : 'Disabled'}
-				</span>
 			</div>
+			<p class="mt-2 max-w-3xl text-sm text-[var(--mid)]">
+				Configure metadata, adapter settings, cadence, ownership, and moderation defaults here. Run
+				history, fetch logs, previews, and imports now live in the dedicated runs view.
+			</p>
 		</div>
 		<div class="flex flex-wrap gap-2">
-			<form
-				method="POST"
-				action="?/testSource"
-				use:enhance={() => {
-					return async ({ result, update }) => {
-						if (result.type === 'success') toast.success('Source preview refreshed');
-						else if (result.type === 'failure')
-							toast.error((result.data as { error?: string })?.error ?? 'Preview failed');
-						await update();
-					};
-				}}
-			>
-				<Button type="submit">Test source</Button>
-			</form>
-			<form
-				method="POST"
-				action="?/runImport"
-				use:enhance={() => {
-					return async ({ result, update }) => {
-						if (result.type === 'success') toast.success('Import run completed');
-						else if (result.type === 'failure')
-							toast.error((result.data as { error?: string })?.error ?? 'Import failed');
-						await update();
-					};
-				}}
-			>
-				<Button type="submit" variant="secondary">Run import</Button>
-			</form>
-			<form
-				method="POST"
-				action="?/retrySource"
-				use:enhance={() => {
-					return async ({ result, update }) => {
-						if (result.type === 'success') toast.success('Retry run completed');
-						else if (result.type === 'failure')
-							toast.error((result.data as { error?: string })?.error ?? 'Retry failed');
-						await update();
-					};
-				}}
-			>
-				<Button type="submit" variant="outline">Retry now</Button>
-			</form>
-			<form
-				method="POST"
-				action="?/resumeSource"
-				use:enhance={() => {
-					return async ({ result, update }) => {
-						if (result.type === 'success') toast.success('Source resumed');
-						await update();
-					};
-				}}
-			>
-				<Button type="submit" variant="outline">Resume</Button>
-			</form>
-			<form
-				method="POST"
-				action={data.source.quarantined ? '?/unquarantineSource' : '?/quarantineSource'}
-				use:enhance={() => {
-					return async ({ result, update }) => {
-						if (result.type === 'success')
-							toast.success(
-								data.source.quarantined ? 'Source removed from quarantine' : 'Source quarantined'
-							);
-						await update();
-					};
-				}}
-				class="flex gap-2"
-			>
-				{#if !data.source.quarantined}
-					<Input name="quarantineReason" placeholder="Quarantine reason" class="w-56" />
-				{/if}
-				<Button type="submit" variant="outline">
-					{data.source.quarantined ? 'Remove quarantine' : 'Quarantine'}
-				</Button>
-			</form>
-			<form
-				method="POST"
-				action="?/pauseSource"
-				use:enhance={() => {
-					return async ({ result, update }) => {
-						if (result.type === 'success') toast.success('Source paused');
-						await update();
-					};
-				}}
-				class="flex gap-2"
-			>
-				<Input name="pauseReason" placeholder="Pause reason" class="w-48" />
-				<Button type="submit" variant="outline">Pause</Button>
-			</form>
-			<form
-				method="POST"
-				action="?/disableSource"
-				use:enhance={() => {
-					return async ({ result, update }) => {
-						if (result.type === 'success') toast.success('Source disabled');
-						await update();
-					};
-				}}
-			>
-				<Button type="submit" variant="outline">Disable</Button>
-			</form>
-			<form
-				method="POST"
-				action="?/deprecateSource"
-				use:enhance={() => {
-					return async ({ result, update }) => {
-						if (result.type === 'success') toast.success('Source deprecated');
-						await update();
-					};
-				}}
-			>
-				<Button type="submit" variant="outline">Deprecate</Button>
-			</form>
+			<Button href={`/admin/sources/${data.source.id}/runs`} variant="secondary">
+				<History class="mr-2 h-4 w-4" />
+				View runs
+			</Button>
+			<Button href={`/admin/sources/review?sourceId=${data.source.id}`} variant="outline">
+				Review imported items
+			</Button>
 		</div>
 	</div>
 
-	{#if form?.error}
-		<div class="rounded-md border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
-			{form.error}
-		</div>
-	{/if}
-
-	{#if form?.runResult}
-		<div
-			class="rounded-xl border border-[color:color-mix(in_srgb,var(--color-lakebed-300)_50%,transparent)] bg-[color:color-mix(in_srgb,var(--color-lakebed-50)_70%,white)] px-5 py-4 text-sm"
-		>
-			<div class="font-semibold text-[var(--color-lakebed-900)]">
-				{form.runResult.success ? 'Run completed' : 'Run failed'}
-			</div>
-			<div class="mt-1 text-[var(--color-lakebed-800)]">
-				{form.runResult.candidatesCreated} new item{form.runResult.candidatesCreated !== 1
-					? 's'
-					: ''} found ·
-				{form.runResult.autoApprovedCount} auto-approved
-			</div>
-			{#if form.runResult.error}
-				<div class="mt-2 text-[var(--color-ember-700)]">{form.runResult.error}</div>
-			{/if}
-		</div>
-	{/if}
-
-	<div class="grid gap-4 lg:grid-cols-2 xl:grid-cols-5">
+	<div class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
 		<div
 			class="rounded-xl border border-[color:var(--rule)] bg-[var(--color-alpine-snow-100)]/50 p-4"
 		>
-			<div class="text-[11px] font-bold tracking-[0.08em] text-[var(--mid)] uppercase">Setup</div>
+			<div class="text-[11px] font-bold tracking-[0.08em] text-[var(--mid)] uppercase">
+				Import method
+			</div>
 			<div class="mt-1 text-sm font-medium">
-				{data.validation.valid ? 'Ready to run' : 'Needs attention'}
+				{friendly(ingestionLabel, data.source.ingestionMethod) ?? data.source.ingestionMethod}
 			</div>
 			<div class="mt-1 text-xs text-[var(--mid)]">
-				{data.validation.adapterDisplayName ??
-					friendly(ingestionLabel, data.source.adapterType) ??
-					'No import method set'}
+				{data.source.fetchCadence ?? 'manual'} cadence
 			</div>
 		</div>
 		<div
 			class="rounded-xl border border-[color:var(--rule)] bg-[var(--color-alpine-snow-100)]/50 p-4"
 		>
 			<div class="text-[11px] font-bold tracking-[0.08em] text-[var(--mid)] uppercase">
-				Items imported
+				Candidates
+			</div>
+			<div class="mt-1 text-sm font-medium">
+				{data.candidateOutcomeSummary.pending} pending · {data.candidateOutcomeSummary.needsInfo} need
+				info
+			</div>
+			<div class="mt-1 text-xs text-[var(--mid)]">
+				{data.candidateOutcomeSummary.approved + data.candidateOutcomeSummary.autoApproved} approved total
+			</div>
+		</div>
+		<div
+			class="rounded-xl border border-[color:var(--rule)] bg-[var(--color-alpine-snow-100)]/50 p-4"
+		>
+			<div class="text-[11px] font-bold tracking-[0.08em] text-[var(--mid)] uppercase">
+				Batch quality
 			</div>
 			<div class="mt-1 text-sm font-medium">
 				{data.batchQualitySummary.totalNew} new · {data.batchQualitySummary.totalUpdated} updates
@@ -345,997 +128,611 @@
 			class="rounded-xl border border-[color:var(--rule)] bg-[var(--color-alpine-snow-100)]/50 p-4"
 		>
 			<div class="text-[11px] font-bold tracking-[0.08em] text-[var(--mid)] uppercase">
-				Published
+				Validation
 			</div>
 			<div class="mt-1 text-sm font-medium">
-				{data.candidateOutcomeSummary.approved + data.candidateOutcomeSummary.autoApproved} approved
+				{data.validation.valid ? 'Ready to run' : 'Needs attention'}
 			</div>
 			<div class="mt-1 text-xs text-[var(--mid)]">
-				{data.candidateOutcomeSummary.pending} pending · {data.candidateOutcomeSummary.rejected} rejected
-			</div>
-		</div>
-		<div
-			class="rounded-xl border border-[color:var(--rule)] bg-[var(--color-alpine-snow-100)]/50 p-4"
-		>
-			<div class="text-[11px] font-bold tracking-[0.08em] text-[var(--mid)] uppercase">
-				Error types
-			</div>
-			<div class="mt-1 text-sm font-medium">{Object.keys(data.errorPatterns).length}</div>
-			<div class="mt-1 text-xs text-[var(--mid)]">Distinct error patterns seen</div>
-		</div>
-		<div
-			class="rounded-xl border border-[color:var(--rule)] bg-[var(--color-alpine-snow-100)]/50 p-4"
-		>
-			<div class="text-[11px] font-bold tracking-[0.08em] text-[var(--mid)] uppercase">
-				Quality flags
-			</div>
-			<div class="mt-1 text-sm font-medium">
-				{data.candidateQualitySummary.missingImage} missing images
-			</div>
-			<div class="mt-1 text-xs text-[var(--mid)]">
-				{data.candidateQualitySummary.lowConfidence} low confidence ·
-				{data.candidateQualitySummary.enrichmentFailures} enrichment failures
+				{validationSummary ?? 'No blocking setup issues'}
 			</div>
 		</div>
 	</div>
 
-	{#if data.source.quarantined}
-		<div
-			class="rounded-xl border border-[color:color-mix(in_srgb,var(--color-ember-300)_60%,transparent)] bg-[color:color-mix(in_srgb,var(--color-ember-50)_88%,white)] px-5 py-4 text-sm text-[var(--color-ember-900)]"
+	<div class="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
+		<form
+			method="POST"
+			action="?/updateSource"
+			use:enhance={enhanceToast('Source updated')}
+			class="space-y-6"
 		>
-			<div class="font-semibold tracking-[0.04em] uppercase">Source quarantined</div>
-			<div class="mt-1">
-				{data.source.quarantineReason ??
-					'This source is held out of scheduled runs until an operator clears it.'}
-			</div>
-		</div>
-	{/if}
-
-	{#if !data.validation.valid || data.validation.warnings.length > 0}
-		<div
-			class="rounded-xl border border-[color:color-mix(in_srgb,var(--color-flicker-300)_50%,transparent)] bg-[color:color-mix(in_srgb,var(--color-flicker-50)_60%,white)] p-4 text-sm text-[var(--color-flicker-900)]"
-		>
-			<div class="font-medium">Configuration issue</div>
-			{#if data.validation.errors.length > 0}
-				<div class="mt-2 space-y-1">
-					{#each data.validation.errors as message}
-						<div>{message}</div>
-					{/each}
-				</div>
-			{/if}
-			{#if data.validation.warnings.length > 0}
-				<div class="mt-2 space-y-1 text-amber-800">
-					{#each data.validation.warnings as message}
-						<div>{message}</div>
-					{/each}
-				</div>
-			{/if}
-		</div>
-	{/if}
-
-	{#if currentResult}
-		{@const result = currentResult}
-		<Card.Root>
-			<Card.Header>
-				<Card.Title
-					>{form?.previewMode === 'import'
-						? 'Latest import result'
-						: 'Latest test preview'}</Card.Title
-				>
-				<Card.Description>
-					Fetch, parse, normalize, and dedupe output for this source.
-				</Card.Description>
-			</Card.Header>
-			<Card.Content class="space-y-4">
-				<div class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-					<div class="rounded-md border p-3">
-						<div class="text-xs tracking-wide text-muted-foreground uppercase">Fetch</div>
-						<div class="mt-1 text-sm font-medium">{result.fetchResult.status}</div>
-						<div class="text-xs text-muted-foreground">
-							{result.fetchResult.httpStatusCode ?? 'No HTTP status'} · {result.fetchResult
-								.responseTimeMs} ms
-						</div>
-					</div>
-					<div class="rounded-md border p-3">
-						<div class="text-xs tracking-wide text-muted-foreground uppercase">Parsed items</div>
-						<div class="mt-1 text-sm font-medium">{result.parseResult?.totalFound ?? 0}</div>
-					</div>
-					<div class="rounded-md border p-3">
-						<div class="text-xs tracking-wide text-muted-foreground uppercase">
-							Normalized records
-						</div>
-						<div class="mt-1 text-sm font-medium">
-							{result.normalizeResult?.records.length ?? 0}
-						</div>
-					</div>
-					<div class="rounded-md border p-3">
-						<div class="text-xs tracking-wide text-muted-foreground uppercase">
-							Queued candidates
-						</div>
-						<div class="mt-1 text-sm font-medium">
-							{result.candidates.filter((candidate) => candidate.dedupe.result !== 'duplicate')
-								.length}
-						</div>
-					</div>
-				</div>
-
-				{#if result.stages.length > 0}
-					<div class="rounded-md border p-3">
-						<div class="text-sm font-medium">Pipeline stages</div>
-						<div class="mt-3 overflow-x-auto">
-							<Table.Root>
-								<Table.Header>
-									<Table.Row>
-										<Table.Head>Stage</Table.Head>
-										<Table.Head>Status</Table.Head>
-										<Table.Head>Items</Table.Head>
-										<Table.Head>Duration</Table.Head>
-										<Table.Head>Notes</Table.Head>
-									</Table.Row>
-								</Table.Header>
-								<Table.Body>
-									{#each result.stages as stage}
-										<Table.Row>
-											<Table.Cell>{stage.stage.replace(/_/g, ' ')}</Table.Cell>
-											<Table.Cell>{stage.status}</Table.Cell>
-											<Table.Cell>{stage.itemCount ?? '—'}</Table.Cell>
-											<Table.Cell>{stage.durationMs ?? '—'} ms</Table.Cell>
-											<Table.Cell class="max-w-sm text-xs text-muted-foreground">
-												{#if stage.errors.length > 0}
-													{stage.errors[0]}
-												{:else if stage.warnings.length > 0}
-													{stage.warnings[0]}
-												{:else}
-													—
-												{/if}
-											</Table.Cell>
-										</Table.Row>
-									{/each}
-								</Table.Body>
-							</Table.Root>
-						</div>
-					</div>
-				{/if}
-
-				<div class="grid gap-4 xl:grid-cols-[0.75fr_1.25fr]">
-					<div class="space-y-4">
-						<div class="rounded-md border p-3">
-							<div class="text-sm font-medium">Dedupe summary</div>
-							<div class="mt-2 grid gap-2 text-sm">
-								{#each Object.entries(result.dedupeCounts) as [key, count]}
-									<div class="flex items-center justify-between rounded-md bg-muted/40 px-3 py-2">
-										<span>{key}</span>
-										<span class="font-medium">{count}</span>
-									</div>
-								{/each}
-							</div>
-						</div>
-
-						{#if result.parseResult?.errors?.length || result.normalizeResult?.errors?.length || (isImportResult(result) && result.errors.length)}
-							<div class="rounded-md border border-amber-200 bg-amber-50 p-3">
-								<div class="text-sm font-medium text-amber-900">Pipeline errors</div>
-								<div class="mt-2 space-y-1 text-sm text-amber-800">
-									{#each isImportResult(result) ? result.errors : [] as error}
-										<div>{error}</div>
-									{/each}
-									{#each result.parseResult?.errors ?? [] as error}
-										<div>{error.message}</div>
-									{/each}
-									{#each result.normalizeResult?.errors ?? [] as error}
-										<div>{error.message}</div>
-									{/each}
-								</div>
-							</div>
-						{/if}
-
-						{#if form?.previewMode === 'import'}
-							<div class="rounded-md border p-3 text-sm">
-								<div>
-									<span class="font-medium">Batch:</span>
-									{isImportResult(result) ? (result.batchId ?? '—') : '—'}
-								</div>
-								<div>
-									<span class="font-medium">Fetch log:</span>
-									{isImportResult(result) ? (result.fetchLogId ?? '—') : '—'}
-								</div>
-								<div>
-									<span class="font-medium">Created:</span>
-									{isImportResult(result) ? result.candidatesCreated : 0}
-								</div>
-								<div>
-									<span class="font-medium">Duplicates skipped:</span>
-									{isImportResult(result) ? result.duplicatesSkipped : 0}
-								</div>
-								<div>
-									<span class="font-medium">Updates queued:</span>
-									{isImportResult(result) ? result.updatesQueued : 0}
-								</div>
-							</div>
-						{/if}
-					</div>
-
-					<div class="space-y-3">
-						<div class="text-sm font-medium">Candidate preview</div>
-						{#each result.candidates as candidate}
-							<div class="rounded-xl border border-[color:var(--rule)] p-4">
-								<div class="flex flex-wrap items-center gap-2">
-									<div class="font-medium">{previewTitle(candidate.normalizedData)}</div>
-									<span
-										class="inline-flex items-center rounded-full border border-[color:var(--rule)] bg-[var(--color-alpine-snow-100)] px-2.5 py-1 text-[11px] font-semibold tracking-[0.04em] text-[var(--mid)] uppercase"
-									>
-										{friendly(dedupeLabel, candidate.dedupe.result)}
-									</span>
-									{#if candidate.priority !== 'normal'}
-										<span
-											class="inline-flex items-center rounded-full border border-[color:color-mix(in_srgb,var(--color-ember-300)_60%,transparent)] bg-[color:color-mix(in_srgb,var(--color-ember-50)_90%,white)] px-2.5 py-1 text-[11px] font-semibold tracking-[0.04em] text-[var(--color-ember-900)] uppercase"
-										>
-											{friendly(priorityLabel, candidate.priority)}
-										</span>
-									{/if}
-								</div>
-								{#if candidate.dedupe.match?.canonicalTitle}
-									<p class="mt-1 text-xs text-[var(--mid)]">
-										Matches: {candidate.dedupe.match.canonicalTitle}
-									</p>
-								{/if}
-								<div class="mt-3 flex flex-wrap gap-2 text-xs">
-									{#if confidenceScore(candidate.confidence) !== null}
-										<span
-											class={`inline-flex items-center rounded-full border px-2.5 py-1 font-semibold ${badgeClass((confidenceScore(candidate.confidence) ?? 1) >= 0.85 ? 'healthy' : (confidenceScore(candidate.confidence) ?? 1) >= 0.7 ? 'degraded' : 'broken')}`}
-										>
-											Confidence {(confidenceScore(candidate.confidence) ?? 0).toFixed(2)}
-										</span>
-									{/if}
-									{#each qualityCodes(candidate.qualityFlags) as code}
-										<span
-											class="inline-flex items-center rounded-full border border-[color:color-mix(in_srgb,var(--color-flicker-300)_55%,transparent)] bg-[color:color-mix(in_srgb,var(--color-flicker-50)_92%,white)] px-2.5 py-1 font-semibold text-[var(--color-flicker-900)]"
-										>
-											{code.replace(/_/g, ' ')}
-										</span>
-									{/each}
-									{#each urlRoleNames(candidate.urlRoles) as role}
-										<span
-											class="inline-flex items-center rounded-full border border-[color:var(--rule)] bg-[var(--color-alpine-snow-100)] px-2.5 py-1 font-semibold text-[var(--mid)]"
-										>
-											{role.replace(/_/g, ' ')}
-										</span>
-									{/each}
-									{#if candidate.imageCandidates.length > 0}
-										<span
-											class="inline-flex items-center rounded-full border border-[color:var(--rule)] bg-[var(--color-alpine-snow-100)] px-2.5 py-1 font-semibold text-[var(--mid)]"
-										>
-											{candidate.imageCandidates.length} image candidate{candidate.imageCandidates
-												.length === 1
-												? ''
-												: 's'}
-										</span>
-									{/if}
-									{#if extractedFactCount(candidate.extractedFacts, 'offers') > 0}
-										<span
-											class="inline-flex items-center rounded-full border border-[color:var(--rule)] bg-[var(--color-alpine-snow-100)] px-2.5 py-1 font-semibold text-[var(--mid)]"
-										>
-											{extractedFactCount(candidate.extractedFacts, 'offers')} offer{extractedFactCount(
-												candidate.extractedFacts,
-												'offers'
-											) === 1
-												? ''
-												: 's'}
-										</span>
-									{/if}
-									{#if extractedFactCount(candidate.extractedFacts, 'conflicts') > 0}
-										<span
-											class="inline-flex items-center rounded-full border border-[color:color-mix(in_srgb,var(--color-flicker-300)_55%,transparent)] bg-[color:color-mix(in_srgb,var(--color-flicker-50)_92%,white)] px-2.5 py-1 font-semibold text-[var(--color-flicker-900)]"
-										>
-											{extractedFactCount(candidate.extractedFacts, 'conflicts')} conflict{extractedFactCount(
-												candidate.extractedFacts,
-												'conflicts'
-											) === 1
-												? ''
-												: 's'}
-										</span>
-									{/if}
-								</div>
-								<div class="mt-3">
-									<CandidateFieldCard
-										data={candidate.normalizedData as unknown as Record<string, unknown>}
-									/>
-								</div>
-								<div class="mt-3">
-									<CollapsibleDebug
-										label="Raw data"
-										data={{
-											normalized: candidate.normalizedData,
-											raw: candidate.rawData,
-											extractedFacts: candidate.extractedFacts,
-											diagnostics: candidate.diagnostics
-										}}
-									/>
-								</div>
-							</div>
-						{:else}
-							<div
-								class="rounded-xl border border-dashed border-[color:var(--rule)] p-6 text-center text-sm text-[var(--mid)]"
+			<Card.Root>
+				<Card.Header>
+					<Card.Title>Registry details</Card.Title>
+					<Card.Description>Core metadata, URLs, classification, and cadence.</Card.Description>
+				</Card.Header>
+				<Card.Content class="space-y-4">
+					<div class="grid gap-4 md:grid-cols-2">
+						<Field.Field>
+							<Field.Label for="name">Name *</Field.Label>
+							<Field.Content
+								><Input id="name" name="name" value={data.source.name} required /></Field.Content
 							>
-								No candidate rows were produced.
-							</div>
-						{/each}
+						</Field.Field>
+						<Field.Field>
+							<Field.Label for="sourceUrl">Source URL *</Field.Label>
+							<Field.Content>
+								<Input
+									id="sourceUrl"
+									name="sourceUrl"
+									type="url"
+									value={data.source.sourceUrl}
+									required
+								/>
+							</Field.Content>
+						</Field.Field>
 					</div>
-				</div>
-			</Card.Content>
-		</Card.Root>
-	{/if}
 
-	<form
-		method="POST"
-		action="?/updateSource"
-		use:enhance={() => {
-			return async ({ result, update }) => {
-				if (result.type === 'success') toast.success('Source updated');
-				else if (result.type === 'failure')
-					toast.error((result.data as { error?: string })?.error ?? 'Update failed');
-				await update();
-			};
-		}}
-		class="space-y-6"
-	>
-		<Card.Root>
-			<Card.Header>
-				<Card.Title>Registry details</Card.Title>
-				<Card.Description>Core metadata, classification, and scheduling.</Card.Description>
-			</Card.Header>
-			<Card.Content class="space-y-4">
-				<div class="grid gap-4 md:grid-cols-2">
-					<Field.Field>
-						<Field.Label for="name">Name *</Field.Label>
-						<Field.Content>
-							<Input id="name" name="name" value={data.source.name} required />
-						</Field.Content>
-					</Field.Field>
-					<Field.Field>
-						<Field.Label for="sourceUrl">Source URL *</Field.Label>
-						<Field.Content>
-							<Input
-								id="sourceUrl"
-								name="sourceUrl"
-								type="url"
-								value={data.source.sourceUrl}
-								required
-							/>
-						</Field.Content>
-					</Field.Field>
-				</div>
-				<div class="grid gap-4 md:grid-cols-2">
-					<Field.Field>
-						<Field.Label for="homepageUrl">Homepage URL</Field.Label>
-						<Field.Content>
-							<Input
-								id="homepageUrl"
-								name="homepageUrl"
-								type="url"
-								value={data.source.homepageUrl ?? ''}
-							/>
-						</Field.Content>
-					</Field.Field>
-					<Field.Field>
-						<Field.Label for="fetchUrl">Fetch URL</Field.Label>
-						<Field.Content>
-							<Input id="fetchUrl" name="fetchUrl" type="url" value={data.source.fetchUrl ?? ''} />
-						</Field.Content>
-					</Field.Field>
-				</div>
-				<Field.Field>
-					<Field.Label for="description">Description</Field.Label>
-					<Field.Content>
-						<Textarea
-							id="description"
-							name="description"
-							rows={3}
-							value={data.source.description ?? ''}
-						/>
-					</Field.Content>
-				</Field.Field>
-				<div class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-					<Field.Field>
-						<Field.Label for="status">Status</Field.Label>
-						<Field.Content>
-							<NativeSelect.Root id="status" name="status" value={data.source.status}>
-								<NativeSelect.Option value="discovered">Discovered</NativeSelect.Option>
-								<NativeSelect.Option value="configuring">Configuring</NativeSelect.Option>
-								<NativeSelect.Option value="active">Active</NativeSelect.Option>
-								<NativeSelect.Option value="paused">Paused</NativeSelect.Option>
-								<NativeSelect.Option value="deprecated">Deprecated</NativeSelect.Option>
-								<NativeSelect.Option value="disabled">Disabled</NativeSelect.Option>
-								<NativeSelect.Option value="manual_only">Manual only</NativeSelect.Option>
-							</NativeSelect.Root>
-						</Field.Content>
-					</Field.Field>
-					<Field.Field>
-						<Field.Label for="healthStatus">Health</Field.Label>
-						<Field.Content>
-							<NativeSelect.Root
-								id="healthStatus"
-								name="healthStatus"
-								value={data.source.healthStatus}
-							>
-								<NativeSelect.Option value="healthy">Healthy</NativeSelect.Option>
-								<NativeSelect.Option value="degraded">Degraded</NativeSelect.Option>
-								<NativeSelect.Option value="unhealthy">Unhealthy</NativeSelect.Option>
-								<NativeSelect.Option value="stale">Stale</NativeSelect.Option>
-								<NativeSelect.Option value="broken">Broken</NativeSelect.Option>
-								<NativeSelect.Option value="auth_required">Auth required</NativeSelect.Option>
-								<NativeSelect.Option value="unknown">Unknown</NativeSelect.Option>
-							</NativeSelect.Root>
-						</Field.Content>
-					</Field.Field>
-					<Field.Field>
-						<Field.Label for="ingestionMethod">Ingestion method</Field.Label>
-						<Field.Content>
-							<NativeSelect.Root
-								id="ingestionMethod"
-								name="ingestionMethod"
-								value={data.source.ingestionMethod}
-							>
-								<NativeSelect.Option value="manual_only">Manual only</NativeSelect.Option>
-								<NativeSelect.Option value="manual_with_reminder">
-									Manual with reminder
-								</NativeSelect.Option>
-								<NativeSelect.Option value="rss_import">RSS import</NativeSelect.Option>
-								<NativeSelect.Option value="ical_import">iCal import</NativeSelect.Option>
-								<NativeSelect.Option value="api_import">API import</NativeSelect.Option>
-								<NativeSelect.Option value="html_scrape">HTML scrape</NativeSelect.Option>
-								<NativeSelect.Option value="directory_sync">Directory sync</NativeSelect.Option>
-								<NativeSelect.Option value="document_extraction">
-									Document extraction
-								</NativeSelect.Option>
-								<NativeSelect.Option value="newsletter_triage"
-									>Newsletter triage</NativeSelect.Option
-								>
-								<NativeSelect.Option value="hybrid">Hybrid</NativeSelect.Option>
-							</NativeSelect.Root>
-						</Field.Content>
-					</Field.Field>
-					<Field.Field>
-						<Field.Label for="fetchCadence">Fetch cadence</Field.Label>
-						<Field.Content>
-							<NativeSelect.Root
-								id="fetchCadence"
-								name="fetchCadence"
-								value={data.source.fetchCadence}
-							>
-								<NativeSelect.Option value="hourly">Hourly</NativeSelect.Option>
-								<NativeSelect.Option value="every_6h">Every 6h</NativeSelect.Option>
-								<NativeSelect.Option value="daily">Daily</NativeSelect.Option>
-								<NativeSelect.Option value="weekly">Weekly</NativeSelect.Option>
-								<NativeSelect.Option value="biweekly">Biweekly</NativeSelect.Option>
-								<NativeSelect.Option value="monthly">Monthly</NativeSelect.Option>
-								<NativeSelect.Option value="manual">Manual</NativeSelect.Option>
-							</NativeSelect.Root>
-						</Field.Content>
-					</Field.Field>
-				</div>
-				<div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-					<Field.Field>
-						<Field.Label for="sourceCategory">Category</Field.Label>
-						<Field.Content>
-							<NativeSelect.Root
-								id="sourceCategory"
-								name="sourceCategory"
-								value={data.source.sourceCategory ?? ''}
-							>
-								<NativeSelect.Option value="">Unspecified</NativeSelect.Option>
-								<NativeSelect.Option value="government_federal"
-									>Government (Federal)</NativeSelect.Option
-								>
-								<NativeSelect.Option value="government_state"
-									>Government (State)</NativeSelect.Option
-								>
-								<NativeSelect.Option value="government_tribal"
-									>Government (Tribal)</NativeSelect.Option
-								>
-								<NativeSelect.Option value="nonprofit">Nonprofit</NativeSelect.Option>
-								<NativeSelect.Option value="foundation">Foundation</NativeSelect.Option>
-								<NativeSelect.Option value="aggregator">Aggregator</NativeSelect.Option>
-								<NativeSelect.Option value="news_media">News media</NativeSelect.Option>
-								<NativeSelect.Option value="academic">Academic</NativeSelect.Option>
-								<NativeSelect.Option value="professional_association">
-									Professional association
-								</NativeSelect.Option>
-								<NativeSelect.Option value="private_business">Private business</NativeSelect.Option>
-								<NativeSelect.Option value="community">Community</NativeSelect.Option>
-							</NativeSelect.Root>
-						</Field.Content>
-					</Field.Field>
-					<Field.Field>
-						<Field.Label for="ownerUserId">Owner user ID</Field.Label>
-						<Field.Content>
-							<Input id="ownerUserId" name="ownerUserId" value={data.source.ownerUserId ?? ''} />
-						</Field.Content>
-					</Field.Field>
-					<Field.Field>
-						<Field.Label for="confidenceScore">Confidence score</Field.Label>
-						<Field.Content>
-							<Input
-								id="confidenceScore"
-								name="confidenceScore"
-								type="number"
-								min="1"
-								max="5"
-								value={data.source.confidenceScore ?? ''}
-							/>
-						</Field.Content>
-					</Field.Field>
-				</div>
-				<div class="grid gap-4 md:grid-cols-2">
-					<Field.Field>
-						<Field.Label>Coils</Field.Label>
-						<Field.Content>
-							<div class="grid grid-cols-2 gap-2 rounded-md border p-3 text-sm">
-								{#each coilOptions as coil}
-									<label class="flex items-center gap-2">
-										<input
-											type="checkbox"
-											name="coils"
-											value={coil.value}
-											checked={data.source.coils.includes(coil.value)}
-										/>
-										<span>{coil.label}</span>
-									</label>
-								{/each}
-							</div>
-						</Field.Content>
-					</Field.Field>
-					<Field.Field>
-						<Field.Label>Dedupe strategies</Field.Label>
-						<Field.Content>
-							<div class="grid grid-cols-2 gap-2 rounded-md border p-3 text-sm">
-								{#each dedupeOptions as option}
-									<label class="flex items-center gap-2">
-										<input
-											type="checkbox"
-											name="dedupeStrategies"
-											value={option.value}
-											checked={data.source.dedupeStrategies.includes(option.value)}
-										/>
-										<span>{option.label}</span>
-									</label>
-								{/each}
-							</div>
-						</Field.Content>
-					</Field.Field>
-				</div>
-			</Card.Content>
-		</Card.Root>
+					<div class="grid gap-4 md:grid-cols-2">
+						<Field.Field>
+							<Field.Label for="homepageUrl">Homepage URL</Field.Label>
+							<Field.Content>
+								<Input
+									id="homepageUrl"
+									name="homepageUrl"
+									type="url"
+									value={data.source.homepageUrl ?? ''}
+								/>
+							</Field.Content>
+						</Field.Field>
+						<Field.Field>
+							<Field.Label for="fetchUrl">Fetch URL</Field.Label>
+							<Field.Content>
+								<Input
+									id="fetchUrl"
+									name="fetchUrl"
+									type="url"
+									value={data.source.fetchUrl ?? ''}
+								/>
+							</Field.Content>
+						</Field.Field>
+					</div>
 
-		<Separator />
-
-		<Card.Root>
-			<Card.Header>
-				<Card.Title>Execution settings</Card.Title>
-				<Card.Description
-					>Adapter config, risk profile, review behavior, and timing.</Card.Description
-				>
-			</Card.Header>
-			<Card.Content class="space-y-4">
-				<div class="grid gap-4 md:grid-cols-2">
 					<Field.Field>
-						<Field.Label for="adapterType">Adapter type</Field.Label>
-						<Field.Content>
-							<Input id="adapterType" name="adapterType" value={data.source.adapterType ?? ''} />
-						</Field.Content>
-					</Field.Field>
-					<Field.Field>
-						<Field.Label for="adapterVersion">Adapter version</Field.Label>
-						<Field.Content>
-							<Input
-								id="adapterVersion"
-								name="adapterVersion"
-								value={data.source.adapterVersion ?? ''}
-							/>
-						</Field.Content>
-					</Field.Field>
-				</div>
-				<div class="grid gap-4 md:grid-cols-2">
-					<Field.Field>
-						<Field.Label for="nextCheckAt">Next check at</Field.Label>
-						<Field.Content>
-							<Input
-								id="nextCheckAt"
-								name="nextCheckAt"
-								type="datetime-local"
-								value={formatDateTimeLocal(data.source.nextCheckAt)}
-							/>
-						</Field.Content>
-					</Field.Field>
-				</div>
-				<div class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-					<Field.Field>
-						<Field.Label for="pausedAt">Paused at</Field.Label>
-						<Field.Content>
-							<Input
-								id="pausedAt"
-								name="pausedAt"
-								type="datetime-local"
-								value={formatDateTimeLocal(data.source.pausedAt)}
-							/>
-						</Field.Content>
-					</Field.Field>
-					<Field.Field>
-						<Field.Label for="deprecatedAt">Deprecated at</Field.Label>
-						<Field.Content>
-							<Input
-								id="deprecatedAt"
-								name="deprecatedAt"
-								type="datetime-local"
-								value={formatDateTimeLocal(data.source.deprecatedAt)}
-							/>
-						</Field.Content>
-					</Field.Field>
-					<Field.Field>
-						<Field.Label for="pauseReason">Pause reason</Field.Label>
-						<Field.Content>
-							<Input id="pauseReason" name="pauseReason" value={data.source.pauseReason ?? ''} />
-						</Field.Content>
-					</Field.Field>
-					<Field.Field>
-						<Field.Label for="quarantineReason">Quarantine reason</Field.Label>
-						<Field.Content>
-							<Input
-								id="quarantineReason"
-								name="quarantineReason"
-								value={data.source.quarantineReason ?? ''}
-							/>
-						</Field.Content>
-					</Field.Field>
-				</div>
-				<div class="grid gap-4 md:grid-cols-2">
-					<Field.Field>
-						<Field.Label for="attributionText">Attribution text</Field.Label>
-						<Field.Content>
-							<Input
-								id="attributionText"
-								name="attributionText"
-								value={data.source.attributionText ?? ''}
-							/>
-						</Field.Content>
-					</Field.Field>
-					<Field.Field>
-						<Field.Label for="stewardNotes">Steward notes</Field.Label>
+						<Field.Label for="description">Description</Field.Label>
 						<Field.Content>
 							<Textarea
-								id="stewardNotes"
-								name="stewardNotes"
+								id="description"
+								name="description"
 								rows={3}
-								value={data.source.stewardNotes ?? ''}
+								value={data.source.description ?? ''}
 							/>
 						</Field.Content>
 					</Field.Field>
-				</div>
-				<div class="flex flex-wrap gap-4 text-sm">
-					<label class="flex items-center gap-2">
-						<input type="checkbox" name="enabled" checked={data.source.enabled} />
-						<span>Enabled</span>
-					</label>
-					<label class="flex items-center gap-2">
-						<input type="checkbox" name="reviewRequired" checked={data.source.reviewRequired} />
-						<span>Review required</span>
-					</label>
-					<label class="flex items-center gap-2">
-						<input type="checkbox" name="autoApprove" checked={data.source.autoApprove} />
-						<span>Auto approve</span>
-					</label>
-					<label class="flex items-center gap-2">
-						<input
-							type="checkbox"
-							name="attributionRequired"
-							checked={data.source.attributionRequired}
-						/>
-						<span>Attribution required</span>
-					</label>
-					<label class="flex items-center gap-2">
-						<input type="checkbox" name="quarantined" checked={data.source.quarantined} />
-						<span>Quarantined</span>
-					</label>
-				</div>
-				<div class="grid gap-4 xl:grid-cols-4">
-					<Field.Field>
-						<Field.Label for="adapterConfig">Adapter config (JSON)</Field.Label>
-						<Field.Content>
-							<Textarea
-								id="adapterConfig"
-								name="adapterConfig"
-								rows={10}
-								value={JSON.stringify(data.source.adapterConfig ?? {}, null, 2)}
-								class="font-mono text-xs"
-							/>
-						</Field.Content>
-					</Field.Field>
-					<Field.Field>
-						<Field.Label for="riskProfile">Risk profile (JSON)</Field.Label>
-						<Field.Content>
-							<Textarea
-								id="riskProfile"
-								name="riskProfile"
-								rows={10}
-								value={JSON.stringify(data.source.riskProfile ?? {}, null, 2)}
-								class="font-mono text-xs"
-							/>
-						</Field.Content>
-					</Field.Field>
-					<Field.Field>
-						<Field.Label for="dedupeConfig">Dedupe config (JSON)</Field.Label>
-						<Field.Content>
-							<Textarea
-								id="dedupeConfig"
-								name="dedupeConfig"
-								rows={10}
-								value={JSON.stringify(data.source.dedupeConfig ?? {}, null, 2)}
-								class="font-mono text-xs"
-							/>
-						</Field.Content>
-					</Field.Field>
-					<Field.Field>
-						<Field.Label for="qaNotes">QA notes (JSON)</Field.Label>
-						<Field.Content>
-							<Textarea
-								id="qaNotes"
-								name="qaNotes"
-								rows={10}
-								value={JSON.stringify(data.source.qaNotes ?? [], null, 2)}
-								class="font-mono text-xs"
-							/>
-						</Field.Content>
-					</Field.Field>
-				</div>
-			</Card.Content>
-		</Card.Root>
 
-		<Separator />
-
-		<Card.Root>
-			<Card.Header>
-				<Card.Title>Tags</Card.Title>
-				<Card.Description
-					>Flexible key/value metadata for stewardship and filtering.</Card.Description
-				>
-			</Card.Header>
-			<Card.Content class="space-y-3">
-				{#each tags as tag, index}
-					<div class="grid gap-3 md:grid-cols-[1fr_1fr_auto]">
-						<Input name="tagKey" bind:value={tag.tagKey} placeholder="Tag key" />
-						<Input name="tagValue" bind:value={tag.tagValue} placeholder="Tag value" />
-						<Button type="button" variant="outline" onclick={() => removeTag(index)}>
-							<Trash2 class="mr-2 h-4 w-4" />
-							Remove
-						</Button>
+					<div class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+						<Field.Field>
+							<Field.Label for="status">Status</Field.Label>
+							<Field.Content>
+								<NativeSelect.Root id="status" name="status" value={data.source.status}>
+									<NativeSelect.Option value="discovered">Discovered</NativeSelect.Option>
+									<NativeSelect.Option value="configuring">Configuring</NativeSelect.Option>
+									<NativeSelect.Option value="active">Active</NativeSelect.Option>
+									<NativeSelect.Option value="paused">Paused</NativeSelect.Option>
+									<NativeSelect.Option value="deprecated">Deprecated</NativeSelect.Option>
+									<NativeSelect.Option value="disabled">Disabled</NativeSelect.Option>
+									<NativeSelect.Option value="manual_only">Manual only</NativeSelect.Option>
+								</NativeSelect.Root>
+							</Field.Content>
+						</Field.Field>
+						<Field.Field>
+							<Field.Label for="healthStatus">Health</Field.Label>
+							<Field.Content>
+								<NativeSelect.Root
+									id="healthStatus"
+									name="healthStatus"
+									value={data.source.healthStatus}
+								>
+									<NativeSelect.Option value="healthy">Healthy</NativeSelect.Option>
+									<NativeSelect.Option value="degraded">Degraded</NativeSelect.Option>
+									<NativeSelect.Option value="unhealthy">Unhealthy</NativeSelect.Option>
+									<NativeSelect.Option value="stale">Stale</NativeSelect.Option>
+									<NativeSelect.Option value="broken">Broken</NativeSelect.Option>
+									<NativeSelect.Option value="auth_required">Auth required</NativeSelect.Option>
+									<NativeSelect.Option value="unknown">Unknown</NativeSelect.Option>
+								</NativeSelect.Root>
+							</Field.Content>
+						</Field.Field>
+						<Field.Field>
+							<Field.Label for="ingestionMethod">Ingestion method</Field.Label>
+							<Field.Content>
+								<NativeSelect.Root
+									id="ingestionMethod"
+									name="ingestionMethod"
+									value={data.source.ingestionMethod}
+								>
+									<NativeSelect.Option value="manual_only">Manual only</NativeSelect.Option>
+									<NativeSelect.Option value="manual_with_reminder"
+										>Manual with reminder</NativeSelect.Option
+									>
+									<NativeSelect.Option value="rss_import">RSS import</NativeSelect.Option>
+									<NativeSelect.Option value="ical_import">iCal import</NativeSelect.Option>
+									<NativeSelect.Option value="api_import">API import</NativeSelect.Option>
+									<NativeSelect.Option value="html_scrape">HTML scrape</NativeSelect.Option>
+									<NativeSelect.Option value="directory_sync">Directory sync</NativeSelect.Option>
+									<NativeSelect.Option value="document_extraction"
+										>Document extraction</NativeSelect.Option
+									>
+									<NativeSelect.Option value="newsletter_triage"
+										>Newsletter triage</NativeSelect.Option
+									>
+									<NativeSelect.Option value="hybrid">Hybrid</NativeSelect.Option>
+								</NativeSelect.Root>
+							</Field.Content>
+						</Field.Field>
+						<Field.Field>
+							<Field.Label for="fetchCadence">Fetch cadence</Field.Label>
+							<Field.Content>
+								<NativeSelect.Root
+									id="fetchCadence"
+									name="fetchCadence"
+									value={data.source.fetchCadence}
+								>
+									<NativeSelect.Option value="hourly">Hourly</NativeSelect.Option>
+									<NativeSelect.Option value="every_6h">Every 6h</NativeSelect.Option>
+									<NativeSelect.Option value="daily">Daily</NativeSelect.Option>
+									<NativeSelect.Option value="weekly">Weekly</NativeSelect.Option>
+									<NativeSelect.Option value="biweekly">Biweekly</NativeSelect.Option>
+									<NativeSelect.Option value="monthly">Monthly</NativeSelect.Option>
+									<NativeSelect.Option value="manual">Manual</NativeSelect.Option>
+								</NativeSelect.Root>
+							</Field.Content>
+						</Field.Field>
 					</div>
-				{/each}
-				<Button type="button" variant="outline" onclick={addTag}>
-					<Plus class="mr-2 h-4 w-4" />
-					Add tag
+
+					<div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+						<Field.Field>
+							<Field.Label for="sourceCategory">Category</Field.Label>
+							<Field.Content>
+								<NativeSelect.Root
+									id="sourceCategory"
+									name="sourceCategory"
+									value={data.source.sourceCategory ?? ''}
+								>
+									<NativeSelect.Option value="">Unspecified</NativeSelect.Option>
+									<NativeSelect.Option value="government_federal"
+										>Government (Federal)</NativeSelect.Option
+									>
+									<NativeSelect.Option value="government_state"
+										>Government (State)</NativeSelect.Option
+									>
+									<NativeSelect.Option value="government_tribal"
+										>Government (Tribal)</NativeSelect.Option
+									>
+									<NativeSelect.Option value="nonprofit">Nonprofit</NativeSelect.Option>
+									<NativeSelect.Option value="foundation">Foundation</NativeSelect.Option>
+									<NativeSelect.Option value="aggregator">Aggregator</NativeSelect.Option>
+									<NativeSelect.Option value="news_media">News media</NativeSelect.Option>
+									<NativeSelect.Option value="academic">Academic</NativeSelect.Option>
+									<NativeSelect.Option value="professional_association"
+										>Professional association</NativeSelect.Option
+									>
+									<NativeSelect.Option value="private_business"
+										>Private business</NativeSelect.Option
+									>
+									<NativeSelect.Option value="community">Community</NativeSelect.Option>
+								</NativeSelect.Root>
+							</Field.Content>
+						</Field.Field>
+						<Field.Field>
+							<Field.Label for="ownerUserId">Owner user ID</Field.Label>
+							<Field.Content
+								><Input
+									id="ownerUserId"
+									name="ownerUserId"
+									value={data.source.ownerUserId ?? ''}
+								/></Field.Content
+							>
+						</Field.Field>
+						<Field.Field>
+							<Field.Label for="nextCheckAt">Next check</Field.Label>
+							<Field.Content>
+								<Input
+									id="nextCheckAt"
+									name="nextCheckAt"
+									type="datetime-local"
+									value={formatDateTimeLocal(data.source.nextCheckAt)}
+								/>
+							</Field.Content>
+						</Field.Field>
+					</div>
+				</Card.Content>
+			</Card.Root>
+
+			<Card.Root>
+				<Card.Header>
+					<Card.Title>Ownership and moderation</Card.Title>
+					<Card.Description
+						>Choose defaults for review behavior, attribution, and stewardship.</Card.Description
+					>
+				</Card.Header>
+				<Card.Content class="space-y-4">
+					<div class="grid gap-4 md:grid-cols-2">
+						<Field.Field>
+							<Field.Label for="stewardNotes">Steward notes</Field.Label>
+							<Field.Content>
+								<Textarea
+									id="stewardNotes"
+									name="stewardNotes"
+									rows={4}
+									value={data.source.stewardNotes ?? ''}
+								/>
+							</Field.Content>
+						</Field.Field>
+						<Field.Field>
+							<Field.Label for="qaNotes">QA notes (JSON)</Field.Label>
+							<Field.Content>
+								<Textarea
+									id="qaNotes"
+									name="qaNotes"
+									rows={4}
+									value={JSON.stringify(data.source.qaNotes ?? [], null, 2)}
+								/>
+							</Field.Content>
+						</Field.Field>
+					</div>
+
+					<div class="grid gap-4 md:grid-cols-2">
+						<Field.Field>
+							<Field.Label for="attributionText">Attribution text</Field.Label>
+							<Field.Content>
+								<Input
+									id="attributionText"
+									name="attributionText"
+									value={data.source.attributionText ?? ''}
+								/>
+							</Field.Content>
+						</Field.Field>
+						<Field.Field>
+							<Field.Label for="confidenceScore">Confidence score</Field.Label>
+							<Field.Content>
+								<Input
+									id="confidenceScore"
+									name="confidenceScore"
+									type="number"
+									min="1"
+									max="5"
+									value={data.source.confidenceScore ?? ''}
+								/>
+							</Field.Content>
+						</Field.Field>
+					</div>
+
+					<div class="grid gap-3 text-sm md:grid-cols-2">
+						<label
+							class="flex items-center gap-2 rounded-lg border border-[color:var(--rule)] px-3 py-2"
+						>
+							<input type="checkbox" name="enabled" checked={data.source.enabled} />
+							<span>Enabled</span>
+						</label>
+						<label
+							class="flex items-center gap-2 rounded-lg border border-[color:var(--rule)] px-3 py-2"
+						>
+							<input type="checkbox" name="reviewRequired" checked={data.source.reviewRequired} />
+							<span>Review required</span>
+						</label>
+						<label
+							class="flex items-center gap-2 rounded-lg border border-[color:var(--rule)] px-3 py-2"
+						>
+							<input type="checkbox" name="autoApprove" checked={data.source.autoApprove} />
+							<span>Auto-approve</span>
+						</label>
+						<label
+							class="flex items-center gap-2 rounded-lg border border-[color:var(--rule)] px-3 py-2"
+						>
+							<input
+								type="checkbox"
+								name="attributionRequired"
+								checked={data.source.attributionRequired}
+							/>
+							<span>Attribution required</span>
+						</label>
+						<label
+							class="flex items-center gap-2 rounded-lg border border-[color:var(--rule)] px-3 py-2"
+						>
+							<input type="checkbox" name="quarantined" checked={data.source.quarantined} />
+							<span>Quarantined</span>
+						</label>
+					</div>
+
+					<div class="grid gap-4 md:grid-cols-2">
+						<Field.Field>
+							<Field.Label for="pauseReason">Pause reason</Field.Label>
+							<Field.Content
+								><Input
+									id="pauseReason"
+									name="pauseReason"
+									value={data.source.pauseReason ?? ''}
+								/></Field.Content
+							>
+						</Field.Field>
+						<Field.Field>
+							<Field.Label for="quarantineReason">Quarantine reason</Field.Label>
+							<Field.Content>
+								<Input
+									id="quarantineReason"
+									name="quarantineReason"
+									value={data.source.quarantineReason ?? ''}
+								/>
+							</Field.Content>
+						</Field.Field>
+					</div>
+				</Card.Content>
+			</Card.Root>
+
+			<Card.Root>
+				<Card.Header>
+					<Card.Title>Adapter and dedupe settings</Card.Title>
+					<Card.Description>Keep raw adapter config and risk rules in one place.</Card.Description>
+				</Card.Header>
+				<Card.Content class="space-y-4">
+					<div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+						<Field.Field>
+							<Field.Label for="adapterType">Adapter type</Field.Label>
+							<Field.Content
+								><Input
+									id="adapterType"
+									name="adapterType"
+									value={data.source.adapterType ?? ''}
+								/></Field.Content
+							>
+						</Field.Field>
+						<Field.Field>
+							<Field.Label for="adapterVersion">Adapter version</Field.Label>
+							<Field.Content
+								><Input
+									id="adapterVersion"
+									name="adapterVersion"
+									value={data.source.adapterVersion ?? ''}
+								/></Field.Content
+							>
+						</Field.Field>
+						<Field.Field>
+							<Field.Label for="pausedAt">Paused at</Field.Label>
+							<Field.Content>
+								<Input
+									id="pausedAt"
+									name="pausedAt"
+									type="datetime-local"
+									value={formatDateTimeLocal(data.source.pausedAt)}
+								/>
+							</Field.Content>
+						</Field.Field>
+					</div>
+
+					<div class="grid gap-4 md:grid-cols-2">
+						<Field.Field>
+							<Field.Label>Coils</Field.Label>
+							<Field.Content>
+								<div
+									class="grid grid-cols-2 gap-2 rounded-md border border-[color:var(--rule)] p-3 text-sm"
+								>
+									{#each coilOptions as coil}
+										<label class="flex items-center gap-2">
+											<input
+												type="checkbox"
+												name="coils"
+												value={coil.value}
+												checked={data.source.coils.includes(coil.value)}
+											/>
+											<span>{coil.label}</span>
+										</label>
+									{/each}
+								</div>
+							</Field.Content>
+						</Field.Field>
+						<Field.Field>
+							<Field.Label>Dedupe strategies</Field.Label>
+							<Field.Content>
+								<div
+									class="grid grid-cols-2 gap-2 rounded-md border border-[color:var(--rule)] p-3 text-sm"
+								>
+									{#each dedupeOptions as option}
+										<label class="flex items-center gap-2">
+											<input
+												type="checkbox"
+												name="dedupeStrategies"
+												value={option.value}
+												checked={data.source.dedupeStrategies.includes(option.value)}
+											/>
+											<span>{option.label}</span>
+										</label>
+									{/each}
+								</div>
+							</Field.Content>
+						</Field.Field>
+					</div>
+
+					<div class="grid gap-4 md:grid-cols-2">
+						<Field.Field>
+							<Field.Label for="adapterConfig">Adapter config (JSON)</Field.Label>
+							<Field.Content>
+								<Textarea
+									id="adapterConfig"
+									name="adapterConfig"
+									rows={8}
+									value={JSON.stringify(data.source.adapterConfig ?? {}, null, 2)}
+								/>
+							</Field.Content>
+						</Field.Field>
+						<Field.Field>
+							<Field.Label for="riskProfile">Risk profile (JSON)</Field.Label>
+							<Field.Content>
+								<Textarea
+									id="riskProfile"
+									name="riskProfile"
+									rows={8}
+									value={JSON.stringify(data.source.riskProfile ?? {}, null, 2)}
+								/>
+							</Field.Content>
+						</Field.Field>
+						<Field.Field class="md:col-span-2">
+							<Field.Label for="dedupeConfig">Dedupe config (JSON)</Field.Label>
+							<Field.Content>
+								<Textarea
+									id="dedupeConfig"
+									name="dedupeConfig"
+									rows={6}
+									value={JSON.stringify(data.source.dedupeConfig ?? {}, null, 2)}
+								/>
+							</Field.Content>
+						</Field.Field>
+						<Field.Field class="md:col-span-2">
+							<Field.Label for="tagsText">Tags</Field.Label>
+							<Field.Description>One `key=value` pair per line.</Field.Description>
+							<Field.Content>
+								<Textarea id="tagsText" name="tagsText" rows={5} value={tagsText} />
+							</Field.Content>
+						</Field.Field>
+					</div>
+				</Card.Content>
+			</Card.Root>
+
+			<div class="flex justify-end">
+				<Button type="submit">
+					<Save class="mr-2 h-4 w-4" />
+					Save source config
 				</Button>
-			</Card.Content>
-		</Card.Root>
-
-		<Button type="submit">Save source</Button>
-	</form>
-
-	<Card.Root>
-		<Card.Header>
-			<Card.Title>Operator snapshot</Card.Title>
-			<Card.Description
-				>Scheduling, publishing, and failure patterns for this source.</Card.Description
-			>
-		</Card.Header>
-		<Card.Content class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-			<div class="rounded-md border p-3">
-				<div class="text-xs tracking-wide text-muted-foreground uppercase">
-					Next scheduled check
-				</div>
-				<div class="mt-1 text-sm font-medium">
-					{data.source.nextCheckAt ? data.source.nextCheckAt.toLocaleString() : 'Not scheduled'}
-				</div>
 			</div>
-			<div class="rounded-md border p-3">
-				<div class="text-xs tracking-wide text-muted-foreground uppercase">Last trigger</div>
-				<div class="mt-1 text-sm font-medium">
-					{(data.lastBatchMeta?.trigger as string | undefined)?.replace(/_/g, ' ') ?? 'Unknown'}
-				</div>
-				<div class="text-xs text-muted-foreground">
-					{(data.lastBatchMeta?.triggered_by as string | undefined) ?? 'No actor recorded'}
-				</div>
-			</div>
-			<div class="rounded-md border p-3">
-				<div class="text-xs tracking-wide text-muted-foreground uppercase">Published outcomes</div>
-				<div class="mt-1 text-sm font-medium">
-					Approved {data.publishSummary.approved} · Auto-approved {data.publishSummary.autoApproved}
-				</div>
-				<div class="text-xs text-muted-foreground">
-					Missing image {data.candidateQualitySummary.missingImage} · Missing entity {data
-						.candidateQualitySummary.missingKeyEntity}
-				</div>
-			</div>
-			<div class="rounded-md border p-3">
-				<div class="text-xs tracking-wide text-muted-foreground uppercase">Top error pattern</div>
-				<div class="mt-1 text-sm font-medium">
-					{Object.entries(data.errorPatterns)[0]
-						? `${Object.entries(data.errorPatterns)[0][0]} (${Object.entries(data.errorPatterns)[0][1]})`
-						: 'No repeated errors'}
-				</div>
-			</div>
-		</Card.Content>
-	</Card.Root>
+		</form>
 
-	<Card.Root>
-		<Card.Header>
-			<Card.Title>Recent source runs</Card.Title>
-			<Card.Description
-				>Run history with staged diagnostics, retry visibility, and quality rates.</Card.Description
-			>
-		</Card.Header>
-		<Card.Content class="p-0">
-			<div class="overflow-x-auto">
-				<Table.Root class="min-w-[880px]">
-					<Table.Header>
-						<Table.Row>
-							<Table.Head>Status</Table.Head>
-							<Table.Head>Started</Table.Head>
-							<Table.Head>Trigger</Table.Head>
-							<Table.Head>Duration</Table.Head>
-							<Table.Head>Created / Updated</Table.Head>
-							<Table.Head>Missing image</Table.Head>
-							<Table.Head>Low confidence</Table.Head>
-							<Table.Head>Stage issues</Table.Head>
-						</Table.Row>
-					</Table.Header>
-					<Table.Body>
-						{#each data.sourceRuns as run}
-							<Table.Row>
-								<Table.Cell>{run.status}</Table.Cell>
-								<Table.Cell>{run.startedAt.toLocaleString()}</Table.Cell>
-								<Table.Cell>{run.trigger.replace(/_/g, ' ')}</Table.Cell>
-								<Table.Cell>{run.durationMs ?? '—'} ms</Table.Cell>
-								<Table.Cell>{run.itemsNew} / {run.itemsUpdated}</Table.Cell>
-								<Table.Cell>
-									{typeof run.metrics?.missingImageRate === 'number'
-										? `${Math.round(run.metrics.missingImageRate * 100)}%`
-										: '—'}
-								</Table.Cell>
-								<Table.Cell>
-									{typeof run.metrics?.lowConfidenceRate === 'number'
-										? `${Math.round(run.metrics.lowConfidenceRate * 100)}%`
-										: '—'}
-								</Table.Cell>
-								<Table.Cell>{stageIssueCount(run)}</Table.Cell>
-							</Table.Row>
-						{:else}
-							<Table.Row>
-								<Table.Cell colspan={8} class="h-20 text-center text-muted-foreground">
-									No source runs yet
-								</Table.Cell>
-							</Table.Row>
-						{/each}
-					</Table.Body>
-				</Table.Root>
-			</div>
-		</Card.Content>
-	</Card.Root>
+		<div class="space-y-6">
+			<Card.Root>
+				<Card.Header>
+					<Card.Title>Next actions</Card.Title>
+					<Card.Description
+						>Use the task-shaped flows instead of doing everything from one screen.</Card.Description
+					>
+				</Card.Header>
+				<Card.Content class="space-y-3 text-sm">
+					<a
+						href={`/admin/sources/${data.source.id}/runs`}
+						class="flex items-center justify-between rounded-lg border border-[color:var(--rule)] px-3 py-3 no-underline hover:bg-[var(--color-alpine-snow-100)]/60 hover:no-underline"
+					>
+						<span>
+							<span class="block font-medium text-[var(--dark)]">Run history and preview</span>
+							<span class="text-[var(--mid)]">Test, import, retry, inspect logs and stages.</span>
+						</span>
+						<ArrowRight class="h-4 w-4 text-[var(--mid)]" />
+					</a>
+					<a
+						href={`/admin/sources/review?sourceId=${data.source.id}`}
+						class="flex items-center justify-between rounded-lg border border-[color:var(--rule)] px-3 py-3 no-underline hover:bg-[var(--color-alpine-snow-100)]/60 hover:no-underline"
+					>
+						<span>
+							<span class="block font-medium text-[var(--dark)]">Imported item review</span>
+							<span class="text-[var(--mid)]">Moderate candidates scoped to this source.</span>
+						</span>
+						<ArrowRight class="h-4 w-4 text-[var(--mid)]" />
+					</a>
+				</Card.Content>
+			</Card.Root>
 
-	<div class="grid gap-6 xl:grid-cols-3">
-		<Card.Root>
-			<Card.Header>
-				<Card.Title>Recent fetch logs</Card.Title>
-			</Card.Header>
-			<Card.Content class="p-0">
-				<div class="overflow-x-auto">
-					<Table.Root class="min-w-[420px]">
-						<Table.Header>
-							<Table.Row>
-								<Table.Head>Status</Table.Head>
-								<Table.Head>Attempted</Table.Head>
-								<Table.Head>Items</Table.Head>
-							</Table.Row>
-						</Table.Header>
-						<Table.Body>
-							{#each data.fetchLogs as log}
-								<Table.Row>
-									<Table.Cell>{log.status}</Table.Cell>
-									<Table.Cell>{log.attemptedAt.toLocaleString()}</Table.Cell>
-									<Table.Cell>{log.itemsFound}</Table.Cell>
-								</Table.Row>
-							{:else}
-								<Table.Row>
-									<Table.Cell colspan={3} class="h-20 text-center text-muted-foreground">
-										No fetch logs yet
-									</Table.Cell>
-								</Table.Row>
-							{/each}
-						</Table.Body>
-					</Table.Root>
-				</div>
-			</Card.Content>
-		</Card.Root>
+			<Card.Root>
+				<Card.Header>
+					<Card.Title>Runtime flags</Card.Title>
+				</Card.Header>
+				<Card.Content class="space-y-3 text-sm">
+					<div class="flex items-center justify-between gap-3">
+						<span>Enabled</span>
+						<span class="font-medium">{data.source.enabled ? 'Yes' : 'No'}</span>
+					</div>
+					<div class="flex items-center justify-between gap-3">
+						<span>Review required</span>
+						<span class="font-medium">{data.source.reviewRequired ? 'Yes' : 'No'}</span>
+					</div>
+					<div class="flex items-center justify-between gap-3">
+						<span>Auto approve</span>
+						<span class="font-medium">{data.source.autoApprove ? 'Yes' : 'No'}</span>
+					</div>
+					<div class="flex items-center justify-between gap-3">
+						<span>Quarantined</span>
+						<span class="font-medium">{data.source.quarantined ? 'Yes' : 'No'}</span>
+					</div>
+					<div class="flex items-center justify-between gap-3">
+						<span>Dedupe</span>
+						<span class="text-right font-medium">
+							{data.source.dedupeStrategies
+								.map((strategy: string) => dedupeLabel[strategy] ?? strategy)
+								.join(', ') || 'None'}
+						</span>
+					</div>
+				</Card.Content>
+			</Card.Root>
 
-		<Card.Root>
-			<Card.Header>
-				<Card.Title>Recent import batches</Card.Title>
-			</Card.Header>
-			<Card.Content class="p-0">
-				<div class="overflow-x-auto">
-					<Table.Root class="min-w-[420px]">
-						<Table.Header>
-							<Table.Row>
-								<Table.Head>Status</Table.Head>
-								<Table.Head>Started</Table.Head>
-								<Table.Head>Trigger</Table.Head>
-								<Table.Head>Fetched</Table.Head>
-							</Table.Row>
-						</Table.Header>
-						<Table.Body>
-							{#each data.batches as batch}
-								<Table.Row>
-									<Table.Cell>{batch.status}</Table.Cell>
-									<Table.Cell>{batch.startedAt.toLocaleString()}</Table.Cell>
-									<Table.Cell>
-										{Array.isArray(batch.errors)
-											? (
-													(
-														(batch.errors as Array<Record<string, unknown>>).find(
-															(entry: Record<string, unknown>) =>
-																entry &&
-																typeof entry === 'object' &&
-																(entry as { stage?: string }).stage === 'meta'
-														) as { trigger?: string } | undefined
-													)?.trigger ?? '—'
-												).replace(/_/g, ' ')
-											: '—'}
-									</Table.Cell>
-									<Table.Cell>{batch.itemsFetched}</Table.Cell>
-								</Table.Row>
-							{:else}
-								<Table.Row>
-									<Table.Cell colspan={4} class="h-20 text-center text-muted-foreground">
-										No batches yet
-									</Table.Cell>
-								</Table.Row>
-							{/each}
-						</Table.Body>
-					</Table.Root>
-				</div>
-			</Card.Content>
-		</Card.Root>
-
-		<Card.Root>
-			<Card.Header>
-				<Card.Title>Recent candidates</Card.Title>
-			</Card.Header>
-			<Card.Content class="p-0">
-				<div class="overflow-x-auto">
-					<Table.Root class="min-w-[420px]">
-						<Table.Header>
-							<Table.Row>
-								<Table.Head>Coil</Table.Head>
-								<Table.Head>Status</Table.Head>
-								<Table.Head>Imported</Table.Head>
-							</Table.Row>
-						</Table.Header>
-						<Table.Body>
-							{#each data.candidates as candidate}
-								<Table.Row>
-									<Table.Cell>{candidate.coil}</Table.Cell>
-									<Table.Cell>{candidate.status}</Table.Cell>
-									<Table.Cell>{candidate.importedAt.toLocaleString()}</Table.Cell>
-								</Table.Row>
-							{:else}
-								<Table.Row>
-									<Table.Cell colspan={3} class="h-20 text-center text-muted-foreground">
-										No candidates yet
-									</Table.Cell>
-								</Table.Row>
-							{/each}
-						</Table.Body>
-					</Table.Root>
-				</div>
-			</Card.Content>
-		</Card.Root>
+			<Card.Root>
+				<Card.Header>
+					<Card.Title>Quick state actions</Card.Title>
+				</Card.Header>
+				<Card.Content class="space-y-2">
+					<form method="POST" action="?/pauseSource" use:enhance={enhanceToast('Source paused')}>
+						<input
+							type="hidden"
+							name="pauseReason"
+							value={data.source.pauseReason ?? 'Paused from config page'}
+						/>
+						<Button type="submit" variant="outline" class="w-full justify-start"
+							>Pause source</Button
+						>
+					</form>
+					<form method="POST" action="?/resumeSource" use:enhance={enhanceToast('Source resumed')}>
+						<Button type="submit" variant="outline" class="w-full justify-start"
+							>Resume source</Button
+						>
+					</form>
+					<form
+						method="POST"
+						action="?/quarantineSource"
+						use:enhance={enhanceToast('Source quarantined')}
+					>
+						<input
+							type="hidden"
+							name="quarantineReason"
+							value={data.source.quarantineReason ?? 'Quarantined from config page'}
+						/>
+						<Button type="submit" variant="outline" class="w-full justify-start"
+							>Quarantine source</Button
+						>
+					</form>
+					<form
+						method="POST"
+						action="?/unquarantineSource"
+						use:enhance={enhanceToast('Source unquarantined')}
+					>
+						<Button type="submit" variant="outline" class="w-full justify-start"
+							>Remove quarantine</Button
+						>
+					</form>
+					<form
+						method="POST"
+						action="?/disableSource"
+						use:enhance={enhanceToast('Source disabled')}
+					>
+						<Button type="submit" variant="outline" class="w-full justify-start"
+							>Disable source</Button
+						>
+					</form>
+					<form
+						method="POST"
+						action="?/deprecateSource"
+						use:enhance={enhanceToast('Source deprecated')}
+					>
+						<Button type="submit" variant="outline" class="w-full justify-start"
+							>Deprecate source</Button
+						>
+					</form>
+				</Card.Content>
+			</Card.Root>
+		</div>
 	</div>
 </div>

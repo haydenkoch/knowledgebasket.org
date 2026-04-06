@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { candidateFieldLabel } from '$lib/admin/labels.js';
 	import * as Table from '$lib/components/ui/table/index.js';
+	import { formatDisplayValue, humanizeIdentifier } from '$lib/utils/display.js';
 
 	let {
 		candidate,
@@ -23,13 +24,6 @@
 		'normalizedData',
 		'_id'
 	]);
-
-	function formatCell(value: unknown): string {
-		if (value === null || value === undefined) return '—';
-		if (Array.isArray(value)) return value.join(', ') || '—';
-		if (typeof value === 'boolean') return value ? 'Yes' : 'No';
-		return String(value);
-	}
 
 	function isChanged(a: unknown, b: unknown): boolean {
 		return JSON.stringify(a ?? null) !== JSON.stringify(b ?? null);
@@ -58,7 +52,7 @@
 
 		return allKeys.map((key) => ({
 			key,
-			label: candidateFieldLabel[key] ?? key.replace(/_/g, ' '),
+			label: candidateFieldLabel[key] ?? humanizeIdentifier(key),
 			candidate: candidate[key],
 			existing: existing?.[key] ?? null,
 			changed: isChanged(candidate[key], existing?.[key] ?? null)
@@ -104,10 +98,12 @@
 							{/if}
 						</Table.Cell>
 						<Table.Cell class="max-w-[280px] align-top text-sm break-words">
-							{formatCell(row.candidate)}
+							{@const candidateValue = formatDisplayValue(row.candidate, { key: row.key })}
+							{candidateValue}
 						</Table.Cell>
 						<Table.Cell class="max-w-[280px] align-top text-sm break-words text-[var(--mid)]">
-							{formatCell(row.existing)}
+							{@const existingValue = formatDisplayValue(row.existing, { key: row.key })}
+							{existingValue}
 						</Table.Cell>
 					</Table.Row>
 				{/each}

@@ -1,5 +1,7 @@
 <script lang="ts">
 	import type { JobItem } from '$lib/data/kb';
+	import { formatDisplayValue } from '$lib/utils/display.js';
+	import Star from '@lucide/svelte/icons/star';
 
 	let { job, index = 0 }: { job: JobItem; index?: number } = $props();
 
@@ -21,19 +23,27 @@
 		const lower = deadline.toLowerCase();
 		if (lower.includes('rolling') || lower.includes('open until'))
 			return { label: 'Open until filled', kind: 'rolling' };
-		const short = deadline.slice(0, 50);
 		const inDays = (d: Date) => Math.ceil((d.getTime() - Date.now()) / (24 * 60 * 60 * 1000));
 		const parsed = new Date(deadline);
-		if (isNaN(parsed.getTime())) return { label: short, kind: 'ok' };
+		if (isNaN(parsed.getTime()))
+			return { label: formatDisplayValue(deadline, { key: 'applicationDeadline' }), kind: 'ok' };
 		const days = inDays(parsed);
-		const label =
-			days <= 7
-				? `Closes ${parsed.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`
-				: short;
+		const shortDate = formatDisplayValue(deadline, {
+			key: 'applicationDeadline',
+			dateOptions: { month: 'short', day: 'numeric' }
+		});
+		const fullDate = formatDisplayValue(deadline, { key: 'applicationDeadline' });
+		const label = days <= 7 ? `Closes ${shortDate}` : fullDate;
 		return { label, kind: days <= 7 ? 'urgent' : 'ok' };
 	}
 
 	const pill = $derived(deadlinePill(job.applicationDeadline));
+	const sectorLabel = $derived(
+		job.sector ? formatDisplayValue(job.sector, { key: 'sector' }) : null
+	);
+	const jobTypeLabel = $derived(
+		job.jobType ? formatDisplayValue(job.jobType, { key: 'jobType' }) : null
+	);
 </script>
 
 <a
@@ -49,25 +59,25 @@
 	<div class="flex min-w-0 flex-1 flex-col gap-1">
 		{#if job.indigenousPriority}
 			<span class="text-[11px] font-bold tracking-[0.06em] text-[var(--teal)] uppercase"
-				>&#9733; Indigenous Hires Prioritized</span
+				><Star class="inline h-3 w-3 fill-current" /> Indigenous Hires Prioritized</span
 			>
 		{/if}
 		<h3 class="font-serif text-base leading-[1.3] font-semibold text-[var(--dark)]">{job.title}</h3>
 		{#if job.employerName}
 			<p class="text-sm text-[var(--muted-foreground)]">{job.employerName}</p>
 		{/if}
-		{#if job.sector || job.jobType}
+		{#if sectorLabel || jobTypeLabel}
 			<div class="mb-1 flex flex-wrap gap-1">
-				{#if job.sector}
+				{#if sectorLabel}
 					<span
 						class="rounded bg-[var(--muted)] px-2 py-0.5 text-[11px] font-semibold text-[var(--muted-foreground)]"
-						>{job.sector}</span
+						>{sectorLabel}</span
 					>
 				{/if}
-				{#if job.jobType}
+				{#if jobTypeLabel}
 					<span
 						class="rounded bg-[var(--muted)] px-2 py-0.5 text-[11px] font-semibold text-[var(--muted-foreground)]"
-						>{job.jobType}</span
+						>{jobTypeLabel}</span
 					>
 				{/if}
 			</div>

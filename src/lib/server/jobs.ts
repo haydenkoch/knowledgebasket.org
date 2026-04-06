@@ -253,6 +253,15 @@ export async function getJobsByOrganizationId(orgId: string): Promise<JobItem[]>
 	return rows.map((r) => rowToItem(r));
 }
 
+export async function getJobsByOrganizationIdForWorkspace(orgId: string): Promise<JobItem[]> {
+	const rows = await db
+		.select()
+		.from(jobsTable)
+		.where(eq(jobsTable.organizationId, orgId))
+		.orderBy(desc(jobsTable.updatedAt));
+	return rows.map((row) => rowToItem(row));
+}
+
 // ── Interest tracking ─────────────────────────────────────
 
 export async function toggleJobInterest(jobId: string, userId: string): Promise<boolean> {

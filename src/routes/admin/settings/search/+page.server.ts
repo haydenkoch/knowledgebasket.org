@@ -1,11 +1,11 @@
 import { fail } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
-import type { CoilKey } from '$lib/data/kb';
 import {
 	getSearchOperationsSnapshot,
 	reindexAllPublishedContent,
-	reindexPublishedContentCoil
+	reindexSearchScope
 } from '$lib/server/search-ops';
+import { SEARCH_INDEX_SCOPES, type SearchIndexScope } from '$lib/server/search-contracts';
 
 export const load: PageServerLoad = async ({ url }) => {
 	const query = url.searchParams.get('q')?.trim() ?? '';
@@ -28,13 +28,13 @@ export const actions: Actions = {
 	},
 	reindexCoil: async ({ request }) => {
 		const formData = await request.formData();
-		const coil = String(formData.get('coil') ?? '').trim() as CoilKey;
-		if (!['events', 'funding', 'redpages', 'jobs', 'toolbox'].includes(coil)) {
+		const coil = String(formData.get('coil') ?? '').trim() as SearchIndexScope;
+		if (!SEARCH_INDEX_SCOPES.includes(coil)) {
 			return fail(400, { error: 'Choose a content area to rebuild' });
 		}
 
 		try {
-			const count = await reindexPublishedContentCoil(coil);
+			const count = await reindexSearchScope(coil);
 			return { success: true, scope: coil, count };
 		} catch (error) {
 			return fail(400, {

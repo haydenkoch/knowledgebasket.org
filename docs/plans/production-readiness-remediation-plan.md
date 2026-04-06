@@ -1,417 +1,358 @@
 # Knowledge Basket Production-Readiness Remediation Plan
 
 Date: 2026-04-05  
-Scope: remediation roadmap based on the current workspace audit in `docs/reviews/full-site-and-system-audit.md`
+Scope: remediation roadmap derived from the refreshed audit in `docs/reviews/full-site-and-system-audit.md`
 
-## Status Update
+## Goal And Release Posture
 
-This roadmap is no longer purely aspirational. A substantial blocker-clearing pass has already been implemented in the current workspace.
+Move Knowledge Basket from a materially improved but still under-validated multi-coil product to a launch-ready platform without changing the current product direction.
 
-Completed or materially advanced:
+Working release posture:
 
-- workspace stabilization and quality gates
-- shared admin authz enforcement
-- rate limiting for auth, submissions, search, and privileged operations
-- truthful search readiness and database fallback behavior
-- upload migration to S3-compatible object storage
-- health endpoint, structured server logging, and production runbook scaffolding
-- launch-data seed entrypoints for events, non-event coils, and source registry data
-- cross-coil organization and venue hub pages
-
-Remaining roadmap emphasis:
-
-- source-ops operational maturity and moderation ergonomics
-- more complete end-to-end/accessibility/import/search regression coverage
-- final public/admin polish passes
-- performance follow-up, especially large build chunks
-
-## Goal
-
-Move Knowledge Basket from an internal alpha / tightly managed beta state to a launch-ready platform without rewriting the stack or abandoning the current left-rail browse direction.
+- keep the **left-rail** public browse pattern
+- treat Events as the strongest implementation baseline, but not the only launch standard
+- prioritize truth, migration parity, operational safety, and validation ahead of additional feature expansion
+- treat current broad WIP as something to stabilize before layering more launch promises on top
 
 ## Guiding Principles
 
-- Fix trust and safety issues before polish work.
-- Treat the **current workspace** as the baseline; stabilize active WIP before layering more features on top.
-- Preserve the public **left-rail** browse/filter pattern and improve it. Do not reopen the horizontal-filter-bar debate.
-- Use Events as the strongest implementation baseline, but do not assume its current UX is the finish line.
-- Prioritize launch readiness over architectural perfection.
+- Fix production trust gaps before polishing already-good surfaces.
+- Prefer proving existing features over expanding feature count.
+- Treat current route/server/schema code as the present-state source of truth.
+- Use docs to clarify implementation reality, not to overstate maturity.
+- Separate “implemented” from “launch-validated”.
 
 ## Recommended Order Of Operations
 
-1. Stabilize the current workspace.
-2. Close security and authorization gaps.
-3. Make search truthful and fully indexed.
-4. Operationalize source ingestion and moderation.
-5. Add QA, observability, and launch ops foundations.
-6. Raise product polish across the public and admin surfaces.
-7. Clean up documentation drift and final launch runbooks.
+1. Stabilize the workspace and migration baseline.
+2. Make indexed search complete and provably truthful in live environments.
+3. Reduce source-ops operational risk and moderation burden.
+4. Add browser-level and accessibility verification.
+5. Raise observability, deployment, and recovery maturity.
+6. Do the final public/admin polish and launch-readiness pass.
 
 ## Workstreams
 
-### Workstream 1: Workspace Stabilization
+### Workstream 1: Baseline Stabilization And Migration Parity
 
 Priority: **Immediate**
 
-Objective: restore a reliable engineering baseline before broader launch work.
+Objective:
 
-Tasks:
+- restore a clean engineering baseline
+- stop feature code from outrunning applied schema state
 
-- Fix current `pnpm lint` failures.
-- Fix current `pnpm test` failure in search mode reporting.
-- Resolve the `MobilePeekPanel` accessibility warning.
-- Re-run `pnpm check`, `pnpm lint`, `pnpm test`, and `pnpm build` until clean.
-- Freeze core homepage/search/sidebar WIP behind a passing CI baseline before adding more UX churn.
+Concrete tasks:
 
-Exit criteria:
-
-- all local quality gates pass cleanly
-- current public-shell changes are no longer in a half-validated state
-
-Why first:
-
-- Everything else becomes noisier and riskier if the workspace baseline stays unstable.
-
-### Workstream 2: Security, Authz, And Abuse Hardening
-
-Priority: **Immediate**
-
-Objective: eliminate launch-blocking trust failures.
-
-Tasks:
-
-- Introduce a shared server-side admin authorization helper and apply it to:
-  - all `/admin/**` actions
-  - source review actions
-  - bulk approve/reject/delete flows
-  - operational admin endpoints where appropriate
-- Stop relying on `/admin/+layout.server.ts` as the primary security boundary.
-- Add explicit role checks for moderator/admin actions everywhere.
-- Add rate limiting for:
-  - login
-  - forgot-password
-  - public submission flows
-  - search API
-  - source-ops and reindex operational endpoints
-- Audit same-origin HTML serving under `/resources/*` and choose one:
-  - disallow HTML entirely
-  - force download
-  - isolate untrusted content to a safer origin/domain
+- Fix current `pnpm lint` failures and remove formatting drift from tracked app/docs/test artifacts.
+- Decide whether `.claude/**`, generated `test-results/**`, and other auxiliary files should stay in lint scope; either normalize them or exclude them intentionally.
+- Apply and verify all outstanding migrations in local/staging environments, especially:
+  - `drizzle/0005_compliance_foundations.sql`
+  - `drizzle/0006_org_workspaces.sql`
+- Add a migration-parity verification step to the routine launch checklist.
+- Introduce a shared schema-health pattern for newer subsystems so privacy/compliance features fail clearly rather than implicitly.
 
 Exit criteria:
 
-- no admin or moderation action can be reached without explicit server-side authorization
-- abuse-sensitive routes have enforceable throttling
-- content-serving policy for HTML resources is explicit and safe
+- `pnpm check`, `pnpm test`, `pnpm lint`, and `pnpm build` all pass cleanly
+- local/staging DB schema matches current Drizzle schema for launch-critical features
+- feature code no longer depends on missing tables/columns in normal environments
 
 Dependencies:
 
 - none
 
-### Workstream 3: Search Truthfulness And Index Readiness
+### Workstream 2: Search And Discovery Truthfulness
 
 Priority: **Immediate**
 
-Objective: make discovery behavior honest, predictable, and operable.
+Objective:
 
-Tasks:
+- make the real search experience match the intended multi-coil product promise
 
-- Replace the current “Meilisearch health = search ready” model with a readiness model that tracks:
-  - service unavailable
-  - service reachable but indexes missing
-  - service reachable but indexes stale/empty
-  - fully ready
-- Unify `/api/search` and `/search` fallback logic so API and page agree.
-- Treat missing-index errors as operator-visible failures, not silent empty results.
-- Ensure all five coils have:
-  - index creation
-  - reindex routines
-  - health/reporting visibility
-- Update tests to cover:
-  - Meilisearch down
-  - Meilisearch up but partial indexes
-  - Meilisearch fully ready
-- Improve global search UX with at least:
-  - coil-level narrowing
-  - better empty/error messaging
-  - keyboard-accessible suggestion behavior
+Concrete tasks:
+
+- Ensure all intended public search scopes are created and indexed, not just `events`.
+- Build or verify a repeatable full reindex flow across:
+  - events
+  - funding
+  - red pages
+  - jobs
+  - toolbox
+  - organizations
+  - venues
+- Seed enough non-event content to validate browse/search relevance and degraded states.
+- Add explicit operator checks around missing-index and partial-readiness states.
+- Verify `/search` and `/api/search` behavior in:
+  - fully ready mode
+  - host unavailable mode
+  - partial missing-index mode
+  - stale-settings mode
 
 Exit criteria:
 
-- search behavior is truthful in every readiness mode
-- all intended public coils are indexed and report healthy
-- failing search infrastructure is visible to operators and understandable to users
+- Meilisearch has all intended indexes in local/staging launch environments
+- multi-coil search is proven with realistic data
+- degraded modes remain truthful and understandable when search is unhealthy
 
 Dependencies:
 
 - Workstream 1
 
-### Workstream 4: Source Ops Operationalization
+### Workstream 3: Source Ops Operational Maturity
 
-Priority: **High**
+Priority: **Immediate**
 
-Objective: turn the ingestion system from “promising” into “launch-usable.”
+Objective:
 
-Tasks:
+- make source ingestion sustainable for real operators, not just technically impressive
 
-- Reduce the pending-review backlog to a manageable steady-state level.
-- Define source lifecycle policy:
-  - discovered
-  - active
-  - degraded
-  - deprecated
-  - disabled
-- Establish acceptance criteria for enabling a source in production:
-  - extraction quality
+Concrete tasks:
+
+- Burn down the current pending-review backlog to a manageable steady state.
+- Define source activation criteria before launch:
+  - field quality
   - attribution correctness
   - URL-role correctness
-  - image handling
-  - dedupe behavior
+  - image behavior
+  - dedupe quality
   - retryability
-- Remove or clearly retire overlapping legacy import paths where source ops should be canonical.
-- Add runbook coverage for:
+- Decide which starter sources are actually launch-worthy and which should remain discovered/paused.
+- Improve moderation throughput where needed:
+  - bulk review ergonomics
+  - candidate prioritization
+  - clearer queue segmentation
+  - better stale/broken source surfacing
+- Add runbook steps for:
   - reruns
   - retries
-  - stuck batches
-  - bad-source rollback
-  - index resync after publish
-- Decompose the largest source-ops files after correctness is stable.
+  - quarantining bad sources
+  - reindex sync after publish
 
 Exit criteria:
 
-- source review queue is operationally sustainable
-- source activation is intentional, measured, and documented
-- import failures are diagnosable and recoverable
+- source review backlog is manageable
+- source activation is intentional and documented
+- operators can diagnose and recover from bad-source scenarios
 
 Dependencies:
 
-- Workstream 2 for moderation safety
-- Workstream 3 for search/index sync after publish
+- Workstream 1
+- Workstream 2
 
-### Workstream 5: QA, Fixtures, And Verification
+### Workstream 4: QA And Accessibility Coverage
 
-Priority: **High**
+Priority: **Immediate**
 
-Objective: create enough confidence to change and launch the platform safely.
+Objective:
 
-Tasks:
+- give the team browser-level confidence in the real product
 
-- Add realistic seed/fixture coverage for funding, red pages, jobs, toolbox, organizations, and venues.
-- Add end-to-end tests for:
-  - browse and filter
+Concrete tasks:
+
+- Add browser/e2e coverage for launch-critical flows:
+  - public browse and left-rail filtering
+  - mobile filter drawer behavior
   - detail pages
   - public submissions
   - auth flows
   - admin moderation
-  - source review publish/reject flows
-  - search fallback modes
+  - source candidate review
+  - search readiness/fallback UX
 - Add automated accessibility checks to CI.
-- Add regression tests for server-side authorization boundaries.
-- Add search/index sync tests covering publish, unpublish, reject, and delete paths.
+- Add regression tests for migration-sensitive routes such as account/privacy.
+- Keep existing service/unit tests, but stop relying on them as the only release gate.
 
 Exit criteria:
 
-- the team can verify the full platform locally and in CI using realistic non-event data
-- launch-critical flows have end-to-end coverage
+- launch-critical public/admin flows have browser-level coverage
+- automated a11y checks run in CI
+- release confidence no longer depends on manual smoke testing alone
+
+Dependencies:
+
+- Workstreams 1 through 3
+
+### Workstream 5: Observability, Deployment, And Recovery Readiness
+
+Priority: **High**
+
+Objective:
+
+- make the platform supportable in production
+
+Concrete tasks:
+
+- Expand from JSON logs and optional Sentry into a real support posture:
+  - error routing
+  - alerting
+  - dashboard visibility
+  - source-ops health monitoring
+  - search/index monitoring
+- Define production ownership for:
+  - `/api/health`
+  - `/api/reindex`
+  - `/api/source-ops/run-due`
+- Verify backup and restore drills for:
+  - Postgres
+  - object storage
+  - search rebuild
+- Document deployment expectations for env vars, scheduler cadence, and secret management.
+- Add runtime checks or startup visibility for critical env/config gaps.
+
+Exit criteria:
+
+- operators can detect, triage, and recover from likely incidents
+- restore steps are documented and tested
+- production env/config expectations are explicit and auditable
 
 Dependencies:
 
 - Workstreams 1 through 4
 
-### Workstream 6: Observability, Ops, And Deployment Readiness
+### Workstream 6: Data And Launch-Fidelity Seeding
 
 Priority: **High**
 
-Objective: make the platform supportable in production.
+Objective:
 
-Tasks:
+- prove the whole product under realistic content conditions
 
-- Add production error tracking.
-- Add structured logging for:
-  - auth failures
-  - moderation actions
-  - source runs
-  - search failures
-  - upload failures
-- Add core health endpoints / dashboards for:
-  - database
-  - Meilisearch
-  - source run status
-  - queue backlog
-  - reindex status
-- Define backup / restore procedures for:
-  - Postgres
-  - object storage / uploads
-  - search reindex recovery
-- Align upload architecture with MinIO / S3-compatible storage, or explicitly change the documented architecture if local-disk storage is intentionally staying.
-- Document cron / scheduler requirements for source runs and maintenance tasks.
+Concrete tasks:
+
+- Create or import representative non-event content for funding, red pages, jobs, toolbox, organizations, and venues.
+- Ensure seeded content exercises:
+  - empty states
+  - rich states
+  - image states
+  - cross-coil organization/venue hubs
+  - search and filter facets
+  - submission and moderation paths
+- Align search indexing and homepage/admin previews with that richer data set.
 
 Exit criteria:
 
-- the platform can be monitored, restored, and operated without tribal knowledge
-- uploads and media persistence are compatible with real deployment expectations
+- non-event coils can be judged as real products rather than as structurally complete empty shells
+- search, browse, hubs, and admin workflows are validated on meaningful datasets
 
 Dependencies:
 
-- Workstreams 2 through 5
+- Workstreams 1 and 2
 
-### Workstream 7: Public Product And Admin Polish
+### Workstream 7: Final Public And Admin Polish
 
 Priority: **Medium**
 
-Objective: lift the platform from “functional” to “credible and trustworthy.”
+Objective:
 
-Tasks:
+- convert a technically credible product into a launch-credible one
 
-- Refine the shared left-rail browse system:
-  - spacing
-  - hierarchy
-  - mobile containment
-  - sticky behavior
-  - filter readability
-  - clearer empty/loading/error states
-- Strengthen non-event browse/detail pages so they do not feel like thin clones of Events.
-- Improve global search UX and keyboard access.
-- Enrich organization and venue pages with cross-coil content relationships.
-- Tighten admin ergonomics:
-  - unified moderation concepts
-  - clearer bulk actions
-  - better information density
-  - consistent review affordances across inbox and entity admin pages
+Concrete tasks:
+
+- Tighten left-rail browse quality across all coils with realistic content.
+- Validate mobile search-plus-filter-drawer ergonomics end to end.
+- Improve non-event detail pages and editorial rhythm, especially Toolbox.
+- Refine admin information density and review throughput after backlog and QA work are in place.
+- Reconcile and update stale product/ops docs in the same slices as final polish.
 
 Exit criteria:
 
-- the product feels intentionally designed, not scaffolded
-- moderators can work efficiently without switching mental models constantly
+- public/admin surfaces feel intentional and trustworthy across all coils
+- polish work is done on top of validated flows, not as a substitute for validation
 
 Dependencies:
 
 - Workstreams 1 through 6
 
-### Workstream 8: Documentation And Launch Governance
-
-Priority: **Medium**
-
-Objective: remove ambiguity before soft launch and public launch.
-
-Tasks:
-
-- Remove stale references that imply a horizontal filter-bar pivot.
-- Update search/admin docs to describe partial-index failure modes accurately.
-- Document canonical launch decisions:
-  - left-rail browse direction
-  - storage architecture
-  - source-ops canonical workflow
-  - moderation rules
-  - operational ownership
-- Add launch checklists and rollback steps.
-- Update README and ops docs so they match actual implementation and deployment expectations.
-
-Exit criteria:
-
-- docs stop fighting the codebase
-- launch behavior and operational responsibilities are explicit
-
-Dependencies:
-
-- completion of earlier workstreams so docs describe reality
-
 ## Quick Wins Vs Foundational Work
 
 ### Quick Wins
 
-- Fix failing lint/test/a11y issues in the current workspace.
-- Add explicit server-side guards to all admin actions.
-- Make `/api/search` and `/search` agree on fallback behavior.
-- Surface partial-index warnings in admin search tooling.
-- Remove stale horizontal-filter references in historical plan docs.
+- clear `pnpm lint` drift
+- apply missing migrations locally and in staging
+- refresh stale workflow docs
+- finish non-event index creation/reindex verification
+- add explicit migration health warnings for privacy/compliance routes
 
 ### Foundational Work
 
-- Introduce shared authz/rate-limit infrastructure.
-- Build full search-readiness and index-parity handling.
-- Expand fixtures and end-to-end coverage across all coils.
-- Add observability, backup, and operational runbooks.
-- Migrate uploads to S3-compatible storage or formally redefine the storage model.
+- realistic multi-coil fixture strategy
+- e2e and accessibility coverage
+- source-ops operational backlog reduction
+- production monitoring/alerting/recovery maturity
 
-## Milestones And Sequencing
+## Must Happen Before Soft Launch
 
-### Phase 0: Stabilize The Workspace
+- clean baseline: check/test/lint/build all green
+- migration parity proven in launch environments
+- all public search scopes indexed or intentionally excluded with truthful UX
+- source review backlog reduced to a sustainable level
+- browser coverage for core browse, auth, submission, and moderation flows
+- automated accessibility checks in CI
 
-- Restore quality gates.
-- Freeze current homepage/search/sidebar refactor into a testable baseline.
+## Must Happen Before Public Launch
 
-### Phase 1: Launch Blockers
+- realistic content in all launch coils
+- source activation policy documented and enforced
+- production monitoring, alerting, and backup/restore drills in place
+- final UX polish pass across public and admin surfaces
+- documentation drift resolved for product, ops, and moderation workflows
 
-- Close admin authorization gaps.
-- Add abuse protection to critical endpoints.
-- Fix search truthfulness and index readiness behavior.
+## Post-Launch Follow-Up
 
-### Phase 2: Operational Foundations
+- deeper performance follow-up on large server/client chunks, especially auth
+- further admin throughput and moderation ergonomics improvements
+- expansion of source coverage after current queue health is stable
+- dormant feature decisions for notifications, follows, bookmarks, and related account capabilities
 
-- Operationalize source review and source activation.
-- Add observability, health reporting, and recovery procedures.
-- Align upload/storage architecture.
+## Suggested Milestones / Phases
 
-### Phase 3: Whole-Platform Verification
+### Phase 1: Stabilize And Sync
 
-- Add non-event fixtures.
-- Add end-to-end and accessibility testing.
-- Validate public and admin flows coil by coil.
+- clean lint baseline
+- apply/verify migrations
+- remove schema drift surprises
 
-### Phase 4: Product Finish
+### Phase 2: Search And Data Reality
 
-- Polish public browse/detail/search UX.
-- Improve cross-coil organization/venue presentation.
-- Tighten moderator ergonomics.
+- complete indexing
+- seed real multi-coil content
+- validate search/discovery truthfulness
 
-### Phase 5: Launch Prep
+### Phase 3: Source Ops And Moderation
 
-- Clean documentation drift.
-- Run soft-launch checklist.
-- Complete rollback/runbook coverage.
+- reduce queue backlog
+- harden review workflows
+- document operational rules
 
-## What Must Happen Before Soft Launch
+### Phase 4: QA And Accessibility
 
-- All current quality gates pass.
-- Admin action authorization is fixed everywhere.
-- Search readiness is truthful and all intended launch coils are indexed.
-- Rate limiting exists on auth, submit, search, and operational endpoints.
-- Source review backlog is reduced and operating procedures are defined.
-- Error tracking and structured logging are active.
-- Non-event coils have realistic seed data and validation coverage.
-- Left-rail public browsing is stable on desktop and mobile.
+- add browser/e2e coverage
+- add automated a11y checks
+- verify launch-critical flows on desktop and mobile
 
-## What Must Happen Before Public Launch
+### Phase 5: Production Ops
 
-- End-to-end coverage exists for all launch-critical flows.
-- Accessibility testing is part of CI and key issues are closed.
-- Backup / restore procedures are documented and tested.
-- Upload/storage architecture is production-compatible.
-- Search, import, and moderation health are visible in operator tooling.
-- Documentation and runbooks reflect actual behavior.
-- Public detail pages and submit flows feel trustworthy and polished across all launch coils.
+- metrics, alerts, backups, recovery drills
+- deployment/env hardening
 
-## What Can Wait Until Post-Launch
+### Phase 6: Final Launch Polish
 
-- Deep decomposition of every oversized route/server module after the platform is stable.
-- More advanced search ranking and personalization.
-- Richer editorial enhancements beyond the core browse/detail/search polish pass.
-- Broader analytics and experimentation layers.
+- refine public/admin UX
+- close documentation drift
+- run a final go/no-go audit
 
-## Key Risks And Tradeoffs
+## Dependencies And Sequencing
 
-- Fixing security and search truthfulness first will delay visible polish, but not doing so would make polish irrelevant.
-- Source ops decomposition should follow correctness and operational stabilization, not precede it.
-- If storage migration to S3-compatible uploads is too large for the first launch window, the team must explicitly narrow launch scope and document the tradeoff rather than silently carrying local-disk assumptions forward.
-- If non-event coils cannot be meaningfully seeded, indexed, and validated in time, a narrower staged launch should be considered instead of pretending the full platform is equally ready.
+- Migration parity comes before trusting QA outcomes.
+- Realistic seed data comes before credible cross-coil UX judgments.
+- Search validation depends on both index completeness and realistic content.
+- Admin polish should follow backlog reduction and workflow verification, not precede them.
+- Production launch decisions should wait until both browser QA and operational monitoring exist.
 
-## Recommended Launch Strategy
+## Risks And Tradeoffs
 
-Preferred strategy:
-
-- treat the next release as a **hardening milestone**, not a public launch
-- do a **soft launch only after** security, search truthfulness, source-ops operations, and QA foundations are in place
-- do a **public launch only after** the whole-platform verification and ops-readiness milestones are complete
-
-This path preserves the current product direction, respects the real progress already made, and focuses effort on the issues that would most damage user trust if left unresolved.
+- If the team prioritizes visual polish before migration parity and QA, the platform may look ready while remaining operationally brittle.
+- If the team enables more sources before review throughput is sustainable, moderation load will outpace capacity quickly.
+- If launch proceeds with empty non-event coils, the product may appear broader on paper than in user experience, which hurts trust.
+- If the team treats passing `check`/`test`/`build` as sufficient, migration-state and browser-level failures will remain under-detected.

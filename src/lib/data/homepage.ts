@@ -5,12 +5,16 @@
 import type { CoilKey } from '$lib/data/kb';
 import { coilPaths } from '$lib/data/kb';
 
-/** A section can pull from any coil, be editor's picks, or a richtext block */
-export type SectionSource = CoilKey | 'featured' | 'richtext';
+/** A section can pull from any coil, be editor's picks, richtext, container, or image */
+export type SectionSource = CoilKey | 'featured' | 'richtext' | 'container' | 'image';
 export type HomepageLayoutPreset = 'auto' | 'cards' | 'list' | 'compact' | 'banner';
 
 export type SortField = 'date' | 'deadline' | 'published' | 'created' | 'title' | 'name';
 export type SortDir = 'asc' | 'desc';
+
+export type ContainerColumns = 2 | 3;
+export type ImageHeight = 'sm' | 'md' | 'lg' | 'xl';
+export type ImageFit = 'cover' | 'contain';
 
 export interface HomepageFeaturedRef {
 	coil: CoilKey;
@@ -34,9 +38,28 @@ export interface HomepageSectionConfig {
 	layoutPreset?: HomepageLayoutPreset;
 	/** HTML content for richtext sections */
 	content?: string;
+	/** Curated items for featured sections (each featured section has its own list) */
+	items?: HomepageFeaturedRef[];
+	/** Container: number of columns */
+	columns?: ContainerColumns;
+	/** Container: nested child sections */
+	children?: HomepageSectionConfig[];
+	/** Image: URL */
+	imageUrl?: string;
+	/** Image: alt text */
+	imageAlt?: string;
+	/** Image: display height */
+	imageHeight?: ImageHeight;
+	/** Image: object-fit */
+	imageFit?: ImageFit;
+	/** Image: optional link */
+	imageHref?: string;
+	/** Image: rounded corners */
+	imageRounded?: boolean;
 }
 
 export interface HomepageConfig {
+	/** @deprecated Legacy global featured list — migrated into per-section items on parse */
 	featured: HomepageFeaturedRef[];
 	sections: HomepageSectionConfig[];
 }
@@ -45,6 +68,8 @@ export interface HomepageConfig {
 export const SOURCE_SORT_OPTIONS: Record<SectionSource, { value: SortField; label: string }[]> = {
 	featured: [],
 	richtext: [],
+	container: [],
+	image: [],
 	events: [
 		{ value: 'date', label: 'Event date' },
 		{ value: 'published', label: 'Date added' },
@@ -73,6 +98,8 @@ export const SOURCE_SORT_OPTIONS: Record<SectionSource, { value: SortField; labe
 export const SOURCE_HAS_DATE_FILTER: Record<SectionSource, boolean> = {
 	featured: false,
 	richtext: false,
+	container: false,
+	image: false,
 	events: true,
 	funding: true,
 	jobs: false,
@@ -83,6 +110,8 @@ export const SOURCE_HAS_DATE_FILTER: Record<SectionSource, boolean> = {
 export const DEFAULT_HEADINGS: Record<SectionSource, string> = {
 	featured: "Editor's Picks",
 	richtext: 'Announcement',
+	container: '',
+	image: '',
 	events: 'Upcoming Events',
 	funding: 'Funding Deadlines',
 	jobs: 'Latest Job Openings',
@@ -99,14 +128,42 @@ export const HOMEPAGE_LAYOUT_LABELS: Record<HomepageLayoutPreset, string> = {
 };
 
 export const SOURCE_LAYOUT_PRESETS: Record<SectionSource, HomepageLayoutPreset[]> = {
-	featured: ['auto'],
+	featured: ['auto', 'cards', 'list', 'compact'],
 	richtext: ['auto', 'banner', 'cards'],
-	events: ['auto', 'cards', 'list'],
-	funding: ['auto', 'cards', 'list'],
-	jobs: ['auto', 'list', 'compact'],
-	redpages: ['auto', 'list', 'compact'],
-	toolbox: ['auto', 'list', 'compact']
+	container: ['auto'],
+	image: ['auto'],
+	events: ['auto', 'cards', 'list', 'compact'],
+	funding: ['auto', 'cards', 'list', 'compact'],
+	jobs: ['auto', 'cards', 'list', 'compact'],
+	redpages: ['auto', 'cards', 'list', 'compact'],
+	toolbox: ['auto', 'cards', 'list', 'compact']
 };
+
+export const IMAGE_HEIGHT_LABELS: Record<ImageHeight, string> = {
+	sm: 'Small',
+	md: 'Medium',
+	lg: 'Large',
+	xl: 'Extra Large'
+};
+
+export const IMAGE_HEIGHT_CLASSES: Record<ImageHeight, string> = {
+	sm: 'h-32 sm:h-40',
+	md: 'h-48 sm:h-56',
+	lg: 'h-64 sm:h-80',
+	xl: 'h-80 sm:h-[28rem]'
+};
+
+/** Sources that can be placed inside a container column */
+export const CONTAINER_CHILD_SOURCES: SectionSource[] = [
+	'featured',
+	'richtext',
+	'image',
+	'events',
+	'funding',
+	'jobs',
+	'redpages',
+	'toolbox'
+];
 
 export function normalizeLayoutPreset(
 	source: SectionSource,
@@ -138,6 +195,9 @@ export function resolveSectionLayoutPreset(
 		case 'richtext':
 			return 'banner';
 		case 'featured':
+			return section.limit <= 4 ? 'cards' : 'list';
+		case 'container':
+		case 'image':
 		default:
 			return 'auto';
 	}
@@ -146,7 +206,13 @@ export function resolveSectionLayoutPreset(
 export function buildHomepageSectionMoreHref(
 	section: Pick<HomepageSectionConfig, 'source' | 'searchQuery'> & { futureOnly?: boolean }
 ): string | null {
-	if (section.source === 'featured' || section.source === 'richtext') return null;
+	if (
+		section.source === 'featured' ||
+		section.source === 'richtext' ||
+		section.source === 'container' ||
+		section.source === 'image'
+	)
+		return null;
 
 	const path = `/${coilPaths[section.source] ?? section.source}`;
 	const params = new URLSearchParams();
@@ -179,6 +245,8 @@ export function createSection(
 	> = {
 		featured: { sortBy: 'published', sortDir: 'desc', futureOnly: false, limit: 5 },
 		richtext: { sortBy: 'published', sortDir: 'desc', futureOnly: false, limit: 1 },
+		container: { sortBy: 'published', sortDir: 'desc', futureOnly: false, limit: 1 },
+		image: { sortBy: 'published', sortDir: 'desc', futureOnly: false, limit: 1 },
 		events: { sortBy: 'date', sortDir: 'asc', futureOnly: true, limit: 4 },
 		funding: { sortBy: 'deadline', sortDir: 'asc', futureOnly: true, limit: 3 },
 		jobs: { sortBy: 'published', sortDir: 'desc', futureOnly: false, limit: 4 },
@@ -186,7 +254,8 @@ export function createSection(
 		toolbox: { sortBy: 'published', sortDir: 'desc', futureOnly: false, limit: 3 }
 	};
 	const d = defaults[source];
-	return {
+
+	const base: HomepageSectionConfig = {
 		id: genSectionId(),
 		source,
 		visible: true,
@@ -198,13 +267,31 @@ export function createSection(
 		layoutPreset: 'auto',
 		...overrides
 	};
+
+	if (source === 'container') {
+		base.columns = base.columns ?? 2;
+		base.children = base.children ?? [];
+	}
+
+	if (source === 'image') {
+		base.imageUrl = base.imageUrl ?? '';
+		base.imageHeight = base.imageHeight ?? 'md';
+		base.imageFit = base.imageFit ?? 'cover';
+		base.imageRounded = base.imageRounded ?? true;
+	}
+
+	return base;
 }
 
 export function cloneSectionConfig(section: HomepageSectionConfig): HomepageSectionConfig {
 	return {
 		...section,
 		excludedIds: section.excludedIds ? [...section.excludedIds] : undefined,
-		layoutPreset: normalizeLayoutPreset(section.source, section.layoutPreset)
+		layoutPreset: normalizeLayoutPreset(section.source, section.layoutPreset),
+		items: section.items ? section.items.map((item) => ({ ...item })) : undefined,
+		children: section.children
+			? section.children.map((child) => cloneSectionConfig(child))
+			: undefined
 	};
 }
 

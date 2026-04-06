@@ -1,12 +1,37 @@
 import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
-import { auth } from '$lib/server/auth';
+import { auth, googleAuthEnabled } from '$lib/server/auth';
 import { APIError } from 'better-auth/api';
 import { RATE_LIMIT_POLICIES, consumeRateLimit } from '$lib/server/rate-limit';
+import {
+	GOOGLE_PROVIDER_ID,
+	buildGoogleSignInTargets,
+	getGoogleAuthErrorMessage
+} from '$lib/server/social-auth';
 
-export const load: PageServerLoad = async ({ locals }) => {
+function authActionErrorMessage(error: unknown, fallback: string): string {
+	if (error instanceof APIError) {
+		const code =
+			(error.body as { code?: string; error?: string; message?: string } | undefined)?.code ??
+			(error.body as { code?: string; error?: string; message?: string } | undefined)?.error ??
+			error.message;
+
+		return code ? getGoogleAuthErrorMessage(code) : fallback;
+	}
+
+	if (error instanceof Error) return error.message || fallback;
+	return fallback;
+}
+
+export const load: PageServerLoad = async ({ locals, url }) => {
 	if (locals.user) throw redirect(302, '/');
-	return {};
+	return {
+		googleEnabled: googleAuthEnabled,
+		googleError:
+			url.searchParams.get('google') === 'error'
+				? getGoogleAuthErrorMessage(url.searchParams.get('error'))
+				: null
+	};
 };
 
 export const actions: Actions = {
@@ -68,5 +93,52 @@ export const actions: Actions = {
 		}
 
 		throw redirect(302, `/auth/verify-email?email=${encodeURIComponent(email)}`);
+	},
+
+	signUpWithGoogle: async (event) => {
+		const rateLimit = consumeRateLimit(event, RATE_LIMIT_POLICIES.authRegister, '/auth/register');
+		if (!rateLimit.allowed) {
+			return fail(429, {
+				message: `Too many registration attempts. Please wait ${rateLimit.retryAfterSeconds} seconds and try again.`,
+				fields: { name: '', email: '' }
+			});
+		}
+
+		if (!googleAuthEnabled) {
+			return fail(500, {
+				message: 'Google sign-in is not configured for this environment.',
+				fields: { name: '', email: '' }
+			});
+		}
+
+		let result: Awaited<ReturnType<typeof auth.api.signInSocial>>;
+
+		try {
+			result = await auth.api.signInSocial({
+				body: {
+					provider: GOOGLE_PROVIDER_ID,
+					disableRedirect: true,
+					...buildGoogleSignInTargets({
+						next: '/',
+						newUserNext: '/account',
+						errorPath: '/auth/register'
+					})
+				}
+			});
+		} catch (error) {
+			return fail(400, {
+				message: authActionErrorMessage(error, 'We could not start Google sign-in.'),
+				fields: { name: '', email: '' }
+			});
+		}
+
+		if (!result.url) {
+			return fail(500, {
+				message: 'We could not start Google sign-in. Please try again.',
+				fields: { name: '', email: '' }
+			});
+		}
+
+		throw redirect(302, result.url);
 	}
 };

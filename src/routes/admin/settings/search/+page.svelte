@@ -1,31 +1,24 @@
 <script lang="ts">
-	import { goto } from '$app/navigation';
-	import { page } from '$app/stores';
 	import { enhance } from '$app/forms';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
-	import { Input } from '$lib/components/ui/input/index.js';
 	import AdminPageHeader from '$lib/components/organisms/admin/AdminPageHeader.svelte';
 	import AdminSectionCard from '$lib/components/organisms/admin/AdminSectionCard.svelte';
 	import AdminStatCard from '$lib/components/organisms/admin/AdminStatCard.svelte';
-	import { Search, RefreshCw, CircleAlert } from '@lucide/svelte';
-	import { coilLabels, type CoilKey } from '$lib/data/kb';
+	import { RefreshCw, CircleAlert, Search } from '@lucide/svelte';
+	import { coilLabels } from '$lib/data/kb';
 	import { toast } from 'svelte-sonner';
 
-	let { data, form } = $props();
-	let query = $state('');
+	let { data } = $props();
 
-	$effect(() => {
-		query = data.query ?? '';
-	});
+	const publicScopes = ['events', 'funding', 'redpages', 'jobs', 'toolbox'] as const;
+	const adminScopes = ['organizations', 'venues', 'sources'] as const;
 
-	const orderedCoils: CoilKey[] = ['events', 'funding', 'redpages', 'jobs', 'toolbox'];
-
-	function runLookup() {
-		const url = new URL($page.url);
-		if (query.trim()) url.searchParams.set('q', query.trim());
-		else url.searchParams.delete('q');
-		goto(url, { keepFocus: true, noScroll: true });
+	function scopeLabel(scope: (typeof publicScopes)[number] | (typeof adminScopes)[number]) {
+		if (scope in coilLabels) return coilLabels[scope as keyof typeof coilLabels];
+		if (scope === 'organizations') return 'Organizations';
+		if (scope === 'venues') return 'Venues';
+		return 'Sources';
 	}
 </script>
 
@@ -33,7 +26,7 @@
 	<AdminPageHeader
 		eyebrow="Search"
 		title="Search operations"
-		description="Rebuild search indexes, check coverage across each content area, and quickly look up content, organizations, venues, and sources from one place."
+		description="Monitor readiness, rebuild indexes, and verify search health. Admin lookup now lives in the global quick-find command surface."
 	>
 		{#snippet actions()}
 			<form
@@ -64,20 +57,14 @@
 							? 'Search is configured but currently unavailable'
 							: 'Search is not fully connected yet'}
 			</span>
-			<span>
-				{data.snapshot.searchMode === 'ready'
-					? 'Cross-site content lookup is live'
-					: data.snapshot.searchMode === 'partial'
-						? 'Public search is falling back to database results until missing indexes are restored'
-						: 'Public search is running in database compatibility mode'}
-			</span>
+			<span>Use `Quick find` in the admin header for staff lookup and jump-to-item.</span>
 		{/snippet}
 	</AdminPageHeader>
 
 	<div class="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-		{#each orderedCoils as coil}
+		{#each [...publicScopes, ...adminScopes] as coil}
 			<AdminStatCard
-				label={coilLabels[coil]}
+				label={scopeLabel(coil)}
 				value={data.snapshot.publishedCounts[coil]}
 				description="Published items ready to index"
 				tone={coil === 'events'
@@ -88,7 +75,9 @@
 							? 'forest'
 							: coil === 'jobs'
 								? 'ember'
-								: 'stone'}
+								: coil === 'toolbox'
+									? 'stone'
+									: 'lake'}
 			/>
 		{/each}
 	</div>
@@ -103,7 +92,7 @@
 					{#if data.snapshot.searchReadiness.state === 'partial'}
 						Meilisearch is reachable, but some required indexes are still missing. Public search is
 						currently falling back to database results until {data.snapshot.searchReadiness
-							.missingCoils.length} missing index{data.snapshot.searchReadiness.missingCoils
+							.missingScopes.length} missing index{data.snapshot.searchReadiness.missingScopes
 							.length === 1
 							? ''
 							: 'es'} are restored.
@@ -120,196 +109,115 @@
 	{/if}
 
 	<AdminSectionCard
-		title="Rebuild by content area"
-		description="Use this after bulk edits, imports, or large cleanup work."
+		title="Rebuild by search scope"
+		description="Use this after bulk edits, imports, or larger cleanup work."
 	>
 		{#snippet children()}
-			<div class="grid gap-4 px-5 py-5 md:grid-cols-2 xl:grid-cols-3">
-				{#each orderedCoils as coil}
-					<Card.Root>
-						<Card.Header>
-							<Card.Title>{coilLabels[coil]}</Card.Title>
-							<Card.Description>
-								{data.snapshot.publishedCounts[coil]} published item{data.snapshot.publishedCounts[
-									coil
-								] === 1
-									? ''
-									: 's'}
-							</Card.Description>
-						</Card.Header>
-						<Card.Content>
-							<form
-								method="POST"
-								action="?/reindexCoil"
-								use:enhance={() => {
-									return async ({ result, update }) => {
-										if (result.type === 'success')
-											toast.success(`Rebuilt ${coilLabels[coil]} search`);
-										else if (result.type === 'failure')
-											toast.error((result.data as { error?: string })?.error ?? 'Rebuild failed');
-										await update();
-									};
-								}}
-							>
-								<input type="hidden" name="coil" value={coil} />
-								<Button type="submit" variant="secondary" class="w-full">
-									<RefreshCw class="mr-2 h-4 w-4" />
-									Rebuild {coilLabels[coil]}
-								</Button>
-							</form>
-						</Card.Content>
-					</Card.Root>
-				{/each}
+			<div class="space-y-6 px-5 py-5">
+				<div class="space-y-3">
+					<div class="text-xs font-semibold tracking-[0.12em] text-[var(--mid)] uppercase">
+						Public content
+					</div>
+					<div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+						{#each publicScopes as coil}
+							<Card.Root>
+								<Card.Header>
+									<Card.Title>{scopeLabel(coil)}</Card.Title>
+									<Card.Description>
+										{data.snapshot.publishedCounts[coil]} published item{data.snapshot
+											.publishedCounts[coil] === 1
+											? ''
+											: 's'}
+									</Card.Description>
+								</Card.Header>
+								<Card.Content>
+									<form
+										method="POST"
+										action="?/reindexCoil"
+										use:enhance={() => {
+											return async ({ result, update }) => {
+												if (result.type === 'success')
+													toast.success(`Rebuilt ${scopeLabel(coil)} search`);
+												else if (result.type === 'failure')
+													toast.error(
+														(result.data as { error?: string })?.error ?? 'Rebuild failed'
+													);
+												await update();
+											};
+										}}
+									>
+										<input type="hidden" name="coil" value={coil} />
+										<Button type="submit" variant="secondary" class="w-full">
+											<RefreshCw class="mr-2 h-4 w-4" />
+											Rebuild {scopeLabel(coil)}
+										</Button>
+									</form>
+								</Card.Content>
+							</Card.Root>
+						{/each}
+					</div>
+				</div>
+
+				<div class="space-y-3">
+					<div class="text-xs font-semibold tracking-[0.12em] text-[var(--mid)] uppercase">
+						Admin entities
+					</div>
+					<div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+						{#each adminScopes as coil}
+							<Card.Root>
+								<Card.Header>
+									<Card.Title>{scopeLabel(coil)}</Card.Title>
+									<Card.Description>
+										{data.snapshot.publishedCounts[coil]} indexed record{data.snapshot
+											.publishedCounts[coil] === 1
+											? ''
+											: 's'}
+									</Card.Description>
+								</Card.Header>
+								<Card.Content>
+									<form
+										method="POST"
+										action="?/reindexCoil"
+										use:enhance={() => {
+											return async ({ result, update }) => {
+												if (result.type === 'success')
+													toast.success(`Rebuilt ${scopeLabel(coil)} search`);
+												else if (result.type === 'failure')
+													toast.error(
+														(result.data as { error?: string })?.error ?? 'Rebuild failed'
+													);
+												await update();
+											};
+										}}
+									>
+										<input type="hidden" name="coil" value={coil} />
+										<Button type="submit" variant="secondary" class="w-full">
+											<RefreshCw class="mr-2 h-4 w-4" />
+											Rebuild {scopeLabel(coil)}
+										</Button>
+									</form>
+								</Card.Content>
+							</Card.Root>
+						{/each}
+					</div>
+				</div>
 			</div>
 		{/snippet}
 	</AdminSectionCard>
 
 	<AdminSectionCard
-		title="Universal lookup"
-		description="Find published content, organizations, venues, and sources without bouncing between sections."
+		title="Admin lookup"
+		description="Quick staff lookup now lives in the command palette so it is available from every admin route."
 	>
 		{#snippet children()}
-			<div class="space-y-5 px-5 py-5">
-				<form
-					onsubmit={(event) => {
-						event.preventDefault();
-						runLookup();
-					}}
-					class="flex flex-col gap-3 sm:flex-row"
+			<div class="flex flex-wrap items-center gap-3 px-5 py-5 text-sm text-[var(--mid)]">
+				<div
+					class="rounded-xl border border-[color:var(--rule)] bg-[var(--color-alpine-snow-100)]/55 px-4 py-3"
 				>
-					<Input
-						bind:value={query}
-						placeholder="Search content, organizations, venues, and sources"
-						class="w-full"
-					/>
-					<Button type="submit">
-						<Search class="mr-2 h-4 w-4" />
-						Search
-					</Button>
-				</form>
-
-				{#if (data.query ?? '').length >= 2}
-					<div class="grid gap-5 xl:grid-cols-2">
-						<div class="space-y-4">
-							{#each orderedCoils as coil}
-								{#if data.snapshot.contentResults[coil]?.length}
-									<div class="rounded-2xl border border-[color:var(--rule)] bg-white/70 p-4">
-										<div class="mb-3 flex items-center justify-between gap-3">
-											<h3 class="font-serif text-lg font-semibold text-[var(--dark)]">
-												{coilLabels[coil]}
-											</h3>
-											<span class="text-sm text-[var(--mid)]">
-												{data.snapshot.contentResults[coil].length} result{data.snapshot
-													.contentResults[coil].length === 1
-													? ''
-													: 's'}
-											</span>
-										</div>
-										<div class="space-y-3">
-											{#each data.snapshot.contentResults[coil] as item}
-												<a
-													href={coil === 'events'
-														? `/events/${item.slug ?? item.id}`
-														: coil === 'funding'
-															? `/funding/${item.slug ?? item.id}`
-															: coil === 'redpages'
-																? `/red-pages/${item.slug ?? item.id}`
-																: coil === 'jobs'
-																	? `/jobs/${item.slug ?? item.id}`
-																	: `/toolbox/${item.slug ?? item.id}`}
-													class="block rounded-xl border border-[color:var(--rule)] bg-[var(--color-alpine-snow-50)]/80 px-4 py-3 no-underline hover:bg-[var(--color-alpine-snow-100)]/90 hover:no-underline"
-												>
-													<p class="font-medium text-[var(--dark)]">{item.title}</p>
-													{#if item.description}
-														<p class="mt-1 text-sm text-[var(--mid)]">{item.description}</p>
-													{/if}
-												</a>
-											{/each}
-										</div>
-									</div>
-								{/if}
-							{/each}
-						</div>
-
-						<div class="space-y-4">
-							<div class="rounded-2xl border border-[color:var(--rule)] bg-white/70 p-4">
-								<h3 class="font-serif text-lg font-semibold text-[var(--dark)]">Organizations</h3>
-								<div class="mt-3 space-y-3">
-									{#each data.snapshot.entityResults.organizations as organization}
-										<a
-											href={`/admin/organizations/${organization.id}`}
-											class="block rounded-xl border border-[color:var(--rule)] bg-[var(--color-alpine-snow-50)]/80 px-4 py-3 no-underline hover:bg-[var(--color-alpine-snow-100)]/90 hover:no-underline"
-										>
-											<p class="font-medium text-[var(--dark)]">{organization.name}</p>
-											<p class="mt-1 text-sm text-[var(--mid)]">
-												{organization.region ?? organization.website ?? 'No region or website yet'}
-											</p>
-										</a>
-									{:else}
-										<p class="text-sm text-[var(--mid)]">No organization matches yet.</p>
-									{/each}
-								</div>
-							</div>
-
-							<div class="rounded-2xl border border-[color:var(--rule)] bg-white/70 p-4">
-								<h3 class="font-serif text-lg font-semibold text-[var(--dark)]">Venues</h3>
-								<div class="mt-3 space-y-3">
-									{#each data.snapshot.entityResults.venues as venue}
-										<a
-											href={`/admin/venues/${venue.id}`}
-											class="block rounded-xl border border-[color:var(--rule)] bg-[var(--color-alpine-snow-50)]/80 px-4 py-3 no-underline hover:bg-[var(--color-alpine-snow-100)]/90 hover:no-underline"
-										>
-											<p class="font-medium text-[var(--dark)]">{venue.name}</p>
-											<p class="mt-1 text-sm text-[var(--mid)]">
-												{[venue.city, venue.state].filter(Boolean).join(', ') ||
-													venue.address ||
-													'No location details yet'}
-											</p>
-										</a>
-									{:else}
-										<p class="text-sm text-[var(--mid)]">No venue matches yet.</p>
-									{/each}
-								</div>
-							</div>
-
-							<div class="rounded-2xl border border-[color:var(--rule)] bg-white/70 p-4">
-								<h3 class="font-serif text-lg font-semibold text-[var(--dark)]">Sources</h3>
-								<div class="mt-3 space-y-3">
-									{#each data.snapshot.entityResults.sources as source}
-										<a
-											href={`/admin/sources/${source.id}`}
-											class="block rounded-xl border border-[color:var(--rule)] bg-[var(--color-alpine-snow-50)]/80 px-4 py-3 no-underline hover:bg-[var(--color-alpine-snow-100)]/90 hover:no-underline"
-										>
-											<p class="font-medium text-[var(--dark)]">{source.name}</p>
-											<p class="mt-1 text-sm text-[var(--mid)]">
-												{source.sourceUrl}
-											</p>
-										</a>
-									{:else}
-										<p class="text-sm text-[var(--mid)]">No source matches yet.</p>
-									{/each}
-								</div>
-							</div>
-						</div>
-					</div>
-				{:else}
-					<p class="text-sm text-[var(--mid)]">
-						Enter at least 2 characters to search across the admin workspace.
-					</p>
-				{/if}
+					<Search class="mb-2 h-4 w-4 text-[var(--color-lakebed-900)]" />
+					<p>Open `Quick find` from the admin header or use `Cmd/Ctrl + K`.</p>
+				</div>
 			</div>
 		{/snippet}
 	</AdminSectionCard>
-
-	{#if form?.success}
-		<div
-			class="rounded-2xl border border-[color:color-mix(in_srgb,var(--color-pinyon-300)_50%,transparent)] bg-[color:color-mix(in_srgb,var(--color-pinyon-50)_70%,white)] px-5 py-4 text-sm text-[var(--color-pinyon-900)]"
-		>
-			{#if form.scope === 'all'}
-				Rebuilt all search indexes.
-			{:else}
-				Rebuilt the {coilLabels[form.scope as CoilKey]} index.
-			{/if}
-		</div>
-	{/if}
 </div>

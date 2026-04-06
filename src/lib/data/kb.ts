@@ -8,6 +8,18 @@ export type ItemStatus = (typeof ITEM_STATUSES)[number];
 export const USER_ROLES = ['contributor', 'moderator', 'admin'] as const;
 export type UserRole = (typeof USER_ROLES)[number];
 
+export const ORG_MEMBERSHIP_ROLES = ['editor', 'admin', 'owner'] as const;
+export type OrganizationMembershipRole = (typeof ORG_MEMBERSHIP_ROLES)[number];
+
+export const ORG_MEMBERSHIP_STATUSES = ['active', 'invited', 'revoked'] as const;
+export type OrganizationMembershipStatus = (typeof ORG_MEMBERSHIP_STATUSES)[number];
+
+export const ORG_CLAIM_STATUSES = ['pending', 'approved', 'denied', 'cancelled'] as const;
+export type OrganizationClaimStatus = (typeof ORG_CLAIM_STATUSES)[number];
+
+export const BOOKMARK_ITEM_TYPES = ['event', 'funding', 'job', 'redpage', 'toolbox'] as const;
+export type BookmarkItemType = (typeof BOOKMARK_ITEM_TYPES)[number];
+
 export const EVENT_FORMATS = ['in_person', 'online', 'hybrid'] as const;
 export type EventFormat = (typeof EVENT_FORMATS)[number];
 

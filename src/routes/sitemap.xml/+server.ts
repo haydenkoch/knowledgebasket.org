@@ -39,6 +39,7 @@ export const GET: RequestHandler = async ({ url }) => {
 	const staticEntries: SitemapEntry[] = [
 		{ loc: `${origin}/` },
 		{ loc: `${origin}/about` },
+		{ loc: `${origin}/open-source` },
 		{ loc: `${origin}/events` },
 		{ loc: `${origin}/funding` },
 		{ loc: `${origin}/red-pages` },

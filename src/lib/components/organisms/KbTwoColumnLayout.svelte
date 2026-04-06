@@ -1,9 +1,9 @@
 <script lang="ts">
 	import { SlidersHorizontal } from '@lucide/svelte';
-	import { Button } from '$lib/components/ui/button/index.js';
+	import { buttonVariants } from '$lib/components/ui/button/index.js';
 	import * as Drawer from '$lib/components/ui/drawer/index.js';
 	import Input from '$lib/components/ui/input/input.svelte';
-	import { IsMobile } from '$lib/hooks/is-mobile.svelte';
+	import { cn } from '$lib/utils.js';
 	import type { Snippet } from 'svelte';
 
 	interface Props {
@@ -28,11 +28,10 @@
 	}: Props = $props();
 
 	let mobileFiltersOpen = $state(false);
-	const isMobile = new IsMobile();
 </script>
 
 <div class="kb-two-col">
-	{#if sidebar && !isMobile.current}
+	{#if sidebar}
 		<aside class="kb-two-col__side">
 			<div class="kb-two-col__side-inner">
 				{@render sidebar()}
@@ -40,7 +39,7 @@
 		</aside>
 	{/if}
 	<main class="kb-two-col__main">
-		{#if sidebar && isMobile.current}
+		{#if sidebar}
 			<div class="kb-two-col__mobile-toolbar">
 				<div class="kb-two-col__mobile-search">
 					<Input
@@ -49,10 +48,15 @@
 						bind:value={mobileSearchQuery}
 					/>
 				</div>
-				<Button
+				<button
 					type="button"
-					variant={mobileActiveFilterCount > 0 ? 'default' : 'outline'}
-					class="kb-two-col__mobile-trigger"
+					class={cn(
+						buttonVariants({
+							variant: mobileActiveFilterCount > 0 ? 'default' : 'outline',
+							size: 'default'
+						}),
+						'kb-two-col__mobile-trigger'
+					)}
 					onclick={() => (mobileFiltersOpen = true)}
 				>
 					<SlidersHorizontal class="h-4 w-4" />
@@ -60,13 +64,13 @@
 					{#if mobileActiveFilterCount > 0}
 						<span class="kb-two-col__mobile-count">{mobileActiveFilterCount}</span>
 					{/if}
-				</Button>
+				</button>
 			</div>
 		{/if}
 		{@render children?.()}
 	</main>
 
-	{#if sidebar && isMobile.current}
+	{#if sidebar}
 		<Drawer.Root bind:open={mobileFiltersOpen}>
 			<Drawer.Content class="kb-two-col__mobile-sheet">
 				<Drawer.Header class="kb-two-col__mobile-sheet-header">
@@ -81,9 +85,21 @@
 				</div>
 				<Drawer.Footer class="kb-two-col__mobile-sheet-footer">
 					{#if mobileActiveFilterCount > 0 && onMobileClear}
-						<Button type="button" variant="outline" onclick={onMobileClear}>Clear all</Button>
+						<button
+							type="button"
+							class={buttonVariants({ variant: 'outline', size: 'default' })}
+							onclick={onMobileClear}
+						>
+							Clear all
+						</button>
 					{/if}
-					<Button type="button" onclick={() => (mobileFiltersOpen = false)}>Show results</Button>
+					<button
+						type="button"
+						class={buttonVariants({ variant: 'default', size: 'default' })}
+						onclick={() => (mobileFiltersOpen = false)}
+					>
+						Show results
+					</button>
 				</Drawer.Footer>
 			</Drawer.Content>
 		</Drawer.Root>
@@ -93,7 +109,7 @@
 <style>
 	.kb-two-col {
 		display: flex;
-		min-height: calc(100vh - 220px);
+		min-height: calc(100dvh - 144px - var(--kb-submit-banner-offset, 76px));
 		align-items: stretch;
 		background: linear-gradient(
 			180deg,

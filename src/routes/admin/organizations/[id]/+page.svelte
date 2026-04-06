@@ -181,6 +181,52 @@
 				</div>
 			</Card.Content>
 		</Card.Root>
+		<Separator />
+		<Card.Root>
+			<Card.Header>
+				<Card.Title>Claim requests</Card.Title>
+				<Card.Description>
+					Review requests from users who want to manage this organization as a team.
+				</Card.Description>
+			</Card.Header>
+			<Card.Content class="space-y-4">
+				{#if data.claimRequests.length === 0}
+					<p class="text-sm text-muted-foreground">No claim requests yet.</p>
+				{:else}
+					{#each data.claimRequests as claim}
+						<div class="rounded-xl border border-[color:var(--rule)] p-4">
+							<div class="flex flex-wrap items-start justify-between gap-4">
+								<div class="space-y-1">
+									<p class="font-medium text-[var(--dark)]">{claim.requesterName}</p>
+									<p class="text-sm text-[var(--mid)]">
+										{claim.requesterEmail} · {claim.status}{#if claim.emailDomain}
+											· {claim.emailDomain}
+										{/if}
+									</p>
+									{#if claim.evidence}
+										<p class="text-sm text-[var(--dark)]">{claim.evidence}</p>
+									{/if}
+								</div>
+								{#if claim.status === 'pending'}
+									<div class="flex gap-2">
+										<form method="POST" action="?/reviewClaim" use:enhance>
+											<input type="hidden" name="claimRequestId" value={claim.id} />
+											<input type="hidden" name="status" value="approved" />
+											<Button type="submit" size="sm">Approve as owner</Button>
+										</form>
+										<form method="POST" action="?/reviewClaim" use:enhance>
+											<input type="hidden" name="claimRequestId" value={claim.id} />
+											<input type="hidden" name="status" value="denied" />
+											<Button type="submit" size="sm" variant="outline">Deny</Button>
+										</form>
+									</div>
+								{/if}
+							</div>
+						</div>
+					{/each}
+				{/if}
+			</Card.Content>
+		</Card.Root>
 		{#if data.suggestedMatches.length > 0}
 			<Separator />
 			<Card.Root>

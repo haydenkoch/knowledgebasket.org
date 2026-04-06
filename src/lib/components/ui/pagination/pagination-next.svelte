@@ -7,9 +7,15 @@
 	let {
 		ref = $bindable(null),
 		class: className,
+		children,
 		...restProps
 	}: PaginationPrimitive.NextButtonProps = $props();
 </script>
+
+{#snippet Fallback()}
+	<span class="hidden sm:block">Next</span>
+	<ChevronRightIcon class="size-4" />
+{/snippet}
 
 <PaginationPrimitive.NextButton
 	bind:ref
@@ -22,8 +28,6 @@
 		}),
 		className
 	)}
+	children={children || Fallback}
 	{...restProps}
->
-	<span class="hidden sm:block">Next</span>
-	<ChevronRightIcon /></PaginationPrimitive.NextButton
->
+/>

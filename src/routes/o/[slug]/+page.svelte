@@ -4,15 +4,25 @@
 	import JobListItem from '$lib/components/molecules/JobListItem.svelte';
 	import RedPagesListItem from '$lib/components/molecules/RedPagesListItem.svelte';
 	import { Button } from '$lib/components/ui/button/index.js';
+	import { Textarea } from '$lib/components/ui/textarea/index.js';
 	import * as Breadcrumb from '$lib/components/ui/breadcrumb/index.js';
 	import MapPinIcon from '@lucide/svelte/icons/map-pin';
 	import GlobeIcon from '@lucide/svelte/icons/globe';
 	import MailIcon from '@lucide/svelte/icons/mail';
 	import PhoneIcon from '@lucide/svelte/icons/phone';
+	import ArrowLeft from '@lucide/svelte/icons/arrow-left';
 
-	let { data } = $props();
+	let { data, form } = $props();
 	const organization = $derived(data.organization);
 	const collections = $derived(data.collections);
+	const viewerMembershipRole = $derived(data.viewerMembershipRole as string | null);
+	const viewerClaimStatus = $derived(data.viewerClaimStatus as string | null);
+	const isFollowing = $derived(Boolean(data.isFollowing));
+	const canManage = $derived(Boolean(data.canManageOrganization));
+	const isSignedIn = $derived(Boolean(data.user));
+	const loginHref = $derived(
+		`/auth/login?redirect=${encodeURIComponent(`/o/${organization.slug}`)}`
+	);
 
 	const stats = $derived([
 		{ label: 'Events', value: collections.events.length },
@@ -158,6 +168,62 @@
 			</div>
 
 			<div class="grid min-w-[240px] grid-cols-2 gap-3 lg:w-[280px]">
+				<div
+					class="col-span-2 rounded-2xl border border-[var(--border)] bg-[var(--background)] p-4"
+				>
+					<p
+						class="text-[11px] font-bold tracking-[0.08em] text-[var(--muted-foreground)] uppercase"
+					>
+						Organization access
+					</p>
+					<div class="mt-3 flex flex-col gap-2">
+						{#if canManage}
+							<Button href={`/orgs/${organization.slug}`}>Manage organization</Button>
+						{:else if isSignedIn}
+							<form method="POST" action="?/toggleFollow">
+								<Button type="submit" variant={isFollowing ? 'outline' : 'default'} class="w-full">
+									{isFollowing ? 'Following organization' : 'Follow organization'}
+								</Button>
+							</form>
+
+							{#if viewerClaimStatus === 'pending'}
+								<div class="rounded-xl border border-[var(--border)] bg-[var(--card)] p-3">
+									<p class="text-sm font-medium text-[var(--foreground)]">Claim pending</p>
+									<p class="mt-1 text-sm text-[var(--muted-foreground)]">
+										We’ve recorded your claim request and a staff reviewer will take a look.
+									</p>
+									<form method="POST" action="?/cancelClaim" class="mt-3">
+										<Button type="submit" variant="ghost" size="sm">Cancel request</Button>
+									</form>
+								</div>
+							{:else}
+								<form method="POST" action="?/createClaim" class="space-y-2">
+									<Textarea
+										name="evidence"
+										rows={3}
+										placeholder="Share a quick note about your role or connection to this organization."
+									/>
+									<Button type="submit" variant="outline" class="w-full">
+										Claim this organization
+									</Button>
+								</form>
+							{/if}
+						{:else}
+							<Button href={loginHref}>Sign in to follow</Button>
+							<Button href={loginHref} variant="outline">Claim this organization</Button>
+						{/if}
+						{#if form?.error}
+							<p class="text-sm text-destructive">{form.error}</p>
+						{/if}
+						{#if viewerMembershipRole}
+							<p class="text-xs text-[var(--muted-foreground)]">
+								Your role: <span class="font-semibold text-[var(--foreground)]"
+									>{viewerMembershipRole}</span
+								>
+							</p>
+						{/if}
+					</div>
+				</div>
 				{#each stats as stat}
 					<div class="rounded-2xl border border-[var(--border)] bg-[var(--background)] px-4 py-3">
 						<div class="font-serif text-2xl font-bold text-[var(--foreground)]">{stat.value}</div>
@@ -336,6 +402,8 @@
 	{/if}
 
 	<div class="mt-10">
-		<Button variant="outline" href="/">← Back to Knowledge Basket</Button>
+		<Button variant="outline" href="/"
+			><ArrowLeft class="inline h-4 w-4" /> Back to Knowledge Basket</Button
+		>
 	</div>
 </div>

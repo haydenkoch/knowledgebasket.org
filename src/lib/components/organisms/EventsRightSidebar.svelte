@@ -2,6 +2,8 @@
 	import type { EventItem } from '$lib/data/kb';
 	import EventCard from '$lib/components/molecules/EventCard.svelte';
 	import { formatEventTime } from '$lib/utils/format';
+	import ArrowRight from '@lucide/svelte/icons/arrow-right';
+	import MapPin from '@lucide/svelte/icons/map-pin';
 
 	interface Props {
 		calendarSelectedEvent: EventItem | null | undefined;
@@ -51,10 +53,15 @@
 					</p>
 				{/if}
 				{#if calendarSelectedEvent.location}
-					<p class="mb-3 text-sm text-muted-foreground">📍 {calendarSelectedEvent.location}</p>
+					<p class="mb-3 flex items-center gap-1 text-sm text-muted-foreground">
+						<MapPin class="inline h-3.5 w-3.5 flex-none" />
+						{calendarSelectedEvent.location}
+					</p>
 				{/if}
 				{#if calendarSelectedEvent.slug}
-					<a href="/events/{calendarSelectedEvent.slug}" class="kb-rsidebar-cta">View event →</a>
+					<a href="/events/{calendarSelectedEvent.slug}" class="kb-rsidebar-cta"
+						>View event <ArrowRight class="inline h-4 w-4" /></a
+					>
 				{/if}
 			</div>
 		</div>

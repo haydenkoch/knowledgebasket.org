@@ -208,6 +208,17 @@ export async function getResourcesByOrganizationId(orgId: string): Promise<Toolb
 	return rows.map((r) => rowToItem(r));
 }
 
+export async function getResourcesByOrganizationIdForWorkspace(
+	orgId: string
+): Promise<ToolboxItem[]> {
+	const rows = await db
+		.select()
+		.from(tbTable)
+		.where(eq(tbTable.organizationId, orgId))
+		.orderBy(desc(tbTable.updatedAt));
+	return rows.map((row) => rowToItem(row));
+}
+
 // ── Admin queries ─────────────────────────────────────────
 
 export async function getResourcesForAdmin(opts: {

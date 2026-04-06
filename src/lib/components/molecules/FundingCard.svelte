@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { FundingItem } from '$lib/data/kb';
+	import { formatDisplayValue } from '$lib/utils/display.js';
 	import { stripHtml } from '$lib/utils/format';
 	import { getPlaceholderImage } from '$lib/data/placeholders';
 
@@ -7,6 +8,17 @@
 
 	const href = $derived(`/funding/${item.slug ?? item.id}`);
 	const plainDesc = $derived(item.description ? stripHtml(String(item.description)) : '');
+	const applicationStatusLabel = $derived(
+		item.applicationStatus
+			? formatDisplayValue(item.applicationStatus, { key: 'applicationStatus' })
+			: null
+	);
+	const fundingTypeLabel = $derived(
+		item.fundingType ? formatDisplayValue(item.fundingType, { key: 'fundingType' }) : null
+	);
+	const deadlineLabel = $derived(
+		item.deadline ? formatDisplayValue(item.deadline, { key: 'deadline' }) : null
+	);
 </script>
 
 <a
@@ -25,19 +37,19 @@
 				loading="lazy"
 			/>
 		{/if}
-		{#if item.applicationStatus}
+		{#if applicationStatusLabel}
 			<span
 				class="absolute bottom-2 left-3 rounded bg-black/30 px-2 py-0.5 text-[11px] font-bold tracking-[0.05em] text-white/90 uppercase backdrop-blur-sm"
-				>{item.applicationStatus}</span
+				>{applicationStatusLabel}</span
 			>
 		{/if}
 	</div>
 	<div class="flex min-h-0 flex-1 flex-col p-4">
 		<div class="mb-1.5 flex flex-wrap gap-1">
-			{#if item.fundingType}
+			{#if fundingTypeLabel}
 				<span
 					class="rounded bg-[var(--muted)] px-2 py-0.5 text-[11px] font-semibold text-[var(--muted-foreground)]"
-					>{item.fundingType}</span
+					>{fundingTypeLabel}</span
 				>
 			{/if}
 		</div>
@@ -50,8 +62,8 @@
 		{#if item.funderName}
 			<p class="mb-1 font-sans text-xs text-[var(--muted-foreground)]">{item.funderName}</p>
 		{/if}
-		{#if item.deadline}
-			<p class="mb-1 font-sans text-xs text-[var(--muted-foreground)]">Deadline: {item.deadline}</p>
+		{#if deadlineLabel}
+			<p class="mb-1 font-sans text-xs text-[var(--muted-foreground)]">Deadline: {deadlineLabel}</p>
 		{/if}
 		{#if plainDesc}
 			<p class="mb-3 line-clamp-3 min-h-0 flex-auto text-[13px] leading-[1.5] text-[var(--mid)]">

@@ -11,15 +11,20 @@
 		parseEventStart
 	} from '$lib/utils/format';
 	import MapPinIcon from '@lucide/svelte/icons/map-pin';
+	import ArrowLeft from '@lucide/svelte/icons/arrow-left';
+	import ArrowRight from '@lucide/svelte/icons/arrow-right';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import * as ButtonGroup from '$lib/components/ui/button-group/index.js';
 	import EventCard from '$lib/components/molecules/EventCard.svelte';
 	import * as Breadcrumb from '$lib/components/ui/breadcrumb/index.js';
+	import CoilDetailActionRail from '$lib/components/organisms/CoilDetailActionRail.svelte';
+	import LocationMap from '$lib/components/molecules/LocationMap.svelte';
 	import SourceProvenanceCard from '$lib/components/public/source-provenance-card.svelte';
 
 	let { data } = $props();
 	let event = $derived(data.event as EventItem);
 	const isIcalEvent = $derived(data.isIcalEvent ?? false);
+	const isBookmarked = $derived(Boolean(data.isBookmarked));
 	const galleryImages = $derived(
 		event.imageUrl ? [event.imageUrl, ...(event.imageUrls ?? [])] : (event.imageUrls ?? [])
 	);
@@ -82,6 +87,23 @@
 	}
 	const directionsUrl = $derived(mapUrl(event.location));
 
+	// Short, single-line location for the utility bar meta. Prefers the venue
+	// name, then region, then the last two comma-separated segments of the
+	// free-text location (usually "City, State"), so the rail never shows a
+	// full street address that would wrap the bar onto two rows.
+	const shortLocation = $derived.by(() => {
+		if (event.venueName?.trim()) return event.venueName.trim();
+		if (event.region?.trim()) return event.region.trim();
+		const loc = event.location?.trim();
+		if (!loc) return null;
+		const parts = loc
+			.split(',')
+			.map((p) => p.trim())
+			.filter(Boolean);
+		if (parts.length >= 2) return parts.slice(-2).join(', ');
+		return parts[0] ?? loc;
+	});
+
 	function calendarUrl(mode: 'week' | 'month'): string {
 		const params = new URLSearchParams({ view: 'calendar', mode });
 		if (calendarDate) params.set('date', calendarDate);
@@ -90,6 +112,9 @@
 
 	const origin = $derived(data.origin ?? '');
 	const canonicalUrl = $derived(event.slug ? `${origin}/events/${event.slug}` : origin + '/events');
+	const loginHref = $derived(
+		`/auth/login?redirect=${encodeURIComponent(event.slug ? `/events/${event.slug}` : '/events')}`
+	);
 	const metaDescription = $derived(
 		event.description
 			? stripHtml(String(event.description)).slice(0, 160)
@@ -180,21 +205,7 @@
 </svelte:head>
 
 <div class="kb-event-detail" style="--kb-accent: var(--teal)">
-	<div class="kb-event-header-wrap">
-		<Breadcrumb.Root>
-			<Breadcrumb.List>
-				<Breadcrumb.Item>
-					<Breadcrumb.Link href="/events">Events</Breadcrumb.Link>
-				</Breadcrumb.Item>
-				<Breadcrumb.Separator />
-				<Breadcrumb.Item>
-					<Breadcrumb.Page>{event.title}</Breadcrumb.Page>
-				</Breadcrumb.Item>
-			</Breadcrumb.List>
-		</Breadcrumb.Root>
-	</div>
-
-	<!-- Hero (Ticketmaster-style: full-width, tall) -->
+	<!-- Hero (full-bleed, image-forward; gallery filmstrip docked inside) -->
 	<header class="kb-event-hero">
 		<img
 			src={galleryImages.length > 0 ? displayedHeroSrc : heroImgAttrs.src}
@@ -207,74 +218,109 @@
 		/>
 		<div class="kb-event-hero-overlay"></div>
 		<div class="kb-event-hero-content">
-			<div class="kb-event-hero-tags">
-				{#if formatLabel}<span class="kb-event-hero-tag">{formatLabel}</span>{/if}
-				{#if event.region}<span class="kb-event-hero-tag">{event.region}</span>{/if}
-				{#each getEventTypeTags(event) as tag (tag)}
-					<span class="kb-event-hero-tag">{tag}</span>
-				{/each}
+			<div class="kb-event-hero-copy">
+				<div class="kb-event-hero-tags">
+					{#if formatLabel}<span class="kb-event-hero-tag">{formatLabel}</span>{/if}
+					{#if event.region}<span class="kb-event-hero-tag">{event.region}</span>{/if}
+					{#each getEventTypeTags(event) as tag (tag)}
+						<span class="kb-event-hero-tag">{tag}</span>
+					{/each}
+				</div>
+				<h1 class="kb-event-hero-title">{event.title}</h1>
+				{#if event.hostOrg}
+					<p class="kb-event-hero-host">Presented by {event.hostOrg}</p>
+				{/if}
 			</div>
-			<h1 class="kb-event-hero-title">{event.title}</h1>
-			{#if event.hostOrg}
-				<p class="kb-event-hero-host">Presented by {event.hostOrg}</p>
+			{#if galleryImages.length > 1}
+				<div class="kb-event-hero-filmstrip" role="tablist" aria-label="Event gallery">
+					{#each galleryImages as url, i (url + i)}
+						<button
+							type="button"
+							class="kb-event-hero-thumb"
+							class:selected={i === selectedGalleryIndex}
+							aria-label="View image {i + 1}"
+							aria-selected={i === selectedGalleryIndex}
+							role="tab"
+							onclick={() => (selectedGalleryIndex = i)}
+						>
+							<img src={url} alt="" loading="lazy" />
+						</button>
+					{/each}
+				</div>
 			{/if}
 		</div>
 	</header>
 
-	<!-- Sticky CTA bar (when eventUrl and/or registrationUrl) -->
-	{#if singleCtaUrl || dualCtas}
-		<div class="kb-event-cta-bar">
-			<div class="kb-event-cta-bar-inner">
-				<div class="kb-event-cta-bar-info">
-					<span class="kb-event-cta-date"
-						>{formatEventDateRange(event.startDate, event.endDate)}</span
-					>
-					{#if event.location}<span class="kb-event-cta-venue"
-							><MapPinIcon class="size-[14px] shrink-0" /> {event.location}</span
-						>{/if}
-				</div>
-				<div class="kb-event-cta-btns">
-					{#if dualCtas}
-						<a href={event.eventUrl!} target="_blank" rel="noopener" class="kb-event-cta-btn"
-							>Event page</a
-						>
-						<a
-							href={event.registrationUrl!}
-							target="_blank"
-							rel="noopener"
-							class="kb-event-cta-btn kb-event-cta-btn-secondary"
-						>
-							{event.cost === 'Free/Sponsored'
-								? 'Register'
-								: event.cost === 'Registration Fee Required'
-									? 'Get tickets'
-									: 'Register'}
-						</a>
-					{:else if singleCtaUrl}
-						<a href={singleCtaUrl} target="_blank" rel="noopener" class="kb-event-cta-btn"
-							>{singleCtaLabel}</a
-						>
-					{/if}
-				</div>
-			</div>
-		</div>
-	{/if}
-
-	{#if galleryImages.length > 1}
-		<div class="kb-event-gallery-thumbs">
-			{#each galleryImages as url, i}
-				<button
-					type="button"
-					class="kb-event-gallery-thumb"
-					class:selected={i === selectedGalleryIndex}
-					aria-label="View image {i + 1}"
-					onclick={() => (selectedGalleryIndex = i)}
+	<!-- Unified utility bar: breadcrumb + date/venue + heart + quick actions + primary CTA -->
+	<div class="kb-event-rail-wrap kb-event-rail-sticky">
+		<CoilDetailActionRail
+			isAuthed={!!data.user}
+			{isBookmarked}
+			{loginHref}
+			saveLabel="event"
+			accent="var(--teal)"
+		>
+			{#snippet breadcrumb()}
+				<Breadcrumb.Root>
+					<Breadcrumb.List>
+						<Breadcrumb.Item>
+							<Breadcrumb.Link href="/events">Events</Breadcrumb.Link>
+						</Breadcrumb.Item>
+						<Breadcrumb.Separator />
+						<Breadcrumb.Item>
+							<Breadcrumb.Page class="kb-event-crumb-current">{event.title}</Breadcrumb.Page>
+						</Breadcrumb.Item>
+					</Breadcrumb.List>
+				</Breadcrumb.Root>
+			{/snippet}
+			{#snippet meta()}
+				<span class="kb-event-meta-date"
+					>{formatEventDateRange(event.startDate, event.endDate)}</span
 				>
-					<img src={url} alt="" />
-				</button>
-			{/each}
-		</div>
-	{/if}
+				{#if shortLocation}
+					<span class="kb-event-meta-dot" aria-hidden="true">·</span>
+					<span class="kb-event-meta-venue">
+						<MapPinIcon class="size-[13px] shrink-0" />
+						<span>{shortLocation}</span>
+					</span>
+				{/if}
+			{/snippet}
+			{#snippet actions()}
+				{#if directionsUrl}
+					<Button href={directionsUrl} target="_blank" rel="noopener" variant="ghost" size="sm">
+						Directions
+					</Button>
+				{/if}
+				{#if googleCalendarUrl}
+					<Button href={googleCalendarUrl} target="_blank" rel="noopener" variant="ghost" size="sm">
+						Calendar
+					</Button>
+				{/if}
+			{/snippet}
+			{#snippet primary()}
+				{#if dualCtas}
+					<a
+						href={event.registrationUrl!}
+						target="_blank"
+						rel="noopener"
+						class="kb-event-primary-btn"
+					>
+						{event.cost === 'Free/Sponsored'
+							? 'Register'
+							: event.cost === 'Registration Fee Required'
+								? 'Get tickets'
+								: 'Register'}
+						<ArrowRight class="size-4" />
+					</a>
+				{:else if singleCtaUrl}
+					<a href={singleCtaUrl} target="_blank" rel="noopener" class="kb-event-primary-btn">
+						{singleCtaLabel}
+						<ArrowRight class="size-4" />
+					</a>
+				{/if}
+			{/snippet}
+		</CoilDetailActionRail>
+	</div>
 
 	<div class="kb-event-detail-grid">
 		<main class="kb-event-detail-main">
@@ -351,9 +397,21 @@
 					{#if event.location && (!event.venueName || event.location !== event.venueName)}
 						<p class="kb-event-info-value">{event.location}</p>
 					{/if}
-					{#if directionsUrl}
+					{#if event.lat != null && event.lng != null}
+						<div class="kb-event-info-map">
+							<LocationMap
+								lat={event.lat}
+								lng={event.lng}
+								label={event.venueName ?? event.location ?? 'Event location'}
+								address={event.address ?? event.location ?? undefined}
+								token={data.mapboxToken}
+								accent="#0c2540"
+								height={220}
+							/>
+						</div>
+					{:else if directionsUrl}
 						<a href={directionsUrl} target="_blank" rel="noopener" class="kb-event-info-link"
-							>Get directions →</a
+							>Get directions <ArrowRight class="inline h-4 w-4" /></a
 						>
 					{/if}
 				</div>
@@ -373,7 +431,7 @@
 			{#if joinOnlineUrl}
 				<div class="kb-event-info-card">
 					<a href={joinOnlineUrl} target="_blank" rel="noopener" class="kb-event-info-link"
-						>Join online →</a
+						>Join online <ArrowRight class="inline h-4 w-4" /></a
 					>
 				</div>
 			{/if}
@@ -466,15 +524,16 @@
 				</div>
 			{/if}
 			<SourceProvenanceCard provenance={event.provenance} />
-			<a href="/events" class="kb-event-back">← Back to all events</a>
+			<a href="/events" class="kb-event-back"
+				><ArrowLeft class="inline h-4 w-4" /> Back to all events</a
+			>
 		</aside>
 	</div>
 </div>
 
 <style>
 	/* ── Content containers ───────────────────────────────── */
-	.kb-event-header-wrap,
-	.kb-event-gallery-thumbs,
+	.kb-event-rail-wrap,
 	.kb-event-detail-grid {
 		max-width: 1200px;
 		margin-left: auto;
@@ -482,28 +541,23 @@
 		padding-left: 1.5rem;
 		padding-right: 1.5rem;
 	}
-	.kb-event-header-wrap {
-		padding-top: 1rem;
-		padding-bottom: 0;
-	}
 
 	/* ── Hero: full-bleed image with overlay ──────────────── */
 	.kb-event-hero {
 		position: relative;
 		width: 100%;
-		height: 280px;
+		height: 320px;
 		overflow: hidden;
 		background: var(--color-lakebed-950);
-		margin-top: 0.75rem;
 	}
 	@media (min-width: 640px) {
 		.kb-event-hero {
-			height: 360px;
+			height: 400px;
 		}
 	}
 	@media (min-width: 1024px) {
 		.kb-event-hero {
-			height: 440px;
+			height: 500px;
 		}
 	}
 	.kb-event-hero-img {
@@ -518,9 +572,9 @@
 		inset: 0;
 		background: linear-gradient(
 			to top,
-			rgba(0, 0, 0, 0.78) 0%,
-			rgba(0, 0, 0, 0.35) 50%,
-			rgba(0, 0, 0, 0.08) 100%
+			rgba(0, 0, 0, 0.85) 0%,
+			rgba(0, 0, 0, 0.45) 45%,
+			rgba(0, 0, 0, 0.05) 100%
 		);
 	}
 	.kb-event-hero-content {
@@ -530,6 +584,10 @@
 		right: 0;
 		padding: 1.5rem;
 		color: white;
+		display: flex;
+		align-items: flex-end;
+		justify-content: space-between;
+		gap: 1.5rem;
 	}
 	@media (min-width: 1024px) {
 		.kb-event-hero-content {
@@ -537,6 +595,52 @@
 			margin: 0 auto;
 			padding: 2rem 1.5rem;
 		}
+	}
+	.kb-event-hero-copy {
+		min-width: 0;
+		flex: 1 1 auto;
+	}
+
+	/* ── Hero-docked filmstrip (replaces standalone gallery) ─ */
+	.kb-event-hero-filmstrip {
+		display: none;
+		flex-shrink: 0;
+		gap: 0.5rem;
+		padding: 0.5rem;
+		border-radius: 10px;
+		background: rgba(0, 0, 0, 0.35);
+		backdrop-filter: blur(6px);
+		-webkit-backdrop-filter: blur(6px);
+		border: 1px solid rgba(255, 255, 255, 0.1);
+	}
+	@media (min-width: 640px) {
+		.kb-event-hero-filmstrip {
+			display: flex;
+		}
+	}
+	.kb-event-hero-thumb {
+		width: 64px;
+		height: 64px;
+		padding: 0;
+		border: 2px solid transparent;
+		border-radius: 6px;
+		overflow: hidden;
+		background: rgba(255, 255, 255, 0.06);
+		cursor: pointer;
+		transition:
+			border-color 0.15s,
+			transform 0.15s;
+	}
+	.kb-event-hero-thumb:hover {
+		transform: translateY(-1px);
+	}
+	.kb-event-hero-thumb.selected {
+		border-color: white;
+	}
+	.kb-event-hero-thumb img {
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
 	}
 	.kb-event-hero-tags {
 		display: flex;
@@ -557,132 +661,105 @@
 		-webkit-backdrop-filter: blur(4px);
 	}
 	.kb-event-hero-title {
-		font-family: var(--font-serif);
-		font-size: clamp(1.375rem, 4vw, 2.25rem);
+		font-family: var(--font-display, var(--font-serif));
+		font-size: clamp(1.75rem, 5vw, 3.25rem);
 		font-weight: 700;
-		line-height: 1.15;
-		margin: 0 0 0.375rem 0;
+		line-height: 1.05;
+		letter-spacing: -0.01em;
+		margin: 0 0 0.5rem 0;
 		color: white;
-		text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+		text-shadow: 0 2px 20px rgba(0, 0, 0, 0.45);
 	}
 	.kb-event-hero-host {
-		font-size: 0.9rem;
-		opacity: 0.85;
+		font-family: var(--font-serif);
+		font-size: 1rem;
+		font-style: italic;
+		opacity: 0.9;
 		margin: 0;
 	}
 
-	/* ── Sticky CTA bar ──────────────────────────────────── */
-	.kb-event-cta-bar {
+	/* ── Unified sticky utility bar ──────────────────────── */
+	.kb-event-rail-sticky {
 		position: sticky;
 		top: 60px;
 		z-index: 40;
-		background: var(--background);
-		border-bottom: 1px solid var(--border);
-		box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
 	}
-	.kb-event-cta-bar-inner {
-		max-width: 1200px;
-		margin: 0 auto;
-		padding: 0.625rem 1.5rem;
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		gap: 0.75rem;
-		flex-wrap: wrap;
+	.kb-event-rail-sticky :global(.coil-rail) {
+		padding-left: 1.5rem;
+		padding-right: 1.5rem;
 	}
-	.kb-event-cta-bar-info {
-		display: flex;
-		align-items: center;
-		gap: 0.875rem;
-		flex-wrap: wrap;
-		min-width: 0;
-	}
-	.kb-event-cta-date {
-		font-weight: 600;
-		font-size: 0.9rem;
-		white-space: nowrap;
-	}
-	.kb-event-cta-venue {
-		display: flex;
-		align-items: center;
-		gap: 0.25rem;
-		font-size: 0.875rem;
-		color: var(--muted-foreground);
+	:global(.kb-event-crumb-current) {
+		display: inline-block;
+		max-width: 32ch;
 		white-space: nowrap;
 		overflow: hidden;
 		text-overflow: ellipsis;
-		max-width: 240px;
+		vertical-align: bottom;
 	}
-	.kb-event-cta-btns {
-		display: flex;
-		flex-wrap: wrap;
-		gap: 0.5rem;
-		align-items: center;
+	.kb-event-meta-date {
+		font-weight: 600;
+		color: var(--foreground);
+		white-space: nowrap;
 	}
-	.kb-event-cta-btn {
+	.kb-event-meta-dot {
+		opacity: 0.4;
+	}
+	.kb-event-meta-venue {
 		display: inline-flex;
 		align-items: center;
-		padding: 0.5rem 1.25rem;
+		gap: 0.3rem;
+		min-width: 0;
+		max-width: 22ch;
+	}
+	.kb-event-meta-venue span:last-child {
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+	.kb-event-primary-btn {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.4rem;
+		padding: 0.55rem 1.1rem;
+		border-radius: 999px;
 		background: var(--kb-accent, var(--teal));
 		color: white;
 		font-weight: 600;
 		font-size: 0.875rem;
-		border-radius: 6px;
+		letter-spacing: 0.01em;
 		text-decoration: none;
 		white-space: nowrap;
-		transition: opacity 0.15s;
+		transition:
+			opacity 0.15s ease,
+			transform 0.15s ease,
+			box-shadow 0.15s ease;
+		box-shadow: 0 2px 8px color-mix(in srgb, var(--kb-accent, var(--teal)) 35%, transparent);
 	}
-	.kb-event-cta-btn:hover {
-		opacity: 0.9;
+	.kb-event-primary-btn:hover {
+		opacity: 0.95;
 		text-decoration: none;
-	}
-	.kb-event-cta-btn-secondary {
-		background: transparent;
-		border: 1.5px solid var(--kb-accent, var(--teal));
-		color: var(--kb-accent, var(--teal));
-	}
-	.kb-event-cta-btn-secondary:hover {
-		background: var(--kb-accent, var(--teal));
-		color: white;
+		transform: translateY(-1px);
+		box-shadow: 0 4px 12px color-mix(in srgb, var(--kb-accent, var(--teal)) 45%, transparent);
 	}
 
-	/* ── Gallery thumbnails ──────────────────────────────── */
-	.kb-event-gallery-thumbs {
-		display: flex;
-		flex-wrap: wrap;
-		gap: 0.5rem;
-		padding-top: 0.75rem;
-		padding-bottom: 0;
-	}
-	.kb-event-gallery-thumb {
-		width: 64px;
-		height: 64px;
-		padding: 0;
-		border: 2px solid transparent;
-		border-radius: 4px;
+	/* Sidebar location card wraps the embedded map */
+	.kb-event-info-map {
+		margin-top: 0.75rem;
+		border-radius: 10px;
 		overflow: hidden;
-		background: var(--muted);
-		cursor: pointer;
-	}
-	.kb-event-gallery-thumb.selected {
-		border-color: var(--kb-accent, var(--teal));
-	}
-	.kb-event-gallery-thumb img {
-		width: 100%;
-		height: 100%;
-		object-fit: cover;
 	}
 
 	/* ── Main content grid ───────────────────────────────── */
 	.kb-event-detail-grid {
 		display: grid;
-		gap: 1.5rem;
-		margin-top: 1.25rem;
-		margin-bottom: 2rem;
+		gap: 2rem;
+		margin-top: 1.5rem;
+		margin-bottom: 3rem;
 	}
 	@media (min-width: 1024px) {
 		.kb-event-detail-grid {
-			grid-template-columns: 1fr minmax(280px, 340px);
+			grid-template-columns: minmax(0, 1fr) 360px;
+			gap: 2.5rem;
 			align-items: start;
 		}
 	}

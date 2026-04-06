@@ -3,7 +3,8 @@ import {
 	getEventsForAdmin,
 	bulkApproveEvents,
 	bulkRejectEvents,
-	bulkDeleteEvents
+	bulkDeleteEvents,
+	getEventStatusCounts
 } from '$lib/server/events';
 
 export const load: PageServerLoad = async ({ url }) => {
@@ -13,17 +14,21 @@ export const load: PageServerLoad = async ({ url }) => {
 	const sort = (url.searchParams.get('sort') ?? 'updated') as 'updated' | 'start' | 'title';
 	const order = (url.searchParams.get('order') ?? 'desc') as 'asc' | 'desc';
 
-	const { events, total } = await getEventsForAdmin({
-		status,
-		search,
-		page,
-		limit: 25,
-		sort,
-		order
-	});
+	const [{ events, total }, statusCounts] = await Promise.all([
+		getEventsForAdmin({
+			status,
+			search,
+			page,
+			limit: 25,
+			sort,
+			order
+		}),
+		getEventStatusCounts()
+	]);
 	return {
 		events,
 		total,
+		statusCounts,
 		currentStatus: status,
 		currentSearch: search,
 		currentPage: page,

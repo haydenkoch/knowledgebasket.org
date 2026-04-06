@@ -1,6 +1,8 @@
 <script lang="ts">
 	import type { EventItem } from '$lib/data/kb';
 	import { stripHtml } from '$lib/utils/format';
+	import Calendar from '@lucide/svelte/icons/calendar';
+	import MapPin from '@lucide/svelte/icons/map-pin';
 
 	let { event, index = 0 }: { event: EventItem; index?: number } = $props();
 
@@ -29,7 +31,9 @@
 			<img src={event.imageUrl} alt={event.title} loading="lazy" />
 		</div>
 	{:else}
-		<div class="kb-elist-img kb-elist-img--placeholder" aria-hidden="true">🗓</div>
+		<div class="kb-elist-img kb-elist-img--placeholder" aria-hidden="true">
+			<Calendar class="h-8 w-8 text-white opacity-50" />
+		</div>
 	{/if}
 
 	<div class="kb-elist-body">
@@ -46,7 +50,10 @@
 		</div>
 		<h3 class="kb-elist-title">{event.title}</h3>
 		{#if event.location}
-			<p class="kb-elist-location" title={event.location}>📍 {event.location}</p>
+			<p class="kb-elist-location" title={event.location}>
+				<MapPin class="inline h-3.5 w-3.5 flex-none" />
+				{event.location}
+			</p>
 		{/if}
 		{#if plainDesc}
 			<p class="kb-elist-desc">{plainDesc}</p>
@@ -94,7 +101,7 @@
 		object-fit: cover;
 	}
 	.kb-elist-img--placeholder {
-		font-size: 32px;
+		color: white;
 	}
 	.kb-elist-body {
 		flex: 1;

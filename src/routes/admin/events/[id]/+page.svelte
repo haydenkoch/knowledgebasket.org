@@ -7,7 +7,7 @@
 	import { Separator } from '$lib/components/ui/separator/index.js';
 	import EventForm from '$lib/components/organisms/admin/EventForm.svelte';
 	import StatusBadge from '$lib/components/organisms/admin/StatusBadge.svelte';
-	import { ExternalLink } from '@lucide/svelte';
+	import { ExternalLink, Eye } from '@lucide/svelte';
 
 	let { data } = $props();
 </script>
@@ -41,6 +41,16 @@
 		<div class="flex min-w-0 items-center gap-3">
 			<h1 class="truncate text-2xl font-bold">{data.event.title}</h1>
 			<StatusBadge status={data.event.status ?? 'unknown'} />
+			<Button
+				href={`/admin/preview/events/${data.event.id}`}
+				variant="outline"
+				size="sm"
+				target="_blank"
+				rel="noreferrer"
+			>
+				<Eye class="mr-1.5 h-3.5 w-3.5" />
+				Preview draft
+			</Button>
 			{#if data.event.slug && data.event.status === 'published'}
 				<Button
 					href="/events/{data.event.slug}"
@@ -201,5 +211,6 @@
 		regionOptions={data.regionOptions ?? []}
 		audienceOptions={data.audienceOptions ?? []}
 		costOptions={data.costOptions ?? []}
+		previewHref={`/admin/preview/events/${data.event.id}`}
 	/>
 </div>

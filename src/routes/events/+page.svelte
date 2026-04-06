@@ -810,7 +810,8 @@
 	<CoilTheme coil="events">
 		<!-- Inline layout so left sidebar is a direct child (no snippet) – fixes interaction in filter bar -->
 		<div
-			class="coil-layout flex min-h-[calc(100vh-220px)] w-full flex-col flex-nowrap md:flex-row"
+			class="coil-layout flex w-full flex-col flex-nowrap md:flex-row"
+			style="min-height: calc(100dvh - 144px - var(--kb-submit-banner-offset, 76px))"
 			role="presentation"
 		>
 			<div

@@ -23,6 +23,7 @@
 	import CheckIcon from '@lucide/svelte/icons/check';
 	import XIcon from '@lucide/svelte/icons/x';
 	import CalendarIcon from '@lucide/svelte/icons/calendar';
+	import ArrowLeft from '@lucide/svelte/icons/arrow-left';
 
 	/** Photon API feature (GeoJSON) */
 	type GeoFeature = {
@@ -250,7 +251,7 @@
 					heading: 'Event submitted',
 					message: form.message ?? '',
 					backHref: '/events',
-					backLabel: '← Back to Events'
+					backLabel: 'Back to Events'
 				}
 			: null
 	);
@@ -272,9 +273,13 @@
 	pageDescription="List an Indigenous-led or Indigenous-serving event in the Knowledge Basket. All submissions are reviewed by IFS staff before publishing. Listings are free."
 	noticeLabel="Moderation Note"
 	noticeText="All submissions are reviewed within 3–5 business days. You'll receive an email when your event is approved or if IFS staff need more information."
-	footerText="Submissions are reviewed within 3–5 business days. Listings are free. By submitting you agree to IFS moderation and publishing terms."
 	success={successData}
 >
+	{#snippet footerContent()}
+		Submissions are reviewed within 3–5 business days. Listings are free. By submitting you agree to
+		the <a href="/terms" class="underline underline-offset-2">Terms of Service</a> and
+		<a href="/privacy" class="underline underline-offset-2">Privacy Policy</a>.
+	{/snippet}
 	<form
 		method="POST"
 		action="?/default"
@@ -742,6 +747,9 @@
 				Event Image <span class="text-sm font-normal text-muted-foreground">(Optional)</span>
 			</h3>
 			<KbFileDropzone name="image" label="Drop a flyer or image here or click to upload" />
+			<p class="text-xs text-muted-foreground">
+				Uploaded files may be stored and reviewed by staff as part of moderation and publishing.
+			</p>
 		</div>
 
 		<!-- Contact Information -->
@@ -780,7 +788,8 @@
 				</Field.Field>
 			</div>
 			<p class="text-xs text-muted-foreground">
-				Used only to confirm your submission; not published.
+				Used for moderation and follow-up about this submission. Contact details are not published
+				unless they become part of the approved listing.
 			</p>
 		</div>
 

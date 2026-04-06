@@ -1,16 +1,28 @@
 <script lang="ts">
 	import type { JobItem } from '$lib/data/kb';
 	import { getPlaceholderImage } from '$lib/data/placeholders';
+	import { formatDisplayValue } from '$lib/utils/display.js';
 	import { stripHtml } from '$lib/utils/format';
 	import MapPinIcon from '@lucide/svelte/icons/map-pin';
+	import ArrowLeft from '@lucide/svelte/icons/arrow-left';
+	import ArrowRight from '@lucide/svelte/icons/arrow-right';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import * as Breadcrumb from '$lib/components/ui/breadcrumb/index.js';
+	import CoilDetailActionRail from '$lib/components/organisms/CoilDetailActionRail.svelte';
+	import LocationMap from '$lib/components/molecules/LocationMap.svelte';
+	import ExternalLinkIcon from '@lucide/svelte/icons/external-link';
 	import SourceProvenanceCard from '$lib/components/public/source-provenance-card.svelte';
 
 	let { data } = $props();
 	let item = $derived(data.item as JobItem | null);
 	const origin = $derived(data.origin ?? '');
+	const isBookmarked = $derived(Boolean(data.isBookmarked));
 	const heroImage = $derived(item ? (item.imageUrl ?? getPlaceholderImage(0)) : '');
+	const loginHref = $derived(
+		item?.slug
+			? `/auth/login?redirect=${encodeURIComponent(`/jobs/${item.slug}`)}`
+			: '/auth/login?redirect=%2Fjobs'
+	);
 
 	const canonicalUrl = $derived(item?.slug ? `${origin}/jobs/${item.slug}` : `${origin}/jobs`);
 	const metaDescription = $derived(
@@ -32,15 +44,25 @@
 		return null;
 	});
 
-	const workArrangementLabel = $derived(() => {
-		if (!item?.workArrangement) return null;
-		const map: Record<string, string> = {
-			on_site: 'On-site',
-			remote: 'Remote',
-			hybrid: 'Hybrid'
-		};
-		return map[item.workArrangement] ?? item.workArrangement;
-	});
+	const workArrangementLabel = $derived(
+		item?.workArrangement
+			? formatDisplayValue(item.workArrangement, { key: 'workArrangement' })
+			: null
+	);
+	const jobTypeLabel = $derived(
+		item?.jobType ? formatDisplayValue(item.jobType, { key: 'jobType' }) : null
+	);
+	const seniorityLabel = $derived(
+		item?.seniority ? formatDisplayValue(item.seniority, { key: 'seniority' }) : null
+	);
+	const sectorLabel = $derived(
+		item?.sector ? formatDisplayValue(item.sector, { key: 'sector' }) : null
+	);
+	const applicationDeadlineLabel = $derived(
+		item?.applicationDeadline
+			? formatDisplayValue(item.applicationDeadline, { key: 'applicationDeadline' })
+			: null
+	);
 
 	const jsonLd = $derived.by(() => {
 		if (!item) return null;
@@ -98,52 +120,84 @@
 {#if !item}
 	<div class="mx-auto max-w-3xl px-4 py-12 sm:px-6">
 		<p class="text-[var(--muted-foreground)]">This listing is no longer available.</p>
-		<Button variant="outline" href="/jobs" class="mt-4">← Back to Job Board</Button>
+		<Button variant="outline" href="/jobs" class="mt-4"
+			><ArrowLeft class="inline h-4 w-4" /> Back to Job Board</Button
+		>
 	</div>
 {:else}
-	<div class="mx-auto max-w-3xl px-4 py-6 sm:px-6">
-		<Breadcrumb.Root class="mb-5">
-			<Breadcrumb.List>
-				<Breadcrumb.Item>
-					<Breadcrumb.Link href="/jobs">Job Board</Breadcrumb.Link>
-				</Breadcrumb.Item>
-				<Breadcrumb.Separator />
-				<Breadcrumb.Item>
-					<Breadcrumb.Page>{item.title}</Breadcrumb.Page>
-				</Breadcrumb.Item>
-			</Breadcrumb.List>
-		</Breadcrumb.Root>
-
+	<div class="kb-job-wrap">
 		<!-- Hero header -->
 		<div class="kb-job-hero">
 			<img src={heroImage} alt="" class="kb-job-hero-img" />
 			<div class="kb-job-hero-overlay"></div>
 			<div class="kb-job-hero-content">
-				<div class="kb-job-hero-badges">
-					{#if item.indigenousPriority}
-						<span class="kb-job-badge kb-job-badge--priority">Indigenous Priority</span>
+				<div class="kb-job-hero-copy">
+					<div class="kb-job-hero-badges">
+						{#if item.indigenousPriority}
+							<span class="kb-job-badge kb-job-badge--priority">Indigenous Priority</span>
+						{/if}
+						{#if jobTypeLabel}
+							<span class="kb-job-badge">{jobTypeLabel}</span>
+						{/if}
+						{#if workArrangementLabel}
+							<span class="kb-job-badge">{workArrangementLabel}</span>
+						{/if}
+					</div>
+					<h1 class="kb-job-hero-title">{item.title}</h1>
+					{#if item.employerName}
+						<p class="kb-job-hero-employer">{item.employerName}</p>
 					{/if}
-					{#if item.jobType}
-						<span class="kb-job-badge">{item.jobType}</span>
-					{/if}
-					{#if workArrangementLabel()}
-						<span class="kb-job-badge">{workArrangementLabel()}</span>
+					{#if item.location}
+						<p class="kb-job-hero-location">
+							<MapPinIcon class="size-[14px] shrink-0" />
+							{item.location}
+						</p>
 					{/if}
 				</div>
-				<h1 class="kb-job-hero-title">{item.title}</h1>
-				{#if item.employerName}
-					<p class="kb-job-hero-employer">{item.employerName}</p>
-				{/if}
-				{#if item.location}
-					<p class="kb-job-hero-location">
-						<MapPinIcon class="size-[14px] shrink-0" />
-						{item.location}
-					</p>
+				{#if compensationLabel()}
+					<div class="kb-job-hero-comp">
+						<span class="kb-job-hero-comp-label">Compensation</span>
+						<span class="kb-job-hero-comp-value">{compensationLabel()}</span>
+					</div>
 				{/if}
 			</div>
 		</div>
 
-		<div class="mt-8 grid gap-8 lg:grid-cols-[1fr_280px]">
+		<CoilDetailActionRail
+			isAuthed={!!data.user}
+			{isBookmarked}
+			{loginHref}
+			saveLabel="job"
+			accent="var(--forest)"
+		>
+			{#snippet breadcrumb()}
+				<Breadcrumb.Root>
+					<Breadcrumb.List>
+						<Breadcrumb.Item>
+							<Breadcrumb.Link href="/jobs">Job Board</Breadcrumb.Link>
+						</Breadcrumb.Item>
+						<Breadcrumb.Separator />
+						<Breadcrumb.Item>
+							<Breadcrumb.Page>{item.title}</Breadcrumb.Page>
+						</Breadcrumb.Item>
+					</Breadcrumb.List>
+				</Breadcrumb.Root>
+			{/snippet}
+			{#snippet meta()}
+				{#if applicationDeadlineLabel}
+					<span class="kb-job-meta-deadline">Apply by · {applicationDeadlineLabel}</span>
+				{/if}
+			{/snippet}
+			{#snippet primary()}
+				{#if item.applyUrl}
+					<a href={item.applyUrl} target="_blank" rel="noopener" class="kb-job-primary-btn">
+						Apply now <ExternalLinkIcon class="size-[14px]" />
+					</a>
+				{/if}
+			{/snippet}
+		</CoilDetailActionRail>
+
+		<div class="kb-job-grid">
 			<!-- Main content -->
 			<div class="min-w-0">
 				{#if item.description}
@@ -193,10 +247,16 @@
 
 			<!-- Sidebar -->
 			<aside class="flex flex-col gap-4">
-				{#if item.applyUrl}
-					<Button href={item.applyUrl} target="_blank" rel="noopener" class="w-full">
-						Apply Now →
-					</Button>
+				{#if item.lat != null && item.lng != null}
+					<LocationMap
+						lat={item.lat}
+						lng={item.lng}
+						label={item.employerName ?? 'Job location'}
+						address={item.location ?? undefined}
+						token={data.mapboxToken}
+						accent="var(--forest)"
+						height={240}
+					/>
 				{/if}
 
 				<div class="rounded-xl border border-[var(--border)] bg-[var(--card)] p-5">
@@ -236,54 +296,54 @@
 								<dd class="mt-0.5 text-[var(--foreground)]">{item.location}</dd>
 							</div>
 						{/if}
-						{#if item.jobType}
+						{#if jobTypeLabel}
 							<div>
 								<dt
 									class="text-[11px] font-semibold tracking-[0.06em] text-[var(--muted-foreground)] uppercase"
 								>
 									Job type
 								</dt>
-								<dd class="mt-0.5 text-[var(--foreground)]">{item.jobType}</dd>
+								<dd class="mt-0.5 text-[var(--foreground)]">{jobTypeLabel}</dd>
 							</div>
 						{/if}
-						{#if workArrangementLabel()}
+						{#if workArrangementLabel}
 							<div>
 								<dt
 									class="text-[11px] font-semibold tracking-[0.06em] text-[var(--muted-foreground)] uppercase"
 								>
 									Work arrangement
 								</dt>
-								<dd class="mt-0.5 text-[var(--foreground)]">{workArrangementLabel()}</dd>
+								<dd class="mt-0.5 text-[var(--foreground)]">{workArrangementLabel}</dd>
 							</div>
 						{/if}
-						{#if item.seniority}
+						{#if seniorityLabel}
 							<div>
 								<dt
 									class="text-[11px] font-semibold tracking-[0.06em] text-[var(--muted-foreground)] uppercase"
 								>
 									Level
 								</dt>
-								<dd class="mt-0.5 text-[var(--foreground)]">{item.seniority}</dd>
+								<dd class="mt-0.5 text-[var(--foreground)]">{seniorityLabel}</dd>
 							</div>
 						{/if}
-						{#if item.sector}
+						{#if sectorLabel}
 							<div>
 								<dt
 									class="text-[11px] font-semibold tracking-[0.06em] text-[var(--muted-foreground)] uppercase"
 								>
 									Sector
 								</dt>
-								<dd class="mt-0.5 text-[var(--foreground)]">{item.sector}</dd>
+								<dd class="mt-0.5 text-[var(--foreground)]">{sectorLabel}</dd>
 							</div>
 						{/if}
-						{#if item.applicationDeadline}
+						{#if applicationDeadlineLabel}
 							<div>
 								<dt
 									class="text-[11px] font-semibold tracking-[0.06em] text-[var(--muted-foreground)] uppercase"
 								>
 									Apply by
 								</dt>
-								<dd class="mt-0.5 text-[var(--foreground)]">{item.applicationDeadline}</dd>
+								<dd class="mt-0.5 text-[var(--foreground)]">{applicationDeadlineLabel}</dd>
 							</div>
 						{/if}
 						{#if item.tribalPreference}
@@ -300,23 +360,35 @@
 				</div>
 				<SourceProvenanceCard provenance={item.provenance} />
 
-				<Button variant="outline" href="/jobs" class="w-full">← Back to Job Board</Button>
+				<Button variant="outline" href="/jobs" class="w-full"
+					><ArrowLeft class="inline h-4 w-4" /> Back to Job Board</Button
+				>
 			</aside>
 		</div>
 	</div>
 {/if}
 
 <style>
+	.kb-job-wrap {
+		max-width: 1200px;
+		margin: 0 auto;
+		padding: 1.5rem 1.5rem 3rem;
+	}
 	.kb-job-hero {
 		position: relative;
 		overflow: hidden;
-		border-radius: 12px;
-		height: 220px;
+		border-radius: 18px 18px 0 0;
+		height: 300px;
 		background: linear-gradient(135deg, var(--forest), var(--color-pinyon-950, #13201a));
 	}
 	@media (min-width: 640px) {
 		.kb-job-hero {
-			height: 260px;
+			height: 380px;
+		}
+	}
+	@media (min-width: 1024px) {
+		.kb-job-hero {
+			height: 440px;
 		}
 	}
 	.kb-job-hero-img {
@@ -325,20 +397,71 @@
 		width: 100%;
 		height: 100%;
 		object-fit: cover;
-		opacity: 0.35;
 	}
 	.kb-job-hero-overlay {
 		position: absolute;
 		inset: 0;
-		background: linear-gradient(to top, rgba(0, 0, 0, 0.6) 0%, rgba(0, 0, 0, 0.15) 100%);
+		background: linear-gradient(
+			to top,
+			rgba(0, 0, 0, 0.88) 0%,
+			rgba(0, 0, 0, 0.4) 55%,
+			rgba(0, 0, 0, 0.05) 100%
+		);
 	}
 	.kb-job-hero-content {
 		position: absolute;
 		bottom: 0;
 		left: 0;
 		right: 0;
-		padding: 1.25rem 1.5rem;
+		padding: 1.5rem 1.75rem 1.75rem;
 		color: white;
+		display: flex;
+		align-items: flex-end;
+		justify-content: space-between;
+		gap: 1.5rem;
+	}
+	@media (min-width: 1024px) {
+		.kb-job-hero-content {
+			padding: 2rem 2.5rem;
+		}
+	}
+	.kb-job-hero-copy {
+		min-width: 0;
+		flex: 1 1 auto;
+	}
+	.kb-job-hero-comp {
+		display: none;
+		flex-direction: column;
+		align-items: flex-end;
+		gap: 0.2rem;
+		flex-shrink: 0;
+		padding: 1rem 1.25rem;
+		border-radius: 12px;
+		background: rgba(255, 255, 255, 0.08);
+		backdrop-filter: blur(8px);
+		-webkit-backdrop-filter: blur(8px);
+		border: 1px solid rgba(255, 255, 255, 0.18);
+	}
+	@media (min-width: 768px) {
+		.kb-job-hero-comp {
+			display: flex;
+		}
+	}
+	.kb-job-hero-comp-label {
+		font-family: var(--font-sans);
+		font-size: 0.625rem;
+		font-weight: 700;
+		letter-spacing: 0.12em;
+		text-transform: uppercase;
+		opacity: 0.75;
+	}
+	.kb-job-hero-comp-value {
+		font-family: var(--font-display, var(--font-serif));
+		font-size: 1.5rem;
+		font-weight: 700;
+		line-height: 1.1;
+		color: white;
+		white-space: nowrap;
 	}
 	.kb-job-hero-badges {
 		display: flex;
@@ -361,25 +484,71 @@
 		color: rgba(0, 0, 0, 0.85);
 	}
 	.kb-job-hero-title {
-		font-family: var(--font-serif);
-		font-size: clamp(1.25rem, 3.5vw, 1.75rem);
+		font-family: var(--font-display, var(--font-serif));
+		font-size: clamp(1.625rem, 4.25vw, 2.75rem);
 		font-weight: 700;
-		line-height: 1.2;
-		margin: 0 0 0.375rem 0;
+		line-height: 1.05;
+		letter-spacing: -0.01em;
+		margin: 0 0 0.5rem 0;
 		color: white;
+		text-shadow: 0 2px 20px rgba(0, 0, 0, 0.45);
 	}
 	.kb-job-hero-employer {
-		font-size: 0.9rem;
-		opacity: 0.9;
-		margin: 0 0 0.25rem 0;
+		font-family: var(--font-serif);
+		font-size: 1rem;
+		font-style: italic;
+		opacity: 0.92;
+		margin: 0 0 0.35rem 0;
 	}
 	.kb-job-hero-location {
 		display: flex;
 		align-items: center;
-		gap: 0.25rem;
+		gap: 0.35rem;
 		font-size: 0.875rem;
-		opacity: 0.8;
+		opacity: 0.85;
 		margin: 0;
+	}
+	.kb-job-meta-deadline {
+		font-weight: 600;
+		color: var(--forest);
+		white-space: nowrap;
+	}
+	.kb-job-primary-btn {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.4rem;
+		padding: 0.55rem 1.1rem;
+		border-radius: 999px;
+		background: var(--forest);
+		color: white;
+		font-weight: 600;
+		font-size: 0.875rem;
+		letter-spacing: 0.01em;
+		text-decoration: none;
+		white-space: nowrap;
+		transition:
+			opacity 0.15s ease,
+			transform 0.15s ease,
+			box-shadow 0.15s ease;
+		box-shadow: 0 2px 8px color-mix(in srgb, var(--forest) 40%, transparent);
+	}
+	.kb-job-primary-btn:hover {
+		opacity: 0.95;
+		text-decoration: none;
+		transform: translateY(-1px);
+		box-shadow: 0 4px 12px color-mix(in srgb, var(--forest) 50%, transparent);
+	}
+	.kb-job-grid {
+		display: grid;
+		gap: 2rem;
+		margin-top: 2rem;
+	}
+	@media (min-width: 1024px) {
+		.kb-job-grid {
+			grid-template-columns: minmax(0, 1fr) 340px;
+			gap: 2.5rem;
+			align-items: start;
+		}
 	}
 	.kb-job-section {
 		margin-bottom: 1.75rem;

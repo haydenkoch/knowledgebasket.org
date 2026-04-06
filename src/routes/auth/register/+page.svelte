@@ -7,9 +7,9 @@
 	import { Label } from '$lib/components/ui/label/index.js';
 	import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
 	import Loader2 from '@lucide/svelte/icons/loader-2';
-	import type { ActionData } from './$types';
+	import type { ActionData, PageData } from './$types';
 
-	let { form }: { form: ActionData } = $props();
+	let { data, form }: { data: PageData; form: ActionData } = $props();
 	let submitting = $state(false);
 
 	// Helper to access typed field errors from the union ActionData
@@ -38,6 +38,44 @@
 				<Alert.Description>{form.message}</Alert.Description>
 			</Alert.Root>
 		{/if}
+
+		{#if data.googleError}
+			<Alert.Root variant="destructive" class="mb-5">
+				<TriangleAlert />
+				<Alert.Title>Google sign-in failed</Alert.Title>
+				<Alert.Description>{data.googleError}</Alert.Description>
+			</Alert.Root>
+		{/if}
+
+		<form method="post" action="?/signUpWithGoogle" class="auth-google-form">
+			<Button type="submit" variant="outline" class="auth-google-button">
+				<span class="auth-google-mark" aria-hidden="true">
+					<svg viewBox="0 0 24 24" focusable="false">
+						<path
+							fill="#4285F4"
+							d="M21.64 12.2045c0-.6382-.0573-1.2518-.1636-1.8409H12v3.4818h5.4109c-.2327 1.2527-.9391 2.3136-2.0027 3.0227v2.5091h3.24c1.8963-1.7455 2.9918-4.3182 2.9918-7.1727Z"
+						/>
+						<path
+							fill="#34A853"
+							d="M12 22c2.7 0 4.9636-.8955 6.6182-2.4227l-3.24-2.5091c-.8955.6-2.0409.9545-3.3782.9545-2.5954 0-4.7909-1.7545-5.5727-4.1136H3.0782v2.5909C4.7236 19.7691 8.0727 22 12 22Z"
+						/>
+						<path
+							fill="#FBBC05"
+							d="M6.4273 13.9091A5.9966 5.9966 0 0 1 6.1182 12c0-.6636.1136-1.3091.3091-1.9091V7.5H3.0782A9.996 9.996 0 0 0 2 12c0 1.6091.3864 3.1318 1.0782 4.5l3.3491-2.5909Z"
+						/>
+						<path
+							fill="#EA4335"
+							d="M12 5.9773c1.4682 0 2.7864.5045 3.8227 1.4954l2.8682-2.8682C16.9591 2.9954 14.6955 2 12 2 8.0727 2 4.7236 4.2309 3.0782 7.5l3.3491 2.5909C7.2091 7.7318 9.4045 5.9773 12 5.9773Z"
+						/>
+					</svg>
+				</span>
+				Continue with Google
+			</Button>
+		</form>
+
+		<div class="auth-divider" role="presentation">
+			<span>Or create an account with email</span>
+		</div>
 
 		<form
 			method="post"
@@ -175,6 +213,62 @@
 		display: flex;
 		flex-direction: column;
 		gap: 14px;
+	}
+
+	.auth-google-form {
+		margin-bottom: 18px;
+	}
+
+	:global(.auth-google-button) {
+		width: 100% !important;
+		display: inline-flex !important;
+		align-items: center !important;
+		justify-content: center !important;
+		gap: 10px !important;
+		font-family: var(--font-sans) !important;
+		font-size: 12px !important;
+		font-weight: 600 !important;
+		letter-spacing: 0.03em !important;
+		text-transform: uppercase !important;
+	}
+
+	.auth-google-mark {
+		display: inline-flex;
+		width: 16px;
+		height: 16px;
+	}
+
+	.auth-google-mark svg {
+		display: block;
+		width: 100%;
+		height: 100%;
+	}
+
+	.auth-divider {
+		position: relative;
+		margin: 0 0 18px;
+		text-align: center;
+	}
+
+	.auth-divider::before {
+		content: '';
+		position: absolute;
+		inset-inline: 0;
+		top: 50%;
+		border-top: 1px solid var(--color-granite-200);
+	}
+
+	.auth-divider span {
+		position: relative;
+		display: inline-block;
+		padding: 0 10px;
+		background: var(--background);
+		font-family: var(--font-sans);
+		font-size: 10px;
+		font-weight: 700;
+		letter-spacing: 0.12em;
+		text-transform: uppercase;
+		color: var(--color-obsidian-500);
 	}
 
 	.auth-field {

@@ -12,6 +12,7 @@
 		redPagesAreaOptions,
 		placeholders
 	} from '$lib/data/formSchema';
+	import ArrowLeft from '@lucide/svelte/icons/arrow-left';
 
 	type FormResult = {
 		success?: boolean;
@@ -45,7 +46,7 @@
 					heading: 'Listing submitted',
 					message: form.message ?? '',
 					backHref: '/red-pages',
-					backLabel: '← Back to Red Pages'
+					backLabel: 'Back to Red Pages'
 				}
 			: null
 	);
@@ -63,9 +64,13 @@
 	pageDescription="Native-owned businesses, artists, and organizations: submit your listing for IFS staff review. Listings must be Native/Indigenous-owned or led."
 	noticeLabel="Eligibility"
 	noticeText="Listings must be Native/Indigenous-owned or led. Submissions are reviewed within 3–5 business days."
-	footerText="Listings are free. By submitting you confirm the business is Native/Indigenous-owned or led. IFS reserves the right to decline listings that do not meet eligibility."
 	success={successData}
 >
+	{#snippet footerContent()}
+		Listings are free. By submitting you confirm the business is Native/Indigenous-owned or led and
+		agree to the <a href="/terms" class="underline underline-offset-2">Terms of Service</a> and
+		<a href="/privacy" class="underline underline-offset-2">Privacy Policy</a>.
+	{/snippet}
 	<form
 		method="POST"
 		action="?/default"
@@ -250,6 +255,9 @@
 					>Used only by IFS to follow up; not published unless you request it.</Field.Description
 				>
 			</Field.Field>
+			<p class="text-xs text-muted-foreground">
+				Submission contact details are used for moderation and review communication.
+			</p>
 		</div>
 
 		<!-- Form Actions -->

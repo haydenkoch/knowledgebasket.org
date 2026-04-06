@@ -264,6 +264,17 @@ export async function getUpcomingEventsByOrganizationId(
 	return rows.map((r) => rowToEventItem(r));
 }
 
+export async function getEventsByOrganizationIdForWorkspace(
+	organizationId: string
+): Promise<EventItem[]> {
+	const rows = await db
+		.select()
+		.from(eventsTable)
+		.where(eq(eventsTable.organizationId, organizationId))
+		.orderBy(desc(eventsTable.updatedAt));
+	return rows.map((row) => rowToEventItem(row));
+}
+
 /**
  * Get the next N upcoming published events (non-unlisted).
  */

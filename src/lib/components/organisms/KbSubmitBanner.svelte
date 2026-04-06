@@ -1,6 +1,9 @@
 <script lang="ts">
+	import { browser } from '$app/environment';
+	import { onMount } from 'svelte';
 	import { X, Send } from '@lucide/svelte';
 	import type { CoilKey } from '$lib/data/kb';
+	import { CONSENT_UPDATED_EVENT, hasConsent } from '$lib/privacy/consent';
 
 	interface Props {
 		coil: CoilKey;
@@ -32,62 +35,90 @@
 	const bgColor = $derived(coilBg[coil] ?? 'var(--color-alpine-100)');
 
 	const storageKey = $derived(`kb-submit-dismissed-${coil}`);
+	const FULL_BANNER_OFFSET = '76px';
+	const TAB_OFFSET = '0px';
 
 	let dismissed = $state(false);
+	let ready = $state(false);
+
+	function syncDismissedState() {
+		if (!browser) return;
+		try {
+			dismissed = hasConsent('preferences') && localStorage.getItem(storageKey) === '1';
+		} catch {
+			dismissed = false;
+		}
+	}
+
+	function setPrivacyLauncherOffset(isDismissed: boolean) {
+		if (!browser) return;
+		const isMobile = window.matchMedia('(max-width: 767px)').matches;
+		const offset = isMobile ? '0px' : isDismissed ? TAB_OFFSET : FULL_BANNER_OFFSET;
+		document.documentElement.style.setProperty('--kb-submit-banner-offset', offset);
+	}
+
+	function syncPrivacyLauncherOffset() {
+		setPrivacyLauncherOffset(dismissed);
+	}
 
 	$effect(() => {
-		try {
-			dismissed = localStorage.getItem(storageKey) === '1';
-		} catch {
-			/* SSR or blocked storage */
-		}
+		setPrivacyLauncherOffset(dismissed);
 	});
 
 	function dismiss() {
 		dismissed = true;
 		try {
-			localStorage.setItem(storageKey, '1');
+			if (hasConsent('preferences')) {
+				localStorage.setItem(storageKey, '1');
+			}
 		} catch {
 			/* blocked storage */
 		}
 	}
 
-	function restore() {
-		dismissed = false;
-		try {
-			localStorage.removeItem(storageKey);
-		} catch {
-			/* blocked storage */
-		}
-	}
+	onMount(() => {
+		if (!browser) return;
+		syncDismissedState();
+		syncPrivacyLauncherOffset();
+		ready = true;
+		window.addEventListener('resize', syncPrivacyLauncherOffset);
+		window.addEventListener(CONSENT_UPDATED_EVENT, syncDismissedState);
+
+		return () => {
+			window.removeEventListener('resize', syncPrivacyLauncherOffset);
+			window.removeEventListener(CONSENT_UPDATED_EVENT, syncDismissedState);
+			document.documentElement.style.setProperty('--kb-submit-banner-offset', '0px');
+		};
+	});
 </script>
 
 <!-- Desktop: sticky collapsible footer (hidden on mobile via CSS to prevent hydration flash) -->
-{#if dismissed}
-	<button
-		class="kb-submit-tab"
-		style="--accent: {btnColor}"
-		onclick={restore}
-		aria-label="Show submit banner"
-	>
-		<Send class="h-3.5 w-3.5" />
-		<span>{label}</span>
-	</button>
-{:else}
-	<div class="kb-submit-bar" style="--accent: {btnColor}; --bg: {bgColor}">
-		<div class="kb-submit-bar__inner">
-			<div class="kb-submit-bar__accent" aria-hidden="true"></div>
-			<div class="kb-submit-bar__body">
-				<p class="kb-submit-bar__heading">{heading}</p>
-				<span class="kb-submit-bar__sep" aria-hidden="true">·</span>
-				<p class="kb-submit-bar__desc">{description}</p>
+{#if ready}
+	{#if dismissed}
+		<a
+			class="kb-submit-tab"
+			style="--accent: {btnColor}"
+			{href}
+		>
+			<Send class="h-3.5 w-3.5" />
+			<span>{label}</span>
+		</a>
+	{:else}
+		<div class="kb-submit-bar" style="--accent: {btnColor}; --bg: {bgColor}">
+			<div class="kb-submit-bar__inner">
+				<div class="kb-submit-bar__accent" aria-hidden="true"></div>
+				<div class="kb-submit-bar__body">
+					<p class="kb-submit-bar__heading">{heading}</p>
+					<span class="kb-submit-bar__sep" aria-hidden="true">·</span>
+					<p class="kb-submit-bar__desc">{description}</p>
+				</div>
+				<a {href} class="kb-submit-bar__cta" style="background: {btnColor}">{label}</a>
+				<button class="kb-submit-bar__close" onclick={dismiss} aria-label="Dismiss submit banner">
+					<X class="h-3.5 w-3.5" />
+				</button>
 			</div>
-			<a {href} class="kb-submit-bar__cta" style="background: {btnColor}">{label}</a>
-			<button class="kb-submit-bar__close" onclick={dismiss} aria-label="Dismiss submit banner">
-				<X class="h-3.5 w-3.5" />
-			</button>
 		</div>
-	</div>
+	{/if}
 {/if}
 
 <style>
@@ -182,21 +213,21 @@
 
 	/* ── Collapsed tab ── */
 	.kb-submit-tab {
-		position: sticky;
-		bottom: 0;
+		position: fixed;
+		right: 1rem;
+		bottom: 1rem;
 		z-index: 30;
 		display: flex;
 		align-items: center;
 		gap: 0.375rem;
-		margin-left: auto;
-		width: fit-content;
 		padding: 0.4rem 0.85rem 0.4rem 0.7rem;
 		border: 1px solid color-mix(in srgb, var(--rule, #e5e5e5) 80%, transparent);
-		border-bottom: none;
-		border-radius: var(--radius, 0.375rem) var(--radius, 0.375rem) 0 0;
+		border-radius: var(--radius, 0.375rem);
 		background: color-mix(in srgb, var(--background) 94%, white);
 		backdrop-filter: blur(12px);
+		box-shadow: 0 2px 8px rgba(15, 23, 42, 0.1);
 		color: var(--accent);
+		text-decoration: none;
 		font-size: 0.75rem;
 		font-weight: 600;
 		cursor: pointer;
@@ -205,6 +236,7 @@
 	}
 	.kb-submit-tab:hover {
 		background: color-mix(in srgb, var(--accent) 8%, var(--background));
+		text-decoration: none;
 	}
 
 	/* ── Hide on mobile (CSS-only, no hydration flash) ── */

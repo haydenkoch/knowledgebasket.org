@@ -8,12 +8,16 @@ import {
 	updateOrganization,
 	deleteOrganization
 } from '$lib/server/organizations';
+import {
+	listOrganizationClaimRequests,
+	reviewOrganizationClaimRequest
+} from '$lib/server/organization-access';
 import { uploadImage } from '$lib/server/upload';
 
 export const load: PageServerLoad = async ({ params }) => {
 	const org = await getOrganizationById(params.id);
 	if (!org) throw error(404, 'Organization not found');
-	const [impact, suggestedMatches] = await Promise.all([
+	const [impact, suggestedMatches, claimRequests] = await Promise.all([
 		getOrganizationImpact(params.id),
 		suggestOrganizationMatches({
 			name: org.name,
@@ -22,11 +26,13 @@ export const load: PageServerLoad = async ({ params }) => {
 			state: org.state,
 			address: org.address,
 			limit: 6
-		})
+		}),
+		listOrganizationClaimRequests(params.id)
 	]);
 	return {
 		organization: org,
 		impact,
+		claimRequests,
 		suggestedMatches: suggestedMatches.filter((entry) => entry.organization.id !== params.id)
 	};
 };
@@ -74,6 +80,26 @@ export const actions: Actions = {
 		if (mergeIds.length === 0)
 			return fail(400, { error: 'Choose at least one organization to merge' });
 		await mergeOrganizations(params.id, mergeIds);
+		return { success: true };
+	},
+	reviewClaim: async ({ locals, request }) => {
+		const fd = await request.formData();
+		const claimRequestId = String(fd.get('claimRequestId') ?? '').trim();
+		const status = String(fd.get('status') ?? '').trim();
+		const reviewNotes = String(fd.get('reviewNotes') ?? '').trim();
+		if (!claimRequestId) return fail(400, { error: 'Claim request is required.' });
+		if (status !== 'approved' && status !== 'denied') {
+			return fail(400, { error: 'Choose an approval decision.' });
+		}
+
+		await reviewOrganizationClaimRequest({
+			claimRequestId,
+			reviewerId: locals.user!.id,
+			status,
+			reviewNotes,
+			membershipRole: 'owner'
+		});
+
 		return { success: true };
 	},
 	deleteOrganization: async ({ params }) => {

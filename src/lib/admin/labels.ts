@@ -1,3 +1,9 @@
+import {
+	formatDisplayDate,
+	formatDisplayDateTime,
+	humanizeIdentifier
+} from '$lib/utils/display.js';
+
 /**
  * Operator-friendly label maps for all internal enum values used in the admin UI.
  * Use these instead of displaying raw database values.
@@ -111,7 +117,7 @@ export const curationReasonLabel: Record<string, string> = {
 /** Look up a label from a map, falling back to a humanized version of the key. */
 export function friendly(map: Record<string, string>, key: string | null | undefined): string {
 	if (!key) return '—';
-	return map[key] ?? key.replace(/_/g, ' ');
+	return map[key] ?? humanizeIdentifier(key);
 }
 
 /** Format a ratio (0–1) as a percentage string. */
@@ -122,10 +128,12 @@ export function pct(ratio: number | null | undefined, decimals = 0): string {
 
 /** Format a date as a friendly absolute date: "Apr 15, 2026" */
 export function formatDate(date: Date | string | null | undefined): string {
-	if (!date) return '—';
-	const d = typeof date === 'string' ? new Date(date) : date;
-	if (isNaN(d.getTime())) return '—';
-	return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+	return formatDisplayDate(date);
+}
+
+/** Format a date and time for admin metadata. */
+export function formatDateTime(date: Date | string | null | undefined): string {
+	return formatDisplayDateTime(date);
 }
 
 /** Format a date as a relative "time ago" string. */

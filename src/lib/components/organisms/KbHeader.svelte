@@ -1,13 +1,16 @@
 <script lang="ts">
+	import { browser } from '$app/environment';
 	import { page } from '$app/stores';
-	import { enhance } from '$app/forms';
 	import logoFallback from '$lib/assets/favicon.svg';
+	import * as DropdownMenu from '$lib/components/ui/dropdown-menu/index.js';
 	import * as NavigationMenu from '$lib/components/ui/navigation-menu/index.js';
-	import * as Popover from '$lib/components/ui/popover/index.js';
 	import * as Sidebar from '$lib/components/ui/sidebar/index.js';
 	import ChevronDown from '@lucide/svelte/icons/chevron-down';
 	import LogOut from '@lucide/svelte/icons/log-out';
+	import Settings from '@lucide/svelte/icons/settings';
+	import Shield from '@lucide/svelte/icons/shield';
 	import UserIcon from '@lucide/svelte/icons/user';
+	import LockKeyhole from '@lucide/svelte/icons/lock-keyhole';
 	import { useSidebar } from '$lib/components/ui/sidebar/index.js';
 
 	let {
@@ -15,7 +18,12 @@
 		user
 	}: {
 		logoUrl?: string | null;
-		user?: { name?: string | null; email: string; role?: string | null } | null;
+		user?: {
+			name?: string | null;
+			email: string;
+			role?: string | null;
+			image?: string | null;
+		} | null;
 	} = $props();
 
 	const navLinks = [
@@ -37,11 +45,14 @@
 
 	$effect(() => {
 		void pathname;
-		sidebar.setOpenMobile(false);
+		if (browser) sidebar.setOpenMobile(false);
 	});
 
 	const displayName = $derived(user?.name || user?.email?.split('@')[0] || 'Account');
+	const initial = $derived(displayName.charAt(0).toUpperCase());
 	const isStaff = $derived(user?.role === 'moderator' || user?.role === 'admin');
+
+	let logoutFormEl = $state<HTMLFormElement | null>(null);
 </script>
 
 <header class="kb-header">
@@ -88,31 +99,82 @@
 			{/each}
 
 			{#if user}
-				<Popover.Root>
-					<Popover.Trigger class="kb-header__user-btn" aria-label="Account menu">
-						<UserIcon class="kb-header__user-icon" />
-						<span class="kb-header__user-name">{displayName}</span>
-						<ChevronDown class="kb-header__user-chevron" />
-					</Popover.Trigger>
-					<Popover.Content class="kb-user-menu" align="end" sideOffset={8}>
-						<div class="kb-user-menu__header">
-							<span class="kb-user-menu__name">{displayName}</span>
-							{#if isStaff}
-								<span class="kb-user-menu__role">{user.role}</span>
+				<form
+					bind:this={logoutFormEl}
+					method="post"
+					action="/auth/logout"
+					class="kb-header__logout-form"
+				></form>
+				<DropdownMenu.Root>
+					<DropdownMenu.Trigger class="kb-header__account-trigger" aria-label="Account menu">
+						<span class="kb-header__account-avatar" aria-hidden="true">
+							{#if user.image}
+								<img src={user.image} alt="" class="kb-header__account-avatar-img" />
+							{:else}
+								{initial}
 							{/if}
-						</div>
-						<div class="kb-user-menu__divider" role="separator"></div>
-						{#if isStaff}
-							<a href="/admin" class="kb-user-menu__item">Admin panel</a>
-						{/if}
-						<form method="post" action="/auth/logout" use:enhance>
-							<button type="submit" class="kb-user-menu__item kb-user-menu__item--signout">
-								<LogOut class="kb-user-menu__item-icon" />
-								Sign out
-							</button>
-						</form>
-					</Popover.Content>
-				</Popover.Root>
+						</span>
+						<span class="kb-header__account-name" title={displayName}>{displayName}</span>
+						<ChevronDown class="kb-header__account-chevron" aria-hidden="true" />
+					</DropdownMenu.Trigger>
+					<DropdownMenu.Content align="end" sideOffset={8} class="w-56">
+						<DropdownMenu.Label class="font-normal">
+							<div class="flex flex-col gap-1">
+								<span class="text-sm font-semibold leading-none">{displayName}</span>
+								{#if user.email}
+									<span class="text-muted-foreground truncate text-xs leading-none">
+										{user.email}
+									</span>
+								{/if}
+							</div>
+						</DropdownMenu.Label>
+						<DropdownMenu.Separator />
+						<DropdownMenu.Group>
+							<DropdownMenu.Item>
+								{#snippet child({ props })}
+									<a href="/account" {...props}>
+										<UserIcon />
+										<span>Account</span>
+									</a>
+								{/snippet}
+							</DropdownMenu.Item>
+							<DropdownMenu.Item>
+								{#snippet child({ props })}
+									<a href="/account/settings" {...props}>
+										<Settings />
+										<span>Settings</span>
+									</a>
+								{/snippet}
+							</DropdownMenu.Item>
+							<DropdownMenu.Item>
+								{#snippet child({ props })}
+									<a href="/account/privacy" {...props}>
+										<LockKeyhole />
+										<span>Privacy</span>
+									</a>
+								{/snippet}
+							</DropdownMenu.Item>
+							{#if isStaff}
+								<DropdownMenu.Item>
+									{#snippet child({ props })}
+										<a href="/admin" {...props}>
+											<Shield />
+											<span>Admin</span>
+										</a>
+									{/snippet}
+								</DropdownMenu.Item>
+							{/if}
+						</DropdownMenu.Group>
+						<DropdownMenu.Separator />
+						<DropdownMenu.Item
+							variant="destructive"
+							onSelect={() => logoutFormEl?.requestSubmit()}
+						>
+							<LogOut />
+							<span>Sign out</span>
+						</DropdownMenu.Item>
+					</DropdownMenu.Content>
+				</DropdownMenu.Root>
 			{:else}
 				<a href="/auth/login" class="kb-header__secondary-link kb-header__signin"> Sign in </a>
 			{/if}
@@ -332,21 +394,20 @@
 		text-decoration: none;
 	}
 
-	:global(.kb-header__user-btn) {
-		display: flex !important;
+	.kb-header__logout-form {
+		display: none;
+	}
+
+	:global(.kb-header__account-trigger) {
+		display: inline-flex !important;
 		align-items: center !important;
-		gap: 6px !important;
-		font-family: var(--font-sans) !important;
-		font-size: 12px !important;
-		font-weight: 600 !important;
-		letter-spacing: 0.04em !important;
-		text-transform: uppercase !important;
-		color: rgba(255, 255, 255, 0.75) !important;
-		background: transparent !important;
-		border: 1px solid rgba(255, 255, 255, 0.2) !important;
-		border-radius: 5px !important;
-		padding: 6px 10px !important;
+		gap: 8px !important;
+		padding: 5px 10px 5px 5px !important;
 		min-height: 36px !important;
+		border: 1px solid rgba(255, 255, 255, 0.2) !important;
+		border-radius: 999px !important;
+		background: transparent !important;
+		color: rgba(255, 255, 255, 0.85) !important;
 		cursor: pointer !important;
 		transition:
 			color 0.15s ease,
@@ -354,126 +415,68 @@
 			background-color 0.15s ease !important;
 	}
 
-	:global(.kb-header__user-btn:hover) {
+	:global(.kb-header__account-trigger:hover) {
 		color: #ffffff !important;
 		border-color: rgba(255, 255, 255, 0.4) !important;
 		background-color: rgba(255, 255, 255, 0.06) !important;
 	}
 
-	:global(.kb-header__user-btn:focus-visible) {
+	:global(.kb-header__account-trigger:focus-visible) {
 		outline: 2px solid var(--color-flicker-400) !important;
 		outline-offset: 2px !important;
+		color: #ffffff !important;
 	}
 
-	:global(.kb-header__user-icon) {
-		width: 14px !important;
-		height: 14px !important;
-		flex-shrink: 0 !important;
+	:global(.kb-header__account-trigger[data-state='open']) {
+		color: #ffffff !important;
+		border-color: rgba(255, 255, 255, 0.4) !important;
+		background-color: rgba(255, 255, 255, 0.08) !important;
 	}
 
-	.kb-header__user-name {
-		max-width: 100px;
+	:global(.kb-header__account-avatar) {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 26px;
+		height: 26px;
+		border-radius: 50%;
+		background: var(--color-flicker-500, rgba(255, 255, 255, 0.15));
+		color: #ffffff;
+		font-family: var(--font-sans);
+		font-size: 12px;
+		font-weight: 700;
+		flex-shrink: 0;
+		overflow: hidden;
+	}
+
+	:global(.kb-header__account-avatar-img) {
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+		display: block;
+	}
+
+	:global(.kb-header__account-name) {
+		max-width: 120px;
 		overflow: hidden;
 		text-overflow: ellipsis;
 		white-space: nowrap;
-	}
-
-	:global(.kb-header__user-chevron) {
-		width: 12px !important;
-		height: 12px !important;
-		flex-shrink: 0 !important;
-		opacity: 0.6 !important;
-	}
-
-	:global(.kb-user-menu) {
-		min-width: 180px !important;
-		padding: 6px !important;
-		background: #fff !important;
-		border: 1px solid var(--color-granite-200) !important;
-		border-radius: 8px !important;
-		box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12) !important;
-	}
-
-	.kb-user-menu__header {
-		padding: 8px 10px 6px;
-		display: flex;
-		align-items: center;
-		gap: 6px;
-	}
-
-	.kb-user-menu__name {
 		font-family: var(--font-sans);
 		font-size: 12px;
 		font-weight: 700;
 		letter-spacing: 0.04em;
-		text-transform: uppercase;
-		color: var(--color-obsidian-800);
-		overflow: hidden;
-		text-overflow: ellipsis;
-		white-space: nowrap;
-		flex: 1;
 	}
 
-	.kb-user-menu__role {
-		font-family: var(--font-sans);
-		font-size: 10px;
-		font-weight: 600;
-		letter-spacing: 0.06em;
-		text-transform: uppercase;
-		color: var(--color-lakebed-700);
-		background: var(--color-lakebed-50);
-		border: 1px solid var(--color-lakebed-200);
-		border-radius: 3px;
-		padding: 1px 5px;
+	:global(.kb-header__account-chevron) {
+		width: 14px !important;
+		height: 14px !important;
+		opacity: 0.7;
 		flex-shrink: 0;
+		transition: transform 0.15s ease;
 	}
 
-	.kb-user-menu__divider {
-		height: 1px;
-		background: var(--color-granite-100);
-		margin: 4px 0;
-	}
-
-	:global(.kb-user-menu__item) {
-		display: flex !important;
-		align-items: center !important;
-		gap: 8px !important;
-		width: 100% !important;
-		padding: 7px 10px !important;
-		font-family: var(--font-sans) !important;
-		font-size: 12px !important;
-		font-weight: 600 !important;
-		letter-spacing: 0.04em !important;
-		text-transform: uppercase !important;
-		color: var(--color-obsidian-700) !important;
-		text-decoration: none !important;
-		border-radius: 5px !important;
-		background: transparent !important;
-		border: none !important;
-		cursor: pointer !important;
-		transition: background-color 0.1s ease !important;
-		text-align: left !important;
-	}
-
-	:global(.kb-user-menu__item:hover) {
-		background: var(--color-granite-50) !important;
-		color: var(--color-obsidian-900) !important;
-		text-decoration: none !important;
-	}
-
-	:global(.kb-user-menu__item--signout) {
-		color: var(--color-ember-700) !important;
-	}
-
-	:global(.kb-user-menu__item--signout:hover) {
-		background: var(--color-ember-50) !important;
-		color: var(--color-ember-800) !important;
-	}
-
-	:global(.kb-user-menu__item-icon) {
-		width: 13px !important;
-		height: 13px !important;
-		flex-shrink: 0 !important;
+	:global(.kb-header__account-trigger[data-state='open'] .kb-header__account-chevron) {
+		transform: rotate(180deg);
 	}
 
 	:global(.kb-header__menu-btn) {

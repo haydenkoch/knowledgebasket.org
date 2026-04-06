@@ -7,6 +7,7 @@
 	import { Separator } from '$lib/components/ui/separator/index.js';
 	import JobForm from '$lib/components/organisms/admin/JobForm.svelte';
 	import StatusBadge from '$lib/components/organisms/admin/StatusBadge.svelte';
+	import { formatDisplayDateTime, formatDisplayValue } from '$lib/utils/display.js';
 	import { ExternalLink } from '@lucide/svelte';
 
 	let { data } = $props();
@@ -127,10 +128,13 @@
 				Source: <span class="font-medium">{data.job.source ?? 'unknown'}</span>
 			</p>
 			{#if data.job.publishedAt}
-				<p>Published on {new Date(data.job.publishedAt).toLocaleString()}</p>
+				<p>Published on {formatDisplayDateTime(data.job.publishedAt)}</p>
 			{/if}
 			{#if data.job.applicationDeadline}
-				<p>Application deadline: {new Date(data.job.applicationDeadline).toLocaleDateString()}</p>
+				<p>
+					Application deadline:
+					{formatDisplayValue(data.job.applicationDeadline, { key: 'applicationDeadline' })}
+				</p>
 			{/if}
 		</Card.Content>
 	</Card.Root>

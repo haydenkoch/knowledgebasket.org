@@ -19,6 +19,7 @@
 		suggestedOrganizations,
 		suggestedLocations
 	} from '$lib/data/formSchema';
+	import ArrowLeft from '@lucide/svelte/icons/arrow-left';
 
 	type FormResult = {
 		success?: boolean;
@@ -59,7 +60,7 @@
 					heading: 'Job submitted',
 					message: form.message ?? '',
 					backHref: '/jobs',
-					backLabel: '← Back to Job Board'
+					backLabel: 'Back to Job Board'
 				}
 			: null
 	);
@@ -77,9 +78,14 @@
 	pageDescription="List a role with a Tribal entity, Indigenous-serving organization, or employer committed to Indigenous hiring. All submissions are reviewed by IFS staff before publishing. Listings are free."
 	noticeLabel="Moderation"
 	noticeText="Listings are reviewed within 3–5 business days. You'll receive an email when your job is approved or if we need more information."
-	footerText="Listings are free. By submitting you agree to IFS moderation and publishing terms. Your contact details are not shown on the public listing."
 	success={successData}
 >
+	{#snippet footerContent()}
+		Listings are free. By submitting you agree to the
+		<a href="/terms" class="underline underline-offset-2">Terms of Service</a> and
+		<a href="/privacy" class="underline underline-offset-2">Privacy Policy</a>. Your contact details
+		are not shown on the public listing.
+	{/snippet}
 	<form
 		method="POST"
 		action="?/default"
@@ -375,6 +381,9 @@
 						hint="JPG, PNG, or WebP, max 5 MB. Helps your posting stand out in the list."
 					/>
 				</Field.Content>
+				<Field.Description>
+					Uploaded files may be stored and reviewed by staff as part of moderation and publishing.
+				</Field.Description>
 			</Field.Field>
 		</div>
 
@@ -429,6 +438,10 @@
 					>Used only by IFS to follow up on your submission; not published.</Field.Description
 				>
 			</Field.Field>
+			<p class="text-xs text-muted-foreground">
+				Submission contact details are used for moderation, approval updates, and clarification
+				questions.
+			</p>
 		</div>
 
 		<!-- Form Actions -->

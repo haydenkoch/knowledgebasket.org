@@ -7,6 +7,7 @@
 	import Mail from '@lucide/svelte/icons/mail';
 	import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
 	import Loader2 from '@lucide/svelte/icons/loader-2';
+	import ArrowLeft from '@lucide/svelte/icons/arrow-left';
 	import type { ActionData, PageData } from './$types';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
@@ -85,7 +86,7 @@
 	</Card.Content>
 
 	<Card.Footer class="auth-card__footer">
-		<a href="/auth/login" class="auth-link">← Back to sign in</a>
+		<a href="/auth/login" class="auth-link"><ArrowLeft class="inline h-4 w-4" /> Back to sign in</a>
 	</Card.Footer>
 </Card.Root>
 

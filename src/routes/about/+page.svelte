@@ -1,6 +1,7 @@
 <script lang="ts">
 	import * as Card from '$lib/components/ui/card/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
+	import { legalConfig } from '$lib/legal/config';
 
 	const coils = [
 		{
@@ -56,6 +57,11 @@
 			currently the most complete experience and the other surfaces continuing forward as curated
 			beta areas.
 		</p>
+		<p class="text-base leading-7 text-muted-foreground">
+			The product is operated by {legalConfig.operatorName}. Knowledge Basket combines curated data,
+			moderated community submissions, and staff review workflows so listings can be useful without
+			feeling anonymous or opaque.
+		</p>
 	</div>
 
 	<div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -84,4 +90,45 @@
 			</Card.Description>
 		</Card.Header>
 	</Card.Root>
+
+	<div class="grid gap-4 md:grid-cols-3">
+		<Card.Root class="border-border/70 bg-card/90">
+			<Card.Header class="space-y-3">
+				<Card.Title>How submissions work</Card.Title>
+				<Card.Description class="text-sm leading-6">
+					Community members can submit events, funding, jobs, businesses, and resources. Those
+					submissions enter a moderation flow before they appear publicly, and staff may edit for
+					clarity, formatting, or policy compliance.
+				</Card.Description>
+			</Card.Header>
+		</Card.Root>
+
+		<Card.Root class="border-border/70 bg-card/90">
+			<Card.Header class="space-y-3">
+				<Card.Title>Built with open source</Card.Title>
+				<Card.Description class="text-sm leading-6">
+					Knowledge Basket depends on a growing set of open source libraries and developer tools. We
+					keep a public thank-you page that updates with the project.
+				</Card.Description>
+			</Card.Header>
+			<Card.Content>
+				<Button href="/open-source" variant="secondary">View open source thanks</Button>
+			</Card.Content>
+		</Card.Root>
+
+		<Card.Root class="border-border/70 bg-card/90">
+			<Card.Header class="space-y-3">
+				<Card.Title>Legal and privacy</Card.Title>
+				<Card.Description class="text-sm leading-6">
+					About explains who we are and how the product works. It is not the legal record. For
+					privacy rights, cookie choices, and site terms, use the dedicated legal pages.
+				</Card.Description>
+			</Card.Header>
+			<Card.Content class="flex flex-wrap gap-3">
+				<Button href="/privacy" variant="secondary">Privacy</Button>
+				<Button href="/terms" variant="secondary">Terms</Button>
+				<Button href="/cookies" variant="secondary">Cookies</Button>
+			</Card.Content>
+		</Card.Root>
+	</div>
 </section>

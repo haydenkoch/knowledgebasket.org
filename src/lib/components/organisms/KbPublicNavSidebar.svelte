@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { page } from '$app/stores';
-	import { enhance } from '$app/forms';
 	import logoFallback from '$lib/assets/favicon.svg';
 	import * as Sidebar from '$lib/components/ui/sidebar/index.js';
 	import CalendarDays from '@lucide/svelte/icons/calendar-days';
@@ -10,9 +9,14 @@
 	import LibraryBig from '@lucide/svelte/icons/library-big';
 	import Info from '@lucide/svelte/icons/info';
 	import Shield from '@lucide/svelte/icons/shield';
+	import FileText from '@lucide/svelte/icons/file-text';
+	import ClipboardList from '@lucide/svelte/icons/clipboard-list';
+	import Cookie from '@lucide/svelte/icons/cookie';
 	import LogOut from '@lucide/svelte/icons/log-out';
 	import LogIn from '@lucide/svelte/icons/log-in';
 	import UserPlus from '@lucide/svelte/icons/user-plus';
+	import { legalNavLinks } from '$lib/legal/config';
+	import { openPrivacyChoices } from '$lib/privacy/consent';
 
 	type NavLink = {
 		href: string;
@@ -62,7 +66,14 @@
 		}
 	];
 
-	const secondaryLinks = [{ href: '/about', label: 'About', icon: Info }];
+	const secondaryLinks: Array<{ href: string; label: string; icon: typeof Info }> = [];
+	const legalIcons: Record<string, typeof Info> = {
+		About: Info,
+		Privacy: Shield,
+		Terms: FileText,
+		Cookies: Cookie,
+		'Privacy Requests': ClipboardList
+	};
 	const pathname = $derived($page.url.pathname);
 	const displayName = $derived(user?.name || user?.email?.split('@')[0] || 'Account');
 	const isStaff = $derived(user?.role === 'moderator' || user?.role === 'admin');
@@ -109,12 +120,49 @@
 
 		<Sidebar.Separator />
 
+		{#if secondaryLinks.length > 0 || isStaff}
+			<Sidebar.Group>
+				<Sidebar.GroupLabel>More</Sidebar.GroupLabel>
+				<Sidebar.GroupContent>
+					<Sidebar.Menu>
+						{#each secondaryLinks as link}
+							{@const Icon = link.icon}
+							<Sidebar.MenuItem>
+								<Sidebar.MenuButton isActive={isActive(link.href)}>
+									{#snippet child({ props })}
+										<a href={link.href} {...props}>
+											<Icon />
+											<span>{link.label}</span>
+										</a>
+									{/snippet}
+								</Sidebar.MenuButton>
+							</Sidebar.MenuItem>
+						{/each}
+						{#if isStaff}
+							<Sidebar.MenuItem>
+								<Sidebar.MenuButton isActive={isActive('/admin')}>
+									{#snippet child({ props })}
+										<a href="/admin" {...props}>
+											<Shield />
+											<span>Admin panel</span>
+										</a>
+									{/snippet}
+								</Sidebar.MenuButton>
+							</Sidebar.MenuItem>
+						{/if}
+					</Sidebar.Menu>
+				</Sidebar.GroupContent>
+			</Sidebar.Group>
+
+			<Sidebar.Separator />
+		{/if}
+
 		<Sidebar.Group>
-			<Sidebar.GroupLabel>More</Sidebar.GroupLabel>
+			<Sidebar.GroupLabel>Legal</Sidebar.GroupLabel>
 			<Sidebar.GroupContent>
 				<Sidebar.Menu>
-					{#each secondaryLinks as link}
-						{@const Icon = link.icon}
+					{#each legalNavLinks as link}
+						{@const Icon = legalIcons[link.label] ?? Info}
 						<Sidebar.MenuItem>
 							<Sidebar.MenuButton isActive={isActive(link.href)}>
 								{#snippet child({ props })}
@@ -126,18 +174,16 @@
 							</Sidebar.MenuButton>
 						</Sidebar.MenuItem>
 					{/each}
-					{#if isStaff}
-						<Sidebar.MenuItem>
-							<Sidebar.MenuButton isActive={isActive('/admin')}>
-								{#snippet child({ props })}
-									<a href="/admin" {...props}>
-										<Shield />
-										<span>Admin panel</span>
-									</a>
-								{/snippet}
-							</Sidebar.MenuButton>
-						</Sidebar.MenuItem>
-					{/if}
+					<Sidebar.MenuItem>
+						<Sidebar.MenuButton>
+							{#snippet child({ props })}
+								<button type="button" {...props} onclick={openPrivacyChoices}>
+									<Shield />
+									<span>Privacy choices</span>
+								</button>
+							{/snippet}
+						</Sidebar.MenuButton>
+					</Sidebar.MenuItem>
 				</Sidebar.Menu>
 			</Sidebar.GroupContent>
 		</Sidebar.Group>
@@ -149,7 +195,13 @@
 				<div class="kb-public-nav-sidebar__account-label">Signed in as</div>
 				<div class="kb-public-nav-sidebar__account-name">{displayName}</div>
 			</div>
-			<form method="post" action="/auth/logout" use:enhance class="w-full">
+			<a
+				href="/account"
+				class="kb-public-nav-sidebar__action kb-public-nav-sidebar__action--secondary"
+			>
+				Account dashboard
+			</a>
+			<form method="post" action="/auth/logout" class="w-full">
 				<button
 					type="submit"
 					class="kb-public-nav-sidebar__action kb-public-nav-sidebar__action--danger"

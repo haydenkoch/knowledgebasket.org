@@ -1,4 +1,5 @@
 <script lang="ts">
+	import ArrowLeft from '@lucide/svelte/icons/arrow-left';
 	let { status, error } = $props();
 	const is404 = $derived(status === 404);
 </script>
@@ -20,7 +21,9 @@
 		<h1>Something went wrong</h1>
 		<p>{error?.message ?? 'An error occurred while loading this page.'}</p>
 	{/if}
-	<a href="/red-pages" class="kb-error__link">← Back to Red Pages</a>
+	<a href="/red-pages" class="kb-error__link"
+		><ArrowLeft class="inline h-4 w-4" /> Back to Red Pages</a
+	>
 </div>
 
 <style>

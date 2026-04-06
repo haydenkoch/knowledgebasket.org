@@ -52,7 +52,7 @@
 					heading: 'Funding opportunity submitted',
 					message: form.message ?? '',
 					backHref: '/funding',
-					backLabel: '← Back to Funding'
+					backLabel: 'Back to Funding'
 				}
 			: null
 	);
@@ -70,9 +70,13 @@
 	pageDescription="Share grants, contracts, fellowships, or funding programs for IFS staff to review and list. All submissions are reviewed before publishing."
 	noticeLabel="Moderation"
 	noticeText="Listings are reviewed within 3–5 business days. You'll receive an email when your opportunity is approved or if we need more information."
-	footerText="Submissions are reviewed within 3–5 business days. Listings are free. By submitting you agree to IFS moderation and publishing terms."
 	success={successData}
 >
+	{#snippet footerContent()}
+		Submissions are reviewed within 3–5 business days. Listings are free. By submitting you agree to
+		the <a href="/terms" class="underline underline-offset-2">Terms of Service</a> and
+		<a href="/privacy" class="underline underline-offset-2">Privacy Policy</a>.
+	{/snippet}
 	<form
 		method="POST"
 		action="?/default"
@@ -294,7 +298,8 @@
 				</Field.Field>
 			</div>
 			<p class="text-xs text-muted-foreground">
-				Used only to confirm your submission; not published.
+				Used for moderation and follow-up about this submission. Contact details are not published
+				unless they become part of the approved listing.
 			</p>
 		</div>
 

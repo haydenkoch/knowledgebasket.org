@@ -70,6 +70,216 @@ function parseCSV(content) {
 	return rows;
 }
 
+async function upsertOrganization(seed) {
+	const rows = await sql`
+		INSERT INTO organizations (
+			slug, name, aliases, description, website, email, org_type, org_types, region,
+			city, state, tribal_affiliation, tribal_affiliations, verified, social_links
+		) VALUES (
+			${seed.slug}, ${seed.name}, ${seed.aliases ?? []}, ${seed.description ?? null},
+			${seed.website ?? null}, ${seed.email ?? null}, ${seed.orgType ?? null},
+			${seed.orgTypes ?? []}, ${seed.region ?? null}, ${seed.city ?? null},
+			${seed.state ?? null}, ${seed.tribalAffiliation ?? null},
+			${seed.tribalAffiliations ?? []}, ${seed.verified ?? false}, ${seed.socialLinks ?? {}}
+		)
+		ON CONFLICT (slug) DO UPDATE SET
+			name = EXCLUDED.name,
+			aliases = EXCLUDED.aliases,
+			description = EXCLUDED.description,
+			website = EXCLUDED.website,
+			email = EXCLUDED.email,
+			org_type = EXCLUDED.org_type,
+			org_types = EXCLUDED.org_types,
+			region = EXCLUDED.region,
+			city = EXCLUDED.city,
+			state = EXCLUDED.state,
+			tribal_affiliation = EXCLUDED.tribal_affiliation,
+			tribal_affiliations = EXCLUDED.tribal_affiliations,
+			verified = EXCLUDED.verified,
+			social_links = EXCLUDED.social_links,
+			updated_at = NOW()
+		RETURNING id, slug
+	`;
+	return rows[0];
+}
+
+async function upsertVenue(seed) {
+	const rows = await sql`
+		INSERT INTO venues (
+			slug, name, aliases, description, address, city, state, zip,
+			website, venue_type, organization_id
+		) VALUES (
+			${seed.slug}, ${seed.name}, ${seed.aliases ?? []}, ${seed.description ?? null},
+			${seed.address ?? null}, ${seed.city ?? null}, ${seed.state ?? null},
+			${seed.zip ?? null}, ${seed.website ?? null}, ${seed.venueType ?? null},
+			${seed.organizationId ?? null}
+		)
+		ON CONFLICT (slug) DO UPDATE SET
+			name = EXCLUDED.name,
+			aliases = EXCLUDED.aliases,
+			description = EXCLUDED.description,
+			address = EXCLUDED.address,
+			city = EXCLUDED.city,
+			state = EXCLUDED.state,
+			zip = EXCLUDED.zip,
+			website = EXCLUDED.website,
+			venue_type = EXCLUDED.venue_type,
+			organization_id = EXCLUDED.organization_id,
+			updated_at = NOW()
+		RETURNING id, slug
+	`;
+	return rows[0];
+}
+
+async function seedOrganizationsAndVenues() {
+	const organizations = [
+		{
+			slug: 'indigenous-futures-society',
+			name: 'Indigenous Futures Society',
+			aliases: ['IFS'],
+			description:
+				'Native-led nonprofit supporting digital infrastructure, civic tools, and economic opportunity for Indigenous communities.',
+			website: 'https://example.org/ifs',
+			email: 'hello@example.org',
+			orgType: 'nonprofit',
+			orgTypes: ['nonprofit'],
+			region: 'California',
+			city: 'Sacramento',
+			state: 'CA',
+			verified: true
+		},
+		{
+			slug: 'first-nations-development-institute',
+			name: 'First Nations Development Institute',
+			aliases: ['FNDI'],
+			description:
+				'Native-led intermediary that invests in and creates innovative institutions and models that strengthen asset control in Native communities.',
+			website: 'https://www.firstnations.org',
+			orgType: 'nonprofit',
+			orgTypes: ['nonprofit'],
+			region: 'National',
+			city: 'Longmont',
+			state: 'CO',
+			verified: true
+		},
+		{
+			slug: 'usda-forest-service',
+			name: 'USDA Forest Service',
+			aliases: ['Forest Service'],
+			description:
+				'Federal land management agency with tribal partnerships across stewardship, restoration, and cultural resource protection.',
+			website: 'https://www.fs.usda.gov',
+			orgType: 'government',
+			orgTypes: ['government'],
+			region: 'National',
+			city: 'Washington',
+			state: 'DC',
+			verified: true
+		},
+		{
+			slug: 'indian-health-service',
+			name: 'Indian Health Service',
+			aliases: ['IHS'],
+			description:
+				'Federal health program responsible for providing medical and public health services to American Indian and Alaska Native people.',
+			website: 'https://www.ihs.gov',
+			orgType: 'government',
+			orgTypes: ['government'],
+			region: 'National',
+			city: 'Rockville',
+			state: 'MD',
+			verified: true
+		}
+	];
+
+	const organizationRows = [];
+	for (const organization of organizations) {
+		organizationRows.push(await upsertOrganization(organization));
+	}
+
+	const organizationIds = Object.fromEntries(organizationRows.map((row) => [row.slug, row.id]));
+
+	const venues = [
+		{
+			slug: 'indigenous-futures-commons',
+			name: 'Indigenous Futures Commons',
+			aliases: ['IFS Commons'],
+			description: 'Flexible community venue for workshops, demos, and public programs.',
+			address: '1200 Riverfront Ave',
+			city: 'Sacramento',
+			state: 'CA',
+			zip: '95814',
+			website: 'https://example.org/ifs/commons',
+			venueType: 'community_center',
+			organizationId: organizationIds['indigenous-futures-society']
+		},
+		{
+			slug: 'sierra-stewardship-center',
+			name: 'Sierra Stewardship Center',
+			description:
+				'Regional meeting space for stewardship trainings and tribal partnership convenings.',
+			address: '101 Pine Ridge Rd',
+			city: 'Placerville',
+			state: 'CA',
+			zip: '95667',
+			website: 'https://www.fs.usda.gov',
+			venueType: 'conference_center',
+			organizationId: organizationIds['usda-forest-service']
+		}
+	];
+
+	for (const venue of venues) {
+		await upsertVenue(venue);
+	}
+
+	await sql`
+		UPDATE funding
+		SET organization_id = ${organizationIds['first-nations-development-institute']}
+		WHERE organization_id IS NULL
+			AND funder_name = 'First Nations Development Institute'
+	`;
+	await sql`
+		UPDATE funding
+		SET organization_id = ${organizationIds['usda-forest-service']}
+		WHERE organization_id IS NULL
+			AND funder_name = 'USDA Forest Service'
+	`;
+
+	await sql`
+		UPDATE jobs
+		SET organization_id = ${organizationIds['indigenous-futures-society']}
+		WHERE organization_id IS NULL
+			AND employer_name = 'Indigenous Futures Society'
+	`;
+	await sql`
+		UPDATE jobs
+		SET organization_id = ${organizationIds['indian-health-service']}
+		WHERE organization_id IS NULL
+			AND employer_name = 'Indian Health Service'
+	`;
+	await sql`
+		UPDATE jobs
+		SET organization_id = ${organizationIds['usda-forest-service']}
+		WHERE organization_id IS NULL
+			AND employer_name = 'USDA Forest Service'
+	`;
+
+	await sql`
+		UPDATE toolbox_resources
+		SET organization_id = ${organizationIds['first-nations-development-institute']}
+		WHERE organization_id IS NULL
+			AND source_name = 'First Nations Development Institute'
+	`;
+	await sql`
+		UPDATE toolbox_resources
+		SET organization_id = ${organizationIds['usda-forest-service']}
+		WHERE organization_id IS NULL
+			AND source_name = 'USDA Forest Service'
+	`;
+
+	console.log(`Seeded ${organizationRows.length} organizations and ${venues.length} venues.`);
+}
+
 // ── Red Pages ─────────────────────────────────────────────────────────────────
 async function seedRedPages() {
 	const csvPath = existsSync(
@@ -567,6 +777,7 @@ async function seedToolbox() {
 
 async function run() {
 	try {
+		await seedOrganizationsAndVenues();
 		await seedRedPages();
 		await seedFunding();
 		await seedJobs();

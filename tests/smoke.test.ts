@@ -1,7 +1,54 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import * as cheerio from 'cheerio';
+import postgres from 'postgres';
+import { randomUUID } from 'node:crypto';
 import { startDevServer } from './helpers/dev-server';
 
 let server: Awaited<ReturnType<typeof startDevServer>>;
+const sql = postgres(process.env.DATABASE_URL ?? 'postgres://kb:kbdev@localhost:5432/kb');
+
+async function createVerifiedCredentialUser(role: 'contributor' | 'admin' = 'contributor') {
+	const { hashPassword } = await import('../node_modules/better-auth/dist/crypto/password.mjs');
+	const id = randomUUID();
+	const accountId = randomUUID();
+	const email = `smoke-${Date.now()}-${randomUUID()}@example.com`;
+	const password = 'smokepass123';
+	const passwordHash = await hashPassword(password);
+
+	await sql.begin(async (tx) => {
+		await tx`insert into "user" (id, name, email, email_verified, role, created_at, updated_at)
+			values (${id}, 'Smoke User', ${email}, true, ${role}, now(), now())`;
+		await tx`insert into account (id, account_id, provider_id, user_id, password, created_at, updated_at)
+			values (${accountId}, ${email}, 'credential', ${id}, ${passwordHash}, now(), now())`;
+	});
+
+	return {
+		email,
+		password,
+		cleanup: async () => {
+			await sql`delete from "user" where id = ${id}`;
+		}
+	};
+}
+
+async function signInAndGetCookie(baseUrl: string, email: string, password: string) {
+	const response = await fetch(`${baseUrl}/auth/login?/signIn`, {
+		method: 'POST',
+		redirect: 'manual',
+		headers: {
+			'content-type': 'application/x-www-form-urlencoded'
+		},
+		body: new URLSearchParams({ email, password })
+	});
+
+	const rawSetCookie = response.headers.get('set-cookie') ?? '';
+	const cookieHeader = rawSetCookie
+		.split(/,(?=\s*[^;]+=)/)
+		.map((part) => part.split(';')[0])
+		.join('; ');
+
+	return cookieHeader;
+}
 
 describe('public route smoke tests', () => {
 	beforeAll(async () => {
@@ -10,12 +57,17 @@ describe('public route smoke tests', () => {
 
 	afterAll(async () => {
 		await server?.stop();
+		await sql.end({ timeout: 5 });
 	});
 
 	it('serves core public and auth routes without crashing', async () => {
 		const routes = [
 			'/',
 			'/about',
+			'/privacy',
+			'/terms',
+			'/cookies',
+			'/privacy/requests',
 			'/events',
 			'/funding',
 			'/red-pages',
@@ -43,6 +95,12 @@ describe('public route smoke tests', () => {
 		const response = await fetch(`${server.baseUrl}/admin`, { redirect: 'manual' });
 		expect(response.status).toBe(303);
 		expect(response.headers.get('location')).toContain('/auth/login?redirect=%2Fadmin');
+	});
+
+	it('redirects unauthenticated account privacy traffic to login', async () => {
+		const response = await fetch(`${server.baseUrl}/account/privacy`, { redirect: 'manual' });
+		expect(response.status).toBe(303);
+		expect(response.headers.get('location')).toContain('/auth/login?redirect=%2Faccount%2Fprivacy');
 	});
 
 	it('renders metadata on top-level public pages', async () => {
@@ -87,13 +145,31 @@ describe('public route smoke tests', () => {
 		}
 	});
 
+	it('renders pagination lists with only list-item children on public browse pages', async () => {
+		const html = await fetch(`${server.baseUrl}/toolbox`).then((response) => response.text());
+		const $ = cheerio.load(html);
+		const paginationLists = $('[data-slot="pagination-content"]');
+
+		expect(paginationLists.length).toBeGreaterThan(0);
+
+		paginationLists.each((_, list) => {
+			const childTags = $(list)
+				.children()
+				.toArray()
+				.map((node) => node.tagName);
+			expect(childTags, 'toolbox pagination children').toSatisfy((tags: string[]) =>
+				tags.every((tag) => tag === 'li')
+			);
+		});
+	});
+
 	it('shows explicit compatibility-search messaging when the cross-coil index is unavailable', async () => {
 		const html = await fetch(`${server.baseUrl}/search?q=tribal`).then((response) =>
 			response.text()
 		);
 		const normalized = html.replace(/\s+/g, ' ');
-		expect(normalized).toContain('Search is running in compatibility mode');
-		expect(normalized).toContain('using the database fallback instead');
+		expect(normalized).toContain('Search settings need to be refreshed');
+		expect(normalized).toContain('compatibility mode because indexed search is not configured');
 	});
 
 	it('publishes discovery endpoints with sitemap and manifest links', async () => {
@@ -111,5 +187,35 @@ describe('public route smoke tests', () => {
 		);
 		expect(manifest.name).toBe('Knowledge Basket');
 		expect(manifest.start_url).toBe('/');
+	});
+
+	it('applies security headers to public responses', async () => {
+		const response = await fetch(`${server.baseUrl}/privacy`, { redirect: 'manual' });
+		expect(response.headers.get('content-security-policy')).toContain("default-src 'self'");
+		expect(response.headers.get('permissions-policy')).toContain('camera=()');
+		expect(response.headers.get('referrer-policy')).toBe('strict-origin-when-cross-origin');
+		expect(response.headers.get('x-content-type-options')).toBe('nosniff');
+	});
+
+	it('renders signed-in toolbox chrome without falling back to the signed-out header', async () => {
+		const user = await createVerifiedCredentialUser('admin');
+
+		try {
+			const cookieHeader = await signInAndGetCookie(server.baseUrl, user.email, user.password);
+			const response = await fetch(`${server.baseUrl}/toolbox`, {
+				headers: { cookie: cookieHeader },
+				redirect: 'manual'
+			});
+			const html = await response.text();
+
+			expect(response.status).toBe(200);
+			expect(html).toContain('Smoke User');
+			expect(html).toContain('>Account<');
+			expect(html).toContain('>Admin<');
+			expect(html).toContain('/auth/logout');
+			expect(html).not.toContain('> Sign in <');
+		} finally {
+			await user.cleanup();
+		}
 	});
 });

@@ -13,6 +13,7 @@
 		placeholders,
 		suggestedOrganizations
 	} from '$lib/data/formSchema';
+	import ArrowLeft from '@lucide/svelte/icons/arrow-left';
 
 	type FormResult = {
 		success?: boolean;
@@ -46,7 +47,7 @@
 					heading: 'Resource submitted',
 					message: form.message ?? '',
 					backHref: '/toolbox',
-					backLabel: '← Back to Toolbox'
+					backLabel: 'Back to Toolbox'
 				}
 			: null
 	);
@@ -64,9 +65,14 @@
 	pageDescription="Add a link, report, toolkit, video, or other resource. The Toolbox prioritizes resources that support Indigenous sovereignty, cultural economies, land stewardship, and community self-determination."
 	noticeLabel="Curatorial note"
 	noticeText="Resources are reviewed within 3–5 business days. We prioritize content that supports Indigenous sovereignty and self-determination."
-	footerText="Submissions are reviewed within 3–5 business days. IFS will add the resource to the Toolbox if it aligns with our mission. By submitting you agree to our curation and publishing terms."
 	success={successData}
 >
+	{#snippet footerContent()}
+		Submissions are reviewed within 3–5 business days. IFS will add the resource to the Toolbox if
+		it aligns with our mission. By submitting you agree to the
+		<a href="/terms" class="underline underline-offset-2">Terms of Service</a> and
+		<a href="/privacy" class="underline underline-offset-2">Privacy Policy</a>.
+	{/snippet}
 	<form
 		method="POST"
 		action="?/default"
@@ -239,7 +245,8 @@
 				</Field.Field>
 			</div>
 			<p class="text-xs text-muted-foreground">
-				Used only to confirm your submission; not published.
+				Used for moderation and follow-up about this submission. Contact details are not published
+				unless they become part of the approved listing.
 			</p>
 		</div>
 

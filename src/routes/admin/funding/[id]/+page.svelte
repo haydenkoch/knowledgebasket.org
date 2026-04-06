@@ -1,14 +1,10 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import { toast } from 'svelte-sonner';
-	import * as Card from '$lib/components/ui/card/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog/index.js';
-	import { Separator } from '$lib/components/ui/separator/index.js';
 	import FundingForm from '$lib/components/organisms/admin/FundingForm.svelte';
 	import StatusBadge from '$lib/components/organisms/admin/StatusBadge.svelte';
-	import { formatDisplayDateTime } from '$lib/utils/display.js';
-	import { ExternalLink, Eye } from '@lucide/svelte';
 
 	let { data } = $props();
 </script>
@@ -18,28 +14,6 @@
 		<div class="flex min-w-0 items-center gap-3">
 			<h1 class="truncate text-2xl font-bold">{data.funding.title}</h1>
 			<StatusBadge status={data.funding.status ?? 'unknown'} />
-			<Button
-				href={`/admin/preview/funding/${data.funding.id}`}
-				variant="outline"
-				size="sm"
-				target="_blank"
-				rel="noreferrer"
-			>
-				<Eye class="mr-1.5 h-3.5 w-3.5" />
-				Preview draft
-			</Button>
-			{#if data.funding.slug && data.funding.status === 'published'}
-				<Button
-					href={`/funding/${data.funding.slug}`}
-					variant="outline"
-					size="sm"
-					target="_blank"
-					rel="noopener noreferrer"
-				>
-					<ExternalLink class="mr-1.5 h-3.5 w-3.5" />
-					View on site
-				</Button>
-			{/if}
 		</div>
 		<div class="flex flex-wrap gap-2">
 			{#if data.funding.status === 'pending'}
@@ -126,29 +100,14 @@
 		</div>
 	</div>
 
-	<Card.Root>
-		<Card.Header>
-			<Card.Title>Listing details</Card.Title>
-			<Card.Description>
-				Edit copy, funding metadata, contact fields, and moderation state.
-			</Card.Description>
-		</Card.Header>
-		<Card.Content class="space-y-1 text-sm">
-			<p>
-				Source: <span class="font-medium">{data.funding.source ?? 'unknown'}</span>
-			</p>
-			{#if data.funding.publishedAt}
-				<p>Published on {formatDisplayDateTime(data.funding.publishedAt)}</p>
-			{/if}
-		</Card.Content>
-	</Card.Root>
-
-	<Separator />
-
 	<FundingForm
 		funding={data.funding}
 		organizations={data.organizations}
 		action="?/update"
 		previewHref={`/admin/preview/funding/${data.funding.id}`}
+		liveHref={data.funding.slug && data.funding.status === 'published'
+			? `/funding/${data.funding.slug}`
+			: null}
+		submissionContext={data.submissionContext}
 	/>
 </div>

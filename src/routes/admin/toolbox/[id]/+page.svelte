@@ -1,13 +1,10 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import { toast } from 'svelte-sonner';
-	import * as Card from '$lib/components/ui/card/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog/index.js';
-	import { Separator } from '$lib/components/ui/separator/index.js';
 	import ToolboxForm from '$lib/components/organisms/admin/ToolboxForm.svelte';
 	import StatusBadge from '$lib/components/organisms/admin/StatusBadge.svelte';
-	import { ExternalLink } from '@lucide/svelte';
 
 	let { data } = $props();
 </script>
@@ -17,18 +14,6 @@
 		<div class="flex min-w-0 items-center gap-3">
 			<h1 class="truncate text-2xl font-bold">{data.resource.title}</h1>
 			<StatusBadge status={data.resource.status ?? 'unknown'} />
-			{#if data.resource.slug && data.resource.status === 'published'}
-				<Button
-					href={`/toolbox/${data.resource.slug}`}
-					variant="outline"
-					size="sm"
-					target="_blank"
-					rel="noopener noreferrer"
-				>
-					<ExternalLink class="mr-1.5 h-3.5 w-3.5" />
-					View on site
-				</Button>
-			{/if}
 		</div>
 		<div class="flex flex-wrap gap-2">
 			{#if data.resource.status === 'pending'}
@@ -115,27 +100,14 @@
 		</div>
 	</div>
 
-	<Card.Root>
-		<Card.Header>
-			<Card.Title>Resource details</Card.Title>
-			<Card.Description>
-				Edit metadata, hosted copy, links, and moderation state for this toolbox resource.
-			</Card.Description>
-		</Card.Header>
-		<Card.Content class="space-y-1 text-sm">
-			<p>
-				Source: <span class="font-medium">{data.resource.source ?? 'unknown'}</span>
-			</p>
-			<p>
-				Content mode: <span class="font-medium">{data.resource.contentMode ?? 'unknown'}</span>
-			</p>
-			{#if data.resource.publishedAt}
-				<p>Published on {new Date(data.resource.publishedAt).toLocaleString()}</p>
-			{/if}
-		</Card.Content>
-	</Card.Root>
-
-	<Separator />
-
-	<ToolboxForm resource={data.resource} organizations={data.organizations} action="?/update" />
+	<ToolboxForm
+		resource={data.resource}
+		organizations={data.organizations}
+		action="?/update"
+		previewHref={`/admin/preview/toolbox/${data.resource.id}`}
+		liveHref={data.resource.slug && data.resource.status === 'published'
+			? `/toolbox/${data.resource.slug}`
+			: null}
+		submissionContext={data.submissionContext}
+	/>
 </div>

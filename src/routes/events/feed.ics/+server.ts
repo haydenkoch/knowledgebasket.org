@@ -14,11 +14,11 @@ export const GET: RequestHandler = async ({ url }) => {
 	let filtered = events.filter((e) => e.status === 'published');
 
 	if (listSlug) {
-		const { getListBySlug, getListEventIds } = await import('$lib/server/event-lists');
+		const { getListBySlug, getPublicListEventIds } = await import('$lib/server/event-lists');
 		const { getEventById } = await import('$lib/server/events');
 		const list = await getListBySlug(listSlug);
 		if (list) {
-			const ids = await getListEventIds(list.id);
+			const ids = await getPublicListEventIds(list.id);
 			const listEvents = (await Promise.all(ids.map((id) => getEventById(id)))).filter(Boolean);
 			filtered = listEvents as typeof events;
 		}

@@ -50,6 +50,13 @@
       "when": 1775400000000,
       "tag": "0006_org_workspaces",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1775431200000,
+      "tag": "0007_event_list_uniqueness",
+      "breakpoints": true
     }
   ]
 }

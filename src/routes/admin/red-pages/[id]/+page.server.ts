@@ -8,24 +8,16 @@ import {
 	updateBusiness
 } from '$lib/server/red-pages';
 import { getAllOrganizations } from '$lib/server/organizations';
-
-function parseString(formData: FormData, key: string) {
-	return formData.get(key)?.toString().trim() ?? '';
-}
-
-function nullableString(formData: FormData, key: string) {
-	const value = parseString(formData, key);
-	return value ? value : null;
-}
-
-function parseList(formData: FormData, key: string) {
-	const value = parseString(formData, key);
-	const items = value
-		.split(/\r?\n|,/)
-		.map((entry) => entry.trim())
-		.filter(Boolean);
-	return items.length > 0 ? items : null;
-}
+import {
+	parseString,
+	nullableString,
+	parseList,
+	normalizeStatus,
+	validateRequired,
+	validateHttpUrl,
+	buildModerationFields
+} from '$lib/server/admin-content';
+import { extractSubmissionContactFromNotes } from '$lib/server/submission-notes';
 
 function parseSocialLinks(formData: FormData, key: string) {
 	const value = parseString(formData, key);
@@ -43,22 +35,23 @@ function parseSocialLinks(formData: FormData, key: string) {
 	);
 }
 
-function normalizeEditStatus(
-	raw: FormDataEntryValue | null
-): 'draft' | 'pending' | 'published' | 'rejected' {
-	const value = typeof raw === 'string' ? raw.trim() : '';
-	if (value === 'pending' || value === 'published' || value === 'rejected') return value;
-	return 'draft';
-}
-
 export const load: PageServerLoad = async ({ params }) => {
 	const [business, organizations] = await Promise.all([
 		getBusinessById(params.id),
 		getAllOrganizations()
 	]);
 	if (!business) throw error(404, 'Listing not found');
+	const submissionContact = extractSubmissionContactFromNotes(business.adminNotes);
 	return {
 		business,
+		submissionContext: {
+			createdAt: business.createdAt ?? null,
+			submitterName: business.submitterName ?? null,
+			submitterEmail: business.submitterEmail ?? null,
+			contactName: submissionContact.name ?? null,
+			contactEmail: business.email ?? submissionContact.email ?? null,
+			contactPhone: business.phone ?? submissionContact.phone ?? null
+		},
 		organizations: organizations.map((organization) => ({
 			id: organization.id,
 			name: organization.name
@@ -71,38 +64,41 @@ export const actions: Actions = {
 		const formData = await request.formData();
 		const name = parseString(formData, 'name');
 		const tribalAffiliation = parseString(formData, 'tribalAffiliation');
-		if (!name) return fail(400, { error: 'Business name is required' });
-		if (!tribalAffiliation) return fail(400, { error: 'Tribal affiliation is required' });
+		const issues: string[] = [];
+		validateRequired(issues, name, 'Business name is required');
+		validateRequired(issues, tribalAffiliation, 'Tribal affiliation is required');
+		validateHttpUrl(
+			issues,
+			nullableString(formData, 'website'),
+			'Website must be a valid http or https URL.'
+		);
+		validateHttpUrl(
+			issues,
+			nullableString(formData, 'logoUrl'),
+			'Logo URL must be a valid http or https URL.'
+		);
+		validateHttpUrl(
+			issues,
+			nullableString(formData, 'imageUrl'),
+			'Image URL must be a valid http or https URL.'
+		);
+		if (issues.length > 0) return fail(400, { error: issues[0], issues });
 
 		const current = await getBusinessById(params.id);
 		if (!current) return fail(404, { error: 'Listing not found' });
 
-		const status = normalizeEditStatus(formData.get('status'));
+		const status = normalizeStatus(
+			formData.get('status'),
+			['draft', 'pending', 'published', 'rejected'] as const,
+			'draft'
+		);
 		const verified = formData.has('verified');
-		const moderationFields =
-			status === 'published'
-				? {
-						status,
-						publishedAt: current.publishedAt ? new Date(current.publishedAt) : new Date(),
-						rejectedAt: null,
-						rejectionReason: null,
-						reviewedById: locals.user?.id ?? current.reviewedById ?? null
-					}
-				: status === 'rejected'
-					? {
-							status,
-							publishedAt: null,
-							rejectedAt: current.rejectedAt ? new Date(current.rejectedAt) : new Date(),
-							rejectionReason: nullableString(formData, 'rejectionReason'),
-							reviewedById: locals.user?.id ?? current.reviewedById ?? null
-						}
-					: {
-							status,
-							publishedAt: null,
-							rejectedAt: null,
-							rejectionReason: null,
-							reviewedById: current.reviewedById ?? null
-						};
+		const moderationFields = buildModerationFields(current, {
+			status,
+			reviewerId: locals.user?.id ?? null,
+			rejectionReason: nullableString(formData, 'rejectionReason')
+		});
+		const becomingVerified = verified && !current.verified;
 
 		const serviceArea = nullableString(formData, 'serviceArea');
 		await updateBusiness(params.id, {
@@ -134,7 +130,13 @@ export const actions: Actions = {
 			featured: formData.has('featured'),
 			unlisted: formData.has('unlisted'),
 			verified,
-			verifiedAt: verified ? new Date() : null,
+			verifiedAt: verified
+				? becomingVerified
+					? new Date()
+					: current.verifiedAt
+						? new Date(current.verifiedAt)
+						: null
+				: null,
 			...moderationFields
 		});
 

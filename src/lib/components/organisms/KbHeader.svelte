@@ -120,9 +120,9 @@
 					<DropdownMenu.Content align="end" sideOffset={8} class="w-56">
 						<DropdownMenu.Label class="font-normal">
 							<div class="flex flex-col gap-1">
-								<span class="text-sm font-semibold leading-none">{displayName}</span>
+								<span class="text-sm leading-none font-semibold">{displayName}</span>
 								{#if user.email}
-									<span class="text-muted-foreground truncate text-xs leading-none">
+									<span class="truncate text-xs leading-none text-muted-foreground">
 										{user.email}
 									</span>
 								{/if}
@@ -166,10 +166,7 @@
 							{/if}
 						</DropdownMenu.Group>
 						<DropdownMenu.Separator />
-						<DropdownMenu.Item
-							variant="destructive"
-							onSelect={() => logoutFormEl?.requestSubmit()}
-						>
+						<DropdownMenu.Item variant="destructive" onSelect={() => logoutFormEl?.requestSubmit()}>
 							<LogOut />
 							<span>Sign out</span>
 						</DropdownMenu.Item>

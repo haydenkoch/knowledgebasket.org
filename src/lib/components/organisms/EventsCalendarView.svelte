@@ -2,6 +2,7 @@
 	import type { CalendarApp } from '@schedule-x/calendar';
 	import type { EventItem } from '$lib/data/kb';
 	import { ScheduleXCalendar } from '@schedule-x/svelte';
+	import { formatDisplayDate } from '$lib/utils/display';
 	import ArrowRight from '@lucide/svelte/icons/arrow-right';
 	import MapPin from '@lucide/svelte/icons/map-pin';
 
@@ -44,11 +45,15 @@
 				<h2 class="kb-drawer-title">{calendarSelectedEvent.title}</h2>
 				{#if calendarSelectedEvent.startDate}
 					<p class="kb-drawer-date">
-						{new Date(calendarSelectedEvent.startDate).toLocaleDateString('en-US', {
-							weekday: 'long',
-							month: 'long',
-							day: 'numeric'
-						})}
+						{formatDisplayDate(
+							calendarSelectedEvent.startDate,
+							{
+								weekday: 'long',
+								month: 'long',
+								day: 'numeric'
+							},
+							''
+						)}
 					</p>
 				{/if}
 				{#if calendarSelectedEvent.location}

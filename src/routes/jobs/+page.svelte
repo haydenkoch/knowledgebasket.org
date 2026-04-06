@@ -202,7 +202,7 @@
 <div>
 	<KbHero
 		coil="jobs"
-		eyebrow="Knowledge Basket · Coil 4"
+		eyebrow="Knowledge Basket · Jobs"
 		title="Job Board"
 		description="Career opportunities with Tribes, agencies, and organizations prioritizing Indigenous hiring."
 		{weave}

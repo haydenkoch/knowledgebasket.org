@@ -2,13 +2,11 @@
 	import type { ToolboxItem } from '$lib/data/kb';
 	import { stripHtml } from '$lib/utils/format';
 	import { Button } from '$lib/components/ui/button/index.js';
-	import * as Breadcrumb from '$lib/components/ui/breadcrumb/index.js';
 	import CoilDetailActionRail from '$lib/components/organisms/CoilDetailActionRail.svelte';
 	import ExternalLinkIcon from '@lucide/svelte/icons/external-link';
 	import DownloadIcon from '@lucide/svelte/icons/download';
 	import FileTextIcon from '@lucide/svelte/icons/file-text';
 	import ArrowLeft from '@lucide/svelte/icons/arrow-left';
-	import SourceProvenanceCard from '$lib/components/public/source-provenance-card.svelte';
 
 	let { data } = $props();
 	let item = $derived(data.item as ToolboxItem | null);
@@ -137,19 +135,6 @@
 			saveLabel="resource"
 			accent="var(--color-lakebed-700, #1a3a66)"
 		>
-			{#snippet breadcrumb()}
-				<Breadcrumb.Root>
-					<Breadcrumb.List>
-						<Breadcrumb.Item>
-							<Breadcrumb.Link href="/toolbox">Toolbox</Breadcrumb.Link>
-						</Breadcrumb.Item>
-						<Breadcrumb.Separator />
-						<Breadcrumb.Item>
-							<Breadcrumb.Page>{item.title}</Breadcrumb.Page>
-						</Breadcrumb.Item>
-					</Breadcrumb.List>
-				</Breadcrumb.Root>
-			{/snippet}
 			{#snippet meta()}
 				{#if item.author}
 					<span class="kb-tb-meta-author">By {item.author}</span>
@@ -161,23 +146,18 @@
 			{/snippet}
 			{#snippet primary()}
 				{#if hasPdfPreview && (primaryUrl ?? previewUrl)}
-					<a
-						href={primaryUrl ?? previewUrl!}
-						target="_blank"
-						rel="noopener"
-						class="kb-tb-primary-btn"
-					>
+					<Button href={primaryUrl ?? previewUrl!} target="_blank" rel="noopener" size="sm">
 						Open PDF <ExternalLinkIcon class="size-[14px]" />
-					</a>
+					</Button>
 				{:else if primaryUrl}
 					{#if isFile}
-						<a href={primaryUrl} download class="kb-tb-primary-btn">
+						<Button href={primaryUrl} download size="sm">
 							<DownloadIcon class="size-[14px]" /> Download
-						</a>
+						</Button>
 					{:else}
-						<a href={primaryUrl} target="_blank" rel="noopener" class="kb-tb-primary-btn">
+						<Button href={primaryUrl} target="_blank" rel="noopener" size="sm">
 							Open resource <ExternalLinkIcon class="size-[14px]" />
-						</a>
+						</Button>
 					{/if}
 				{/if}
 			{/snippet}
@@ -281,7 +261,6 @@
 						{/if}
 					</dl>
 				</div>
-				<SourceProvenanceCard provenance={item.provenance} />
 
 				<Button variant="outline" href="/toolbox" class="w-full"
 					><ArrowLeft class="inline h-4 w-4" /> Back to Toolbox</Button
@@ -317,31 +296,6 @@
 	}
 	.kb-tb-meta-dot {
 		opacity: 0.4;
-	}
-	.kb-tb-primary-btn {
-		display: inline-flex;
-		align-items: center;
-		gap: 0.4rem;
-		padding: 0.55rem 1.1rem;
-		border-radius: 999px;
-		background: var(--color-lakebed-700, #1a3a66);
-		color: white;
-		font-weight: 600;
-		font-size: 0.875rem;
-		letter-spacing: 0.01em;
-		text-decoration: none;
-		white-space: nowrap;
-		transition:
-			opacity 0.15s ease,
-			transform 0.15s ease,
-			box-shadow 0.15s ease;
-		box-shadow: 0 2px 8px rgba(26, 58, 102, 0.35);
-	}
-	.kb-tb-primary-btn:hover {
-		opacity: 0.95;
-		text-decoration: none;
-		transform: translateY(-1px);
-		box-shadow: 0 4px 12px rgba(26, 58, 102, 0.45);
 	}
 	.kb-toolbox-section {
 		margin-bottom: 1.75rem;

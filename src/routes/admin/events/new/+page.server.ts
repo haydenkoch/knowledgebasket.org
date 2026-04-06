@@ -6,12 +6,14 @@ import { getAllVenues } from '$lib/server/venues';
 import { getTags, getOptions } from '$lib/server/taxonomy';
 import { uploadImage } from '$lib/server/upload';
 import type { PricingTier } from '$lib/data/kb';
-
-function normalizeCreateStatus(raw: FormDataEntryValue | null): 'draft' | 'pending' | 'published' {
-	const value = typeof raw === 'string' ? raw.trim() : '';
-	if (value === 'pending' || value === 'published') return value;
-	return 'draft';
-}
+import {
+	parseString,
+	nullableString,
+	parseList,
+	validateRequired,
+	validateDateOrder,
+	validateHttpUrl
+} from '$lib/server/admin-content';
 
 export const load: PageServerLoad = async () => {
 	const [orgs, vens, tags, regionOpts, audienceOpts, costOpts] = await Promise.all([
@@ -35,8 +37,41 @@ export const load: PageServerLoad = async () => {
 export const actions: Actions = {
 	default: async ({ request, locals }) => {
 		const fd = await request.formData();
-		const title = fd.get('title') as string;
-		if (!title?.trim()) return fail(400, { error: 'Title is required' });
+		const title = parseString(fd, 'title');
+		const issues: string[] = [];
+		validateRequired(issues, title, 'Title is required');
+		validateDateOrder(
+			issues,
+			parseString(fd, 'startDate'),
+			parseString(fd, 'endDate'),
+			'End date must be after the start date.'
+		);
+		validateHttpUrl(
+			issues,
+			nullableString(fd, 'eventUrl'),
+			'Event URL must be a valid http or https URL.'
+		);
+		validateHttpUrl(
+			issues,
+			nullableString(fd, 'registrationUrl'),
+			'Registration URL must be a valid http or https URL.'
+		);
+		validateHttpUrl(
+			issues,
+			nullableString(fd, 'imageUrl'),
+			'Image URL must be a valid http or https URL.'
+		);
+		validateHttpUrl(
+			issues,
+			nullableString(fd, 'virtualEventUrl'),
+			'Virtual event URL must be a valid http or https URL.'
+		);
+		validateHttpUrl(
+			issues,
+			nullableString(fd, 'waitlistUrl'),
+			'Waitlist URL must be a valid http or https URL.'
+		);
+		if (issues.length > 0) return fail(400, { error: issues[0], issues });
 
 		let pricingTiers: PricingTier[] = [];
 		try {
@@ -46,13 +81,7 @@ export const actions: Actions = {
 			/* ignore */
 		}
 
-		const tagsRaw = fd.getAll('tags');
-		const tags = Array.isArray(tagsRaw)
-			? (tagsRaw as string[]).filter(Boolean)
-			: ((fd.get('tags') as string) || '')
-					.split(',')
-					.map((t) => t.trim())
-					.filter(Boolean);
+		const tags = parseList(fd, 'tags') ?? [];
 
 		let imageUrl: string | undefined;
 		const image = fd.get('image') as File | null;
@@ -69,10 +98,9 @@ export const actions: Actions = {
 		const lat = latStr ? parseFloat(latStr) : undefined;
 		const lng = lngStr ? parseFloat(lngStr) : undefined;
 
-		const status = normalizeCreateStatus(fd.get('status'));
 		const capacityStr = (fd.get('capacity') as string)?.trim();
 		const capacityNum = capacityStr ? parseInt(capacityStr, 10) : undefined;
-		const imageUrlInput = (fd.get('imageUrl') as string | null)?.trim() || undefined;
+		const imageUrlInput = nullableString(fd, 'imageUrl') ?? undefined;
 		const imageUrlsRaw = (fd.get('imageUrls') as string) ?? '';
 		const imageUrls = imageUrlsRaw
 			? imageUrlsRaw
@@ -120,9 +148,9 @@ export const actions: Actions = {
 			pricingTiers,
 			imageUrl: imageUrl ?? imageUrlInput,
 			submittedById: locals.user?.id,
-			status,
+			status: 'draft',
 			source: 'admin',
-			publishedAt: status === 'published' ? new Date() : undefined,
+			publishedAt: undefined,
 			unlisted: fd.has('unlisted')
 		});
 

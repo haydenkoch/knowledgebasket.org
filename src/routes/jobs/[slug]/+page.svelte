@@ -7,11 +7,9 @@
 	import ArrowLeft from '@lucide/svelte/icons/arrow-left';
 	import ArrowRight from '@lucide/svelte/icons/arrow-right';
 	import { Button } from '$lib/components/ui/button/index.js';
-	import * as Breadcrumb from '$lib/components/ui/breadcrumb/index.js';
 	import CoilDetailActionRail from '$lib/components/organisms/CoilDetailActionRail.svelte';
 	import LocationMap from '$lib/components/molecules/LocationMap.svelte';
 	import ExternalLinkIcon from '@lucide/svelte/icons/external-link';
-	import SourceProvenanceCard from '$lib/components/public/source-provenance-card.svelte';
 
 	let { data } = $props();
 	let item = $derived(data.item as JobItem | null);
@@ -170,19 +168,6 @@
 			saveLabel="job"
 			accent="var(--forest)"
 		>
-			{#snippet breadcrumb()}
-				<Breadcrumb.Root>
-					<Breadcrumb.List>
-						<Breadcrumb.Item>
-							<Breadcrumb.Link href="/jobs">Job Board</Breadcrumb.Link>
-						</Breadcrumb.Item>
-						<Breadcrumb.Separator />
-						<Breadcrumb.Item>
-							<Breadcrumb.Page>{item.title}</Breadcrumb.Page>
-						</Breadcrumb.Item>
-					</Breadcrumb.List>
-				</Breadcrumb.Root>
-			{/snippet}
 			{#snippet meta()}
 				{#if applicationDeadlineLabel}
 					<span class="kb-job-meta-deadline">Apply by · {applicationDeadlineLabel}</span>
@@ -190,9 +175,9 @@
 			{/snippet}
 			{#snippet primary()}
 				{#if item.applyUrl}
-					<a href={item.applyUrl} target="_blank" rel="noopener" class="kb-job-primary-btn">
+					<Button href={item.applyUrl} target="_blank" rel="noopener" size="sm">
 						Apply now <ExternalLinkIcon class="size-[14px]" />
-					</a>
+					</Button>
 				{/if}
 			{/snippet}
 		</CoilDetailActionRail>
@@ -358,7 +343,6 @@
 						{/if}
 					</dl>
 				</div>
-				<SourceProvenanceCard provenance={item.provenance} />
 
 				<Button variant="outline" href="/jobs" class="w-full"
 					><ArrowLeft class="inline h-4 w-4" /> Back to Job Board</Button
@@ -512,31 +496,6 @@
 		font-weight: 600;
 		color: var(--forest);
 		white-space: nowrap;
-	}
-	.kb-job-primary-btn {
-		display: inline-flex;
-		align-items: center;
-		gap: 0.4rem;
-		padding: 0.55rem 1.1rem;
-		border-radius: 999px;
-		background: var(--forest);
-		color: white;
-		font-weight: 600;
-		font-size: 0.875rem;
-		letter-spacing: 0.01em;
-		text-decoration: none;
-		white-space: nowrap;
-		transition:
-			opacity 0.15s ease,
-			transform 0.15s ease,
-			box-shadow 0.15s ease;
-		box-shadow: 0 2px 8px color-mix(in srgb, var(--forest) 40%, transparent);
-	}
-	.kb-job-primary-btn:hover {
-		opacity: 0.95;
-		text-decoration: none;
-		transform: translateY(-1px);
-		box-shadow: 0 4px 12px color-mix(in srgb, var(--forest) 50%, transparent);
 	}
 	.kb-job-grid {
 		display: grid;

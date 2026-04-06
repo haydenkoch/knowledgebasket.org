@@ -14,9 +14,11 @@
 	</Card.Header>
 	<Card.Content>
 		{#if data.follows.length === 0}
-			<p class="rounded-lg border border-dashed border-border/70 p-8 text-center text-sm text-muted-foreground">
-				You're not following any organizations yet. Use the follow button on an organization page
-				to start.
+			<p
+				class="rounded-lg border border-dashed border-border/70 p-8 text-center text-sm text-muted-foreground"
+			>
+				You're not following any organizations yet. Use the follow button on an organization page to
+				start.
 			</p>
 		{:else}
 			<ul class="divide-y divide-border/60">

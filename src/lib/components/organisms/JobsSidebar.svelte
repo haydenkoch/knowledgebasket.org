@@ -155,7 +155,9 @@
 					>
 						<span class="kb-pill__label">{bucket.label}</span>
 						{#if bucket.count > 0}
-							<span class="kb-pill__count {sel ? 'kb-pill__count--active' : ''}">{bucket.count}</span>
+							<span class="kb-pill__count {sel ? 'kb-pill__count--active' : ''}"
+								>{bucket.count}</span
+							>
 						{/if}
 					</button>
 				{/each}
@@ -178,7 +180,9 @@
 					>
 						<span class="kb-pill__label">{bucket.label}</span>
 						{#if bucket.count > 0}
-							<span class="kb-pill__count {sel ? 'kb-pill__count--active' : ''}">{bucket.count}</span>
+							<span class="kb-pill__count {sel ? 'kb-pill__count--active' : ''}"
+								>{bucket.count}</span
+							>
 						{/if}
 					</button>
 				{/each}

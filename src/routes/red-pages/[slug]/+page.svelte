@@ -2,7 +2,7 @@
 	import type { RedPagesItem } from '$lib/data/kb';
 	import { stripHtml } from '$lib/utils/format';
 	import { Button } from '$lib/components/ui/button/index.js';
-	import * as Breadcrumb from '$lib/components/ui/breadcrumb/index.js';
+	import * as Tooltip from '$lib/components/ui/tooltip/index.js';
 	import CoilDetailActionRail from '$lib/components/organisms/CoilDetailActionRail.svelte';
 	import LocationMap from '$lib/components/molecules/LocationMap.svelte';
 	import MapPinIcon from '@lucide/svelte/icons/map-pin';
@@ -10,7 +10,6 @@
 	import GlobeIcon from '@lucide/svelte/icons/globe';
 	import PhoneIcon from '@lucide/svelte/icons/phone';
 	import MailIcon from '@lucide/svelte/icons/mail';
-	import SourceProvenanceCard from '$lib/components/public/source-provenance-card.svelte';
 
 	let { data } = $props();
 	let item = $derived(data.item as RedPagesItem | null);
@@ -163,36 +162,49 @@
 				saveLabel="listing"
 				accent="var(--red)"
 			>
-				{#snippet breadcrumb()}
-					<Breadcrumb.Root>
-						<Breadcrumb.List>
-							<Breadcrumb.Item>
-								<Breadcrumb.Link href="/red-pages">Red Pages</Breadcrumb.Link>
-							</Breadcrumb.Item>
-							<Breadcrumb.Separator />
-							<Breadcrumb.Item>
-								<Breadcrumb.Page>{item.title}</Breadcrumb.Page>
-							</Breadcrumb.Item>
-						</Breadcrumb.List>
-					</Breadcrumb.Root>
-				{/snippet}
 				{#snippet actions()}
 					{#if item.phone}
-						<Button href="tel:{item.phone}" variant="ghost" size="sm">
-							<PhoneIcon class="mr-1 size-[14px]" /> Call
-						</Button>
+						<Tooltip.Root>
+							<Tooltip.Trigger>
+								{#snippet child({ props })}
+									<Button
+										{...props}
+										href="tel:{item.phone}"
+										variant="ghost"
+										size="icon-sm"
+										aria-label="Call {item.phone}"
+									>
+										<PhoneIcon class="size-4" />
+									</Button>
+								{/snippet}
+							</Tooltip.Trigger>
+							<Tooltip.Content>Call</Tooltip.Content>
+						</Tooltip.Root>
 					{/if}
 					{#if item.email}
-						<Button href="mailto:{item.email}" variant="ghost" size="sm">
-							<MailIcon class="mr-1 size-[14px]" /> Email
-						</Button>
+						<Tooltip.Root>
+							<Tooltip.Trigger>
+								{#snippet child({ props })}
+									<Button
+										{...props}
+										href="mailto:{item.email}"
+										variant="ghost"
+										size="icon-sm"
+										aria-label="Email {item.email}"
+									>
+										<MailIcon class="size-4" />
+									</Button>
+								{/snippet}
+							</Tooltip.Trigger>
+							<Tooltip.Content>Email</Tooltip.Content>
+						</Tooltip.Root>
 					{/if}
 				{/snippet}
 				{#snippet primary()}
 					{#if item.website}
-						<a href={item.website} target="_blank" rel="noopener" class="kb-rp-primary-btn">
+						<Button href={item.website} target="_blank" rel="noopener" size="sm">
 							<GlobeIcon class="size-[14px]" /> Visit site
-						</a>
+						</Button>
 					{/if}
 				{/snippet}
 			</CoilDetailActionRail>
@@ -356,7 +368,6 @@
 						</div>
 					</div>
 				{/if}
-				<SourceProvenanceCard provenance={item.provenance} />
 
 				<Button variant="outline" href="/red-pages" class="w-full"
 					><ArrowLeft class="inline h-4 w-4" /> Back to Red Pages</Button
@@ -501,31 +512,6 @@
 		opacity: 0.88;
 		font-style: italic;
 		margin: 0;
-	}
-	.kb-rp-primary-btn {
-		display: inline-flex;
-		align-items: center;
-		gap: 0.4rem;
-		padding: 0.55rem 1.1rem;
-		border-radius: 999px;
-		background: var(--red);
-		color: white;
-		font-weight: 600;
-		font-size: 0.875rem;
-		letter-spacing: 0.01em;
-		text-decoration: none;
-		white-space: nowrap;
-		transition:
-			opacity 0.15s ease,
-			transform 0.15s ease,
-			box-shadow 0.15s ease;
-		box-shadow: 0 2px 8px color-mix(in srgb, var(--red) 40%, transparent);
-	}
-	.kb-rp-primary-btn:hover {
-		opacity: 0.95;
-		text-decoration: none;
-		transform: translateY(-1px);
-		box-shadow: 0 4px 12px color-mix(in srgb, var(--red) 50%, transparent);
 	}
 	.kb-rp-grid {
 		display: grid;

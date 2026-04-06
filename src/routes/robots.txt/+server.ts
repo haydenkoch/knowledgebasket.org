@@ -1,8 +1,8 @@
-import { env } from '$env/dynamic/private';
+import { resolveRuntimeOrigin } from '$lib/server/runtime-config';
 import type { RequestHandler } from './$types';
 
 export const GET: RequestHandler = async ({ url }) => {
-	const origin = (env.ORIGIN ?? url.origin).replace(/\/$/, '');
+	const origin = resolveRuntimeOrigin() ?? url.origin;
 	const body = ['User-agent: *', 'Allow: /', `Sitemap: ${origin}/sitemap.xml`].join('\n');
 
 	return new Response(body, {

@@ -280,11 +280,11 @@
 			class="mt-8 rounded-[28px] border border-dashed border-[var(--border)] bg-[var(--card)] px-6 py-10 text-center"
 		>
 			<h2 class="font-serif text-2xl font-semibold text-[var(--foreground)]">
-				No published content is linked yet
+				No published content
 			</h2>
 			<p class="mt-2 text-sm leading-6 text-[var(--muted-foreground)]">
-				This organization profile exists, but it is not yet connected to published events, funding,
-				jobs, directory listings, or toolbox resources.
+				This organization does not have any published events, funding, jobs, directory listings,
+				or toolbox resources at this time.
 			</p>
 		</section>
 	{/if}

@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { EventItem } from '$lib/data/kb';
 	import EventCard from '$lib/components/molecules/EventCard.svelte';
+	import { formatDisplayDate } from '$lib/utils/display';
 	import { formatEventTime } from '$lib/utils/format';
 	import ArrowRight from '@lucide/svelte/icons/arrow-right';
 	import MapPin from '@lucide/svelte/icons/map-pin';
@@ -33,20 +34,24 @@
 		<!-- Event detail panel -->
 		<div class="kb-rsidebar-panel">
 			<div class="kb-rsidebar-header">
-				<h3 class="kb-rsidebar-title">Event Details</h3>
+				<h2 class="kb-rsidebar-title">Event Details</h2>
 				<button type="button" onclick={onClose} class="kb-rsidebar-close" aria-label="Close panel"
 					>×</button
 				>
 			</div>
 			<div class="kb-rsidebar-body">
-				<h4 class="mb-1 text-base font-semibold">{calendarSelectedEvent.title}</h4>
+				<h3 class="mb-1 text-base font-semibold">{calendarSelectedEvent.title}</h3>
 				{#if calendarSelectedEvent.startDate}
 					<p class="mb-1 text-sm text-muted-foreground">
-						{new Date(calendarSelectedEvent.startDate).toLocaleDateString('en-US', {
-							weekday: 'long',
-							month: 'long',
-							day: 'numeric'
-						})}
+						{formatDisplayDate(
+							calendarSelectedEvent.startDate,
+							{
+								weekday: 'long',
+								month: 'long',
+								day: 'numeric'
+							},
+							''
+						)}
 						{#if calendarSelectedEvent.startDate}
 							· {formatEventTime(calendarSelectedEvent.startDate)}
 						{/if}
@@ -70,7 +75,7 @@
 		{#if sidebarWeekUpcoming.length > 0}
 			<div class="kb-rsidebar-panel">
 				<div class="kb-rsidebar-header">
-					<h3 class="kb-rsidebar-title">This Week</h3>
+					<h2 class="kb-rsidebar-title">This Week</h2>
 				</div>
 				<ul class="kb-rsidebar-list">
 					{#each sidebarWeekUpcoming as event}
@@ -79,10 +84,14 @@
 								<span class="kb-rsidebar-item-title">{event.title}</span>
 								{#if event.startDate}
 									<span class="kb-rsidebar-item-date"
-										>{new Date(event.startDate).toLocaleDateString('en-US', {
-											month: 'short',
-											day: 'numeric'
-										})}</span
+										>{formatDisplayDate(
+											event.startDate,
+											{
+												month: 'short',
+												day: 'numeric'
+											},
+											''
+										)}</span
 									>
 								{/if}
 							</a>
@@ -95,7 +104,7 @@
 		{#if sidebarCalendarInView.length > 0}
 			<div class="kb-rsidebar-panel">
 				<div class="kb-rsidebar-header">
-					<h3 class="kb-rsidebar-title">In View</h3>
+					<h2 class="kb-rsidebar-title">In View</h2>
 				</div>
 				<ul class="kb-rsidebar-list">
 					{#each sidebarCalendarInView.slice(0, 6) as event}
@@ -104,10 +113,14 @@
 								<span class="kb-rsidebar-item-title">{event.title}</span>
 								{#if event.startDate}
 									<span class="kb-rsidebar-item-date"
-										>{new Date(event.startDate).toLocaleDateString('en-US', {
-											month: 'short',
-											day: 'numeric'
-										})}</span
+										>{formatDisplayDate(
+											event.startDate,
+											{
+												month: 'short',
+												day: 'numeric'
+											},
+											''
+										)}</span
 									>
 								{/if}
 							</a>

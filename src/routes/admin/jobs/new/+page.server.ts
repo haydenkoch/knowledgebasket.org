@@ -2,42 +2,16 @@ import type { Actions, PageServerLoad } from './$types';
 import { fail, redirect } from '@sveltejs/kit';
 import { createJob } from '$lib/server/jobs';
 import { getAllOrganizations } from '$lib/server/organizations';
-
-function parseString(formData: FormData, key: string) {
-	return formData.get(key)?.toString().trim() ?? '';
-}
-
-function nullableString(formData: FormData, key: string) {
-	const value = parseString(formData, key);
-	return value ? value : null;
-}
-
-function parseDateValue(formData: FormData, key: string) {
-	const value = parseString(formData, key);
-	return value ? new Date(`${value}T00:00:00`) : null;
-}
-
-function parseNumberValue(formData: FormData, key: string) {
-	const value = parseString(formData, key);
-	if (!value) return null;
-	const number = Number(value);
-	return Number.isFinite(number) ? number : null;
-}
-
-function parseList(formData: FormData, key: string) {
-	const value = parseString(formData, key);
-	const items = value
-		.split(/\r?\n|,/)
-		.map((entry) => entry.trim())
-		.filter(Boolean);
-	return items.length > 0 ? items : null;
-}
-
-function normalizeCreateStatus(raw: FormDataEntryValue | null): 'draft' | 'pending' | 'published' {
-	const value = typeof raw === 'string' ? raw.trim() : '';
-	if (value === 'pending' || value === 'published') return value;
-	return 'draft';
-}
+import {
+	parseString,
+	nullableString,
+	parseDateValue,
+	parseNumberValue,
+	parseList,
+	validateRequired,
+	validateHttpUrl,
+	validateNumberOrder
+} from '$lib/server/admin-content';
 
 export const load: PageServerLoad = async () => {
 	const organizations = await getAllOrganizations();
@@ -54,11 +28,27 @@ export const actions: Actions = {
 		const formData = await request.formData();
 		const title = parseString(formData, 'title');
 		const employerName = parseString(formData, 'employerName');
+		const issues: string[] = [];
+		validateRequired(issues, title, 'Title is required');
+		validateRequired(issues, employerName, 'Employer name is required');
+		validateHttpUrl(
+			issues,
+			nullableString(formData, 'applyUrl'),
+			'Apply URL must be a valid http or https URL.'
+		);
+		validateHttpUrl(
+			issues,
+			nullableString(formData, 'imageUrl'),
+			'Image URL must be a valid http or https URL.'
+		);
+		validateNumberOrder(
+			issues,
+			parseNumberValue(formData, 'compensationMin'),
+			parseNumberValue(formData, 'compensationMax'),
+			'Minimum compensation cannot be greater than maximum compensation.'
+		);
+		if (issues.length > 0) return fail(400, { error: issues[0], issues });
 
-		if (!title) return fail(400, { error: 'Title is required' });
-		if (!employerName) return fail(400, { error: 'Employer name is required' });
-
-		const status = normalizeCreateStatus(formData.get('status'));
 		const job = await createJob({
 			title,
 			description: nullableString(formData, 'description'),
@@ -89,14 +79,14 @@ export const actions: Actions = {
 			indigenousPriority: formData.has('indigenousPriority'),
 			tribalPreference: nullableString(formData, 'tribalPreference'),
 			imageUrl: nullableString(formData, 'imageUrl'),
-			status,
+			status: 'draft',
 			source: 'admin',
 			featured: formData.has('featured'),
 			unlisted: formData.has('unlisted'),
-			publishedAt: status === 'published' ? new Date() : null,
+			publishedAt: null,
 			adminNotes: nullableString(formData, 'adminNotes'),
 			submittedById: locals.user?.id ?? null,
-			reviewedById: status === 'published' ? (locals.user?.id ?? null) : null
+			reviewedById: null
 		});
 
 		throw redirect(303, `/admin/jobs/${job.id}`);

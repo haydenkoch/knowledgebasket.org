@@ -13,13 +13,19 @@ import { getSourceProvenanceByPublishedRecord } from '$lib/server/source-provena
 import type { RedPagesItem } from '$lib/data/kb';
 import type { RedPagesSearchDoc } from '$lib/server/meilisearch';
 import { stripHtml } from '$lib/utils/format';
+import { buildModerationFields } from '$lib/server/admin-content';
 
 export type RedPagesRow = typeof rpTable.$inferSelect;
 export type RedPagesInsert = typeof rpTable.$inferInsert;
 
 function rowToItem(
 	row: RedPagesRow,
-	extra?: { organizationName?: string; organizationSlug?: string }
+	extra?: {
+		organizationName?: string;
+		organizationSlug?: string;
+		submitterName?: string;
+		submitterEmail?: string;
+	}
 ): RedPagesItem {
 	return {
 		id: row.id,
@@ -61,11 +67,16 @@ function rowToItem(
 		source: row.source,
 		featured: row.featured ?? undefined,
 		unlisted: row.unlisted ?? undefined,
+		createdAt: row.createdAt?.toISOString() ?? undefined,
+		updatedAt: row.updatedAt?.toISOString() ?? undefined,
 		publishedAt: row.publishedAt?.toISOString() ?? undefined,
 		rejectedAt: row.rejectedAt?.toISOString() ?? undefined,
+		verifiedAt: row.verifiedAt?.toISOString() ?? undefined,
 		rejectionReason: row.rejectionReason ?? undefined,
 		adminNotes: row.adminNotes ?? undefined,
 		submittedById: row.submittedById ?? undefined,
+		submitterName: extra?.submitterName ?? undefined,
+		submitterEmail: extra?.submitterEmail ?? undefined,
 		reviewedById: row.reviewedById ?? undefined,
 		verified: row.verified ?? undefined
 	};
@@ -209,9 +220,26 @@ export async function getBusinessBySlug(slug: string): Promise<RedPagesItem | nu
 }
 
 export async function getBusinessById(id: string): Promise<RedPagesItem | null> {
-	const [row] = await db.select().from(rpTable).where(eq(rpTable.id, id)).limit(1);
+	const [row] = await db
+		.select({
+			business: rpTable,
+			orgName: organizations.name,
+			orgSlug: organizations.slug,
+			submitterName: userTable.name,
+			submitterEmail: userTable.email
+		})
+		.from(rpTable)
+		.leftJoin(organizations, eq(rpTable.organizationId, organizations.id))
+		.leftJoin(userTable, eq(rpTable.submittedById, userTable.id))
+		.where(eq(rpTable.id, id))
+		.limit(1);
 	if (!row) return null;
-	return rowToItem(row);
+	return rowToItem(row.business, {
+		organizationName: row.orgName ?? undefined,
+		organizationSlug: row.orgSlug ?? undefined,
+		submitterName: row.submitterName ?? undefined,
+		submitterEmail: row.submitterEmail ?? undefined
+	});
 }
 
 export async function getBusinessesByOrganizationId(orgId: string): Promise<RedPagesItem[]> {
@@ -262,7 +290,8 @@ export async function getBusinessesForAdmin(opts: {
 		.select({
 			business: rpTable,
 			orgName: organizations.name,
-			submitterName: userTable.name
+			submitterName: userTable.name,
+			submitterEmail: userTable.email
 		})
 		.from(rpTable)
 		.leftJoin(organizations, eq(rpTable.organizationId, organizations.id))
@@ -273,7 +302,11 @@ export async function getBusinessesForAdmin(opts: {
 		.offset(offset);
 
 	const items = rows.map((r) =>
-		rowToItem(r.business, { organizationName: r.orgName ?? undefined })
+		rowToItem(r.business, {
+			organizationName: r.orgName ?? undefined,
+			submitterName: r.submitterName ?? undefined,
+			submitterEmail: r.submitterEmail ?? undefined
+		})
 	);
 	return { items, total };
 }
@@ -330,11 +363,15 @@ export async function deleteBusiness(id: string): Promise<boolean> {
 // ── Moderation ────────────────────────────────────────────
 
 export async function approveBusiness(id: string, reviewerId: string): Promise<RedPagesRow | null> {
-	return updateBusiness(id, {
-		status: 'published',
-		publishedAt: new Date(),
-		reviewedById: reviewerId
-	});
+	const current = await getBusinessById(id);
+	if (!current) return null;
+	return updateBusiness(
+		id,
+		buildModerationFields(current, {
+			status: 'published',
+			reviewerId
+		})
+	);
 }
 
 export async function rejectBusiness(
@@ -342,12 +379,16 @@ export async function rejectBusiness(
 	reviewerId: string,
 	reason?: string
 ): Promise<RedPagesRow | null> {
-	return updateBusiness(id, {
-		status: 'rejected',
-		rejectedAt: new Date(),
-		reviewedById: reviewerId,
-		rejectionReason: reason
-	});
+	const current = await getBusinessById(id);
+	if (!current) return null;
+	return updateBusiness(
+		id,
+		buildModerationFields(current, {
+			status: 'rejected',
+			reviewerId,
+			rejectionReason: reason
+		})
+	);
 }
 
 export async function bulkApproveBusinesses(ids: string[], reviewerId: string): Promise<number> {

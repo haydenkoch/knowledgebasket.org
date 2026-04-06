@@ -9,13 +9,19 @@ import { getSourceProvenanceByPublishedRecord } from '$lib/server/source-provena
 import type { FundingItem } from '$lib/data/kb';
 import type { FundingSearchDoc } from '$lib/server/meilisearch';
 import { stripHtml } from '$lib/utils/format';
+import { buildModerationFields } from '$lib/server/admin-content';
 
 export type FundingRow = typeof fundingTable.$inferSelect;
 export type FundingInsert = typeof fundingTable.$inferInsert;
 
 function rowToItem(
 	row: FundingRow,
-	extra?: { organizationName?: string; organizationSlug?: string }
+	extra?: {
+		organizationName?: string;
+		organizationSlug?: string;
+		submitterName?: string;
+		submitterEmail?: string;
+	}
 ): FundingItem {
 	return {
 		id: row.id,
@@ -58,11 +64,15 @@ function rowToItem(
 		source: row.source,
 		featured: row.featured ?? undefined,
 		unlisted: row.unlisted ?? undefined,
+		createdAt: row.createdAt?.toISOString() ?? undefined,
+		updatedAt: row.updatedAt?.toISOString() ?? undefined,
 		publishedAt: row.publishedAt?.toISOString() ?? undefined,
 		rejectedAt: row.rejectedAt?.toISOString() ?? undefined,
 		rejectionReason: row.rejectionReason ?? undefined,
 		adminNotes: row.adminNotes ?? undefined,
 		submittedById: row.submittedById ?? undefined,
+		submitterName: extra?.submitterName ?? undefined,
+		submitterEmail: extra?.submitterEmail ?? undefined,
 		reviewedById: row.reviewedById ?? undefined
 	};
 }
@@ -227,9 +237,26 @@ export async function getFundingBySlug(slug: string): Promise<FundingItem | null
 }
 
 export async function getFundingById(id: string): Promise<FundingItem | null> {
-	const [row] = await db.select().from(fundingTable).where(eq(fundingTable.id, id)).limit(1);
+	const [row] = await db
+		.select({
+			funding: fundingTable,
+			orgName: organizations.name,
+			orgSlug: organizations.slug,
+			submitterName: userTable.name,
+			submitterEmail: userTable.email
+		})
+		.from(fundingTable)
+		.leftJoin(organizations, eq(fundingTable.organizationId, organizations.id))
+		.leftJoin(userTable, eq(fundingTable.submittedById, userTable.id))
+		.where(eq(fundingTable.id, id))
+		.limit(1);
 	if (!row) return null;
-	return rowToItem(row);
+	return rowToItem(row.funding, {
+		organizationName: row.orgName ?? undefined,
+		organizationSlug: row.orgSlug ?? undefined,
+		submitterName: row.submitterName ?? undefined,
+		submitterEmail: row.submitterEmail ?? undefined
+	});
 }
 
 export async function getFundingByOrganizationId(orgId: string): Promise<FundingItem[]> {
@@ -288,7 +315,8 @@ export async function getFundingForAdmin(opts: {
 		.select({
 			funding: fundingTable,
 			orgName: organizations.name,
-			submitterName: userTable.name
+			submitterName: userTable.name,
+			submitterEmail: userTable.email
 		})
 		.from(fundingTable)
 		.leftJoin(organizations, eq(fundingTable.organizationId, organizations.id))
@@ -298,7 +326,13 @@ export async function getFundingForAdmin(opts: {
 		.limit(limit)
 		.offset(offset);
 
-	const items = rows.map((r) => rowToItem(r.funding, { organizationName: r.orgName ?? undefined }));
+	const items = rows.map((r) =>
+		rowToItem(r.funding, {
+			organizationName: r.orgName ?? undefined,
+			submitterName: r.submitterName ?? undefined,
+			submitterEmail: r.submitterEmail ?? undefined
+		})
+	);
 	return { items, total };
 }
 
@@ -360,11 +394,15 @@ export async function deleteFunding(id: string): Promise<boolean> {
 // ── Moderation ────────────────────────────────────────────
 
 export async function approveFunding(id: string, reviewerId: string): Promise<FundingRow | null> {
-	return updateFunding(id, {
-		status: 'published',
-		publishedAt: new Date(),
-		reviewedById: reviewerId
-	});
+	const current = await getFundingById(id);
+	if (!current) return null;
+	return updateFunding(
+		id,
+		buildModerationFields(current, {
+			status: 'published',
+			reviewerId
+		})
+	);
 }
 
 export async function rejectFunding(
@@ -372,12 +410,16 @@ export async function rejectFunding(
 	reviewerId: string,
 	reason?: string
 ): Promise<FundingRow | null> {
-	return updateFunding(id, {
-		status: 'rejected',
-		rejectedAt: new Date(),
-		reviewedById: reviewerId,
-		rejectionReason: reason
-	});
+	const current = await getFundingById(id);
+	if (!current) return null;
+	return updateFunding(
+		id,
+		buildModerationFields(current, {
+			status: 'rejected',
+			reviewerId,
+			rejectionReason: reason
+		})
+	);
 }
 
 export async function bulkApproveFunding(ids: string[], reviewerId: string): Promise<number> {

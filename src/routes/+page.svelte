@@ -9,6 +9,7 @@
 	import { coilLabels, coilPaths, type CoilKey } from '$lib/data/kb';
 	import type { EventItem, FundingItem, JobItem, ToolboxItem, RedPagesItem } from '$lib/data/kb';
 	import { stripHtml } from '$lib/utils/format';
+	import { formatDisplayDate } from '$lib/utils/display';
 	import {
 		DEFAULT_HEADINGS,
 		buildHomepageSectionMoreHref,
@@ -61,16 +62,15 @@
 	}
 
 	function formatDate(d?: string) {
-		if (!d) return '';
-		try {
-			return new Date(d).toLocaleDateString('en-US', {
+		return formatDisplayDate(
+			d,
+			{
 				month: 'short',
 				day: 'numeric',
 				year: 'numeric'
-			});
-		} catch {
-			return '';
-		}
+			},
+			''
+		);
 	}
 
 	function coilHref(coil: CoilKey) {
@@ -172,7 +172,7 @@
 			{@const secondary = featItems.slice(1)}
 			<section
 				class="border-b border-[var(--rule)] px-4 py-8 sm:px-6 lg:px-10 {bgClass}"
-				aria-labelledby="kb-featured-{section.id}"
+				aria-label={`${section.heading || "Editor's Picks"} featured section ${sectionIdx + 1}`}
 			>
 				<div class="mx-auto max-w-[1080px]">
 					<h2

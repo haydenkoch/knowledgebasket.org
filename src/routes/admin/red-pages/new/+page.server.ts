@@ -2,24 +2,13 @@ import type { Actions, PageServerLoad } from './$types';
 import { fail, redirect } from '@sveltejs/kit';
 import { createBusiness } from '$lib/server/red-pages';
 import { getAllOrganizations } from '$lib/server/organizations';
-
-function parseString(formData: FormData, key: string) {
-	return formData.get(key)?.toString().trim() ?? '';
-}
-
-function nullableString(formData: FormData, key: string) {
-	const value = parseString(formData, key);
-	return value ? value : null;
-}
-
-function parseList(formData: FormData, key: string) {
-	const value = parseString(formData, key);
-	const items = value
-		.split(/\r?\n|,/)
-		.map((entry) => entry.trim())
-		.filter(Boolean);
-	return items.length > 0 ? items : null;
-}
+import {
+	parseString,
+	nullableString,
+	parseList,
+	validateRequired,
+	validateHttpUrl
+} from '$lib/server/admin-content';
 
 function parseSocialLinks(formData: FormData, key: string) {
 	const value = parseString(formData, key);
@@ -37,12 +26,6 @@ function parseSocialLinks(formData: FormData, key: string) {
 	);
 }
 
-function normalizeCreateStatus(raw: FormDataEntryValue | null): 'draft' | 'pending' | 'published' {
-	const value = typeof raw === 'string' ? raw.trim() : '';
-	if (value === 'pending' || value === 'published') return value;
-	return 'draft';
-}
-
 export const load: PageServerLoad = async () => {
 	const organizations = await getAllOrganizations();
 	return {
@@ -58,12 +41,27 @@ export const actions: Actions = {
 		const formData = await request.formData();
 		const name = parseString(formData, 'name');
 		const tribalAffiliation = parseString(formData, 'tribalAffiliation');
-
-		if (!name) return fail(400, { error: 'Business name is required' });
-		if (!tribalAffiliation) return fail(400, { error: 'Tribal affiliation is required' });
+		const issues: string[] = [];
+		validateRequired(issues, name, 'Business name is required');
+		validateRequired(issues, tribalAffiliation, 'Tribal affiliation is required');
+		validateHttpUrl(
+			issues,
+			nullableString(formData, 'website'),
+			'Website must be a valid http or https URL.'
+		);
+		validateHttpUrl(
+			issues,
+			nullableString(formData, 'logoUrl'),
+			'Logo URL must be a valid http or https URL.'
+		);
+		validateHttpUrl(
+			issues,
+			nullableString(formData, 'imageUrl'),
+			'Image URL must be a valid http or https URL.'
+		);
+		if (issues.length > 0) return fail(400, { error: issues[0], issues });
 
 		const serviceArea = nullableString(formData, 'serviceArea');
-		const status = normalizeCreateStatus(formData.get('status'));
 		const verified = formData.has('verified');
 		const business = await createBusiness({
 			name,
@@ -89,14 +87,14 @@ export const actions: Actions = {
 			imageUrl: nullableString(formData, 'imageUrl'),
 			certifications: parseList(formData, 'certifications'),
 			socialLinks: parseSocialLinks(formData, 'socialLinks'),
-			status,
+			status: 'draft',
 			source: 'admin',
 			featured: formData.has('featured'),
 			unlisted: formData.has('unlisted'),
-			publishedAt: status === 'published' ? new Date() : null,
+			publishedAt: null,
 			adminNotes: nullableString(formData, 'adminNotes'),
 			submittedById: locals.user?.id ?? null,
-			reviewedById: status === 'published' ? (locals.user?.id ?? null) : null,
+			reviewedById: null,
 			verified,
 			verifiedAt: verified ? new Date() : null
 		});

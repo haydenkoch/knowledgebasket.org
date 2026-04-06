@@ -32,6 +32,7 @@
 	} = $props();
 
 	const scopeOptions = ['all', 'events', 'funding', 'redpages', 'jobs', 'toolbox'] as const;
+	const resultsListId = 'kb-home-search-results';
 
 	let query = $state('');
 	let focused = $state(false);
@@ -211,6 +212,8 @@
 						onfocus={onFocus}
 						onblur={onBlur}
 						onkeydown={onKeydown}
+						aria-controls={resultsListId}
+						aria-expanded={showPanel}
 						class="w-full rounded-[0.5rem] border border-input bg-background py-3 pr-26 pl-10 text-sm shadow-[0_18px_45px_rgba(15,23,42,0.12)] focus:ring-2 focus:ring-ring focus:outline-none sm:pr-32 md:pl-[10.5rem] {variant ===
 						'light'
 							? 'bg-white/90'
@@ -220,7 +223,7 @@
 				{/snippet}
 			</CommandPrimitive.Input>
 			<span
-				class="pointer-events-none absolute top-1/2 right-12 hidden -translate-y-1/2 font-sans text-xs text-[var(--mid)]/50 md:inline"
+				class="pointer-events-none absolute top-1/2 right-12 hidden -translate-y-1/2 font-sans text-xs text-[var(--mid)]/80 md:inline"
 				aria-hidden="true"
 			>
 				{shortcutLabel}
@@ -241,7 +244,7 @@
 				class="absolute top-full right-0 left-0 z-50 mt-1.5 overflow-hidden rounded-[0.65rem] border border-[color:var(--rule)] bg-white text-[var(--dark)] shadow-[0_24px_70px_rgba(15,23,42,0.18)]"
 				onmousedown={(e) => e.preventDefault()}
 			>
-				<Command.List class="max-h-[min(480px,60vh)]">
+				<Command.List id={resultsListId} class="max-h-[min(480px,60vh)]">
 					{#if loading}
 						<div class="flex items-center gap-2 px-4 py-4 text-sm text-[var(--mid)]">
 							<LoaderCircle class="h-4 w-4 animate-spin" />

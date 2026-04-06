@@ -14,6 +14,7 @@ import { getSourceProvenanceByPublishedRecord } from '$lib/server/source-provena
 import type { JobItem } from '$lib/data/kb';
 import type { JobSearchDoc } from '$lib/server/meilisearch';
 import { stripHtml } from '$lib/utils/format';
+import { buildModerationFields } from '$lib/server/admin-content';
 
 export type JobRow = typeof jobsTable.$inferSelect;
 export type JobInsert = typeof jobsTable.$inferInsert;
@@ -25,6 +26,8 @@ function rowToItem(
 		organizationSlug?: string;
 		interestCount?: number;
 		userInterested?: boolean;
+		submitterName?: string;
+		submitterEmail?: string;
 	}
 ): JobItem {
 	return {
@@ -68,12 +71,16 @@ function rowToItem(
 		source: row.source,
 		featured: row.featured ?? undefined,
 		unlisted: row.unlisted ?? undefined,
+		createdAt: row.createdAt?.toISOString() ?? undefined,
+		updatedAt: row.updatedAt?.toISOString() ?? undefined,
 		publishedAt: row.publishedAt?.toISOString() ?? undefined,
 		closedAt: row.closedAt?.toISOString() ?? undefined,
 		rejectedAt: row.rejectedAt?.toISOString() ?? undefined,
 		rejectionReason: row.rejectionReason ?? undefined,
 		adminNotes: row.adminNotes ?? undefined,
 		submittedById: row.submittedById ?? undefined,
+		submitterName: extra?.submitterName ?? undefined,
+		submitterEmail: extra?.submitterEmail ?? undefined,
 		reviewedById: row.reviewedById ?? undefined,
 		interestCount: extra?.interestCount,
 		userInterested: extra?.userInterested
@@ -239,9 +246,26 @@ export async function getJobBySlug(slug: string, userId?: string): Promise<JobIt
 }
 
 export async function getJobById(id: string): Promise<JobItem | null> {
-	const [row] = await db.select().from(jobsTable).where(eq(jobsTable.id, id)).limit(1);
+	const [row] = await db
+		.select({
+			job: jobsTable,
+			orgName: organizations.name,
+			orgSlug: organizations.slug,
+			submitterName: userTable.name,
+			submitterEmail: userTable.email
+		})
+		.from(jobsTable)
+		.leftJoin(organizations, eq(jobsTable.organizationId, organizations.id))
+		.leftJoin(userTable, eq(jobsTable.submittedById, userTable.id))
+		.where(eq(jobsTable.id, id))
+		.limit(1);
 	if (!row) return null;
-	return rowToItem(row);
+	return rowToItem(row.job, {
+		organizationName: row.orgName ?? undefined,
+		organizationSlug: row.orgSlug ?? undefined,
+		submitterName: row.submitterName ?? undefined,
+		submitterEmail: row.submitterEmail ?? undefined
+	});
 }
 
 export async function getJobsByOrganizationId(orgId: string): Promise<JobItem[]> {
@@ -327,7 +351,8 @@ export async function getJobsForAdmin(opts: {
 		.select({
 			job: jobsTable,
 			orgName: organizations.name,
-			submitterName: userTable.name
+			submitterName: userTable.name,
+			submitterEmail: userTable.email
 		})
 		.from(jobsTable)
 		.leftJoin(organizations, eq(jobsTable.organizationId, organizations.id))
@@ -337,7 +362,13 @@ export async function getJobsForAdmin(opts: {
 		.limit(limit)
 		.offset(offset);
 
-	const items = rows.map((r) => rowToItem(r.job, { organizationName: r.orgName ?? undefined }));
+	const items = rows.map((r) =>
+		rowToItem(r.job, {
+			organizationName: r.orgName ?? undefined,
+			submitterName: r.submitterName ?? undefined,
+			submitterEmail: r.submitterEmail ?? undefined
+		})
+	);
 	return { items, total };
 }
 
@@ -393,11 +424,15 @@ export async function deleteJob(id: string): Promise<boolean> {
 // ── Moderation ────────────────────────────────────────────
 
 export async function approveJob(id: string, reviewerId: string): Promise<JobRow | null> {
-	return updateJob(id, {
-		status: 'published',
-		publishedAt: new Date(),
-		reviewedById: reviewerId
-	});
+	const current = await getJobById(id);
+	if (!current) return null;
+	return updateJob(
+		id,
+		buildModerationFields(current, {
+			status: 'published',
+			reviewerId
+		})
+	);
 }
 
 export async function rejectJob(
@@ -405,12 +440,16 @@ export async function rejectJob(
 	reviewerId: string,
 	reason?: string
 ): Promise<JobRow | null> {
-	return updateJob(id, {
-		status: 'rejected',
-		rejectedAt: new Date(),
-		reviewedById: reviewerId,
-		rejectionReason: reason
-	});
+	const current = await getJobById(id);
+	if (!current) return null;
+	return updateJob(
+		id,
+		buildModerationFields(current, {
+			status: 'rejected',
+			reviewerId,
+			rejectionReason: reason
+		})
+	);
 }
 
 export async function bulkApproveJobs(ids: string[], reviewerId: string): Promise<number> {

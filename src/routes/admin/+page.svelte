@@ -55,6 +55,10 @@
 	const eventSection = $derived(snapshot.sections.find((section) => section.key === 'events'));
 </script>
 
+<svelte:head>
+	<title>Admin | Knowledge Basket</title>
+</svelte:head>
+
 <div class="space-y-8">
 	<AdminPageHeader
 		eyebrow="Moderation"

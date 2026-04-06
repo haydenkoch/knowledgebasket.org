@@ -26,11 +26,11 @@
 			<strong>Preferences:</strong> optional UI state such as sidebar state and dismissed submit banners.
 		</li>
 		<li>
-			<strong>Analytics:</strong> reserved for future analytics tooling and off until you opt in.
+			<strong>Analytics:</strong> privacy-respecting usage analytics, off unless you opt in.
 		</li>
 		<li>
-			<strong>Marketing:</strong> reserved for future marketing or advertising technologies and off until
-			you opt in.
+			<strong>Marketing:</strong> marketing, retargeting, and ad-related technologies, off unless you
+			opt in.
 		</li>
 	</ul>
 

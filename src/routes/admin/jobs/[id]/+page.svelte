@@ -1,14 +1,10 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import { toast } from 'svelte-sonner';
-	import * as Card from '$lib/components/ui/card/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog/index.js';
-	import { Separator } from '$lib/components/ui/separator/index.js';
 	import JobForm from '$lib/components/organisms/admin/JobForm.svelte';
 	import StatusBadge from '$lib/components/organisms/admin/StatusBadge.svelte';
-	import { formatDisplayDateTime, formatDisplayValue } from '$lib/utils/display.js';
-	import { ExternalLink } from '@lucide/svelte';
 
 	let { data } = $props();
 </script>
@@ -18,18 +14,6 @@
 		<div class="flex min-w-0 items-center gap-3">
 			<h1 class="truncate text-2xl font-bold">{data.job.title}</h1>
 			<StatusBadge status={data.job.status ?? 'unknown'} />
-			{#if data.job.slug && data.job.status === 'published'}
-				<Button
-					href={`/jobs/${data.job.slug}`}
-					variant="outline"
-					size="sm"
-					target="_blank"
-					rel="noopener noreferrer"
-				>
-					<ExternalLink class="mr-1.5 h-3.5 w-3.5" />
-					View on site
-				</Button>
-			{/if}
 		</div>
 		<div class="flex flex-wrap gap-2">
 			{#if data.job.status === 'pending'}
@@ -116,30 +100,12 @@
 		</div>
 	</div>
 
-	<Card.Root>
-		<Card.Header>
-			<Card.Title>Listing details</Card.Title>
-			<Card.Description>
-				Edit copy, hiring metadata, application details, and moderation state.
-			</Card.Description>
-		</Card.Header>
-		<Card.Content class="space-y-1 text-sm">
-			<p>
-				Source: <span class="font-medium">{data.job.source ?? 'unknown'}</span>
-			</p>
-			{#if data.job.publishedAt}
-				<p>Published on {formatDisplayDateTime(data.job.publishedAt)}</p>
-			{/if}
-			{#if data.job.applicationDeadline}
-				<p>
-					Application deadline:
-					{formatDisplayValue(data.job.applicationDeadline, { key: 'applicationDeadline' })}
-				</p>
-			{/if}
-		</Card.Content>
-	</Card.Root>
-
-	<Separator />
-
-	<JobForm job={data.job} organizations={data.organizations} action="?/update" />
+	<JobForm
+		job={data.job}
+		organizations={data.organizations}
+		action="?/update"
+		previewHref={`/admin/preview/jobs/${data.job.id}`}
+		liveHref={data.job.slug && data.job.status === 'published' ? `/jobs/${data.job.slug}` : null}
+		submissionContext={data.submissionContext}
+	/>
 </div>

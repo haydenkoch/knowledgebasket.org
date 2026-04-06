@@ -43,7 +43,7 @@
 		saveLabel?: string;
 		/** CSS color for the filled heart state; defaults to teal. */
 		accent?: string;
-		breadcrumb: Snippet;
+		breadcrumb?: Snippet;
 		meta?: Snippet;
 		actions?: Snippet;
 		primary?: Snippet;
@@ -51,9 +51,11 @@
 </script>
 
 <div class="coil-rail" style="--coil-accent: {accent}">
-	<div class="coil-rail-crumb">
-		{@render breadcrumb()}
-	</div>
+	{#if breadcrumb}
+		<div class="coil-rail-crumb">
+			{@render breadcrumb()}
+		</div>
+	{/if}
 
 	{#if meta}
 		<div class="coil-rail-meta">
@@ -129,7 +131,7 @@
 		color: var(--muted-foreground);
 		min-width: 0;
 		flex: 1 1 auto;
-		justify-content: flex-end;
+		justify-content: flex-start;
 		white-space: nowrap;
 		overflow: hidden;
 	}

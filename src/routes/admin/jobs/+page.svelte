@@ -5,6 +5,7 @@
 	import AdminReviewQueue from '$lib/components/organisms/admin/AdminReviewQueue.svelte';
 	import StatusBadge from '$lib/components/organisms/admin/StatusBadge.svelte';
 	import { formatDisplayValue } from '$lib/utils/display.js';
+	import { timeAgo } from '$lib/admin/labels.js';
 	import Pencil from '@lucide/svelte/icons/pencil';
 	import ExternalLink from '@lucide/svelte/icons/external-link';
 
@@ -46,7 +47,7 @@
 	emptyDescription="Create your first job listing to get started."
 	sectionTitle="Jobs"
 	tableAriaLabel="Jobs review queue"
-	columnCount={7}
+	columnCount={8}
 	itemLabelSingular="job"
 	itemLabelPlural="jobs"
 	selectionLabel={(item) => `Select ${item.title}`}
@@ -60,6 +61,7 @@
 		<Table.Head>Employer</Table.Head>
 		<Table.Head>Type</Table.Head>
 		<Table.Head>Deadline</Table.Head>
+		<Table.Head>Submitted</Table.Head>
 		<Table.Head>Status</Table.Head>
 		<Table.Head class="text-right">Actions</Table.Head>
 	{/snippet}
@@ -79,6 +81,16 @@
 		</Table.Cell>
 		<Table.Cell class="text-sm text-[var(--mid)]">
 			{formatDisplayValue(item.applicationDeadline, { key: 'applicationDeadline' })}
+		</Table.Cell>
+		<Table.Cell class="text-sm text-[var(--mid)]">
+			{#if item.createdAt}
+				<div>{timeAgo(item.createdAt)}</div>
+				{#if item.submitterName || item.submitterEmail}
+					<div class="text-xs">{item.submitterName ?? item.submitterEmail}</div>
+				{/if}
+			{:else}
+				—
+			{/if}
 		</Table.Cell>
 		<Table.Cell>
 			<StatusBadge status={item.status ?? 'unknown'} />

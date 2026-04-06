@@ -23,15 +23,16 @@ import {
 	venues,
 	user as userTable
 } from '$lib/server/db/schema';
-import { indexEvent } from '$lib/server/meilisearch';
+import { indexEvent, removeDocument } from '$lib/server/meilisearch';
 import { getSourceProvenanceByPublishedRecord } from '$lib/server/source-provenance';
 import { stripHtml } from '$lib/utils/format';
 import type { EventItem, PricingTier } from '$lib/data/kb';
+import { buildModerationFields } from '$lib/server/admin-content';
 
 export type EventRow = typeof eventsTable.$inferSelect;
 export type EventInsert = typeof eventsTable.$inferInsert;
 export type AdminEventListItem = EventItem & {
-	createdAt?: Date | string | null;
+	createdAt?: string | null;
 	submitterName?: string;
 	submitterEmail?: string;
 };
@@ -70,7 +71,9 @@ function rowToEventItem(
 		cost: row.cost ?? undefined,
 		eventUrl: row.eventUrl ?? undefined,
 		startDate: row.startDate ? formatDateForItem(row.startDate) : undefined,
+		startDateInput: row.startDate?.toISOString().slice(0, 16) ?? undefined,
 		endDate: row.endDate ? formatDateForItem(row.endDate) : undefined,
+		endDateInput: row.endDate?.toISOString().slice(0, 16) ?? undefined,
 		hostOrg: row.hostOrg ?? undefined,
 		imageUrl: row.imageUrl ?? undefined,
 		imageUrls: Array.isArray(row.imageUrls) ? (row.imageUrls as string[]) : undefined,
@@ -88,9 +91,11 @@ function rowToEventItem(
 		registrationDeadline: row.registrationDeadline
 			? formatDateForItem(row.registrationDeadline)
 			: undefined,
+		registrationDeadlineInput: row.registrationDeadline?.toISOString().slice(0, 10) ?? undefined,
 		eventFormat: row.eventFormat ?? undefined,
 		timezone: row.timezone ?? undefined,
 		doorsOpenAt: row.doorsOpenAt?.toISOString() ?? undefined,
+		doorsOpenAtInput: row.doorsOpenAt?.toISOString().slice(0, 16) ?? undefined,
 		capacity: row.capacity ?? undefined,
 		soldOut: row.soldOut ?? undefined,
 		ageRestriction: row.ageRestriction ?? undefined,
@@ -102,6 +107,8 @@ function rowToEventItem(
 		featured: row.featured ?? undefined,
 		unlisted: row.unlisted ?? undefined,
 		status: row.status,
+		createdAt: row.createdAt?.toISOString() ?? undefined,
+		updatedAt: row.updatedAt?.toISOString() ?? undefined,
 		publishedAt: row.publishedAt ? formatDateForItem(row.publishedAt) : undefined,
 		cancelledAt: row.cancelledAt ? formatDateForItem(row.cancelledAt) : undefined,
 		rejectedAt: row.rejectedAt ? formatDateForItem(row.rejectedAt) : undefined,
@@ -414,7 +421,7 @@ export async function getRelatedEvents(
 /** Get submission info (createdAt, submitter) for admin display. */
 export async function getEventSubmissionInfo(
 	eventId: string
-): Promise<{ createdAt?: Date; submitterName?: string; submitterEmail?: string }> {
+): Promise<{ createdAt?: string; submitterName?: string; submitterEmail?: string }> {
 	const rows = await db
 		.select({
 			createdAt: eventsTable.createdAt,
@@ -428,7 +435,7 @@ export async function getEventSubmissionInfo(
 	const r = rows[0];
 	if (!r) return {};
 	return {
-		createdAt: r.createdAt ?? undefined,
+		createdAt: r.createdAt?.toISOString() ?? undefined,
 		submitterName: r.submitterName ?? undefined,
 		submitterEmail: r.submitterEmail ?? undefined
 	};
@@ -528,7 +535,7 @@ export async function getEventsForAdmin(opts: {
 		});
 		return {
 			...item,
-			createdAt: r.event.createdAt,
+			createdAt: r.event.createdAt?.toISOString() ?? undefined,
 			submitterName: r.submitterName ?? undefined,
 			submitterEmail: r.submitterEmail ?? undefined
 		};
@@ -741,15 +748,16 @@ export async function cloneEvent(sourceId: string): Promise<EventItem | null> {
 // ── Moderation ─────────────────────────────────────────────
 
 export async function approveEvent(id: string, reviewerId: string): Promise<EventItem | null> {
+	const current = await getEventById(id);
+	if (!current) return null;
 	const [row] = await db
 		.update(eventsTable)
-		.set({
-			status: 'published',
-			publishedAt: new Date(),
-			reviewedById: reviewerId,
-			rejectedAt: null,
-			rejectionReason: null
-		})
+		.set(
+			buildModerationFields(current, {
+				status: 'published',
+				reviewerId
+			})
+		)
 		.where(eq(eventsTable.id, id))
 		.returning();
 	if (!row) return null;
@@ -763,50 +771,58 @@ export async function rejectEvent(
 	reviewerId: string,
 	reason?: string
 ): Promise<EventItem | null> {
+	const current = await getEventById(id);
+	if (!current) return null;
 	const [row] = await db
 		.update(eventsTable)
-		.set({
-			status: 'rejected',
-			rejectedAt: new Date(),
-			rejectionReason: reason ?? null,
-			reviewedById: reviewerId
-		})
+		.set(
+			buildModerationFields(current, {
+				status: 'rejected',
+				reviewerId,
+				rejectionReason: reason ?? null
+			})
+		)
 		.where(eq(eventsTable.id, id))
 		.returning();
 	if (!row) return null;
+	await removeDocument('events', row.id);
 	return rowToEventItem(row);
 }
 
 export async function cancelEvent(id: string): Promise<EventItem | null> {
+	const current = await getEventById(id);
+	if (!current) return null;
 	const [row] = await db
 		.update(eventsTable)
-		.set({ status: 'cancelled', cancelledAt: new Date() })
+		.set(
+			buildModerationFields(current, {
+				status: 'cancelled',
+				allowCancelled: true,
+				preservePublishedOnCancel: true
+			})
+		)
 		.where(eq(eventsTable.id, id))
 		.returning();
 	if (!row) return null;
+	await removeDocument('events', row.id);
 	return rowToEventItem(row);
 }
 
 export async function deleteEvent(id: string): Promise<boolean> {
 	const result = await db.delete(eventsTable).where(eq(eventsTable.id, id)).returning();
+	if (result.length > 0) await removeDocument('events', id);
 	return result.length > 0;
 }
 
 // ── Bulk actions ───────────────────────────────────────────
 
 export async function bulkApproveEvents(ids: string[], reviewerId: string): Promise<number> {
-	const result = await db
-		.update(eventsTable)
-		.set({
-			status: 'published',
-			publishedAt: new Date(),
-			reviewedById: reviewerId,
-			rejectedAt: null,
-			rejectionReason: null
-		})
-		.where(inArray(eventsTable.id, ids))
-		.returning();
-	return result.length;
+	let count = 0;
+	for (const id of ids) {
+		const item = await approveEvent(id, reviewerId);
+		if (item) count++;
+	}
+	return count;
 }
 
 export async function bulkRejectEvents(
@@ -814,23 +830,22 @@ export async function bulkRejectEvents(
 	reviewerId: string,
 	reason?: string
 ): Promise<number> {
-	const result = await db
-		.update(eventsTable)
-		.set({
-			status: 'rejected',
-			rejectedAt: new Date(),
-			rejectionReason: reason ?? null,
-			reviewedById: reviewerId
-		})
-		.where(inArray(eventsTable.id, ids))
-		.returning();
-	return result.length;
+	let count = 0;
+	for (const id of ids) {
+		const item = await rejectEvent(id, reviewerId, reason);
+		if (item) count++;
+	}
+	return count;
 }
 
 export async function bulkDeleteEvents(ids: string[]): Promise<number> {
 	if (ids.length === 0) return 0;
-	const result = await db.delete(eventsTable).where(inArray(eventsTable.id, ids)).returning();
-	return result.length;
+	let count = 0;
+	for (const id of ids) {
+		const deleted = await deleteEvent(id);
+		if (deleted) count++;
+	}
+	return count;
 }
 
 // ── Series / child events ──────────────────────────────────

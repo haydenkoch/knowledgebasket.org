@@ -43,6 +43,10 @@ export interface BaseItem {
 	description?: string;
 	coil: CoilKey;
 	provenance?: SourceProvenance;
+	createdAt?: string;
+	updatedAt?: string;
+	submitterName?: string;
+	submitterEmail?: string;
 }
 
 export interface SourceProvenance {
@@ -76,7 +80,9 @@ export interface EventItem extends BaseItem {
 	cost?: string;
 	eventUrl?: string;
 	startDate?: string;
+	startDateInput?: string;
 	endDate?: string;
+	endDateInput?: string;
 	hostOrg?: string;
 	imageUrl?: string;
 	imageUrls?: string[];
@@ -95,10 +101,12 @@ export interface EventItem extends BaseItem {
 
 	registrationUrl?: string;
 	registrationDeadline?: string;
+	registrationDeadlineInput?: string;
 
 	eventFormat?: string; // in_person | online | hybrid
 	timezone?: string;
 	doorsOpenAt?: string;
+	doorsOpenAtInput?: string;
 	capacity?: number | null;
 	soldOut?: boolean;
 	ageRestriction?: string;
@@ -224,6 +232,7 @@ export interface RedPagesItem extends BaseItem {
 	unlisted?: boolean;
 	publishedAt?: string;
 	rejectedAt?: string;
+	verifiedAt?: string;
 	rejectionReason?: string;
 	adminNotes?: string;
 	submittedById?: string;

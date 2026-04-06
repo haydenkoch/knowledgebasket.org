@@ -35,10 +35,10 @@ Add `trustedOrigins` for clarity and production safety:
 
 ```ts
 export const auth = betterAuth({
-    baseURL: env.ORIGIN,
-    trustedOrigins: [env.ORIGIN],
-    secret: env.BETTER_AUTH_SECRET,
-    // ...rest unchanged
+	baseURL: env.ORIGIN,
+	trustedOrigins: [env.ORIGIN],
+	secret: env.BETTER_AUTH_SECRET
+	// ...rest unchanged
 });
 ```
 
@@ -52,8 +52,8 @@ The `$effect` that calls `sidebar.setOpenMobile(false)` runs during SSR. Guard i
 import { browser } from '$app/environment';
 
 $effect(() => {
-    void pathname;
-    if (browser) sidebar.setOpenMobile(false);
+	void pathname;
+	if (browser) sidebar.setOpenMobile(false);
 });
 ```
 
@@ -65,18 +65,20 @@ If Step 1 confirms the Popover is crashing, defer its rendering until after moun
 
 ```svelte
 <script>
-    import { onMount } from 'svelte';
-    let mounted = $state(false);
-    onMount(() => { mounted = true; });
+	import { onMount } from 'svelte';
+	let mounted = $state(false);
+	onMount(() => {
+		mounted = true;
+	});
 </script>
 
 {#if user && mounted}
-    <Popover.Root>...</Popover.Root>
+	<Popover.Root>...</Popover.Root>
 {:else if user}
-    <span class="kb-header__user-btn">
-        <UserIcon class="kb-header__user-icon" />
-        <span class="kb-header__user-name">{displayName}</span>
-    </span>
+	<span class="kb-header__user-btn">
+		<UserIcon class="kb-header__user-icon" />
+		<span class="kb-header__user-name">{displayName}</span>
+	</span>
 {/if}
 ```
 
@@ -88,7 +90,7 @@ Wrap header/sidebar in `<svelte:boundary>` so future crashes in layout chrome ne
 
 ```svelte
 <svelte:boundary onerror={(e) => console.error('Layout error:', e)}>
-    <KbHeader logoUrl={data.brandLogoUrl} user={data.user} />
+	<KbHeader logoUrl={data.brandLogoUrl} user={data.user} />
 </svelte:boundary>
 ```
 
@@ -100,7 +102,7 @@ Add `http://0.0.0.0:*` to the dev connect-src list as a safety net (in case `hos
 
 ```ts
 if (dev) {
-    connectSrc.push('ws:', 'wss:', 'http://localhost:*', 'http://127.0.0.1:*', 'http://0.0.0.0:*');
+	connectSrc.push('ws:', 'wss:', 'http://localhost:*', 'http://127.0.0.1:*', 'http://0.0.0.0:*');
 }
 ```
 

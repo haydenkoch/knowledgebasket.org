@@ -20,7 +20,7 @@
 
 <Card.Root class="auth-card">
 	<Card.Header class="auth-card__header">
-		<Card.Title class="auth-card__title">Sign in</Card.Title>
+		<h1 class="auth-card__title">Sign in</h1>
 		<Card.Description class="auth-card__description">
 			Welcome back to the community
 		</Card.Description>

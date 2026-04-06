@@ -58,6 +58,9 @@ export default defineConfig(async () => {
 
 	return {
 		plugins: [...sentryPlugins, tailwindcss(), sveltekit(), tinymceSelfHosted()],
+		resolve: {
+			dedupe: ['svelte', 'bits-ui']
+		},
 		server: {
 			host: 'localhost',
 			strictPort: true,
@@ -68,6 +71,7 @@ export default defineConfig(async () => {
 			}
 		},
 		test: {
+			include: ['tests/**/*.test.ts'],
 			environment: 'node',
 			testTimeout: 120000,
 			hookTimeout: 120000

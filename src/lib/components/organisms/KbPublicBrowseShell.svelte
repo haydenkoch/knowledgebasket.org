@@ -43,12 +43,12 @@
 		>
 			{@render sidebar?.(false)}
 		</div>
-		<main
+		<section
 			class="coil-layout__main order-2 min-w-0 flex-1 p-4 md:p-6 md:pl-7"
 			style="padding-bottom: calc(7rem + var(--kb-consent-banner-offset, 0px));"
 		>
 			{@render children?.()}
-		</main>
+		</section>
 	</div>
 
 	{#if mobileFiltersExpanded && !publicSidebar.openMobile}

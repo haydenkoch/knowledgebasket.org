@@ -99,6 +99,48 @@ Notes:
 - `POST /api/reindex` is protected in production. Use an admin/moderator session or send `x-reindex-secret` matching `REINDEX_SECRET`.
 - The admin UI also exposes search reindexing at `/admin/settings/search`.
 - `sitemap.xml`, `robots.txt`, and `manifest.webmanifest` are generated as part of the app surface.
+- `pnpm start` now runs `pnpm db:migrate` before booting the Node server so deploys apply schema changes as part of startup on single-instance environments.
+
+## Production Environment Contract
+
+Launch environments should set, at minimum:
+
+- Core runtime: `DATABASE_URL`, `BETTER_AUTH_SECRET`, and a public origin (`ORIGIN`, or `RAILWAY_PUBLIC_DOMAIN` while bootstrapping on Railway)
+- Email/auth: `SMTP_HOST`, `SMTP_PORT`, `SMTP_FROM`, plus `SMTP_SECURE` or `SMTP_REQUIRE_TLS`
+- Search: `MEILISEARCH_HOST`, `MEILISEARCH_API_KEY`
+- Object storage: `MINIO_ENDPOINT`, `MINIO_ACCESS_KEY`, `MINIO_SECRET_KEY`, `MINIO_BUCKET`
+- Privileged ops: `REINDEX_SECRET`, `SOURCE_OPS_SECRET`
+
+Recommended observability settings:
+
+- `SENTRY_DSN` and/or `PUBLIC_SENTRY_DSN`
+- `LOG_LEVEL`
+- `ERROR_WEBHOOK_URL`
+
+In production, startup now validates this contract and fails fast on missing or clearly invalid required settings.
+
+## Railway Deployment
+
+The app is already configured for Railway's Node deployment path:
+
+- SvelteKit uses `@sveltejs/adapter-node`
+- `railway.toml` sets the build command, runs `pnpm db:migrate` as a pre-deploy step, starts the app with `pnpm start:app`, and health-checks `GET /api/health`
+- `pnpm start` is still available for non-Railway single-instance environments that want migrations on boot
+
+Recommended Railway setup:
+
+1. Create an app service from this `site/` directory.
+2. Add a Postgres service and point `DATABASE_URL` at it.
+3. Generate a Railway public domain.
+4. Set `ORIGIN` to your app URL. If you are using only the generated Railway domain, the app can fall back to `RAILWAY_PUBLIC_DOMAIN`, but explicit `ORIGIN` is still the safer default.
+5. Add the rest of the required production variables from the contract above.
+6. Redeploy and verify `GET /api/health`, auth flows, and `/sitemap.xml`.
+
+Operational notes:
+
+- Railway injects `PORT`; the Node adapter will bind to it automatically.
+- The generated `RAILWAY_PUBLIC_DOMAIN` is good enough for a first deploy, but switch `ORIGIN` to your custom domain before finalizing Google OAuth or canonical URLs.
+- If you later split this repo into multiple Railway services, move the start command into each service's dashboard settings so the shared `railway.toml` does not force the same process everywhere.
 
 ## Quality Status
 
@@ -107,6 +149,9 @@ As of the current takeover baseline:
 - `pnpm check` should pass.
 - `pnpm lint` should pass.
 - `pnpm test` runs the smoke and handler tests.
+- `pnpm test:search:indexed` validates the Meilisearch-backed contract.
+- `pnpm test:search:degraded` validates compatibility-mode search when Meilisearch is unavailable.
+- `pnpm test:e2e` runs browser coverage plus axe checks for representative public, auth, account, and admin flows.
 - `pnpm build` should pass and now targets the Node adapter.
 
 ## Key Docs
@@ -117,6 +162,7 @@ As of the current takeover baseline:
 - `docs/ADR-002-curated-beta-coils.md`
 - `docs/DESIGN_SYSTEM.md`
 - `docs/PERFORMANCE.md`
+- `docs/PRODUCTION_RUNBOOK.md`
 - `docs/ops-content-workflows.md`
 - `docs/SOURCE_OPS_HANDOFF.md`
 

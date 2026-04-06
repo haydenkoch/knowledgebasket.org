@@ -5,7 +5,7 @@
 </script>
 
 <div class="auth-shell">
-	<div class="auth-shell__brand">
+	<header class="auth-shell__brand">
 		<a href="/" class="auth-shell__brand-link">
 			<img src={data.brandLogoUrl ?? logoFallback} alt="" class="auth-shell__logo" />
 			<span class="auth-shell__name">
@@ -13,11 +13,11 @@
 				<span class="auth-shell__org">Indigenous Futures Society</span>
 			</span>
 		</a>
-	</div>
+	</header>
 
-	<div class="auth-shell__content">
+	<main class="auth-shell__content">
 		{@render children()}
-	</div>
+	</main>
 
 	<footer class="auth-shell__footer">
 		<p>© {new Date().getFullYear()} Indigenous Futures Society</p>
@@ -103,6 +103,6 @@
 		font-size: 11px;
 		letter-spacing: 0.04em;
 		text-transform: uppercase;
-		color: var(--color-obsidian-400);
+		color: var(--color-obsidian-700);
 	}
 </style>

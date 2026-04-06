@@ -7,6 +7,7 @@ import { env as publicEnv } from '$env/dynamic/public';
 import { auth } from '$lib/server/auth';
 import { guardAdminRequest } from '$lib/server/access-control';
 import { captureServerError } from '$lib/server/observability';
+import { assertProductionRuntimeConfig } from '$lib/server/runtime-config';
 import { svelteKitHandler } from 'better-auth/svelte-kit';
 
 function configuredSampleRate(value: string | undefined, fallback: number): number {
@@ -25,6 +26,10 @@ function telemetryOrigin(value: string | undefined): string | null {
 }
 
 const serverDsn = privateEnv.SENTRY_DSN?.trim() || publicEnv.PUBLIC_SENTRY_DSN?.trim();
+
+if (!building && !dev) {
+	assertProductionRuntimeConfig();
+}
 
 if (serverDsn) {
 	Sentry.init({

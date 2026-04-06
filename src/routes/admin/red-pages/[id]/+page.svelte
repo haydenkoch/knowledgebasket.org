@@ -1,13 +1,10 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import { toast } from 'svelte-sonner';
-	import * as Card from '$lib/components/ui/card/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog/index.js';
-	import { Separator } from '$lib/components/ui/separator/index.js';
 	import RedPagesForm from '$lib/components/organisms/admin/RedPagesForm.svelte';
 	import StatusBadge from '$lib/components/organisms/admin/StatusBadge.svelte';
-	import { ExternalLink } from '@lucide/svelte';
 
 	let { data } = $props();
 </script>
@@ -17,18 +14,6 @@
 		<div class="flex min-w-0 items-center gap-3">
 			<h1 class="truncate text-2xl font-bold">{data.business.name ?? data.business.title}</h1>
 			<StatusBadge status={data.business.status ?? 'unknown'} />
-			{#if data.business.slug && data.business.status === 'published'}
-				<Button
-					href={`/red-pages/${data.business.slug}`}
-					variant="outline"
-					size="sm"
-					target="_blank"
-					rel="noopener noreferrer"
-				>
-					<ExternalLink class="mr-1.5 h-3.5 w-3.5" />
-					View on site
-				</Button>
-			{/if}
 		</div>
 		<div class="flex flex-wrap gap-2">
 			{#if data.business.status === 'pending'}
@@ -115,29 +100,14 @@
 		</div>
 	</div>
 
-	<Card.Root>
-		<Card.Header>
-			<Card.Title>Listing details</Card.Title>
-			<Card.Description>
-				Edit directory copy, identity metadata, contact details, and moderation state.
-			</Card.Description>
-		</Card.Header>
-		<Card.Content class="space-y-1 text-sm">
-			<p>
-				Source: <span class="font-medium">{data.business.source ?? 'unknown'}</span>
-			</p>
-			<p>
-				Verification: <span class="font-medium"
-					>{data.business.verified ? 'verified' : 'not verified'}</span
-				>
-			</p>
-			{#if data.business.publishedAt}
-				<p>Published on {new Date(data.business.publishedAt).toLocaleString()}</p>
-			{/if}
-		</Card.Content>
-	</Card.Root>
-
-	<Separator />
-
-	<RedPagesForm business={data.business} organizations={data.organizations} action="?/update" />
+	<RedPagesForm
+		business={data.business}
+		organizations={data.organizations}
+		action="?/update"
+		previewHref={`/admin/preview/red-pages/${data.business.id}`}
+		liveHref={data.business.slug && data.business.status === 'published'
+			? `/red-pages/${data.business.slug}`
+			: null}
+		submissionContext={data.submissionContext}
+	/>
 </div>

@@ -42,8 +42,7 @@
 		{ href: '/admin/funding', label: 'Funding', icon: Globe2 },
 		{ href: '/admin/jobs', label: 'Jobs', icon: Briefcase },
 		{ href: '/admin/red-pages', label: 'Red Pages', icon: Store },
-		{ href: '/admin/toolbox', label: 'Toolbox', icon: BookOpen },
-		{ href: '/admin/events/lists', label: 'Event Lists', icon: ListOrdered }
+		{ href: '/admin/toolbox', label: 'Toolbox', icon: BookOpen }
 	];
 
 	const sourcesNav = [
@@ -130,7 +129,7 @@
 
 <Sidebar.Provider class="min-h-screen bg-[var(--color-alpine-snow-50)]">
 	<Sidebar.Root class="border-r border-[color:var(--rule)] bg-[var(--color-alpine-snow-100)]/72">
-		<Sidebar.Header class="border-b border-[color:var(--rule)] px-4 py-3">
+		<Sidebar.Header class="min-h-16 justify-center border-b border-[color:var(--rule)] px-4 py-3">
 			<a href="/admin" class="flex items-center gap-3 no-underline hover:no-underline">
 				<img
 					src={brandLogo}
@@ -325,7 +324,7 @@
 			class="sticky top-0 z-20 border-b border-[color:var(--rule)] bg-[color:color-mix(in_srgb,var(--background)_88%,white)]/95 backdrop-blur"
 		>
 			<div
-				class="mx-auto flex max-w-[1480px] flex-wrap items-center gap-2 px-4 py-3 text-sm sm:px-6"
+				class="mx-auto flex min-h-16 max-w-[1480px] flex-wrap items-center gap-2 px-4 py-3 text-sm sm:px-6"
 			>
 				<Sidebar.Trigger />
 				<ChevronRight class="h-3 w-3 text-muted-foreground" />
@@ -361,9 +360,20 @@
 			</div>
 		</div>
 
-		<div class="mx-auto max-w-[1480px] px-4 pt-0 pb-6 sm:px-6">
+		<div class="admin-page-content mx-auto max-w-[1480px] px-4 pt-0 pb-6 sm:px-6">
 			{@render children()}
 		</div>
 	</main>
 	<Toaster />
 </Sidebar.Provider>
+
+<style>
+	:global(
+		.admin-page-content
+			> :first-child:not([data-admin-page-header]):not(:has(> [data-admin-page-header])):not(
+				[class*='pt-']
+			):not([class*='py-'])
+	) {
+		padding-top: 1.5rem;
+	}
+</style>

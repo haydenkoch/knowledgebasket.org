@@ -14,13 +14,19 @@ import { getSourceProvenanceByPublishedRecord } from '$lib/server/source-provena
 import type { ToolboxItem } from '$lib/data/kb';
 import type { ToolboxSearchDoc } from '$lib/server/meilisearch';
 import { stripHtml } from '$lib/utils/format';
+import { buildModerationFields } from '$lib/server/admin-content';
 
 export type ToolboxRow = typeof tbTable.$inferSelect;
 export type ToolboxInsert = typeof tbTable.$inferInsert;
 
 function rowToItem(
 	row: ToolboxRow,
-	extra?: { organizationName?: string; organizationSlug?: string }
+	extra?: {
+		organizationName?: string;
+		organizationSlug?: string;
+		submitterName?: string;
+		submitterEmail?: string;
+	}
 ): ToolboxItem {
 	return {
 		id: row.id,
@@ -49,11 +55,15 @@ function rowToItem(
 		source: row.source,
 		featured: row.featured ?? undefined,
 		unlisted: row.unlisted ?? undefined,
+		createdAt: row.createdAt?.toISOString() ?? undefined,
+		updatedAt: row.updatedAt?.toISOString() ?? undefined,
 		publishedAt: row.publishedAt?.toISOString() ?? undefined,
 		rejectedAt: row.rejectedAt?.toISOString() ?? undefined,
 		rejectionReason: row.rejectionReason ?? undefined,
 		adminNotes: row.adminNotes ?? undefined,
 		submittedById: row.submittedById ?? undefined,
+		submitterName: extra?.submitterName ?? undefined,
+		submitterEmail: extra?.submitterEmail ?? undefined,
 		reviewedById: row.reviewedById ?? undefined
 	};
 }
@@ -194,9 +204,26 @@ export async function getResourceBySlug(slug: string): Promise<ToolboxItem | nul
 }
 
 export async function getResourceById(id: string): Promise<ToolboxItem | null> {
-	const [row] = await db.select().from(tbTable).where(eq(tbTable.id, id)).limit(1);
+	const [row] = await db
+		.select({
+			resource: tbTable,
+			orgName: organizations.name,
+			orgSlug: organizations.slug,
+			submitterName: userTable.name,
+			submitterEmail: userTable.email
+		})
+		.from(tbTable)
+		.leftJoin(organizations, eq(tbTable.organizationId, organizations.id))
+		.leftJoin(userTable, eq(tbTable.submittedById, userTable.id))
+		.where(eq(tbTable.id, id))
+		.limit(1);
 	if (!row) return null;
-	return rowToItem(row);
+	return rowToItem(row.resource, {
+		organizationName: row.orgName ?? undefined,
+		organizationSlug: row.orgSlug ?? undefined,
+		submitterName: row.submitterName ?? undefined,
+		submitterEmail: row.submitterEmail ?? undefined
+	});
 }
 
 export async function getResourcesByOrganizationId(orgId: string): Promise<ToolboxItem[]> {
@@ -258,7 +285,8 @@ export async function getResourcesForAdmin(opts: {
 		.select({
 			resource: tbTable,
 			orgName: organizations.name,
-			submitterName: userTable.name
+			submitterName: userTable.name,
+			submitterEmail: userTable.email
 		})
 		.from(tbTable)
 		.leftJoin(organizations, eq(tbTable.organizationId, organizations.id))
@@ -269,7 +297,11 @@ export async function getResourcesForAdmin(opts: {
 		.offset(offset);
 
 	const items = rows.map((r) =>
-		rowToItem(r.resource, { organizationName: r.orgName ?? undefined })
+		rowToItem(r.resource, {
+			organizationName: r.orgName ?? undefined,
+			submitterName: r.submitterName ?? undefined,
+			submitterEmail: r.submitterEmail ?? undefined
+		})
 	);
 	return { items, total };
 }
@@ -326,11 +358,15 @@ export async function deleteResource(id: string): Promise<boolean> {
 // ── Moderation ────────────────────────────────────────────
 
 export async function approveResource(id: string, reviewerId: string): Promise<ToolboxRow | null> {
-	return updateResource(id, {
-		status: 'published',
-		publishedAt: new Date(),
-		reviewedById: reviewerId
-	});
+	const current = await getResourceById(id);
+	if (!current) return null;
+	return updateResource(
+		id,
+		buildModerationFields(current, {
+			status: 'published',
+			reviewerId
+		})
+	);
 }
 
 export async function rejectResource(
@@ -338,12 +374,16 @@ export async function rejectResource(
 	reviewerId: string,
 	reason?: string
 ): Promise<ToolboxRow | null> {
-	return updateResource(id, {
-		status: 'rejected',
-		rejectedAt: new Date(),
-		reviewedById: reviewerId,
-		rejectionReason: reason
-	});
+	const current = await getResourceById(id);
+	if (!current) return null;
+	return updateResource(
+		id,
+		buildModerationFields(current, {
+			status: 'rejected',
+			reviewerId,
+			rejectionReason: reason
+		})
+	);
 }
 
 export async function bulkApproveResources(ids: string[], reviewerId: string): Promise<number> {

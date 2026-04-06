@@ -7,7 +7,8 @@ import {
 	boolean,
 	jsonb,
 	integer,
-	index
+	index,
+	uniqueIndex
 } from 'drizzle-orm/pg-core';
 import { user } from '../auth.schema';
 import { organizations } from './organizations';
@@ -125,7 +126,8 @@ export const eventListItems = pgTable(
 	},
 	(t) => [
 		index('event_list_items_list_id_idx').on(t.listId),
-		index('event_list_items_event_id_idx').on(t.eventId)
+		index('event_list_items_event_id_idx').on(t.eventId),
+		uniqueIndex('event_list_items_list_event_unique').on(t.listId, t.eventId)
 	]
 );
 

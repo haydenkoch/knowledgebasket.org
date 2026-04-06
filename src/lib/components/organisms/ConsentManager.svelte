@@ -32,8 +32,8 @@
 
 	const categoryDescriptions: Record<Exclude<ConsentCategory, 'essential'>, string> = {
 		preferences: 'Remember UI choices like the collapsible submit banner and sidebar state.',
-		analytics: 'Reserved for privacy-respecting analytics tools once they are enabled.',
-		marketing: 'Reserved for future marketing, retargeting, and ad-related technologies.'
+		analytics: 'Privacy-respecting usage analytics to help improve the product.',
+		marketing: 'Marketing, retargeting, and ad-related technologies.'
 	};
 
 	const sidebar = useSidebar();

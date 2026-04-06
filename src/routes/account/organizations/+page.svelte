@@ -26,7 +26,9 @@
 		</Card.Header>
 		<Card.Content>
 			{#if data.organizations.length === 0}
-				<p class="rounded-lg border border-dashed border-border/70 p-6 text-center text-sm text-muted-foreground">
+				<p
+					class="rounded-lg border border-dashed border-border/70 p-6 text-center text-sm text-muted-foreground"
+				>
 					No active organization memberships yet. Claim one from its public organization page to get
 					started.
 				</p>
@@ -59,7 +61,9 @@
 		</Card.Header>
 		<Card.Content>
 			{#if data.claims.length === 0}
-				<p class="rounded-lg border border-dashed border-border/70 p-6 text-center text-sm text-muted-foreground">
+				<p
+					class="rounded-lg border border-dashed border-border/70 p-6 text-center text-sm text-muted-foreground"
+				>
 					You haven't submitted any organization claims yet.
 				</p>
 			{:else}

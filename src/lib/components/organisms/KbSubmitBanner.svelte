@@ -16,11 +16,11 @@
 	let { coil, heading, description, href, label }: Props = $props();
 
 	const coilColors: Record<CoilKey, string> = {
-		events: 'var(--teal)',
-		funding: 'var(--gold)',
-		redpages: 'var(--red)',
-		jobs: 'var(--forest)',
-		toolbox: 'var(--slate)'
+		events: 'var(--color-lakebed-950, #172647)',
+		funding: 'var(--color-flicker-900, #762b0c)',
+		redpages: 'var(--color-ember-900, #72181a)',
+		jobs: 'var(--color-pinyon-800, #2b4336)',
+		toolbox: 'var(--color-obsidian-950, #252525)'
 	};
 
 	const coilBg: Record<CoilKey, string> = {
@@ -95,11 +95,7 @@
 <!-- Desktop: sticky collapsible footer (hidden on mobile via CSS to prevent hydration flash) -->
 {#if ready}
 	{#if dismissed}
-		<a
-			class="kb-submit-tab"
-			style="--accent: {btnColor}"
-			{href}
-		>
+		<a class="kb-submit-tab" style="--accent: {btnColor}; color: {btnColor}" {href}>
 			<Send class="h-3.5 w-3.5" />
 			<span>{label}</span>
 		</a>
@@ -159,7 +155,7 @@
 		font-family: var(--font-serif, Georgia, serif);
 		font-size: 0.875rem;
 		font-weight: 600;
-		color: var(--foreground);
+		color: var(--color-obsidian-950, #252525);
 		white-space: nowrap;
 	}
 	.kb-submit-bar__sep {
@@ -170,7 +166,7 @@
 	.kb-submit-bar__desc {
 		margin: 0;
 		font-size: 0.8rem;
-		color: var(--muted-foreground);
+		color: var(--color-obsidian-700, #4f4f4f);
 		white-space: nowrap;
 		overflow: hidden;
 		text-overflow: ellipsis;
@@ -202,7 +198,7 @@
 		border: none;
 		border-radius: var(--radius, 0.375rem);
 		background: transparent;
-		color: var(--muted-foreground);
+		color: var(--color-obsidian-700, #4f4f4f);
 		cursor: pointer;
 		opacity: 0.55;
 		transition: opacity 0.15s;
@@ -233,6 +229,11 @@
 		cursor: pointer;
 		transition: background 0.15s;
 		animation: kb-submit-slide-up 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+		color: var(--color-lakebed-950, #172647) !important;
+	}
+	.kb-submit-tab span,
+	.kb-submit-tab :global(svg) {
+		color: inherit !important;
 	}
 	.kb-submit-tab:hover {
 		background: color-mix(in srgb, var(--accent) 8%, var(--background));

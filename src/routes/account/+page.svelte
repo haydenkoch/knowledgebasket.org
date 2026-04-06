@@ -139,12 +139,7 @@
 					</Avatar.Fallback>
 				</Avatar.Root>
 				<div class="flex gap-2">
-					<Button
-						type="button"
-						variant="outline"
-						size="sm"
-						onclick={() => fileInput?.click()}
-					>
+					<Button type="button" variant="outline" size="sm" onclick={() => fileInput?.click()}>
 						<Upload class="size-4" />
 						Upload
 					</Button>
@@ -165,9 +160,11 @@
 				</div>
 				<input
 					bind:this={fileInput}
+					id="profile-avatar"
 					type="file"
 					name="avatar"
 					accept="image/jpeg,image/png,image/webp"
+					aria-label="Upload profile image"
 					onchange={onFileChange}
 					class="sr-only"
 				/>
@@ -226,7 +223,9 @@
 		</Card.Header>
 		<Card.Content>
 			{#if data.organizations.length === 0}
-				<p class="rounded-lg border border-dashed border-border/70 p-6 text-center text-sm text-muted-foreground">
+				<p
+					class="rounded-lg border border-dashed border-border/70 p-6 text-center text-sm text-muted-foreground"
+				>
 					You don't manage any organizations yet. Claim one from its public organization page.
 				</p>
 			{:else}
@@ -258,7 +257,9 @@
 		</Card.Header>
 		<Card.Content>
 			{#if data.claims.length === 0}
-				<p class="rounded-lg border border-dashed border-border/70 p-6 text-center text-sm text-muted-foreground">
+				<p
+					class="rounded-lg border border-dashed border-border/70 p-6 text-center text-sm text-muted-foreground"
+				>
 					No organization claims yet.
 				</p>
 			{:else}
@@ -294,7 +295,9 @@
 					href={link.href}
 					class="group flex items-start gap-3 rounded-lg border border-border/70 bg-background p-4 transition-colors hover:border-border hover:bg-muted/40"
 				>
-					<div class="rounded-md border border-border/70 bg-muted p-2 text-muted-foreground group-hover:text-foreground">
+					<div
+						class="rounded-md border border-border/70 bg-muted p-2 text-muted-foreground group-hover:text-foreground"
+					>
 						<link.icon class="size-4" />
 					</div>
 					<div class="min-w-0">

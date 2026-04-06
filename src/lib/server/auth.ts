@@ -5,15 +5,17 @@ import { env } from '$env/dynamic/private';
 import { getRequestEvent } from '$app/server';
 import { db } from '$lib/server/db';
 import { sendMail } from '$lib/server/email';
+import { resolveRuntimeOrigin } from '$lib/server/runtime-config';
 
 const googleClientId = env.GOOGLE_CLIENT_ID?.trim();
 const googleClientSecret = env.GOOGLE_CLIENT_SECRET?.trim();
+const runtimeOrigin = resolveRuntimeOrigin() ?? 'http://localhost:5173';
 
 export const googleAuthEnabled = Boolean(googleClientId && googleClientSecret);
 
 export const auth = betterAuth({
-	baseURL: env.ORIGIN,
-	trustedOrigins: [env.ORIGIN],
+	baseURL: runtimeOrigin,
+	trustedOrigins: [runtimeOrigin],
 	secret: env.BETTER_AUTH_SECRET,
 	database: drizzleAdapter(db, { provider: 'pg' }),
 	account: {

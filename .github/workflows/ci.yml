@@ -11,6 +11,42 @@ on:
 jobs:
   checks:
     runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: postgres://kb:kbdev@127.0.0.1:5432/kb
+      BETTER_AUTH_SECRET: 12345678901234567890123456789012
+      ORIGIN: http://127.0.0.1:4273
+      SMTP_HOST: 127.0.0.1
+      SMTP_PORT: 1025
+      SMTP_FROM: '"Knowledge Basket" <noreply@example.com>'
+      MEILISEARCH_HOST: http://127.0.0.1:7700
+      MEILISEARCH_API_KEY: kbdev
+      REINDEX_SECRET: ci-reindex-secret-1234567890123456
+      SOURCE_OPS_SECRET: ci-source-ops-secret-1234567890
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: kb
+          POSTGRES_PASSWORD: kbdev
+          POSTGRES_DB: kb
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U kb -d kb"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      meilisearch:
+        image: getmeili/meilisearch:v1.15
+        env:
+          MEILI_MASTER_KEY: kbdev
+        ports:
+          - 7700:7700
+        options: >-
+          --health-cmd "curl -fsS http://127.0.0.1:7700/health || exit 1"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
 
     steps:
       - uses: actions/checkout@v4
@@ -27,6 +63,48 @@ jobs:
       - name: Install
         run: pnpm install --frozen-lockfile
 
+      - name: Wait for services
+        run: |
+          node <<'EOF'
+          import net from 'node:net';
+
+          const waitForPort = (port) =>
+            new Promise((resolve, reject) => {
+              const started = Date.now();
+              const attempt = () => {
+                const socket = net.createConnection({ host: '127.0.0.1', port }, () => {
+                  socket.end();
+                  resolve();
+                });
+                socket.on('error', () => {
+                  socket.destroy();
+                  if (Date.now() - started > 60000) reject(new Error(`Timed out waiting for port ${port}`));
+                  else setTimeout(attempt, 1000);
+                });
+              };
+              attempt();
+            });
+
+          await waitForPort(5432);
+          const started = Date.now();
+          while (true) {
+            try {
+              const response = await fetch('http://127.0.0.1:7700/health');
+              if (response.ok) break;
+            } catch {}
+            if (Date.now() - started > 60000) {
+              throw new Error('Timed out waiting for Meilisearch');
+            }
+            await new Promise((resolve) => setTimeout(resolve, 1000));
+          }
+          EOF
+
+      - name: Migrate database
+        run: pnpm db:migrate
+
+      - name: Seed database
+        run: pnpm db:seed
+
       - name: Typecheck
         run: pnpm check
 
@@ -36,5 +114,20 @@ jobs:
       - name: Test
         run: pnpm test
 
+      - name: Search contract (indexed)
+        run: pnpm test:search:indexed
+
+      - name: Search contract (degraded)
+        env:
+          MEILISEARCH_HOST: ''
+          MEILISEARCH_API_KEY: ''
+        run: pnpm test:search:degraded
+
       - name: Build
         run: pnpm build
+
+      - name: Install Playwright browsers
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: E2E
+        run: pnpm test:e2e

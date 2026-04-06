@@ -1,5 +1,5 @@
 <script lang="ts">
-	import * as Card from '$lib/components/ui/card/index.js';
+	import ExternalLinkIcon from '@lucide/svelte/icons/external-link';
 
 	let { data } = $props();
 </script>
@@ -12,147 +12,200 @@
 	/>
 </svelte:head>
 
-<section class="mx-auto flex w-full max-w-6xl flex-col gap-10 px-4 py-10 sm:px-6 lg:px-8 lg:py-14">
-	<div class="max-w-3xl space-y-4">
-		<p class="text-sm font-semibold tracking-[0.18em] text-muted-foreground uppercase">
-			Open Source
-		</p>
-		<h1 class="text-4xl font-semibold tracking-tight text-balance sm:text-5xl">
-			A thank you to the libraries helping us build this site.
-		</h1>
-		<p class="text-lg leading-8 text-muted-foreground">
-			Knowledge Basket is built with open source software from people who share code, maintain
-			tools, review issues, write docs, and keep hard infrastructure moving. This page exists to say
-			thank you.
-		</p>
-		<p class="text-base leading-7 text-muted-foreground">
-			It is generated from the project&apos;s current dependency manifest and installed packages, so
-			it stays aligned with what the app is actually using right now.
-		</p>
-	</div>
-
-	<div class="grid gap-4 md:grid-cols-3">
-		<Card.Root class="border-border/70 bg-card/90">
-			<Card.Header class="space-y-2">
-				<Card.Description class="text-xs font-semibold tracking-[0.16em] uppercase">
-					Direct packages
-				</Card.Description>
-				<Card.Title class="text-3xl">{data.openSource.totalDirectPackages}</Card.Title>
-				<Card.Description class="text-sm leading-6">
-					Current direct dependencies declared by the project.
-				</Card.Description>
-			</Card.Header>
-		</Card.Root>
-
-		<Card.Root class="border-border/70 bg-card/90">
-			<Card.Header class="space-y-2">
-				<Card.Description class="text-xs font-semibold tracking-[0.16em] uppercase">
-					Runtime libraries
-				</Card.Description>
-				<Card.Title class="text-3xl">{data.openSource.runtimeCount}</Card.Title>
-				<Card.Description class="text-sm leading-6">
-					Packages that help run the product experience.
-				</Card.Description>
-			</Card.Header>
-		</Card.Root>
-
-		<Card.Root class="border-border/70 bg-card/90">
-			<Card.Header class="space-y-2">
-				<Card.Description class="text-xs font-semibold tracking-[0.16em] uppercase">
-					Build tools
-				</Card.Description>
-				<Card.Title class="text-3xl">{data.openSource.developmentCount}</Card.Title>
-				<Card.Description class="text-sm leading-6">
-					Packages that support development, checks, and delivery.
-				</Card.Description>
-			</Card.Header>
-		</Card.Root>
-	</div>
-
-	<Card.Root class="border-border/70 bg-muted/30">
-		<Card.Header class="space-y-3">
-			<Card.Title>How this page works</Card.Title>
-			<Card.Description class="max-w-3xl text-sm leading-6">
-				We list the project&apos;s direct runtime dependencies and developer tooling here. Every
-				package also depends on wider open source ecosystems, and we&apos;re grateful to those
-				maintainers too, even when they are not named individually on this page.
-			</Card.Description>
-		</Card.Header>
-	</Card.Root>
+<article class="oss-page">
+	<header class="oss-hero">
+		<div class="oss-hero__inner">
+			<p class="oss-hero__kicker">Open Source</p>
+			<h1 class="oss-hero__title">Built on the work of others.</h1>
+			<p class="oss-hero__lede">
+				Knowledge Basket depends on {data.openSource.totalDirectPackages} open source packages.
+				This page exists to say thank you. Click any name to visit its repository.
+			</p>
+			<a href="/about" class="oss-hero__back">&larr; Back to About</a>
+		</div>
+	</header>
 
 	{#each data.openSource.groups as group}
-		<section class="space-y-5">
-			<div class="max-w-3xl space-y-2">
-				<h2 class="text-2xl font-semibold tracking-tight">{group.title}</h2>
-				<p class="text-sm leading-6 text-muted-foreground">{group.description}</p>
-			</div>
-
-			<div class="grid gap-4 lg:grid-cols-2">
-				{#each group.packages as pkg}
-					<Card.Root class="flex h-full flex-col border-border/70 bg-card/90">
-						<Card.Header class="space-y-3">
-							<div class="flex flex-wrap items-start justify-between gap-3">
-								<div class="min-w-0 space-y-2">
-									<Card.Title class="text-xl break-all">{pkg.name}</Card.Title>
-									<Card.Description class="text-sm leading-6">
-										{pkg.description ??
-											'No package description was available from the installed manifest, but it is still part of the current stack.'}
-									</Card.Description>
-								</div>
-								<div
-									class="rounded-full border border-border/70 bg-muted px-3 py-1 text-xs font-semibold"
-								>
-									{pkg.installedVersion ? `v${pkg.installedVersion}` : pkg.versionRange}
-								</div>
-							</div>
-						</Card.Header>
-
-						<Card.Content class="mt-auto space-y-4">
-							<div class="flex flex-wrap gap-2 text-xs text-muted-foreground">
-								<span class="rounded-full border border-border/70 bg-background px-3 py-1">
-									Declared {pkg.versionRange}
-								</span>
-								{#if pkg.license}
-									<span class="rounded-full border border-border/70 bg-background px-3 py-1">
-										License {pkg.license}
-									</span>
-								{/if}
-							</div>
-
-							<div class="flex flex-wrap gap-3 text-sm font-medium">
-								{#if pkg.homepage}
-									<a
-										href={pkg.homepage}
-										target="_blank"
-										rel="noreferrer"
-										class="text-primary underline-offset-4 hover:underline"
-									>
-										Project site
-									</a>
-								{/if}
-								{#if pkg.repositoryUrl && pkg.repositoryUrl !== pkg.homepage}
-									<a
-										href={pkg.repositoryUrl}
-										target="_blank"
-										rel="noreferrer"
-										class="text-primary underline-offset-4 hover:underline"
-									>
-										Source
-									</a>
-								{/if}
-								<a
-									href={pkg.npmUrl}
-									target="_blank"
-									rel="noreferrer"
-									class="text-primary underline-offset-4 hover:underline"
-								>
-									npm
-								</a>
-							</div>
-						</Card.Content>
-					</Card.Root>
-				{/each}
+		<section class="oss-group">
+			<div class="oss-group__inner">
+				<div class="oss-group__header">
+					<h2 class="oss-group__title">{group.title}</h2>
+					<p class="oss-group__desc">{group.description}</p>
+					<span class="oss-group__count">{group.packages.length}</span>
+				</div>
+				<ul class="oss-list">
+					{#each group.packages as pkg}
+						<li class="oss-list__item">
+							<a
+								href={pkg.repositoryUrl ?? pkg.homepage ?? pkg.npmUrl}
+								target="_blank"
+								rel="noreferrer"
+								class="oss-list__link"
+							>
+								<span class="oss-list__name">{pkg.name}</span>
+								<ExternalLinkIcon size={13} class="oss-list__ext" />
+							</a>
+						</li>
+					{/each}
+				</ul>
 			</div>
 		</section>
 	{/each}
-</section>
+</article>
+
+<style>
+	/* ── Hero ──────────────────────────────────────────── */
+	.oss-hero {
+		background: var(--color-lakebed-950);
+		color: #fff;
+		padding: 4rem 1rem 3rem;
+	}
+	@media (min-width: 768px) {
+		.oss-hero {
+			padding: 5rem 2rem 4rem;
+		}
+	}
+	.oss-hero__inner {
+		max-width: 720px;
+		margin: 0 auto;
+	}
+	.oss-hero__kicker {
+		font-family: var(--font-sans);
+		font-size: 11px;
+		font-weight: 700;
+		letter-spacing: 0.2em;
+		text-transform: uppercase;
+		color: var(--color-flicker-400);
+		margin-bottom: 1.25rem;
+	}
+	.oss-hero__title {
+		font-family: var(--font-display, var(--font-serif));
+		font-size: clamp(2rem, 5vw, 3rem);
+		font-weight: 700;
+		line-height: 1.15;
+		letter-spacing: -0.01em;
+		margin: 0 0 1.25rem;
+	}
+	.oss-hero__lede {
+		font-family: var(--font-serif);
+		font-size: 1rem;
+		line-height: 1.7;
+		color: rgba(255, 255, 255, 0.7);
+		max-width: 560px;
+	}
+	.oss-hero__back {
+		display: inline-block;
+		margin-top: 1.5rem;
+		font-family: var(--font-sans);
+		font-size: 12px;
+		font-weight: 600;
+		letter-spacing: 0.06em;
+		text-transform: uppercase;
+		color: rgba(255, 255, 255, 0.45);
+		text-decoration: none;
+		transition: color 0.15s ease;
+	}
+	.oss-hero__back:hover {
+		color: rgba(255, 255, 255, 0.8);
+		text-decoration: none;
+	}
+
+	/* ── Group sections ───────────────────────────────── */
+	.oss-group {
+		padding: 2.5rem 1rem;
+		border-bottom: 1px solid var(--border);
+	}
+	@media (min-width: 768px) {
+		.oss-group {
+			padding: 3rem 2rem;
+		}
+	}
+	.oss-group:last-child {
+		border-bottom: none;
+	}
+	.oss-group__inner {
+		max-width: 720px;
+		margin: 0 auto;
+	}
+	.oss-group__header {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: baseline;
+		gap: 0.5rem 1rem;
+		margin-bottom: 1.5rem;
+	}
+	.oss-group__title {
+		font-family: var(--font-sans);
+		font-size: 11px;
+		font-weight: 700;
+		letter-spacing: 0.18em;
+		text-transform: uppercase;
+		color: var(--color-obsidian-500);
+		margin: 0;
+	}
+	.oss-group__count {
+		font-family: var(--font-sans);
+		font-size: 11px;
+		font-weight: 700;
+		color: var(--color-obsidian-400);
+	}
+	.oss-group__desc {
+		width: 100%;
+		font-size: 0.82rem;
+		line-height: 1.5;
+		color: var(--color-obsidian-500);
+		margin: 0;
+	}
+
+	/* ── Package list ─────────────────────────────────── */
+	.oss-list {
+		list-style: none;
+		margin: 0;
+		padding: 0;
+		columns: 1;
+		column-gap: 2rem;
+	}
+	@media (min-width: 480px) {
+		.oss-list {
+			columns: 2;
+		}
+	}
+	@media (min-width: 768px) {
+		.oss-list {
+			columns: 3;
+		}
+	}
+	.oss-list__item {
+		break-inside: avoid;
+		padding: 0;
+	}
+	.oss-list__link {
+		display: inline-flex;
+		align-items: center;
+		gap: 5px;
+		font-family: var(--font-sans);
+		font-size: 0.82rem;
+		font-weight: 500;
+		color: var(--color-obsidian-800);
+		text-decoration: none;
+		padding: 4px 0;
+		transition: color 0.12s ease;
+		line-height: 1.4;
+	}
+	.oss-list__link:hover {
+		color: var(--color-lakebed-700);
+		text-decoration: none;
+	}
+	.oss-list__name {
+		word-break: break-all;
+	}
+	:global(.oss-list__ext) {
+		flex-shrink: 0;
+		opacity: 0;
+		color: var(--color-obsidian-400);
+		transition: opacity 0.12s ease;
+	}
+	.oss-list__link:hover :global(.oss-list__ext) {
+		opacity: 1;
+	}
+</style>

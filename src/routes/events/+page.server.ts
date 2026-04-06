@@ -1,10 +1,11 @@
 import { getEvents, getEventById } from '$lib/server/events';
-import { getListBySlug, getListEventIds } from '$lib/server/event-lists';
+import { getListBySlug, getPublicListEventIds } from '$lib/server/event-lists';
 import { env } from '$env/dynamic/private';
 import { withPublicDataFallback } from '$lib/server/public-load';
 import { parseEventStart } from '$lib/utils/format';
 
 export async function load({ url }) {
+	const today = new Date();
 	const futureOnly = url.searchParams.get('future') === '1';
 	const mapboxToken = env.MAPBOX_ACCESS_TOKEN ?? env.MAPBOX_TOKEN ?? null;
 	const [
@@ -19,7 +20,7 @@ export async function load({ url }) {
 	if (featuredList) {
 		const { data: ids, unavailable: idsUnavailable } = await withPublicDataFallback(
 			'featured event ids',
-			() => getListEventIds(featuredList.id),
+			() => getPublicListEventIds(featuredList.id),
 			[]
 		);
 		dataUnavailable = dataUnavailable || idsUnavailable;
@@ -77,6 +78,9 @@ export async function load({ url }) {
 		initialCalendarYear,
 		initialCalendarMonth,
 		initialCalendarDay,
+		todayYear: today.getFullYear(),
+		todayMonth: today.getMonth(),
+		todayDate: today.getDate(),
 		initialSearchQuery,
 		mapboxToken,
 		dataUnavailable,

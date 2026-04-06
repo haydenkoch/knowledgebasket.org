@@ -17,21 +17,16 @@ import { getAllVenues } from '$lib/server/venues';
 import { getTags, getOptions } from '$lib/server/taxonomy';
 import { uploadImage } from '$lib/server/upload';
 import type { PricingTier } from '$lib/data/kb';
-
-function normalizeEditStatus(
-	raw: FormDataEntryValue | null
-): 'draft' | 'pending' | 'published' | 'rejected' | 'cancelled' {
-	const value = typeof raw === 'string' ? raw.trim() : '';
-	if (
-		value === 'pending' ||
-		value === 'published' ||
-		value === 'rejected' ||
-		value === 'cancelled'
-	) {
-		return value;
-	}
-	return 'draft';
-}
+import {
+	parseString,
+	nullableString,
+	parseList,
+	normalizeStatus,
+	validateRequired,
+	validateDateOrder,
+	validateHttpUrl,
+	buildModerationFields
+} from '$lib/server/admin-content';
 
 export const load: PageServerLoad = async ({ params }) => {
 	const [event, orgs, vens, tags, regionOpts, audienceOpts, costOpts, submissionInfo] =
@@ -60,10 +55,43 @@ export const load: PageServerLoad = async ({ params }) => {
 };
 
 export const actions: Actions = {
-	update: async ({ params, request }) => {
+	update: async ({ params, request, locals }) => {
 		const fd = await request.formData();
-		const title = fd.get('title') as string;
-		if (!title?.trim()) return fail(400, { error: 'Title is required' });
+		const title = parseString(fd, 'title');
+		const issues: string[] = [];
+		validateRequired(issues, title, 'Title is required');
+		validateDateOrder(
+			issues,
+			parseString(fd, 'startDate'),
+			parseString(fd, 'endDate'),
+			'End date must be after the start date.'
+		);
+		validateHttpUrl(
+			issues,
+			nullableString(fd, 'eventUrl'),
+			'Event URL must be a valid http or https URL.'
+		);
+		validateHttpUrl(
+			issues,
+			nullableString(fd, 'registrationUrl'),
+			'Registration URL must be a valid http or https URL.'
+		);
+		validateHttpUrl(
+			issues,
+			nullableString(fd, 'imageUrl'),
+			'Image URL must be a valid http or https URL.'
+		);
+		validateHttpUrl(
+			issues,
+			nullableString(fd, 'virtualEventUrl'),
+			'Virtual event URL must be a valid http or https URL.'
+		);
+		validateHttpUrl(
+			issues,
+			nullableString(fd, 'waitlistUrl'),
+			'Waitlist URL must be a valid http or https URL.'
+		);
+		if (issues.length > 0) return fail(400, { error: issues[0], issues });
 		const current = await getEventById(params.id);
 		if (!current) return fail(404, { error: 'Event not found' });
 
@@ -75,13 +103,7 @@ export const actions: Actions = {
 			/* ignore */
 		}
 
-		const tagsRaw = fd.getAll('tags');
-		const tags = Array.isArray(tagsRaw)
-			? (tagsRaw as string[]).filter(Boolean)
-			: ((fd.get('tags') as string) || '')
-					.split(',')
-					.map((t) => t.trim())
-					.filter(Boolean);
+		const tags = parseList(fd, 'tags') ?? [];
 
 		let imageUrl: string | undefined;
 		const image = fd.get('image') as File | null;
@@ -97,7 +119,11 @@ export const actions: Actions = {
 		const lngStr = (fd.get('lng') as string)?.trim();
 		const lat = latStr ? parseFloat(latStr) : undefined;
 		const lng = lngStr ? parseFloat(lngStr) : undefined;
-		const status = normalizeEditStatus(fd.get('status'));
+		const status = normalizeStatus(
+			fd.get('status'),
+			['draft', 'pending', 'published', 'rejected', 'cancelled'] as const,
+			'draft'
+		);
 
 		const capacityStr = (fd.get('capacity') as string)?.trim();
 		const capacityNum = capacityStr ? parseInt(capacityStr, 10) : null;
@@ -111,38 +137,13 @@ export const actions: Actions = {
 					.filter(Boolean)
 			: [];
 
-		const moderationFields =
-			status === 'published'
-				? {
-						status,
-						publishedAt: current.publishedAt ? new Date(current.publishedAt) : new Date(),
-						rejectedAt: null,
-						rejectionReason: null,
-						cancelledAt: null
-					}
-				: status === 'rejected'
-					? {
-							status,
-							publishedAt: null,
-							rejectedAt: current.rejectedAt ? new Date(current.rejectedAt) : new Date(),
-							rejectionReason: current.rejectionReason ?? null,
-							cancelledAt: null
-						}
-					: status === 'cancelled'
-						? {
-								status,
-								publishedAt: current.publishedAt ? new Date(current.publishedAt) : null,
-								rejectedAt: null,
-								rejectionReason: null,
-								cancelledAt: current.cancelledAt ? new Date(current.cancelledAt) : new Date()
-							}
-						: {
-								status,
-								publishedAt: null,
-								rejectedAt: null,
-								rejectionReason: null,
-								cancelledAt: null
-							};
+		const moderationFields = buildModerationFields(current, {
+			status,
+			reviewerId: locals.user?.id ?? current.reviewedById ?? null,
+			rejectionReason: nullableString(fd, 'rejectionReason'),
+			allowCancelled: true,
+			preservePublishedOnCancel: true
+		});
 
 		await updateEvent(params.id, {
 			title,

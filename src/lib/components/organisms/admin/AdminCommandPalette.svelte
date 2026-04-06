@@ -150,7 +150,7 @@
 <Button type="button" variant="secondary" size="sm" onclick={() => (open = true)}>
 	<Search class="mr-2 h-4 w-4" />
 	Quick find
-	<span class="ml-3 hidden text-xs text-[var(--mid)]/50 sm:inline">
+	<span class="ml-3 hidden text-xs text-[var(--dark)] sm:inline">
 		{shortcutLabel}
 	</span>
 </Button>
@@ -200,7 +200,7 @@
 						class="min-w-0 flex-1 text-[15px] text-[var(--dark)] placeholder:text-[var(--mid)] sm:pl-[9.25rem]"
 					/>
 				</div>
-				<span class="hidden font-sans text-xs text-[var(--mid)]/50 sm:inline" aria-hidden="true">
+				<span class="hidden font-sans text-xs text-[var(--dark)] sm:inline" aria-hidden="true">
 					{shortcutLabel}
 				</span>
 			</div>

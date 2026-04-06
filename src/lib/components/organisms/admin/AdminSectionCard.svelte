@@ -19,7 +19,7 @@
 	>
 		<div class="flex flex-wrap items-start justify-between gap-3">
 			<div class="space-y-1">
-				<Card.Title class="font-serif text-[1.1rem] text-[var(--dark)]">{title}</Card.Title>
+				<h2 class="font-serif text-[1.1rem] text-[var(--dark)]">{title}</h2>
 				{#if description}
 					<Card.Description class="max-w-3xl text-[13px] leading-5 text-[var(--mid)]">
 						{description}

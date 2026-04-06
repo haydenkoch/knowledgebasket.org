@@ -1,16 +1,39 @@
 /**
  * Curated event lists (e.g. Featured): CRUD and list items.
  */
-import { eq, asc, and } from 'drizzle-orm';
+import { eq, asc, and, sql, isNull, or } from 'drizzle-orm';
 import { db } from '$lib/server/db';
 import { eventLists, eventListItems, events } from '$lib/server/db/schema';
 
 export type EventListRow = typeof eventLists.$inferSelect;
 export type EventListInsert = typeof eventLists.$inferInsert;
 export type EventListItemRow = typeof eventListItems.$inferSelect;
+export type EventListSummary = EventListRow & { itemCount: number };
 
 export async function getAllLists(): Promise<EventListRow[]> {
 	return db.select().from(eventLists).orderBy(asc(eventLists.sortOrder), asc(eventLists.title));
+}
+
+export async function getAllListsWithCounts(): Promise<EventListSummary[]> {
+	const rows = await db
+		.select({
+			id: eventLists.id,
+			slug: eventLists.slug,
+			title: eventLists.title,
+			sortOrder: eventLists.sortOrder,
+			createdAt: eventLists.createdAt,
+			updatedAt: eventLists.updatedAt,
+			itemCount: sql<number>`count(${eventListItems.id})::int`
+		})
+		.from(eventLists)
+		.leftJoin(eventListItems, eq(eventListItems.listId, eventLists.id))
+		.groupBy(eventLists.id)
+		.orderBy(asc(eventLists.sortOrder), asc(eventLists.title));
+
+	return rows.map((row) => ({
+		...row,
+		itemCount: Number(row.itemCount ?? 0)
+	}));
 }
 
 export async function getListBySlug(slug: string): Promise<EventListRow | null> {
@@ -66,7 +89,7 @@ export async function getListEventIds(listId: string): Promise<string[]> {
 	return rows.map((r) => r.eventId);
 }
 
-/** Get full event rows for a list (published only, ordered). */
+/** Get full event rows for a list in admin order. */
 export async function getListEvents(listId: string) {
 	const rows = await db
 		.select({
@@ -77,7 +100,24 @@ export async function getListEvents(listId: string) {
 		.innerJoin(events, eq(eventListItems.eventId, events.id))
 		.where(eq(eventListItems.listId, listId))
 		.orderBy(asc(eventListItems.sortOrder));
-	return rows.filter((r) => r.event.status === 'published').map((r) => r.event);
+	return rows.map((r) => r.event);
+}
+
+/** Get public-safe event IDs for a list (published and not unlisted, ordered). */
+export async function getPublicListEventIds(listId: string): Promise<string[]> {
+	const rows = await db
+		.select({ eventId: eventListItems.eventId })
+		.from(eventListItems)
+		.innerJoin(events, eq(eventListItems.eventId, events.id))
+		.where(
+			and(
+				eq(eventListItems.listId, listId),
+				eq(events.status, 'published'),
+				or(eq(events.unlisted, false), isNull(events.unlisted))
+			)
+		)
+		.orderBy(asc(eventListItems.sortOrder));
+	return rows.map((row) => row.eventId);
 }
 
 export async function addEventToList(
@@ -85,12 +125,25 @@ export async function addEventToList(
 	eventId: string,
 	sortOrder?: number
 ): Promise<EventListItemRow | null> {
+	const [existing] = await db
+		.select()
+		.from(eventListItems)
+		.where(and(eq(eventListItems.listId, listId), eq(eventListItems.eventId, eventId)))
+		.limit(1);
+	if (existing) return existing;
+
+	const [sortRow] = await db
+		.select({ maxSortOrder: sql<number>`coalesce(max(${eventListItems.sortOrder}), -1)` })
+		.from(eventListItems)
+		.where(eq(eventListItems.listId, listId));
+	const resolvedSortOrder = sortOrder ?? Number(sortRow?.maxSortOrder ?? -1) + 1;
+
 	const [row] = await db
 		.insert(eventListItems)
 		.values({
 			listId,
 			eventId,
-			sortOrder: sortOrder ?? 0
+			sortOrder: resolvedSortOrder
 		})
 		.returning();
 	return row ?? null;

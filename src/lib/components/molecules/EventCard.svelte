@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { EventItem } from '$lib/data/kb';
+	import { formatDisplayDate } from '$lib/utils/display';
 	import { stripHtml } from '$lib/utils/format';
 	import CalendarDays from '@lucide/svelte/icons/calendar-days';
 	import MapPin from '@lucide/svelte/icons/map-pin';
@@ -9,16 +10,15 @@
 	const href = $derived(`/events/${event.slug ?? event.id}`);
 
 	function formatDate(d?: string) {
-		if (!d) return '';
-		try {
-			return new Date(d).toLocaleDateString('en-US', {
+		return formatDisplayDate(
+			d,
+			{
 				month: 'short',
 				day: 'numeric',
 				year: 'numeric'
-			});
-		} catch {
-			return '';
-		}
+			},
+			''
+		);
 	}
 
 	const plainDesc = $derived(event.description ? stripHtml(event.description) : '');

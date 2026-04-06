@@ -13,6 +13,7 @@
 </script>
 
 <section
+	data-admin-page-header
 	class="-mx-4 mb-6 overflow-hidden rounded-b-[22px] bg-[linear-gradient(135deg,color-mix(in_srgb,var(--color-lakebed-950)_96%,white),color-mix(in_srgb,var(--color-lakebed-800)_80%,white))] text-white sm:-mx-6"
 >
 	<div class="grid gap-6 px-5 py-5 sm:px-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">

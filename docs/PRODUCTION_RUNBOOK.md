@@ -14,6 +14,17 @@ This runbook is the current operational baseline for launching and maintaining K
   - `ERROR_WEBHOOK_URL` for forwarding structured server errors
   - `LOG_LEVEL` to tune structured stdout logging (`debug`, `info`, `warn`, `error`)
 
+## Railway baseline
+
+- `railway.toml` is the deployment source of truth for the web service:
+  - build: `pnpm build`
+  - pre-deploy: `pnpm db:migrate`
+  - start: `pnpm start:app`
+  - healthcheck: `GET /api/health`
+- Generate a Railway public domain before first launch.
+- Set `ORIGIN` explicitly once the final public URL is known.
+- If `ORIGIN` is temporarily omitted, the app can fall back to `RAILWAY_PUBLIC_DOMAIN`, but treat that as a bootstrap convenience rather than the steady-state production setting.
+
 ## Health checks
 
 - App/system health:
@@ -65,6 +76,35 @@ After seeding published content:
   - every 15 minutes for production
   - every 60 minutes for low-volume staging environments
 
+## Starter source activation
+
+- Do not enable the full discovered source inventory at launch.
+- Start with a small vetted set and expand only after operators can keep review volume healthy.
+- Minimum activation bar for a source:
+  - staged preview returns sane normalized records
+  - duplicate rate is low enough that review stays manageable
+  - fetches succeed without repeated auth, parse, or quota failures
+  - at least one manual import has been reviewed end to end
+  - the source has a clear owner who can quarantine or retry it when quality drops
+
+Recommended launch habit:
+
+1. Seed the starter sources.
+2. Manually test each source in `/admin/sources/[id]`.
+3. Enable only the sources that meet the activation bar.
+4. Confirm `/admin/sources/health` stays readable after the first scheduled runs.
+
+## Alert ownership
+
+- Assign an owner for:
+  - `GET /api/health` failures
+  - `POST /api/reindex` failures or stuck index rebuilds
+  - `POST /api/source-ops/run-due` failures and repeated degraded/broken sources
+  - SMTP delivery failures and auth-email regressions
+  - unhandled server exceptions reported through Sentry and/or `ERROR_WEBHOOK_URL`
+- Keep one dashboard or saved query per area so on-call review is not dependent on admin UI memory alone.
+- Before GA, verify each alert path reaches a human inbox or paging destination.
+
 ## Backups and recovery
 
 - Postgres:
@@ -76,6 +116,18 @@ After seeding published content:
 - Search:
   - Meilisearch is rebuildable from the canonical Postgres data
   - recovery step is `POST /api/reindex` after DB restore
+
+## Restore drill
+
+Run one full restore drill in staging before launch and record the exact timestamps/results.
+
+1. Restore the latest Postgres backup into staging.
+2. Restore the object-storage bucket or sync a recent snapshot.
+3. Boot the app with the staging production env contract.
+4. Run `POST /api/reindex`.
+5. Verify `GET /api/health` is healthy.
+6. Spot-check `/search`, `/events`, `/account`, and a representative uploaded asset.
+7. Trigger `POST /api/source-ops/run-due` once and confirm the scheduler path still works after restore.
 
 ## Incident checks
 

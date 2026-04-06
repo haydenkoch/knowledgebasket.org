@@ -2,50 +2,34 @@ import type { Actions, PageServerLoad } from './$types';
 import { error, fail, redirect } from '@sveltejs/kit';
 import { approveJob, deleteJob, getJobById, rejectJob, updateJob } from '$lib/server/jobs';
 import { getAllOrganizations } from '$lib/server/organizations';
-
-function parseString(formData: FormData, key: string) {
-	return formData.get(key)?.toString().trim() ?? '';
-}
-
-function nullableString(formData: FormData, key: string) {
-	const value = parseString(formData, key);
-	return value ? value : null;
-}
-
-function parseDateValue(formData: FormData, key: string) {
-	const value = parseString(formData, key);
-	return value ? new Date(`${value}T00:00:00`) : null;
-}
-
-function parseNumberValue(formData: FormData, key: string) {
-	const value = parseString(formData, key);
-	if (!value) return null;
-	const number = Number(value);
-	return Number.isFinite(number) ? number : null;
-}
-
-function parseList(formData: FormData, key: string) {
-	const value = parseString(formData, key);
-	const items = value
-		.split(/\r?\n|,/)
-		.map((entry) => entry.trim())
-		.filter(Boolean);
-	return items.length > 0 ? items : null;
-}
-
-function normalizeEditStatus(
-	raw: FormDataEntryValue | null
-): 'draft' | 'pending' | 'published' | 'rejected' {
-	const value = typeof raw === 'string' ? raw.trim() : '';
-	if (value === 'pending' || value === 'published' || value === 'rejected') return value;
-	return 'draft';
-}
+import {
+	parseString,
+	nullableString,
+	parseDateValue,
+	parseNumberValue,
+	parseList,
+	normalizeStatus,
+	validateRequired,
+	validateHttpUrl,
+	validateNumberOrder,
+	buildModerationFields
+} from '$lib/server/admin-content';
+import { extractSubmissionContactFromNotes } from '$lib/server/submission-notes';
 
 export const load: PageServerLoad = async ({ params }) => {
 	const [job, organizations] = await Promise.all([getJobById(params.id), getAllOrganizations()]);
 	if (!job) throw error(404, 'Job not found');
+	const submissionContact = extractSubmissionContactFromNotes(job.adminNotes);
 	return {
 		job,
+		submissionContext: {
+			createdAt: job.createdAt ?? null,
+			submitterName: job.submitterName ?? null,
+			submitterEmail: job.submitterEmail ?? null,
+			contactName: submissionContact.name ?? null,
+			contactEmail: submissionContact.email ?? null,
+			contactPhone: submissionContact.phone ?? null
+		},
 		organizations: organizations.map((organization) => ({
 			id: organization.id,
 			name: organization.name
@@ -58,37 +42,40 @@ export const actions: Actions = {
 		const formData = await request.formData();
 		const title = parseString(formData, 'title');
 		const employerName = parseString(formData, 'employerName');
-		if (!title) return fail(400, { error: 'Title is required' });
-		if (!employerName) return fail(400, { error: 'Employer name is required' });
+		const issues: string[] = [];
+		validateRequired(issues, title, 'Title is required');
+		validateRequired(issues, employerName, 'Employer name is required');
+		validateHttpUrl(
+			issues,
+			nullableString(formData, 'applyUrl'),
+			'Apply URL must be a valid http or https URL.'
+		);
+		validateHttpUrl(
+			issues,
+			nullableString(formData, 'imageUrl'),
+			'Image URL must be a valid http or https URL.'
+		);
+		validateNumberOrder(
+			issues,
+			parseNumberValue(formData, 'compensationMin'),
+			parseNumberValue(formData, 'compensationMax'),
+			'Minimum compensation cannot be greater than maximum compensation.'
+		);
+		if (issues.length > 0) return fail(400, { error: issues[0], issues });
 
 		const current = await getJobById(params.id);
 		if (!current) return fail(404, { error: 'Job not found' });
 
-		const status = normalizeEditStatus(formData.get('status'));
-		const moderationFields =
-			status === 'published'
-				? {
-						status,
-						publishedAt: current.publishedAt ? new Date(current.publishedAt) : new Date(),
-						rejectedAt: null,
-						rejectionReason: null,
-						reviewedById: locals.user?.id ?? current.reviewedById ?? null
-					}
-				: status === 'rejected'
-					? {
-							status,
-							publishedAt: null,
-							rejectedAt: current.rejectedAt ? new Date(current.rejectedAt) : new Date(),
-							rejectionReason: nullableString(formData, 'rejectionReason'),
-							reviewedById: locals.user?.id ?? current.reviewedById ?? null
-						}
-					: {
-							status,
-							publishedAt: null,
-							rejectedAt: null,
-							rejectionReason: null,
-							reviewedById: current.reviewedById ?? null
-						};
+		const status = normalizeStatus(
+			formData.get('status'),
+			['draft', 'pending', 'published', 'rejected'] as const,
+			'draft'
+		);
+		const moderationFields = buildModerationFields(current, {
+			status,
+			reviewerId: locals.user?.id ?? null,
+			rejectionReason: nullableString(formData, 'rejectionReason')
+		});
 
 		await updateJob(params.id, {
 			title,
@@ -100,7 +87,7 @@ export const actions: Actions = {
 			jobType: nullableString(formData, 'jobType'),
 			seniority: nullableString(formData, 'seniority'),
 			sector: nullableString(formData, 'sector'),
-			sectors: parseList(formData, 'sector'),
+			sectors: parseList(formData, 'sectors') ?? current.sectors ?? null,
 			department: nullableString(formData, 'department'),
 			tags: parseList(formData, 'tags'),
 			workArrangement: nullableString(formData, 'workArrangement'),

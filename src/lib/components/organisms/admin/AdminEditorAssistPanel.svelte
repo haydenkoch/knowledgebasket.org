@@ -1,21 +1,38 @@
 <script lang="ts">
 	import * as Card from '$lib/components/ui/card/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
-	import { AlertTriangle, Eye, FileDiff, Save } from '@lucide/svelte';
+	import StatusBadge from '$lib/components/organisms/admin/StatusBadge.svelte';
+	import { AlertTriangle, Eye, ExternalLink, FileDiff, Save, Sparkles } from '@lucide/svelte';
 	import type { EditorChangeLine } from './editor-support';
 
 	interface Props {
 		previewHref?: string | null;
+		liveHref?: string | null;
+		liveLabel?: string;
+		status?: string | null;
+		missingFields?: string[];
 		hasUnsavedChanges?: boolean;
 		validationIssues?: string[];
 		changedFields?: EditorChangeLine[];
+		submitLabel?: string;
+		submitting?: boolean;
+		publishedAt?: string | null;
+		updatedAt?: string | null;
 	}
 
 	let {
 		previewHref = null,
+		liveHref = null,
+		liveLabel = 'View live',
+		status = 'draft',
+		missingFields = [],
 		hasUnsavedChanges = false,
 		validationIssues = [],
-		changedFields = []
+		changedFields = [],
+		submitLabel = 'Save changes',
+		submitting = false,
+		publishedAt = null,
+		updatedAt = null
 	}: Props = $props();
 </script>
 
@@ -23,21 +40,52 @@
 	<Card.Header class="gap-3">
 		<div class="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
 			<div>
-				<Card.Title>Editor status</Card.Title>
+				<Card.Title>Publishing</Card.Title>
 				<Card.Description>
-					Review validation, unsaved edits, and major field changes before saving.
+					Keep an eye on readiness, preview access, and the most important editor signals.
 				</Card.Description>
 			</div>
-			{#if previewHref}
-				<Button href={previewHref} target="_blank" rel="noreferrer" variant="outline" size="sm">
-					<Eye class="mr-2 h-4 w-4" />
-					Open preview
-				</Button>
-			{/if}
+			<div class="flex flex-wrap gap-2">
+				{#if previewHref}
+					<Button href={previewHref} target="_blank" rel="noreferrer" variant="outline" size="sm">
+						<Eye class="mr-2 h-4 w-4" />
+						Open preview
+					</Button>
+				{/if}
+				{#if liveHref}
+					<Button href={liveHref} target="_blank" rel="noreferrer" variant="outline" size="sm">
+						<ExternalLink class="mr-2 h-4 w-4" />
+						{liveLabel}
+					</Button>
+				{/if}
+			</div>
 		</div>
 	</Card.Header>
 	<Card.Content class="space-y-4">
-		<div class="grid gap-3 md:grid-cols-3">
+		<div class="grid gap-3">
+			<div
+				class="rounded-xl border border-[color:var(--rule)] bg-[var(--color-alpine-snow-100)]/55 p-4"
+			>
+				<div
+					class="flex items-center gap-2 text-[11px] font-semibold tracking-[0.08em] text-[var(--mid)] uppercase"
+				>
+					<Sparkles class="h-4 w-4" />
+					Current status
+				</div>
+				<div class="mt-2 flex flex-wrap items-center gap-2">
+					<StatusBadge status={status ?? 'draft'} />
+				</div>
+				{#if publishedAt || updatedAt}
+					<p class="mt-2 text-sm text-[var(--mid)]">
+						{#if publishedAt}
+							Published {new Date(publishedAt).toLocaleString()}
+						{:else if updatedAt}
+							Last updated {new Date(updatedAt).toLocaleString()}
+						{/if}
+					</p>
+				{/if}
+			</div>
+
 			<div
 				class="rounded-xl border border-[color:var(--rule)] bg-[var(--color-alpine-snow-100)]/55 p-4"
 			>
@@ -51,6 +99,7 @@
 					{hasUnsavedChanges ? 'You have unsaved edits' : 'All changes are saved'}
 				</p>
 			</div>
+
 			<div
 				class="rounded-xl border border-[color:var(--rule)] bg-[var(--color-alpine-snow-100)]/55 p-4"
 			>
@@ -66,6 +115,7 @@
 						: `${validationIssues.length} item${validationIssues.length === 1 ? '' : 's'} need attention`}
 				</p>
 			</div>
+
 			<div
 				class="rounded-xl border border-[color:var(--rule)] bg-[var(--color-alpine-snow-100)]/55 p-4"
 			>
@@ -81,6 +131,23 @@
 						: `${changedFields.length} major field${changedFields.length === 1 ? '' : 's'} changed`}
 				</p>
 			</div>
+		</div>
+
+		<div
+			class="rounded-xl border border-[color:var(--rule)] bg-[var(--color-alpine-snow-50)]/90 p-4"
+		>
+			<p class="text-sm font-semibold text-[var(--dark)]">Completion summary</p>
+			{#if missingFields.length === 0}
+				<p class="mt-2 text-sm text-[var(--mid)]">
+					All essential fields are present for this editor.
+				</p>
+			{:else}
+				<ul class="mt-2 space-y-1 text-sm text-[var(--mid)]">
+					{#each missingFields as field}
+						<li>Missing: {field}</li>
+					{/each}
+				</ul>
+			{/if}
 		</div>
 
 		{#if validationIssues.length > 0}
@@ -126,5 +193,11 @@
 				</div>
 			</div>
 		{/if}
+
+		<div class="hidden xl:block">
+			<Button type="submit" class="w-full" disabled={submitting}>
+				{submitting ? 'Saving…' : submitLabel}
+			</Button>
+		</div>
 	</Card.Content>
 </Card.Root>

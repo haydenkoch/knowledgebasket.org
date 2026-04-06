@@ -12,7 +12,11 @@
 			label: 'Email',
 			desc: 'Updates delivered to your inbox.',
 			fields: [
-				['emailSubmissionUpdates', 'Submission updates', 'When your submitted content is reviewed.'],
+				[
+					'emailSubmissionUpdates',
+					'Submission updates',
+					'When your submitted content is reviewed.'
+				],
 				[
 					'emailOrgActivity',
 					'Organization activity',
@@ -35,22 +39,10 @@
 			label: 'In-app',
 			desc: 'Alerts in your notification center.',
 			fields: [
-				[
-					'inAppSubmissionUpdates',
-					'Submission updates',
-					'Status changes on your submissions.'
-				],
-				[
-					'inAppOrgActivity',
-					'Organization activity',
-					'Events inside organizations you manage.'
-				],
+				['inAppSubmissionUpdates', 'Submission updates', 'Status changes on your submissions.'],
+				['inAppOrgActivity', 'Organization activity', 'Events inside organizations you manage.'],
 				['inAppFollowedOrgs', 'Followed organizations', 'Updates from orgs you follow.'],
-				[
-					'inAppBookmarkReminders',
-					'Bookmark reminders',
-					'Upcoming deadlines for saved items.'
-				]
+				['inAppBookmarkReminders', 'Bookmark reminders', 'Upcoming deadlines for saved items.']
 			]
 		}
 	] as const;
@@ -122,7 +114,9 @@
 		</Card.Header>
 		<Card.Content>
 			{#if data.notifications.length === 0}
-				<p class="rounded-lg border border-dashed border-border/70 p-6 text-center text-sm text-muted-foreground">
+				<p
+					class="rounded-lg border border-dashed border-border/70 p-6 text-center text-sm text-muted-foreground"
+				>
 					No notifications yet.
 				</p>
 			{:else}

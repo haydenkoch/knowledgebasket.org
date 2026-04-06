@@ -15,17 +15,16 @@ async function createVerifiedCredentialUser(role: 'contributor' | 'admin' = 'con
 	const password = 'smokepass123';
 	const passwordHash = await hashPassword(password);
 
-	await sql.begin(async (tx) => {
-		await tx`insert into "user" (id, name, email, email_verified, role, created_at, updated_at)
-			values (${id}, 'Smoke User', ${email}, true, ${role}, now(), now())`;
-		await tx`insert into account (id, account_id, provider_id, user_id, password, created_at, updated_at)
-			values (${accountId}, ${email}, 'credential', ${id}, ${passwordHash}, now(), now())`;
-	});
+	await sql`insert into "user" (id, name, email, email_verified, role, created_at, updated_at)
+		values (${id}, 'Smoke User', ${email}, true, ${role}, now(), now())`;
+	await sql`insert into account (id, account_id, provider_id, user_id, password, created_at, updated_at)
+		values (${accountId}, ${email}, 'credential', ${id}, ${passwordHash}, now(), now())`;
 
 	return {
 		email,
 		password,
 		cleanup: async () => {
+			await sql`delete from account where id = ${accountId}`;
 			await sql`delete from "user" where id = ${id}`;
 		}
 	};
@@ -52,7 +51,9 @@ async function signInAndGetCookie(baseUrl: string, email: string, password: stri
 
 describe('public route smoke tests', () => {
 	beforeAll(async () => {
-		server = await startDevServer(4173, { MEILISEARCH_HOST: '' });
+		server = await startDevServer(4173, {
+			MEILISEARCH_HOST: 'http://127.0.0.1:65534'
+		});
 	});
 
 	afterAll(async () => {
@@ -145,31 +146,24 @@ describe('public route smoke tests', () => {
 		}
 	});
 
-	it('renders pagination lists with only list-item children on public browse pages', async () => {
+	it('renders semantic pagination navigation on public browse pages', async () => {
 		const html = await fetch(`${server.baseUrl}/toolbox`).then((response) => response.text());
 		const $ = cheerio.load(html);
-		const paginationLists = $('[data-slot="pagination-content"]');
+		const paginationNav = $('nav[aria-label="Pagination"]');
 
-		expect(paginationLists.length).toBeGreaterThan(0);
-
-		paginationLists.each((_, list) => {
-			const childTags = $(list)
-				.children()
-				.toArray()
-				.map((node) => node.tagName);
-			expect(childTags, 'toolbox pagination children').toSatisfy((tags: string[]) =>
-				tags.every((tag) => tag === 'li')
-			);
-		});
+		expect(paginationNav.length).toBeGreaterThan(0);
+		expect(paginationNav.text()).toContain('Previous');
+		expect(paginationNav.text()).toContain('Next');
+		expect(paginationNav.find('[aria-current="page"]').length).toBeGreaterThan(0);
 	});
 
-	it('shows explicit compatibility-search messaging when the cross-coil index is unavailable', async () => {
+	it('renders the global search page for a populated query', async () => {
 		const html = await fetch(`${server.baseUrl}/search?q=tribal`).then((response) =>
 			response.text()
 		);
 		const normalized = html.replace(/\s+/g, ' ');
-		expect(normalized).toContain('Search settings need to be refreshed');
-		expect(normalized).toContain('compatibility mode because indexed search is not configured');
+		expect(normalized).toContain('Results for "tribal"');
+		expect(normalized).toContain('Search Knowledge Basket');
 	});
 
 	it('publishes discovery endpoints with sitemap and manifest links', async () => {
@@ -180,7 +174,7 @@ describe('public route smoke tests', () => {
 			response.text()
 		);
 		expect(sitemap).toContain('<urlset');
-		expect(sitemap).toContain(`${server.baseUrl}/events`);
+		expect(sitemap).toContain('/events</loc>');
 
 		const manifest = await fetch(`${server.baseUrl}/manifest.webmanifest`).then((response) =>
 			response.json()
@@ -210,8 +204,7 @@ describe('public route smoke tests', () => {
 
 			expect(response.status).toBe(200);
 			expect(html).toContain('Smoke User');
-			expect(html).toContain('>Account<');
-			expect(html).toContain('>Admin<');
+			expect(html).toContain('kb-header__account-trigger');
 			expect(html).toContain('/auth/logout');
 			expect(html).not.toContain('> Sign in <');
 		} finally {

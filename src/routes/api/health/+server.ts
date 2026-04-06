@@ -1,4 +1,5 @@
 import { json } from '@sveltejs/kit';
+import { dev } from '$app/environment';
 import { sql } from 'drizzle-orm';
 import { db } from '$lib/server/db';
 import { getSearchReadiness } from '$lib/server/meilisearch';
@@ -10,9 +11,11 @@ import {
 import { getSourceHealthSummary } from '$lib/server/sources';
 import { getSourceOpsSchemaHealth } from '$lib/server/source-ops-schema';
 import { countDueSources } from '$lib/server/ingestion/scheduler';
+import { getRuntimeConfigHealth } from '$lib/server/runtime-config';
 
 export async function GET() {
 	const timestamp = new Date().toISOString();
+	const runtimeConfig = getRuntimeConfigHealth({ enforceProduction: !dev });
 
 	const [
 		database,
@@ -87,6 +90,7 @@ export async function GET() {
 	const status =
 		database.available &&
 		searchReadiness.state === 'ready' &&
+		runtimeConfig.ok &&
 		schemaHealth.ok &&
 		(!objectStorage.configured || objectStorage.available)
 			? 'ok'
@@ -99,6 +103,7 @@ export async function GET() {
 			database,
 			search: searchReadiness,
 			objectStorage,
+			configuration: runtimeConfig,
 			schema: schemaHealth,
 			sourceOps: {
 				totalSources: sourceSummary.total,

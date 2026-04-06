@@ -171,7 +171,7 @@
 					</div>
 				{:else}
 					<p class="mt-4 text-sm leading-6 text-[var(--muted-foreground)]">
-						This venue is not yet linked to an organization profile, so only venue-specific event
+						This venue does not have an associated organization profile. Only venue-specific event
 						content is shown here.
 					</p>
 				{/if}

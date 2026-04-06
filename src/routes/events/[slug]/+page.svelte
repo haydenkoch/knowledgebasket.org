@@ -13,13 +13,14 @@
 	import MapPinIcon from '@lucide/svelte/icons/map-pin';
 	import ArrowLeft from '@lucide/svelte/icons/arrow-left';
 	import ArrowRight from '@lucide/svelte/icons/arrow-right';
+	import NavigationIcon from '@lucide/svelte/icons/navigation';
+	import CalendarPlusIcon from '@lucide/svelte/icons/calendar-plus';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import * as ButtonGroup from '$lib/components/ui/button-group/index.js';
+	import * as Tooltip from '$lib/components/ui/tooltip/index.js';
 	import EventCard from '$lib/components/molecules/EventCard.svelte';
-	import * as Breadcrumb from '$lib/components/ui/breadcrumb/index.js';
 	import CoilDetailActionRail from '$lib/components/organisms/CoilDetailActionRail.svelte';
 	import LocationMap from '$lib/components/molecules/LocationMap.svelte';
-	import SourceProvenanceCard from '$lib/components/public/source-provenance-card.svelte';
 
 	let { data } = $props();
 	let event = $derived(data.event as EventItem);
@@ -260,19 +261,6 @@
 			saveLabel="event"
 			accent="var(--teal)"
 		>
-			{#snippet breadcrumb()}
-				<Breadcrumb.Root>
-					<Breadcrumb.List>
-						<Breadcrumb.Item>
-							<Breadcrumb.Link href="/events">Events</Breadcrumb.Link>
-						</Breadcrumb.Item>
-						<Breadcrumb.Separator />
-						<Breadcrumb.Item>
-							<Breadcrumb.Page class="kb-event-crumb-current">{event.title}</Breadcrumb.Page>
-						</Breadcrumb.Item>
-					</Breadcrumb.List>
-				</Breadcrumb.Root>
-			{/snippet}
 			{#snippet meta()}
 				<span class="kb-event-meta-date"
 					>{formatEventDateRange(event.startDate, event.endDate)}</span
@@ -287,36 +275,61 @@
 			{/snippet}
 			{#snippet actions()}
 				{#if directionsUrl}
-					<Button href={directionsUrl} target="_blank" rel="noopener" variant="ghost" size="sm">
-						Directions
-					</Button>
+					<Tooltip.Root>
+						<Tooltip.Trigger>
+							{#snippet child({ props })}
+								<Button
+									{...props}
+									href={directionsUrl}
+									target="_blank"
+									rel="noopener"
+									variant="ghost"
+									size="icon-sm"
+									aria-label="Directions"
+								>
+									<NavigationIcon class="size-4" />
+								</Button>
+							{/snippet}
+						</Tooltip.Trigger>
+						<Tooltip.Content>Directions</Tooltip.Content>
+					</Tooltip.Root>
 				{/if}
 				{#if googleCalendarUrl}
-					<Button href={googleCalendarUrl} target="_blank" rel="noopener" variant="ghost" size="sm">
-						Calendar
-					</Button>
+					<Tooltip.Root>
+						<Tooltip.Trigger>
+							{#snippet child({ props })}
+								<Button
+									{...props}
+									href={googleCalendarUrl}
+									target="_blank"
+									rel="noopener"
+									variant="ghost"
+									size="icon-sm"
+									aria-label="Add to calendar"
+								>
+									<CalendarPlusIcon class="size-4" />
+								</Button>
+							{/snippet}
+						</Tooltip.Trigger>
+						<Tooltip.Content>Add to calendar</Tooltip.Content>
+					</Tooltip.Root>
 				{/if}
 			{/snippet}
 			{#snippet primary()}
 				{#if dualCtas}
-					<a
-						href={event.registrationUrl!}
-						target="_blank"
-						rel="noopener"
-						class="kb-event-primary-btn"
-					>
+					<Button href={event.registrationUrl!} target="_blank" rel="noopener" size="sm">
 						{event.cost === 'Free/Sponsored'
 							? 'Register'
 							: event.cost === 'Registration Fee Required'
 								? 'Get tickets'
 								: 'Register'}
 						<ArrowRight class="size-4" />
-					</a>
+					</Button>
 				{:else if singleCtaUrl}
-					<a href={singleCtaUrl} target="_blank" rel="noopener" class="kb-event-primary-btn">
+					<Button href={singleCtaUrl} target="_blank" rel="noopener" size="sm">
 						{singleCtaLabel}
 						<ArrowRight class="size-4" />
-					</a>
+					</Button>
 				{/if}
 			{/snippet}
 		</CoilDetailActionRail>
@@ -523,7 +536,6 @@
 					</ButtonGroup.Root>
 				</div>
 			{/if}
-			<SourceProvenanceCard provenance={event.provenance} />
 			<a href="/events" class="kb-event-back"
 				><ArrowLeft class="inline h-4 w-4" /> Back to all events</a
 			>
@@ -688,14 +700,6 @@
 		padding-left: 1.5rem;
 		padding-right: 1.5rem;
 	}
-	:global(.kb-event-crumb-current) {
-		display: inline-block;
-		max-width: 32ch;
-		white-space: nowrap;
-		overflow: hidden;
-		text-overflow: ellipsis;
-		vertical-align: bottom;
-	}
 	.kb-event-meta-date {
 		font-weight: 600;
 		color: var(--foreground);
@@ -716,32 +720,6 @@
 		overflow: hidden;
 		text-overflow: ellipsis;
 	}
-	.kb-event-primary-btn {
-		display: inline-flex;
-		align-items: center;
-		gap: 0.4rem;
-		padding: 0.55rem 1.1rem;
-		border-radius: 999px;
-		background: var(--kb-accent, var(--teal));
-		color: white;
-		font-weight: 600;
-		font-size: 0.875rem;
-		letter-spacing: 0.01em;
-		text-decoration: none;
-		white-space: nowrap;
-		transition:
-			opacity 0.15s ease,
-			transform 0.15s ease,
-			box-shadow 0.15s ease;
-		box-shadow: 0 2px 8px color-mix(in srgb, var(--kb-accent, var(--teal)) 35%, transparent);
-	}
-	.kb-event-primary-btn:hover {
-		opacity: 0.95;
-		text-decoration: none;
-		transform: translateY(-1px);
-		box-shadow: 0 4px 12px color-mix(in srgb, var(--kb-accent, var(--teal)) 45%, transparent);
-	}
-
 	/* Sidebar location card wraps the embedded map */
 	.kb-event-info-map {
 		margin-top: 0.75rem;

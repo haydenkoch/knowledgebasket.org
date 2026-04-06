@@ -127,7 +127,10 @@
 			<div class="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
 				<span class="truncate">{email}</span>
 				<span aria-hidden="true">·</span>
-				<Badge variant={isStaff ? 'default' : 'secondary'} class="text-[10px] tracking-wider uppercase">
+				<Badge
+					variant={isStaff ? 'default' : 'secondary'}
+					class="text-[10px] tracking-wider uppercase"
+				>
 					{role}
 				</Badge>
 				{#if isStaff}
@@ -159,14 +162,13 @@
 	</nav>
 
 	<div class="grid gap-10 lg:grid-cols-[220px_minmax(0,1fr)] lg:gap-14">
-		<aside
-			class="hidden lg:sticky lg:top-20 lg:block lg:self-start"
-			aria-label="Account sections"
-		>
+		<aside class="hidden lg:sticky lg:top-20 lg:block lg:self-start" aria-label="Account sections">
 			<nav class="flex flex-col gap-6">
 				{#each navGroups as group}
 					<div>
-						<p class="px-3 pb-2 text-[11px] font-semibold tracking-[0.18em] text-muted-foreground uppercase">
+						<p
+							class="px-3 pb-2 text-[11px] font-semibold tracking-[0.18em] text-muted-foreground uppercase"
+						>
 							{group.label}
 						</p>
 						<ul class="flex flex-col gap-0.5">
@@ -192,15 +194,17 @@
 			</nav>
 		</aside>
 
-		<main class="min-w-0 space-y-8">
+		<section class="min-w-0 space-y-8" aria-labelledby="account-section-heading">
 			<header class="space-y-2">
 				<p class="text-[11px] font-semibold tracking-[0.18em] text-muted-foreground uppercase">
 					{currentLink.label}
 				</p>
-				<h2 class="text-3xl font-semibold tracking-tight sm:text-4xl">{currentLink.label}</h2>
+				<h2 id="account-section-heading" class="text-3xl font-semibold tracking-tight sm:text-4xl">
+					{currentLink.label}
+				</h2>
 				<p class="max-w-2xl text-base leading-7 text-muted-foreground">{currentLink.desc}</p>
 			</header>
 			{@render children()}
-		</main>
+		</section>
 	</div>
 </section>

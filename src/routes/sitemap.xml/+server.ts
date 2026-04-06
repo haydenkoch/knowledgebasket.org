@@ -1,10 +1,10 @@
-import { env } from '$env/dynamic/private';
 import type { RequestHandler } from './$types';
 import { getEvents } from '$lib/server/events';
 import { getPublishedFunding } from '$lib/server/funding';
 import { getPublishedJobs } from '$lib/server/jobs';
 import { getPublishedBusinesses } from '$lib/server/red-pages';
 import { getPublishedResources } from '$lib/server/toolbox';
+import { resolveRuntimeOrigin } from '$lib/server/runtime-config';
 
 type SitemapEntry = {
 	loc: string;
@@ -35,7 +35,7 @@ async function safeLoad<T>(load: () => Promise<T>, fallback: T): Promise<T> {
 }
 
 export const GET: RequestHandler = async ({ url }) => {
-	const origin = (env.ORIGIN ?? url.origin).replace(/\/$/, '');
+	const origin = resolveRuntimeOrigin() ?? url.origin;
 	const staticEntries: SitemapEntry[] = [
 		{ loc: `${origin}/` },
 		{ loc: `${origin}/about` },

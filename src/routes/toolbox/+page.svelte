@@ -383,7 +383,7 @@
 <div>
 	<KbHero
 		coil="toolbox"
-		eyebrow="Knowledge Basket · Coil 5"
+		eyebrow="Knowledge Basket · Toolbox"
 		title="Toolbox"
 		description="Toolkits, policy documents, and a digital library for building Indigenous economic futures."
 		{weave}
@@ -401,9 +401,10 @@
 			>
 				{@render sidebarContent(false)}
 			</div>
-			<main
+			<section
 				class="coil-layout__main order-2 min-w-0 flex-1 p-4 md:p-6 md:pl-7"
 				style="padding-bottom: calc(7rem + var(--kb-consent-banner-offset, 0px));"
+				aria-label="Toolbox results"
 			>
 				{#if routeData.dataUnavailable}
 					<Alert class="mb-6 border-amber-300 bg-amber-50 text-amber-950">
@@ -557,7 +558,7 @@
 						</Button>
 					</nav>
 				{/if}
-			</main>
+			</section>
 		</div>
 
 		{#if mobileFiltersExpanded && !publicSidebar.openMobile}

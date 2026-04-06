@@ -88,7 +88,11 @@
 
 	function toggleFacet(key: string, value: string) {
 		updateUrl((params) => {
-			const current = new Set(activeValues(key));
+			// In implicit "Active now" mode, treat status as empty so the first click
+			// becomes an explicit single-value selection instead of deselecting one of
+			// the auto-marked buckets.
+			const implicitActive = key === 'status' && futureOnly && !hasExplicitStatus;
+			const current = new Set(implicitActive ? [] : activeValues(key));
 			if (current.has(value)) current.delete(value);
 			else current.add(value);
 
@@ -239,7 +243,7 @@
 <div>
 	<KbHero
 		coil="funding"
-		eyebrow="Knowledge Basket · Coil 2"
+		eyebrow="Knowledge Basket · Funding"
 		title="Funding"
 		description="Grants, contracts, and funding opportunities for Tribes, Native-led nonprofits, and Indigenous individuals."
 		{weave}

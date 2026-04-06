@@ -225,7 +225,7 @@
 <div>
 	<KbHero
 		coil="redpages"
-		eyebrow="Knowledge Basket · Coil 3"
+		eyebrow="Knowledge Basket · Red Pages"
 		title="Red Pages"
 		description="Native-owned vendors, artists, and service providers you can hire, collaborate with, and support."
 		{weave}

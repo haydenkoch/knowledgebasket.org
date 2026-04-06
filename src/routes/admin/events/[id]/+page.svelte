@@ -4,65 +4,17 @@
 	import * as Card from '$lib/components/ui/card/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog/index.js';
-	import { Separator } from '$lib/components/ui/separator/index.js';
 	import EventForm from '$lib/components/organisms/admin/EventForm.svelte';
 	import StatusBadge from '$lib/components/organisms/admin/StatusBadge.svelte';
-	import { ExternalLink, Eye } from '@lucide/svelte';
 
 	let { data } = $props();
 </script>
 
 <div class="space-y-6">
-	{#if data.event.status === 'pending' && (data.event.submittedById || data.event.contactEmail || data.event.createdAt)}
-		<Card.Root>
-			<Card.Header>
-				<Card.Title class="text-base">Submission info</Card.Title>
-			</Card.Header>
-			<Card.Content class="space-y-1 text-sm">
-				{#if data.event.createdAt}
-					<p>
-						Submitted on {new Date(
-							data.event.createdAt
-						).toLocaleString()}{#if data.event.submitterName || data.event.submitterEmail}
-							by {data.event.submitterName ?? data.event.submitterEmail ?? 'Public'}{/if}.
-					</p>
-				{/if}
-				{#if data.event.contactEmail}
-					<p>
-						Contact: <a href="mailto:{data.event.contactEmail}" class="text-primary hover:underline"
-							>{data.event.contactEmail}</a
-						>
-					</p>
-				{/if}
-			</Card.Content>
-		</Card.Root>
-	{/if}
 	<div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
 		<div class="flex min-w-0 items-center gap-3">
 			<h1 class="truncate text-2xl font-bold">{data.event.title}</h1>
 			<StatusBadge status={data.event.status ?? 'unknown'} />
-			<Button
-				href={`/admin/preview/events/${data.event.id}`}
-				variant="outline"
-				size="sm"
-				target="_blank"
-				rel="noreferrer"
-			>
-				<Eye class="mr-1.5 h-3.5 w-3.5" />
-				Preview draft
-			</Button>
-			{#if data.event.slug && data.event.status === 'published'}
-				<Button
-					href="/events/{data.event.slug}"
-					variant="outline"
-					size="sm"
-					target="_blank"
-					rel="noopener noreferrer"
-				>
-					<ExternalLink class="mr-1.5 h-3.5 w-3.5" />
-					View on site
-				</Button>
-			{/if}
 		</div>
 		<div class="flex flex-wrap gap-2">
 			<form
@@ -179,8 +131,6 @@
 		</div>
 	</div>
 
-	<Separator />
-
 	{#if data.children.length > 0}
 		<Card.Root>
 			<Card.Header>
@@ -212,5 +162,16 @@
 		audienceOptions={data.audienceOptions ?? []}
 		costOptions={data.costOptions ?? []}
 		previewHref={`/admin/preview/events/${data.event.id}`}
+		liveHref={data.event.slug && data.event.status === 'published'
+			? `/events/${data.event.slug}`
+			: null}
+		submissionContext={{
+			createdAt: data.event.createdAt ?? null,
+			submitterName: data.event.submitterName ?? null,
+			submitterEmail: data.event.submitterEmail ?? null,
+			contactName: data.event.contactName ?? null,
+			contactEmail: data.event.contactEmail ?? null,
+			contactPhone: data.event.contactPhone ?? null
+		}}
 	/>
 </div>

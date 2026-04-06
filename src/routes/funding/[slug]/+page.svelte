@@ -3,12 +3,9 @@
 	import { formatDisplayValue } from '$lib/utils/display.js';
 	import { stripHtml } from '$lib/utils/format';
 	import { Button } from '$lib/components/ui/button/index.js';
-	import * as Breadcrumb from '$lib/components/ui/breadcrumb/index.js';
 	import CoilDetailActionRail from '$lib/components/organisms/CoilDetailActionRail.svelte';
 	import ArrowLeft from '@lucide/svelte/icons/arrow-left';
-	import ArrowRight from '@lucide/svelte/icons/arrow-right';
 	import ExternalLinkIcon from '@lucide/svelte/icons/external-link';
-	import SourceProvenanceCard from '$lib/components/public/source-provenance-card.svelte';
 
 	let { data } = $props();
 	let item = $derived(data.item as FundingItem | null);
@@ -172,19 +169,6 @@
 			saveLabel="opportunity"
 			accent="var(--color-flicker-700, #ca4404)"
 		>
-			{#snippet breadcrumb()}
-				<Breadcrumb.Root>
-					<Breadcrumb.List>
-						<Breadcrumb.Item>
-							<Breadcrumb.Link href="/funding">Funding</Breadcrumb.Link>
-						</Breadcrumb.Item>
-						<Breadcrumb.Separator />
-						<Breadcrumb.Item>
-							<Breadcrumb.Page>{item.title}</Breadcrumb.Page>
-						</Breadcrumb.Item>
-					</Breadcrumb.List>
-				</Breadcrumb.Root>
-			{/snippet}
 			{#snippet meta()}
 				{#if deadlineLabel}
 					<span class="kb-funding-meta-deadline">Deadline · {deadlineLabel}</span>
@@ -192,9 +176,9 @@
 			{/snippet}
 			{#snippet primary()}
 				{#if item.applyUrl}
-					<a href={item.applyUrl} target="_blank" rel="noopener" class="kb-funding-primary-btn">
+					<Button href={item.applyUrl} target="_blank" rel="noopener" size="sm">
 						Apply <ExternalLinkIcon class="size-[14px]" />
-					</a>
+					</Button>
 				{/if}
 			{/snippet}
 		</CoilDetailActionRail>
@@ -360,7 +344,6 @@
 						{/if}
 					</dl>
 				</div>
-				<SourceProvenanceCard provenance={item.provenance} />
 
 				<Button variant="outline" href="/funding" class="w-full"
 					><ArrowLeft class="inline h-4 w-4" /> Back to Funding</Button
@@ -516,31 +499,6 @@
 		font-weight: 600;
 		color: var(--color-flicker-700, #ca4404);
 		white-space: nowrap;
-	}
-	.kb-funding-primary-btn {
-		display: inline-flex;
-		align-items: center;
-		gap: 0.4rem;
-		padding: 0.55rem 1.1rem;
-		border-radius: 999px;
-		background: var(--color-flicker-700, #ca4404);
-		color: white;
-		font-weight: 600;
-		font-size: 0.875rem;
-		letter-spacing: 0.01em;
-		text-decoration: none;
-		white-space: nowrap;
-		transition:
-			opacity 0.15s ease,
-			transform 0.15s ease,
-			box-shadow 0.15s ease;
-		box-shadow: 0 2px 8px rgba(202, 68, 4, 0.35);
-	}
-	.kb-funding-primary-btn:hover {
-		opacity: 0.95;
-		text-decoration: none;
-		transform: translateY(-1px);
-		box-shadow: 0 4px 12px rgba(202, 68, 4, 0.45);
 	}
 	.kb-funding-grid {
 		display: grid;

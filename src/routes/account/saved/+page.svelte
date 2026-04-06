@@ -36,7 +36,9 @@
 	</Card.Header>
 	<Card.Content>
 		{#if data.bookmarks.length === 0}
-			<p class="rounded-lg border border-dashed border-border/70 p-8 text-center text-sm text-muted-foreground">
+			<p
+				class="rounded-lg border border-dashed border-border/70 p-8 text-center text-sm text-muted-foreground"
+			>
 				No saved items yet. Use the bookmark button on any listing to keep it handy here.
 			</p>
 		{:else}

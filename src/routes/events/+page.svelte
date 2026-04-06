@@ -28,6 +28,7 @@
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { useSidebar } from '$lib/components/ui/sidebar/index.js';
 	import { Alert, AlertDescription, AlertTitle } from '$lib/components/ui/alert/index.js';
+	import { formatDisplayDate } from '$lib/utils/display';
 	import { tsToCalendarDate } from '$lib/utils/date.js';
 	import {
 		matchSearch,
@@ -60,14 +61,12 @@
 	const events = $derived((data.events ?? []) as EventItem[]);
 	const total = $derived(events.length);
 	const sierraCount = $derived(events.filter((e) => e.region === 'Sierra Nevada').length);
-
-	const now = new Date();
 	type CalendarViewMode = 'week' | 'month' | 'quarter';
 
 	let eventView = $state<EventView>('list');
 	let mobileFiltersExpanded = $state(false);
-	let calendarYear = $state(now.getFullYear());
-	let calendarMonth = $state(now.getMonth());
+	let calendarYear = $state(0);
+	let calendarMonth = $state(0);
 	let selectedDay = $state<number | null>(null);
 	let calendarViewMode = $state<CalendarViewMode>('month');
 	let condenseLongEvents = $state(false);
@@ -92,6 +91,8 @@
 			initialCalendarYear?: number | null;
 			initialCalendarMonth?: number | null;
 			initialCalendarDay?: number | null;
+			todayYear: number;
+			todayMonth: number;
 		};
 		if (d.initialView === 'cards' || d.initialView === 'list' || d.initialView === 'calendar')
 			eventView = d.initialView;
@@ -101,8 +102,8 @@
 			d.initialCalendarMode === 'quarter'
 		)
 			calendarViewMode = d.initialCalendarMode as CalendarViewMode;
-		if (d.initialCalendarYear != null) calendarYear = d.initialCalendarYear;
-		if (d.initialCalendarMonth != null) calendarMonth = d.initialCalendarMonth;
+		calendarYear = d.initialCalendarYear ?? d.todayYear;
+		calendarMonth = d.initialCalendarMonth ?? d.todayMonth;
 		if (d.initialCalendarDay != null) selectedDay = d.initialCalendarDay;
 	});
 
@@ -426,10 +427,14 @@
 	});
 
 	const monthLabel = $derived(
-		new Date(calendarYear, calendarMonth).toLocaleDateString('en-US', {
-			month: 'long',
-			year: 'numeric'
-		})
+		formatDisplayDate(
+			new Date(calendarYear, calendarMonth, 1),
+			{
+				month: 'long',
+				year: 'numeric'
+			},
+			''
+		)
 	);
 	const selectedDayEvents = $derived.by(() => {
 		if (selectedDay == null || !eventsByDay[selectedDay]) return [];
@@ -437,9 +442,9 @@
 			(a, b) => (parseEventStart(a.startDate) ?? 0) - (parseEventStart(b.startDate) ?? 0)
 		);
 	});
-	const todayDate = $derived(new Date().getDate());
-	const todayMonth = $derived(new Date().getMonth());
-	const todayYear = $derived(new Date().getFullYear());
+	const todayDate = $derived(data.todayDate);
+	const todayMonth = $derived(data.todayMonth);
+	const todayYear = $derived(data.todayYear);
 	const isToday = (day: number) =>
 		selectedDay === day &&
 		calendarYear === todayYear &&
@@ -511,10 +516,9 @@
 		selectedDay = selectedDay === day ? null : day;
 	}
 	function goToToday() {
-		const now = new Date();
-		calendarYear = now.getFullYear();
-		calendarMonth = now.getMonth();
-		selectedDay = now.getDate();
+		calendarYear = data.todayYear;
+		calendarMonth = data.todayMonth;
+		selectedDay = data.todayDate;
 	}
 	/** Canonical YYYY-MM-DD for lookups (matches singleDayEventsByDateKey keys). */
 	function dateKey(d: Date): string {
@@ -528,12 +532,12 @@
 	}
 	const weekLabel = $derived(
 		weekDays.length
-			? `${weekDays[0].toLocaleDateString('en-US', { month: 'short' })} ${weekDays[0].getDate()} – ${weekDays[6].toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`
+			? `${formatDisplayDate(weekDays[0], { month: 'short' }, '')} ${weekDays[0].getDate()} – ${formatDisplayDate(weekDays[6], { month: 'short', day: 'numeric', year: 'numeric' }, '')}`
 			: ''
 	);
 	const quarterLabel = $derived(
 		quarterMonths.length
-			? `${new Date(quarterMonths[0].year, quarterMonths[0].month).toLocaleDateString('en-US', { month: 'long' })} – ${new Date(quarterMonths[2].year, quarterMonths[2].month).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}`
+			? `${formatDisplayDate(new Date(quarterMonths[0].year, quarterMonths[0].month, 1), { month: 'long' }, '')} – ${formatDisplayDate(new Date(quarterMonths[2].year, quarterMonths[2].month, 1), { month: 'long', year: 'numeric' }, '')}`
 			: ''
 	);
 	const calendarTitle = $derived(
@@ -698,7 +702,7 @@
 			</div>
 		</section>
 	{/if}
-	<h2 class="sr-only">Upcoming events</h2>
+	<h2 id="upcoming-events-heading" class="sr-only">Upcoming events</h2>
 	<div class="mb-4 md:hidden">
 		<EventsViewSelector bind:eventView />
 	</div>
@@ -800,7 +804,7 @@
 <div>
 	<KbHero
 		coil="events"
-		eyebrow="Knowledge Basket · Coil 1"
+		eyebrow="Knowledge Basket · Events"
 		title="Events"
 		description="Indigenous gatherings, trainings, and cultural events across the Sierra Nevada bioregion and California."
 		{weave}
@@ -833,9 +837,12 @@
 			>
 				{@render sidebarRight?.()}
 			</aside>
-			<main class="coil-layout__main order-2 min-w-0 flex-1 p-4 pb-28 md:p-6 md:pl-7">
+			<section
+				class="coil-layout__main order-2 min-w-0 flex-1 p-4 pb-28 md:p-6 md:pl-7"
+				aria-labelledby="upcoming-events-heading"
+			>
 				{@render children?.()}
-			</main>
+			</section>
 		</div>
 
 		{#if mobileFiltersExpanded && !publicSidebar.openMobile}

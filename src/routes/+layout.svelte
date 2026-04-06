@@ -7,7 +7,6 @@
 	import ConsentManager from '$lib/components/organisms/ConsentManager.svelte';
 	import PublicCommandPalette from '$lib/components/organisms/PublicCommandPalette.svelte';
 	import * as Sidebar from '$lib/components/ui/sidebar/index.js';
-	import * as Tooltip from '$lib/components/ui/tooltip/index.js';
 
 	let { data, children } = $props();
 	let publicNavOpen = $state(false);
@@ -47,15 +46,15 @@
 	<Sidebar.Provider bind:open={publicNavOpen} class="block min-h-screen">
 		<KbPublicNavSidebar logoUrl={data.brandLogoUrl} user={data.user} />
 		<div class="flex min-h-screen w-full flex-col">
-			<a href="#main" class="skip-link">Skip to main content</a>
+			<nav aria-label="Skip links">
+				<a href="#main" class="skip-link">Skip to main content</a>
+			</nav>
 			<svelte:boundary onerror={(e) => console.error('KbHeader error:', e)}>
 				<KbHeader logoUrl={data.brandLogoUrl} user={data.user} />
 			</svelte:boundary>
-			<Tooltip.Provider>
-				<main id="main" class="min-h-screen bg-[var(--background)] text-[var(--foreground)]">
-					{@render children()}
-				</main>
-			</Tooltip.Provider>
+			<main id="main" class="min-h-screen bg-[var(--background)] text-[var(--foreground)]">
+				{@render children()}
+			</main>
 			{#if !isHome && !publicNavOpen}
 				<button
 					type="button"

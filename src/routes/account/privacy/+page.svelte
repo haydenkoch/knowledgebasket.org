@@ -86,7 +86,9 @@
 					<div class="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
 						{#each submissionCounts as stat}
 							<div class="rounded-lg border border-border/70 bg-background p-4">
-								<div class="text-[10px] font-semibold tracking-[0.14em] text-muted-foreground uppercase">
+								<div
+									class="text-[10px] font-semibold tracking-[0.14em] text-muted-foreground uppercase"
+								>
 									{stat.label}
 								</div>
 								<div class="mt-2 text-2xl font-semibold tracking-tight">{stat.value}</div>
@@ -210,8 +212,8 @@
 				<Card.Title class="text-destructive">Delete account</Card.Title>
 				<Card.Description>
 					This removes sign-in access, clears session data, and anonymizes your account record.
-					Published listings may remain as part of the public knowledge base, but submitter
-					contact details are stripped where available.
+					Published listings may remain as part of the public knowledge base, but submitter contact
+					details are stripped where available.
 				</Card.Description>
 			</Card.Header>
 			<Card.Content>
@@ -248,7 +250,9 @@
 			</Card.Header>
 			<Card.Content>
 				{#if data.requests.length === 0}
-					<p class="rounded-lg border border-dashed border-border/70 p-6 text-center text-sm text-muted-foreground">
+					<p
+						class="rounded-lg border border-dashed border-border/70 p-6 text-center text-sm text-muted-foreground"
+					>
 						No privacy requests yet.
 					</p>
 				{:else}
@@ -280,11 +284,15 @@
 		<Card.Root class="border-border/70 bg-card/90">
 			<Card.Header>
 				<Card.Title>Recent submissions</Card.Title>
-				<Card.Description>Content linked to your account for moderation or publication.</Card.Description>
+				<Card.Description
+					>Content linked to your account for moderation or publication.</Card.Description
+				>
 			</Card.Header>
 			<Card.Content>
 				{#if data.submissions.length === 0}
-					<p class="rounded-lg border border-dashed border-border/70 p-6 text-center text-sm text-muted-foreground">
+					<p
+						class="rounded-lg border border-dashed border-border/70 p-6 text-center text-sm text-muted-foreground"
+					>
 						No linked submissions yet.
 					</p>
 				{:else}
@@ -293,7 +301,9 @@
 							<li class="flex items-center justify-between gap-3 py-3 first:pt-0 last:pb-0">
 								<div class="min-w-0">
 									<p class="truncate text-sm font-medium">{submission.title}</p>
-									<p class="text-[10px] font-semibold tracking-[0.14em] text-muted-foreground uppercase">
+									<p
+										class="text-[10px] font-semibold tracking-[0.14em] text-muted-foreground uppercase"
+									>
 										{submission.coil}
 									</p>
 								</div>

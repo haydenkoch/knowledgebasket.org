@@ -1,9 +1,7 @@
-import { redirect } from '@sveltejs/kit';
 import type { LayoutServerLoad } from './$types';
+import { requireAdminPageAccess } from '$lib/server/access-control';
 
-export const load: LayoutServerLoad = async ({ locals }) => {
-	if (!locals.user) throw redirect(303, '/auth/login?redirect=/admin');
-	const role = locals.user.role;
-	if (role !== 'moderator' && role !== 'admin') throw redirect(303, '/auth/unauthorized');
-	return { user: locals.user };
+export const load: LayoutServerLoad = async (event) => {
+	const user = requireAdminPageAccess(event, '/admin');
+	return { user };
 };

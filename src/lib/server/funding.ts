@@ -1,7 +1,7 @@
 /**
  * Funding data layer: CRUD, moderation, search indexing.
  */
-import { eq, desc, asc, ilike, or, and, sql } from 'drizzle-orm';
+import { eq, desc, asc, gte, ilike, or, and, sql, isNull, notInArray } from 'drizzle-orm';
 import { db, type DbExecutor } from '$lib/server/db';
 import { funding as fundingTable, organizations, user as userTable } from '$lib/server/db/schema';
 import { indexDocument, removeDocument } from '$lib/server/meilisearch';
@@ -119,6 +119,90 @@ export async function getPublishedFunding(): Promise<FundingItem[]> {
 		.where(eq(fundingTable.status, 'published'))
 		.orderBy(asc(fundingTable.deadline));
 	return rows.map((r) => rowToItem(r));
+}
+
+export async function getUpcomingFunding(limit: number): Promise<FundingItem[]> {
+	const rows = await db
+		.select()
+		.from(fundingTable)
+		.where(
+			and(
+				eq(fundingTable.status, 'published'),
+				or(gte(fundingTable.deadline, new Date()), isNull(fundingTable.deadline))
+			)
+		)
+		.orderBy(asc(fundingTable.deadline))
+		.limit(limit);
+	return rows.map((r) => rowToItem(r));
+}
+
+export async function getRecentFunding(limit: number): Promise<FundingItem[]> {
+	const rows = await db
+		.select()
+		.from(fundingTable)
+		.where(eq(fundingTable.status, 'published'))
+		.orderBy(desc(fundingTable.publishedAt))
+		.limit(limit);
+	return rows.map((r) => rowToItem(r));
+}
+
+export async function queryFundingForHomepage(opts: {
+	limit: number;
+	sortBy: string;
+	sortDir: 'asc' | 'desc';
+	futureOnly: boolean;
+	excludedIds?: string[];
+	searchQuery?: string;
+}): Promise<FundingItem[]> {
+	const conditions = [eq(fundingTable.status, 'published')];
+	if (opts.futureOnly) {
+		conditions.push(or(gte(fundingTable.deadline, new Date()), isNull(fundingTable.deadline))!);
+	}
+	if (opts.excludedIds?.length) conditions.push(notInArray(fundingTable.id, opts.excludedIds));
+	if (opts.searchQuery?.trim()) {
+		const query = `%${opts.searchQuery.trim()}%`;
+		conditions.push(
+			or(
+				ilike(fundingTable.title, query),
+				ilike(fundingTable.description, query),
+				ilike(fundingTable.funderName, query),
+				ilike(fundingTable.region, query),
+				ilike(fundingTable.eligibilityType, query)
+			)!
+		);
+	}
+
+	const sortCol =
+		opts.sortBy === 'deadline'
+			? fundingTable.deadline
+			: opts.sortBy === 'title'
+				? fundingTable.title
+				: fundingTable.publishedAt;
+	const orderFn = opts.sortDir === 'asc' ? asc : desc;
+
+	const rows = await db
+		.select()
+		.from(fundingTable)
+		.where(and(...conditions))
+		.orderBy(orderFn(sortCol))
+		.limit(opts.limit);
+	return rows.map((r) => rowToItem(r));
+}
+
+export async function searchFundingFromDb(q: string, limit = 10) {
+	const term = q?.trim();
+	if (!term || term.length < 2) return [];
+	const rows = await db
+		.select({ id: fundingTable.id, title: fundingTable.title, slug: fundingTable.slug })
+		.from(fundingTable)
+		.where(
+			and(
+				eq(fundingTable.status, 'published'),
+				or(ilike(fundingTable.title, `%${term}%`), ilike(fundingTable.funderName, `%${term}%`))
+			)
+		)
+		.limit(limit);
+	return rows.map((r) => ({ id: r.id, title: r.title, slug: r.slug }));
 }
 
 export async function getFundingBySlug(slug: string): Promise<FundingItem | null> {

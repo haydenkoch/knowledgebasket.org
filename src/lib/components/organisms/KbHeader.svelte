@@ -117,7 +117,6 @@
 				<a href="/auth/login" class="kb-header__secondary-link kb-header__signin"> Sign in </a>
 			{/if}
 		</div>
-
 	</div>
 </header>
 

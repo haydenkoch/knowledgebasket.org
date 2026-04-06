@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Search, Sparkles } from '@lucide/svelte';
+	import { Search, Sparkles, X } from '@lucide/svelte';
 	import Input from '$lib/components/ui/input/input.svelte';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import type { Snippet } from 'svelte';
@@ -23,6 +23,18 @@
 		resultsLabel?: string;
 		/** Number of active refinements, including search when present */
 		activeFilterCount?: number;
+		/** Whether to render the header eyebrow */
+		showEyebrow?: boolean;
+		/** Whether to render the toolbar section */
+		showToolbar?: boolean;
+		/** Whether to render the summary row */
+		showSummary?: boolean;
+		/** Optional action rendered beside the search input */
+		searchAction?: Snippet;
+		/** Called when the search input receives focus */
+		onSearchFocus?: () => void;
+		/** Optional content rendered in relation to the search input */
+		searchSuggestions?: Snippet;
 	}
 
 	let {
@@ -33,31 +45,62 @@
 		toolbar,
 		children,
 		resultsLabel = '',
-		activeFilterCount = 0
+		activeFilterCount = 0,
+		showEyebrow = true,
+		showToolbar = true,
+		showSummary = true,
+		searchAction,
+		onSearchFocus,
+		searchSuggestions
 	}: Props = $props();
 </script>
 
 <div class="kb-sidebar">
 	<div class="kb-sidebar__panel">
 		<div class="kb-sidebar__header">
-			<div class="kb-sidebar__eyebrow">
-				<Sparkles class="h-3.5 w-3.5" />
-				Refine results
-			</div>
-			<div class="kb-sidebar__search">
-				<div data-kb-sidebar-search>
-					<span class="kb-sidebar__search-icon" aria-hidden="true">
-						<Search class="h-4 w-4" />
-					</span>
-					<Input
-						type="search"
-						placeholder={searchPlaceholder}
-						class="pl-9"
-						bind:value={searchQuery}
-					/>
+			{#if showEyebrow}
+				<div class="kb-sidebar__eyebrow">
+					<Sparkles class="h-3.5 w-3.5" />
+					Refine results
 				</div>
+			{/if}
+			<div class="kb-sidebar__search-row">
+				<div class="kb-sidebar__search">
+					<div data-kb-sidebar-search class="kb-sidebar__search-wrap">
+						<span class="kb-sidebar__search-icon" aria-hidden="true">
+							<Search class="h-4 w-4" />
+						</span>
+						<Input
+							type="search"
+							placeholder={searchPlaceholder}
+							class="kb-sidebar__search-input pl-9 {searchQuery ? 'pr-8' : ''}"
+							bind:value={searchQuery}
+							onfocus={onSearchFocus}
+						/>
+						{#if searchQuery}
+							<button
+								type="button"
+								class="kb-sidebar__search-clear"
+								aria-label="Clear search"
+								onclick={() => (searchQuery = '')}
+							>
+								<X class="h-3.5 w-3.5" />
+							</button>
+						{/if}
+					</div>
+					{#if searchSuggestions}
+						<div class="kb-sidebar__search-suggestions">
+							{@render searchSuggestions()}
+						</div>
+					{/if}
+				</div>
+				{#if searchAction}
+					<div class="kb-sidebar__search-action">
+						{@render searchAction()}
+					</div>
+				{/if}
 			</div>
-			{#if resultsLabel || hasActiveFilters}
+			{#if showSummary && (resultsLabel || hasActiveFilters)}
 				<div class="kb-sidebar__summary">
 					<div class="kb-sidebar__summary-text">
 						{#if resultsLabel}
@@ -82,7 +125,7 @@
 			{/if}
 		</div>
 
-		{#if toolbar}
+		{#if toolbar && showToolbar}
 			<div class="kb-sidebar__toolbar">
 				{@render toolbar()}
 			</div>
@@ -133,6 +176,64 @@
 
 	.kb-sidebar__search {
 		position: relative;
+		flex: 1 1 auto;
+		min-width: 0;
+	}
+	.kb-sidebar__search-wrap {
+		position: relative;
+	}
+	.kb-sidebar__search-row {
+		display: flex;
+		align-items: stretch;
+		gap: 0.75rem;
+		min-width: 0;
+	}
+	.kb-sidebar__search-action {
+		display: flex;
+		flex: 0 0 auto;
+		align-items: stretch;
+		overflow: visible;
+	}
+	.kb-sidebar__search-action:empty {
+		display: none;
+	}
+	:global(.kb-sidebar__search-input::-webkit-search-cancel-button),
+	:global(.kb-sidebar__search-input::-webkit-search-decoration) {
+		-webkit-appearance: none;
+		appearance: none;
+		display: none;
+	}
+	.kb-sidebar__search-clear {
+		position: absolute;
+		top: 50%;
+		right: 8px;
+		transform: translateY(-50%);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: 1.35rem;
+		height: 1.35rem;
+		border: none;
+		border-radius: 9999px;
+		background: color-mix(in srgb, var(--muted-foreground) 18%, transparent);
+		color: var(--muted-foreground);
+		cursor: pointer;
+		padding: 0;
+		z-index: 1;
+		transition:
+			background 120ms ease,
+			color 120ms ease;
+	}
+	.kb-sidebar__search-clear:hover {
+		background: color-mix(in srgb, var(--muted-foreground) 30%, transparent);
+		color: var(--foreground);
+	}
+	.kb-sidebar__search-suggestions {
+		position: absolute;
+		right: 0;
+		bottom: calc(100% + 0.55rem);
+		left: 0;
+		z-index: 20;
 	}
 	.kb-sidebar__search-icon {
 		position: absolute;

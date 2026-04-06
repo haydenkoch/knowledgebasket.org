@@ -93,7 +93,7 @@
 <style>
 	.kb-two-col {
 		display: flex;
-		min-height: 0;
+		min-height: calc(100vh - 220px);
 		align-items: stretch;
 		background: linear-gradient(
 			180deg,

@@ -190,6 +190,17 @@ export async function getVenueBySlug(slug: string): Promise<VenueRow | null> {
 	return row ? normalizeVenueRow(row) : null;
 }
 
+export async function getVenuesByOrganizationId(organizationId: string): Promise<VenueRow[]> {
+	const includeAliases = await hasVenueAliasesColumn();
+	const rows = await db
+		.select(venueSelection(includeAliases))
+		.from(venues)
+		.where(eq(venues.organizationId, organizationId))
+		.orderBy(venues.name);
+
+	return rows.map((row) => normalizeVenueRow(row));
+}
+
 export async function getAllVenues(): Promise<VenueRow[]> {
 	const includeAliases = await hasVenueAliasesColumn();
 	const rows = await db.select(venueSelection(includeAliases)).from(venues).orderBy(venues.name);

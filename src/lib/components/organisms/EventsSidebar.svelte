@@ -1,10 +1,12 @@
 <script lang="ts">
-	import { CalendarDays, List, LayoutGrid, ChevronDown, Check, X } from '@lucide/svelte';
-	import { Tabs, TabsList, TabsTrigger } from '$lib/components/ui/tabs/index.js';
+	import { ChevronDown, Check, X } from '@lucide/svelte';
+	import type { EventItem } from '$lib/data/kb';
 	import * as Popover from '$lib/components/ui/popover/index.js';
 	import * as Command from '$lib/components/ui/command/index.js';
 	import KbSidebar from '$lib/components/organisms/KbSidebar.svelte';
+	import EventsViewSelector from '$lib/components/molecules/EventsViewSelector.svelte';
 	import { eventTypeTags } from '$lib/data/formSchema';
+	import { IsMobile } from '$lib/hooks/is-mobile.svelte';
 
 	type EventFilters = {
 		searchQuery: string;
@@ -33,14 +35,29 @@
 
 	interface Props {
 		filters: EventFilters;
-		eventView: string;
+		eventView: 'cards' | 'list' | 'calendar';
+		mobileMode?: boolean;
 		formatCostLabel: () => string;
 		regionTriggerLabel: string;
+		activeFilterCount?: number;
+		isExpanded?: boolean;
+		mobileSuggestions?: EventItem[];
 		onTypeRemove: (label: string) => void;
 		onClear: () => void;
 	}
 
-	let { filters, eventView = $bindable('list'), onTypeRemove, onClear }: Props = $props();
+	let {
+		filters,
+		eventView = $bindable('list'),
+		mobileMode,
+		activeFilterCount = 0,
+		isExpanded = false,
+		mobileSuggestions = [],
+		onTypeRemove,
+		onClear
+	}: Props = $props();
+	const isMobile = new IsMobile();
+	const mobileUi = $derived(mobileMode ?? isMobile.current);
 
 	// ── Slider local state ────────────────────────────────────────────────────
 	let localMin = $state(0);
@@ -132,24 +149,32 @@
 	bind:searchQuery={filters.searchQuery}
 	{hasActiveFilters}
 	{onClear}
+	showEyebrow={!mobileUi}
+	showToolbar={!mobileUi}
+	showSummary={!mobileUi}
 >
+	{#snippet searchSuggestions()}
+		{#if mobileUi && !isExpanded && mobileSuggestions.length > 0}
+			<div class="events-sidebar__suggestions" data-peek-ignore-drag>
+				<div class="events-sidebar__suggestions-label">Suggested events</div>
+				<ul class="events-sidebar__suggestions-list">
+					{#each mobileSuggestions as event (event.slug ?? event.id)}
+						<li>
+							<a href={`/events/${event.slug ?? event.id}`} class="events-sidebar__suggestion-link">
+								<span class="events-sidebar__suggestion-title">{event.title}</span>
+								{#if event.location}
+									<span class="events-sidebar__suggestion-meta">{event.location}</span>
+								{/if}
+							</a>
+						</li>
+					{/each}
+				</ul>
+			</div>
+		{/if}
+	{/snippet}
+
 	{#snippet toolbar()}
-		<Tabs bind:value={eventView} class="w-full">
-			<TabsList class="w-full">
-				<TabsTrigger value="list">
-					<List class="h-4 w-4" />
-					List
-				</TabsTrigger>
-				<TabsTrigger value="cards">
-					<LayoutGrid class="h-4 w-4" />
-					Cards
-				</TabsTrigger>
-				<TabsTrigger value="calendar">
-					<CalendarDays class="h-4 w-4" />
-					Calendar
-				</TabsTrigger>
-			</TabsList>
-		</Tabs>
+		<EventsViewSelector bind:eventView />
 	{/snippet}
 
 	<!-- Date range -->
@@ -647,5 +672,57 @@
 	:global(.kb-filter-popover-content .kb-filter-item[aria-selected='true'] .kb-filter-item__badge) {
 		background: #ffffff !important;
 		color: var(--color-lakebed-950) !important;
+	}
+
+	.events-sidebar__suggestions {
+		overflow: hidden;
+		border: 1px solid color-mix(in srgb, var(--border) 88%, transparent);
+		border-radius: 1rem;
+		background: color-mix(in srgb, var(--background) 97%, white);
+		box-shadow: 0 12px 30px rgba(15, 23, 42, 0.14);
+	}
+
+	.events-sidebar__suggestions-label {
+		padding: 0.7rem 0.85rem 0.45rem;
+		font-family: var(--font-sans);
+		font-size: 0.67rem;
+		font-weight: 700;
+		letter-spacing: 0.1em;
+		text-transform: uppercase;
+		color: var(--muted-foreground);
+	}
+
+	.events-sidebar__suggestions-list {
+		list-style: none;
+		margin: 0;
+		padding: 0 0 0.35rem;
+	}
+
+	.events-sidebar__suggestion-link {
+		display: flex;
+		flex-direction: column;
+		gap: 0.12rem;
+		padding: 0.62rem 0.85rem;
+		text-decoration: none;
+		color: var(--foreground);
+	}
+
+	.events-sidebar__suggestion-link:hover {
+		background: color-mix(in srgb, var(--accent) 72%, white);
+		text-decoration: none;
+	}
+
+	.events-sidebar__suggestion-title {
+		font-family: var(--font-sans);
+		font-size: 0.87rem;
+		font-weight: 600;
+		line-height: 1.3;
+	}
+
+	.events-sidebar__suggestion-meta {
+		font-family: var(--font-sans);
+		font-size: 0.76rem;
+		color: var(--muted-foreground);
+		line-height: 1.3;
 	}
 </style>

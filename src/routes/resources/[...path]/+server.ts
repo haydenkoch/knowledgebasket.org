@@ -34,16 +34,17 @@ export async function GET({ params }) {
 		throw error(404, 'Not found');
 	}
 	const ext = (decoded.split('.').pop() || '').toLowerCase();
+	if (ext === 'html') {
+		throw error(403, 'HTML resources are not served inline');
+	}
 	const contentType =
 		ext === 'pdf'
 			? 'application/pdf'
-			: ext === 'html'
-				? 'text/html'
-				: ext === 'jpg' || ext === 'jpeg'
-					? 'image/jpeg'
-					: ext === 'png'
-						? 'image/png'
-						: 'application/octet-stream';
+			: ext === 'jpg' || ext === 'jpeg'
+				? 'image/jpeg'
+				: ext === 'png'
+					? 'image/png'
+					: 'application/octet-stream';
 	const buf = await readFile(fullPath);
 	return new Response(buf, {
 		headers: {

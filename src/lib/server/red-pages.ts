@@ -1,7 +1,7 @@
 /**
  * Red Pages (Native Business Directory) data layer: CRUD, moderation, search indexing.
  */
-import { eq, desc, asc, ilike, or, and, sql } from 'drizzle-orm';
+import { eq, desc, asc, ilike, or, and, sql, notInArray } from 'drizzle-orm';
 import { db, type DbExecutor } from '$lib/server/db';
 import {
 	redPagesBusinesses as rpTable,
@@ -125,6 +125,66 @@ export async function getPublishedBusinesses(): Promise<RedPagesItem[]> {
 		.where(eq(rpTable.status, 'published'))
 		.orderBy(asc(rpTable.name));
 	return rows.map((r) => rowToItem(r));
+}
+
+export async function getRecentBusinesses(limit: number): Promise<RedPagesItem[]> {
+	const rows = await db
+		.select()
+		.from(rpTable)
+		.where(eq(rpTable.status, 'published'))
+		.orderBy(desc(rpTable.createdAt))
+		.limit(limit);
+	return rows.map((r) => rowToItem(r));
+}
+
+export async function queryBusinessesForHomepage(opts: {
+	limit: number;
+	sortBy: string;
+	sortDir: 'asc' | 'desc';
+	excludedIds?: string[];
+	searchQuery?: string;
+}): Promise<RedPagesItem[]> {
+	const conditions = [eq(rpTable.status, 'published')];
+	if (opts.excludedIds?.length) conditions.push(notInArray(rpTable.id, opts.excludedIds));
+	if (opts.searchQuery?.trim()) {
+		const query = `%${opts.searchQuery.trim()}%`;
+		conditions.push(
+			or(
+				ilike(rpTable.name, query),
+				ilike(rpTable.description, query),
+				ilike(rpTable.serviceType, query),
+				ilike(rpTable.city, query),
+				ilike(rpTable.state, query)
+			)!
+		);
+	}
+
+	const sortCol = opts.sortBy === 'name' ? rpTable.name : rpTable.createdAt;
+	const orderFn = opts.sortDir === 'asc' ? asc : desc;
+
+	const rows = await db
+		.select()
+		.from(rpTable)
+		.where(and(...conditions))
+		.orderBy(orderFn(sortCol))
+		.limit(opts.limit);
+	return rows.map((r) => rowToItem(r));
+}
+
+export async function searchBusinessesFromDb(q: string, limit = 10) {
+	const term = q?.trim();
+	if (!term || term.length < 2) return [];
+	const rows = await db
+		.select({ id: rpTable.id, title: rpTable.name, slug: rpTable.slug })
+		.from(rpTable)
+		.where(
+			and(
+				eq(rpTable.status, 'published'),
+				or(ilike(rpTable.name, `%${term}%`), ilike(rpTable.serviceType, `%${term}%`))
+			)
+		)
+		.limit(limit);
+	return rows.map((r) => ({ id: r.id, title: r.title, slug: r.slug }));
 }
 
 export async function getBusinessBySlug(slug: string): Promise<RedPagesItem | null> {

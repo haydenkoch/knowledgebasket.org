@@ -14,6 +14,9 @@ const INDEXES: Record<CoilKey, string> = {
 	toolbox: 'toolbox'
 };
 
+export const SEARCH_INDEX_UIDS = INDEXES;
+export const SEARCH_READY_COILS = Object.keys(INDEXES) as CoilKey[];
+
 const SEARCHABLE_ATTRIBUTES: Record<CoilKey, string[]> = {
 	events: [
 		'title',
@@ -160,6 +163,23 @@ export type ToolboxSearchDoc = SearchDoc & {
 	mediaType?: string;
 };
 
+export type SearchResults = Record<CoilKey, SearchDoc[]>;
+
+export type SearchReadiness = {
+	state: 'offline' | 'partial' | 'ready';
+	configured: boolean;
+	available: boolean;
+	indexedCoils: CoilKey[];
+	missingCoils: CoilKey[];
+	error?: string;
+};
+
+export type SearchAllResult = {
+	ok: boolean;
+	results: SearchResults;
+	error?: string;
+};
+
 // ── Index settings ────────────────────────────────────────
 
 async function ensureIndexSettings(client: MeiliSearch, coil: CoilKey): Promise<void> {
@@ -216,19 +236,23 @@ export async function searchCoil(
 
 // ── Search all coils (global search) ──────────────────────
 
-export async function searchAll(
+export async function searchAll(q: string, opts?: { limit?: number }): Promise<SearchResults> {
+	return (await searchAllWithStatus(q, opts)).results;
+}
+
+export async function searchAllWithStatus(
 	q: string,
 	opts?: { limit?: number }
-): Promise<Record<CoilKey, SearchDoc[]>> {
+): Promise<SearchAllResult> {
 	const client = getClient();
-	const empty: Record<CoilKey, SearchDoc[]> = {
+	const empty: SearchResults = {
 		events: [],
 		funding: [],
 		redpages: [],
 		jobs: [],
 		toolbox: []
 	};
-	if (!client || !q || q.trim().length < 2) return empty;
+	if (!client || !q || q.trim().length < 2) return { ok: false, results: empty };
 
 	try {
 		const results = await withTimeout(
@@ -247,10 +271,14 @@ export async function searchAll(
 			const coil = coilKeys[i];
 			empty[coil] = results.results[i].hits as SearchDoc[];
 		}
-		return empty;
+		return { ok: true, results: empty };
 	} catch (err) {
 		console.warn('[meilisearch] multi-search failed:', err);
-		return empty;
+		return {
+			ok: false,
+			results: empty,
+			error: err instanceof Error ? err.message : 'Search request failed'
+		};
 	}
 }
 
@@ -349,4 +377,84 @@ export async function isMeilisearchAvailable(force = false): Promise<boolean> {
 
 	lastHealthCheckAt = now;
 	return lastHealthStatus;
+}
+
+function getMeilisearchHeaders(): HeadersInit | undefined {
+	return env.MEILISEARCH_API_KEY
+		? { Authorization: `Bearer ${env.MEILISEARCH_API_KEY}` }
+		: undefined;
+}
+
+async function listIndexUids(): Promise<string[]> {
+	const host = env.MEILISEARCH_HOST?.trim();
+	if (!host) return [];
+
+	const indexesUrl = new URL('/indexes', host.endsWith('/') ? host : `${host}/`).toString();
+	const response = await withTimeout(
+		fetch(indexesUrl, {
+			headers: getMeilisearchHeaders()
+		}),
+		'meilisearch indexes'
+	);
+
+	if (!response.ok) {
+		throw new Error(`Unable to read Meilisearch indexes (${response.status})`);
+	}
+
+	const payload = (await response.json()) as { results?: Array<{ uid?: string }> };
+	return (payload.results ?? [])
+		.map((entry) => entry.uid?.trim())
+		.filter((uid): uid is string => !!uid);
+}
+
+export async function getSearchReadiness(force = false): Promise<SearchReadiness> {
+	const configured = isMeilisearchConfigured();
+	if (!configured) {
+		return {
+			state: 'offline',
+			configured: false,
+			available: false,
+			indexedCoils: [],
+			missingCoils: [...SEARCH_READY_COILS],
+			error: 'Meilisearch is not configured'
+		};
+	}
+
+	const available = await isMeilisearchAvailable(force);
+	if (!available) {
+		return {
+			state: 'offline',
+			configured: true,
+			available: false,
+			indexedCoils: [],
+			missingCoils: [...SEARCH_READY_COILS],
+			error: 'Meilisearch is not reachable'
+		};
+	}
+
+	try {
+		const existingIndexUids = new Set(await listIndexUids());
+		const indexedCoils = SEARCH_READY_COILS.filter((coil) => existingIndexUids.has(INDEXES[coil]));
+		const missingCoils = SEARCH_READY_COILS.filter((coil) => !existingIndexUids.has(INDEXES[coil]));
+
+		return {
+			state: missingCoils.length > 0 ? 'partial' : 'ready',
+			configured: true,
+			available: true,
+			indexedCoils,
+			missingCoils,
+			...(missingCoils.length > 0
+				? { error: `Missing search indexes for ${missingCoils.join(', ')}` }
+				: {})
+		};
+	} catch (err) {
+		return {
+			state: 'partial',
+			configured: true,
+			available: true,
+			indexedCoils: [],
+			missingCoils: [...SEARCH_READY_COILS],
+			error: err instanceof Error ? err.message : 'Unable to inspect Meilisearch indexes'
+		};
+	}
 }

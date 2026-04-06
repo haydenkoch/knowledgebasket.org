@@ -1,6 +1,7 @@
 import { fail } from '@sveltejs/kit';
 import type { Actions } from './$types';
 import { createBusiness } from '$lib/server/red-pages';
+import { RATE_LIMIT_POLICIES, consumeRateLimit } from '$lib/server/rate-limit';
 import { buildSubmissionAdminNotes } from '$lib/server/submission-notes';
 
 type RedPagesSubmitDeps = {
@@ -11,7 +12,19 @@ export function _createRedPagesSubmitActions(
 	deps: RedPagesSubmitDeps = { createBusiness }
 ): Actions {
 	return {
-		default: async ({ request, locals }) => {
+		default: async (event) => {
+			const rateLimit = consumeRateLimit(
+				event,
+				RATE_LIMIT_POLICIES.publicSubmit,
+				'/red-pages/submit'
+			);
+			if (!rateLimit.allowed) {
+				return fail(429, {
+					error: `Too many submissions. Please wait ${rateLimit.retryAfterSeconds} seconds and try again.`
+				});
+			}
+
+			const { request, locals } = event;
 			const formData = await request.formData();
 			const business_name = formData.get('business_name')?.toString().trim() ?? '';
 			const tribal_affiliation = formData.get('tribal_affiliation')?.toString().trim() ?? '';

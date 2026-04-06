@@ -1,6 +1,7 @@
 import { fail } from '@sveltejs/kit';
 import type { Actions } from './$types';
 import { createJob } from '$lib/server/jobs';
+import { RATE_LIMIT_POLICIES, consumeRateLimit } from '$lib/server/rate-limit';
 import { uploadImage } from '$lib/server/upload';
 import { buildSubmissionAdminNotes, parseDateInput } from '$lib/server/submission-notes';
 
@@ -11,7 +12,15 @@ type JobSubmitDeps = {
 
 export function _createJobSubmitActions(deps: JobSubmitDeps = { createJob, uploadImage }): Actions {
 	return {
-		default: async ({ request, locals }) => {
+		default: async (event) => {
+			const rateLimit = consumeRateLimit(event, RATE_LIMIT_POLICIES.publicSubmit, '/jobs/submit');
+			if (!rateLimit.allowed) {
+				return fail(429, {
+					error: `Too many submissions. Please wait ${rateLimit.retryAfterSeconds} seconds and try again.`
+				});
+			}
+
+			const { request, locals } = event;
 			const formData = await request.formData();
 			const job_title = formData.get('job_title')?.toString().trim() ?? '';
 			const employer = formData.get('employer')?.toString().trim() ?? '';

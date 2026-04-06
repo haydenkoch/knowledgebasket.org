@@ -2,11 +2,13 @@ import { getEvents, getEventById } from '$lib/server/events';
 import { getListBySlug, getListEventIds } from '$lib/server/event-lists';
 import { env } from '$env/dynamic/private';
 import { withPublicDataFallback } from '$lib/server/public-load';
+import { parseEventStart } from '$lib/utils/format';
 
 export async function load({ url }) {
+	const futureOnly = url.searchParams.get('future') === '1';
 	const mapboxToken = env.MAPBOX_ACCESS_TOKEN ?? env.MAPBOX_TOKEN ?? null;
 	const [
-		{ data: events, unavailable: eventsUnavailable },
+		{ data: allEvents, unavailable: eventsUnavailable },
 		{ data: featuredList, unavailable: featuredListUnavailable }
 	] = await Promise.all([
 		withPublicDataFallback('events collection', () => getEvents(), []),
@@ -35,6 +37,14 @@ export async function load({ url }) {
 			dataUnavailable = dataUnavailable || featuredEventsUnavailable;
 		}
 	}
+
+	const events = futureOnly
+		? allEvents.filter((event) => {
+				const startTs = parseEventStart(event.startDate);
+				if (startTs == null) return false;
+				return startTs >= new Date(new Date().setHours(0, 0, 0, 0)).getTime();
+			})
+		: allEvents;
 
 	const view = url.searchParams.get('view');
 	const mode = url.searchParams.get('mode');

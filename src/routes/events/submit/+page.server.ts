@@ -1,6 +1,7 @@
 import { fail } from '@sveltejs/kit';
 import type { Actions } from './$types';
 import { createEvent } from '$lib/server/events';
+import { RATE_LIMIT_POLICIES, consumeRateLimit } from '$lib/server/rate-limit';
 import { ALLOWED_IMAGE_TYPES, MAX_IMAGE_SIZE, uploadImage } from '$lib/server/upload';
 
 type EventSubmitDeps = {
@@ -12,7 +13,15 @@ export function _createEventSubmitActions(
 	deps: EventSubmitDeps = { createEvent, uploadImage }
 ): Actions {
 	return {
-		default: async ({ request, locals }) => {
+		default: async (event) => {
+			const rateLimit = consumeRateLimit(event, RATE_LIMIT_POLICIES.publicSubmit, '/events/submit');
+			if (!rateLimit.allowed) {
+				return fail(429, {
+					error: `Too many submissions. Please wait ${rateLimit.retryAfterSeconds} seconds and try again.`
+				});
+			}
+
+			const { request, locals } = event;
 			const formData = await request.formData();
 			const event_name = (formData.get('event_name') as string)?.trim();
 			const host_org = (formData.get('host_org') as string)?.trim();

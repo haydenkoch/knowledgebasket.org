@@ -1,9 +1,8 @@
 /**
- * Reusable file upload: validate type/size, store under static/uploads/<scope>, return URL.
+ * Reusable file upload: validate type/size, store under object storage, return stable /uploads/<scope>/<file> URL.
  */
-import { writeFile, mkdir } from 'fs/promises';
-import { join } from 'path';
 import { randomUUID } from 'crypto';
+import { putUploadObject } from '$lib/server/object-storage';
 
 export const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5 MB
 export const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
@@ -24,7 +23,7 @@ export type UploadScope =
 	| 'toolbox';
 
 /**
- * Upload an image file to static/uploads/<scope>. Returns the public URL path.
+ * Upload an image file to object storage. Returns the stable public URL path.
  * Validates type and size; throws if invalid.
  */
 export async function uploadImage(file: File, scope: UploadScope): Promise<string> {
@@ -33,12 +32,8 @@ export async function uploadImage(file: File, scope: UploadScope): Promise<strin
 	if (!ALLOWED_IMAGE_TYPES.includes(file.type)) throw new Error('Image must be JPG, PNG, or WebP');
 
 	const ext = EXT_MAP[file.type] ?? 'jpg';
-	const dir = join(process.cwd(), 'static', 'uploads', scope);
-	await mkdir(dir, { recursive: true });
 	const baseName = `${randomUUID().slice(0, 8)}-${Date.now()}`;
 	const fileName = `${baseName}.${ext}`;
-	const filePath = join(dir, fileName);
 	const buf = Buffer.from(await file.arrayBuffer());
-	await writeFile(filePath, buf);
-	return `/uploads/${scope}/${fileName}`;
+	return await putUploadObject(`${scope}/${fileName}`, buf, file.type);
 }

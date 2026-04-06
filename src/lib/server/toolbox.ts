@@ -2,7 +2,7 @@
  * Toolbox (Resources) data layer: CRUD, moderation, search indexing.
  * Supports both hosted content (articles/guides) and external links.
  */
-import { eq, desc, asc, ilike, or, and, sql } from 'drizzle-orm';
+import { eq, desc, asc, ilike, or, and, sql, notInArray } from 'drizzle-orm';
 import { db, type DbExecutor } from '$lib/server/db';
 import {
 	toolboxResources as tbTable,
@@ -110,6 +110,66 @@ export async function getPublishedResources(): Promise<ToolboxItem[]> {
 		.where(eq(tbTable.status, 'published'))
 		.orderBy(desc(tbTable.publishedAt));
 	return rows.map((r) => rowToItem(r));
+}
+
+export async function getRecentResources(limit: number): Promise<ToolboxItem[]> {
+	const rows = await db
+		.select()
+		.from(tbTable)
+		.where(eq(tbTable.status, 'published'))
+		.orderBy(desc(tbTable.publishedAt))
+		.limit(limit);
+	return rows.map((r) => rowToItem(r));
+}
+
+export async function queryResourcesForHomepage(opts: {
+	limit: number;
+	sortBy: string;
+	sortDir: 'asc' | 'desc';
+	excludedIds?: string[];
+	searchQuery?: string;
+}): Promise<ToolboxItem[]> {
+	const conditions = [eq(tbTable.status, 'published')];
+	if (opts.excludedIds?.length) conditions.push(notInArray(tbTable.id, opts.excludedIds));
+	if (opts.searchQuery?.trim()) {
+		const query = `%${opts.searchQuery.trim()}%`;
+		conditions.push(
+			or(
+				ilike(tbTable.title, query),
+				ilike(tbTable.description, query),
+				ilike(tbTable.sourceName, query),
+				ilike(tbTable.category, query),
+				ilike(tbTable.mediaType, query)
+			)!
+		);
+	}
+
+	const sortCol = opts.sortBy === 'title' ? tbTable.title : tbTable.publishedAt;
+	const orderFn = opts.sortDir === 'asc' ? asc : desc;
+
+	const rows = await db
+		.select()
+		.from(tbTable)
+		.where(and(...conditions))
+		.orderBy(orderFn(sortCol))
+		.limit(opts.limit);
+	return rows.map((r) => rowToItem(r));
+}
+
+export async function searchResourcesFromDb(q: string, limit = 10) {
+	const term = q?.trim();
+	if (!term || term.length < 2) return [];
+	const rows = await db
+		.select({ id: tbTable.id, title: tbTable.title, slug: tbTable.slug })
+		.from(tbTable)
+		.where(
+			and(
+				eq(tbTable.status, 'published'),
+				or(ilike(tbTable.title, `%${term}%`), ilike(tbTable.sourceName, `%${term}%`))
+			)
+		)
+		.limit(limit);
+	return rows.map((r) => ({ id: r.id, title: r.title, slug: r.slug }));
 }
 
 export async function getResourceBySlug(slug: string): Promise<ToolboxItem | null> {

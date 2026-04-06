@@ -4,7 +4,7 @@
 
 Knowledge Basket is no longer a stubby early-stage starter. It is a real multi-coil product with a meaningful public surface, a fairly deep Events implementation, and a surprisingly ambitious source-ops system. The good news is that there is more here than the stale docs claim. The bad news is that the repo is carrying too much drift between product docs, design direction, operational reality, and implementation patterns.
 
-The core pattern across the codebase is uneven maturity rather than absence. Events is materially ahead. Funding, Red Pages, Jobs, and Toolbox are not stubs, but they are also not operationally complete products. Source ops is powerful, but it is currently unstable at the type level and concentrated in large, hard-to-own files. Search exists, but the system boundary between "configured," "working," and "trustworthy" is too loose. The UI direction has drifted toward repeated left-rail scaffolds even though the stated design direction says not to keep moving that way.
+The core pattern across the codebase is uneven maturity rather than absence. Events is materially ahead. Funding, Red Pages, Jobs, and Toolbox are not stubs, but they are also not operationally complete products. Source ops is powerful, but it is currently unstable at the type level and concentrated in large, hard-to-own files. Search exists, but the system boundary between "configured," "working," and "trustworthy" is too loose. The public browse/filter system is strongly standardized around repeated left-rail scaffolds, and that pattern now needs polish and stronger product execution rather than another layout-direction debate.
 
 ### Overall assessment
 
@@ -12,7 +12,7 @@ The core pattern across the codebase is uneven maturity rather than absence. Eve
 - Best area: `Events public/admin implementation depth`
 - Highest risk area: `source ops correctness and operational complexity`
 - Biggest product-management risk: `stale specs and docs are now materially misleading`
-- Biggest UX risk: `generic left-rail scaffold patterns spreading across coils`
+- Biggest UX risk: `generic left-rail scaffold patterns are under-polished and feel too scaffold-like`
 - Biggest architecture risk: `large files and "shared" abstractions are hiding product-specific complexity instead of reducing it`
 
 ### Top strengths
@@ -29,7 +29,7 @@ The core pattern across the codebase is uneven maturity rather than absence. Eve
 - `pnpm check` is failing in source-ops code, which directly undermines trust in the most operationally sensitive system in the repo.
 - Search mode detection is based on configuration presence, not search availability. A configured-but-down Meilisearch instance can push the app into "all-coil" mode while returning empty results.
 - Non-event coils have meaningful public and server support but lack dedicated admin CRUD surfaces, which means the product is ahead of its operating model.
-- The current UI architecture is drifting toward repeated scaffold layouts and left-rail filters even where product direction explicitly points elsewhere.
+- The current UI architecture is heavily standardized around a left-rail browse pattern, but that pattern still needs stronger polish, responsiveness, and product-specific hierarchy.
 
 ### Verification snapshot
 
@@ -232,30 +232,29 @@ These files are not automatically wrong, but they are a signal that key product 
 - Estimated effort: `1-2 days`
 - Classification: `quick win`
 
-### Finding 7: Events no longer follows the desired filter-bar direction
+### Finding 7: Public left-rail browse pattern is under-polished in Events
 
 - Status: `Confirmed`
 - Severity: `High`
 - Category: `UI/UX / Design drift`
-- Description: The events page currently uses a left sidebar filter system, while the design docs explicitly say the horizontal filter bar direction should be preserved and refined.
-- Why it matters: Events is the most mature coil and acts as a pattern donor. If it drifts in the wrong direction, the wrong pattern gets copied across the rest of the product.
+- Description: The events page uses the current left sidebar filter system, and that system is now the intended browse direction. The problem is not the rail itself; it is that the rail and surrounding layout still feel heavier and more scaffold-like than they should.
+- Why it matters: Events is the most mature coil and acts as a pattern donor. If its left-rail implementation stays clunky, every other coil inherits a weaker public browse experience.
 - Exact evidence with file paths and specific functions/components/routes:
   - current left rail in `src/routes/events/+page.svelte`
   - filter UI in `src/lib/components/organisms/EventsSidebar.svelte`
   - generic rail wrapper in `src/lib/components/organisms/KbSidebar.svelte`
-  - unused reference implementations in `src/lib/components/reference/EventsFilterBarReference.svelte` and `src/lib/components/reference/events-filter-bar-reference.html`
   - design-direction statement in `docs/DESIGN_SYSTEM.md`
-- Recommended fix: Treat the current events sidebar as drift, not as the future baseline. Restore a horizontal filter approach in the eventual UI remediation phase instead of spreading the rail further.
+- Recommended fix: Treat the current events sidebar as the baseline pattern and improve it directly: spacing, sticky behavior, focus states, mobile containment, and filter ergonomics.
 - Estimated effort: `1-2 weeks`
 - Classification: `medium project`
 
-### Finding 8: Left-rail scaffold drift has spread across non-event coils
+### Finding 8: Shared left-rail browse abstractions need refinement, not replacement
 
 - Status: `Confirmed`
 - Severity: `Medium`
 - Category: `UI/UX / Architecture`
-- Description: Funding, Jobs, Red Pages, and Toolbox all reuse `KbSidebar` and `KbTwoColumnLayout`, which spreads a generic left-rail scaffold across the product.
-- Why it matters: This is not just shared code reuse. It is a shared product decision being encoded into a reusable abstraction, which makes it harder to reverse later.
+- Description: Funding, Jobs, Red Pages, and Toolbox all reuse `KbSidebar` and `KbTwoColumnLayout`, which makes the public browse experience consistent but also exposes the same spacing, density, and responsiveness weaknesses across every coil.
+- Why it matters: This is a real shared product abstraction now. If it stays cold or awkward, the entire public product feels scaffolded.
 - Exact evidence with file paths and specific functions/components/routes:
   - `src/lib/components/organisms/KbTwoColumnLayout.svelte`
   - `src/lib/components/organisms/KbSidebar.svelte`
@@ -264,7 +263,7 @@ These files are not automatically wrong, but they are a signal that key product 
   - `src/routes/red-pages/+page.svelte`
   - `src/routes/toolbox/+page.svelte`
   - generic abstraction in `src/lib/hooks/use-coil-filters.svelte.ts`
-- Recommended fix: Stop expanding the left-rail pattern. Treat these abstractions as transitional, not foundational, and redesign them only after operational gaps are fixed.
+- Recommended fix: Keep the left-rail abstraction, but invest in it deliberately. Tighten layout rhythm, improve filter affordances, and make the sidebar pattern feel product-grade across coils.
 - Estimated effort: `1-2 weeks`
 - Classification: `medium project`
 
@@ -443,13 +442,13 @@ These files are not automatically wrong, but they are a signal that key product 
 - Productized use of bookmarks, follows, notifications, content lists, and content views
 - SuperForms/FormSnap usage despite stack expectation
 - A stable, truthful product documentation system inside the app repo
-- Horizontal filter interaction alignment with the documented design direction
+- A clearly documented, consistently implemented left-rail browse/filter standard
 
 ### Implemented differently than intended
 
 - Current implementation is authoritative for reality, but product docs assumed docs-first truth; in practice, truth is split across code, flat app docs, and the root spec.
 - Search reports "all-coil" mode based on configuration, not operational availability.
-- The UI system is no longer "keep the events horizontal filter bar and refine it." It has drifted into reusable left rails.
+- The UI system has standardized around reusable left rails, and the docs should acknowledge that this is the intended direction.
 - Non-event coils are no longer stub placeholders; they are partially built products.
 
 ### Overbuilt relative to current scope
@@ -462,10 +461,10 @@ These files are not automatically wrong, but they are a signal that key product 
 
 ### Public-facing issues
 
-- The strongest design-direction mismatch is the spread of the left-rail sidebar pattern across coil pages.
+- The strongest public UX issue is that the shared left-rail sidebar pattern still feels too scaffold-like across coil pages.
 - Funding, Jobs, Red Pages, and Toolbox look more like variations of a shared scaffold than distinct product surfaces with intentional hierarchy.
 - Global search is visually serviceable but interaction-light and not polished enough to feel like a primary product surface.
-- Events remains the warmest and most differentiated public coil, but even it has drifted away from the stated filter interaction direction.
+- Events remains the warmest and most differentiated public coil, but its left-rail implementation still needs polish before it is a strong product baseline.
 - Toolbox feels the coldest and most generic of the public coils.
 
 ### Admin-facing issues
@@ -496,7 +495,7 @@ These files are not automatically wrong, but they are a signal that key product 
 
 ### Recommendations that fit the current direction
 
-- Do not preserve the current left-rail pattern as the future baseline.
+- Preserve the current left-rail pattern, but raise its quality bar materially before copying more of its rough edges.
 - Use Events as the completeness baseline, not as the literal layout baseline.
 - Defer broad visual redesign until source-ops/search/admin correctness is stabilized.
 - When UI cleanup starts, prioritize restoring intentional interaction models and reducing scaffold repetition before adding new decorative polish.
@@ -648,7 +647,7 @@ Recommended order of operations:
 What to avoid touching too early:
 
 - Do not generalize more coil abstractions before the right UX direction is locked.
-- Do not treat the current left-rail pattern as the future system.
+- Treat the current left-rail pattern as the future system and document that choice clearly.
 - Do not expand dormant schema features like bookmarks/follows/notifications before core operating surfaces are stabilized.
 - Do not add more source-ops complexity until the current source-ops type and review model is trustworthy again.
 

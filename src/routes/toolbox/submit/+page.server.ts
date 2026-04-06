@@ -1,6 +1,7 @@
 import { fail } from '@sveltejs/kit';
 import type { Actions } from './$types';
 import { createResource } from '$lib/server/toolbox';
+import { RATE_LIMIT_POLICIES, consumeRateLimit } from '$lib/server/rate-limit';
 import { buildSubmissionAdminNotes } from '$lib/server/submission-notes';
 
 type ToolboxSubmitDeps = {
@@ -9,7 +10,19 @@ type ToolboxSubmitDeps = {
 
 export function _createToolboxSubmitActions(deps: ToolboxSubmitDeps = { createResource }): Actions {
 	return {
-		default: async ({ request, locals }) => {
+		default: async (event) => {
+			const rateLimit = consumeRateLimit(
+				event,
+				RATE_LIMIT_POLICIES.publicSubmit,
+				'/toolbox/submit'
+			);
+			if (!rateLimit.allowed) {
+				return fail(429, {
+					error: `Too many submissions. Please wait ${rateLimit.retryAfterSeconds} seconds and try again.`
+				});
+			}
+
+			const { request, locals } = event;
 			const formData = await request.formData();
 			const resource_title = formData.get('resource_title')?.toString().trim() ?? '';
 			const url = formData.get('url')?.toString().trim() ?? '';

@@ -1,7 +1,7 @@
 import type { PageServerLoad } from './$types';
 import type { CoilKey } from '$lib/data/kb';
-import { isMeilisearchAvailable, searchAll, type SearchDoc } from '$lib/server/meilisearch';
-import { searchEventsFromDb } from '$lib/server/events';
+import type { SearchDoc } from '$lib/server/meilisearch';
+import { runPublicSearch } from '$lib/server/search-ops';
 
 const emptyResults: Record<CoilKey, SearchDoc[]> = {
 	events: [],
@@ -13,36 +13,31 @@ const emptyResults: Record<CoilKey, SearchDoc[]> = {
 
 export const load: PageServerLoad = async ({ url }) => {
 	const query = url.searchParams.get('q')?.trim() ?? '';
-	const searchMode = (await isMeilisearchAvailable()) ? 'all' : 'events-only';
+	const activeCoil = (url.searchParams.get('coil')?.trim() ?? 'all') as CoilKey | 'all';
 
 	let results = emptyResults;
+	let searchMode: 'offline' | 'partial' | 'ready' = 'offline';
+	let resultSource: 'meilisearch' | 'database' = 'database';
 	if (query.length >= 2) {
-		if (searchMode === 'all') {
-			results = await searchAll(query, { limit: 12 });
-		} else {
-			let events: Awaited<ReturnType<typeof searchEventsFromDb>> = [];
-			try {
-				events = await searchEventsFromDb(query);
-			} catch {
-				events = [];
-			}
+		const search = await runPublicSearch(query, 12);
+		searchMode = search.readiness.state;
+		resultSource = search.resultSource;
+		results = search.results;
+
+		if (activeCoil !== 'all') {
 			results = {
 				...emptyResults,
-				events: events.slice(0, 12).map((event) => ({
-					id: event.id,
-					slug: event.slug ?? event.id,
-					title: event.title,
-					description: event.description,
-					coil: 'events'
-				}))
+				[activeCoil]: results[activeCoil]
 			};
 		}
 	}
 
 	return {
 		query,
+		activeCoil,
 		results,
 		searchMode,
+		resultSource,
 		origin: url.origin
 	};
 };

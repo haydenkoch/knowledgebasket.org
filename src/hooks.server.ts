@@ -1,6 +1,8 @@
-import type { Handle } from '@sveltejs/kit';
+import type { Handle, HandleServerError } from '@sveltejs/kit';
 import { building } from '$app/environment';
 import { auth } from '$lib/server/auth';
+import { guardAdminRequest } from '$lib/server/access-control';
+import { captureServerError } from '$lib/server/observability';
 import { svelteKitHandler } from 'better-auth/svelte-kit';
 
 const handleBetterAuth: Handle = async ({ event, resolve }) => {
@@ -20,7 +22,25 @@ const handleBetterAuth: Handle = async ({ event, resolve }) => {
 		}
 	}
 
+	const adminGuardResponse = guardAdminRequest(event);
+	if (adminGuardResponse) {
+		return adminGuardResponse;
+	}
+
 	return svelteKitHandler({ event, resolve, auth, building });
 };
 
 export const handle: Handle = handleBetterAuth;
+
+export const handleError: HandleServerError = ({ error, event, status, message }) => {
+	void captureServerError('request.unhandled', error, {
+		path: event.url.pathname,
+		method: event.request.method,
+		status,
+		message
+	});
+
+	return {
+		message
+	};
+};

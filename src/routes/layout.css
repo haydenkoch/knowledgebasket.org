@@ -1,4 +1,4 @@
-/* Typekit loaded async in +layout.svelte to avoid blocking; if blocked by content blocker, fallbacks below apply */
+/* Theme tokens and global styles; Adobe Fonts is loaded from the root layout head. */
 @import '../lib/theme/theme.css';
 
 /* Base global styles only; component styles now live alongside routes/components. */

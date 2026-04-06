@@ -1,133 +1,341 @@
 <script lang="ts">
 	import EventCard from '$lib/components/molecules/EventCard.svelte';
-	import * as Card from '$lib/components/ui/card/index.js';
+	import FundingCard from '$lib/components/molecules/FundingCard.svelte';
+	import JobListItem from '$lib/components/molecules/JobListItem.svelte';
+	import RedPagesListItem from '$lib/components/molecules/RedPagesListItem.svelte';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import * as Breadcrumb from '$lib/components/ui/breadcrumb/index.js';
+	import MapPinIcon from '@lucide/svelte/icons/map-pin';
+	import GlobeIcon from '@lucide/svelte/icons/globe';
+	import MailIcon from '@lucide/svelte/icons/mail';
+	import PhoneIcon from '@lucide/svelte/icons/phone';
 
 	let { data } = $props();
 	const organization = $derived(data.organization);
-	const events = $derived(data.events);
+	const collections = $derived(data.collections);
+
+	const stats = $derived([
+		{ label: 'Events', value: collections.events.length },
+		{ label: 'Funding', value: collections.funding.length },
+		{ label: 'Jobs', value: collections.jobs.length },
+		{ label: 'Red Pages', value: collections.redpages.length },
+		{ label: 'Toolbox', value: collections.toolbox.length },
+		{ label: 'Venues', value: collections.venues.length }
+	]);
+
+	const locationLine = $derived(
+		[organization.address, organization.city, organization.state, organization.zip]
+			.filter(Boolean)
+			.join(', ')
+	);
+
+	const hasPublishedContent = $derived(
+		collections.events.length > 0 ||
+			collections.funding.length > 0 ||
+			collections.jobs.length > 0 ||
+			collections.redpages.length > 0 ||
+			collections.toolbox.length > 0
+	);
 </script>
 
 <svelte:head>
-	<title>{organization.name} | Organizer | Knowledge Basket</title>
+	<title>{organization.name} | Organization | Knowledge Basket</title>
 	<meta
 		name="description"
-		content={organization.description ?? `Upcoming events from ${organization.name}.`}
+		content={organization.description ??
+			`Published Knowledge Basket content connected to ${organization.name}.`}
 	/>
-	<meta property="og:title" content="{organization.name} | Organizer" />
+	<meta property="og:title" content="{organization.name} | Organization" />
 	<meta
 		property="og:description"
-		content={organization.description ?? `Upcoming events from ${organization.name}.`}
+		content={organization.description ??
+			`Published Knowledge Basket content connected to ${organization.name}.`}
 	/>
 	{#if organization.logoUrl}<meta property="og:image" content={organization.logoUrl} />{/if}
 	<meta property="og:type" content="website" />
 </svelte:head>
 
-<div class="kb-event-detail" style="--kb-accent: var(--teal)">
-	<div class="kb-event-header-wrap">
-		<Breadcrumb.Root>
-			<Breadcrumb.List>
-				<Breadcrumb.Item>
-					<Breadcrumb.Link href="/events">Events</Breadcrumb.Link>
-				</Breadcrumb.Item>
-				<Breadcrumb.Separator />
-				<Breadcrumb.Item>
-					<Breadcrumb.Page>{organization.name}</Breadcrumb.Page>
-				</Breadcrumb.Item>
-			</Breadcrumb.List>
-		</Breadcrumb.Root>
-	</div>
+<div class="mx-auto max-w-6xl px-4 py-6 sm:px-6">
+	<Breadcrumb.Root class="mb-5">
+		<Breadcrumb.List>
+			<Breadcrumb.Item>
+				<Breadcrumb.Link href="/">Knowledge Basket</Breadcrumb.Link>
+			</Breadcrumb.Item>
+			<Breadcrumb.Separator />
+			<Breadcrumb.Item>
+				<Breadcrumb.Page>{organization.name}</Breadcrumb.Page>
+			</Breadcrumb.Item>
+		</Breadcrumb.List>
+	</Breadcrumb.Root>
 
-	<header class="kb-org-header">
-		{#if organization.logoUrl}
-			<img src={organization.logoUrl} alt="" class="kb-org-logo" />
-		{/if}
-		<h1 class="kb-org-title">{organization.name}</h1>
-		{#if organization.description}
-			<p class="kb-org-description">{organization.description}</p>
-		{/if}
-		{#if organization.website}
-			<a href={organization.website} target="_blank" rel="noopener" class="kb-org-website"
-				>Visit website →</a
-			>
-		{/if}
+	<header
+		class="rounded-[28px] border border-[var(--border)] bg-[var(--card)] p-6 shadow-[var(--sh)]"
+	>
+		<div class="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
+			<div class="min-w-0 space-y-4">
+				<div class="flex items-start gap-4">
+					{#if organization.logoUrl}
+						<img
+							src={organization.logoUrl}
+							alt=""
+							class="h-18 w-18 shrink-0 rounded-2xl border border-[var(--border)] bg-white object-contain p-2"
+						/>
+					{/if}
+					<div class="min-w-0">
+						<div class="mb-2 flex flex-wrap items-center gap-2">
+							{#if organization.verified}
+								<span
+									class="rounded-full bg-[color-mix(in_srgb,var(--green,#16a34a)_16%,white)] px-3 py-1 text-[11px] font-bold tracking-[0.08em] text-[var(--green,#166534)] uppercase"
+								>
+									Verified
+								</span>
+							{/if}
+							{#if organization.orgType}
+								<span
+									class="rounded-full bg-[var(--muted)] px-3 py-1 text-[11px] font-bold tracking-[0.08em] text-[var(--muted-foreground)] uppercase"
+								>
+									{organization.orgType}
+								</span>
+							{/if}
+							{#if organization.region}
+								<span
+									class="rounded-full bg-[var(--muted)] px-3 py-1 text-[11px] font-bold tracking-[0.08em] text-[var(--muted-foreground)] uppercase"
+								>
+									{organization.region}
+								</span>
+							{/if}
+						</div>
+						<h1
+							class="font-serif text-3xl leading-tight font-bold text-[var(--foreground)] sm:text-4xl"
+						>
+							{organization.name}
+						</h1>
+						{#if organization.description}
+							<p class="mt-3 max-w-3xl text-base leading-7 text-[var(--muted-foreground)]">
+								{organization.description}
+							</p>
+						{/if}
+					</div>
+				</div>
+
+				<div class="flex flex-wrap gap-3 text-sm text-[var(--foreground)]">
+					{#if locationLine}
+						<div class="inline-flex items-center gap-2 rounded-full bg-[var(--muted)] px-3 py-1.5">
+							<MapPinIcon class="size-4 text-[var(--muted-foreground)]" />
+							<span>{locationLine}</span>
+						</div>
+					{/if}
+					{#if organization.website}
+						<a
+							href={organization.website}
+							target="_blank"
+							rel="noopener"
+							class="inline-flex items-center gap-2 rounded-full bg-[var(--muted)] px-3 py-1.5 text-inherit no-underline transition-colors hover:bg-[var(--accent)]"
+						>
+							<GlobeIcon class="size-4 text-[var(--muted-foreground)]" />
+							<span>Website</span>
+						</a>
+					{/if}
+					{#if organization.email}
+						<a
+							href={`mailto:${organization.email}`}
+							class="inline-flex items-center gap-2 rounded-full bg-[var(--muted)] px-3 py-1.5 text-inherit no-underline transition-colors hover:bg-[var(--accent)]"
+						>
+							<MailIcon class="size-4 text-[var(--muted-foreground)]" />
+							<span>{organization.email}</span>
+						</a>
+					{/if}
+					{#if organization.phone}
+						<a
+							href={`tel:${organization.phone}`}
+							class="inline-flex items-center gap-2 rounded-full bg-[var(--muted)] px-3 py-1.5 text-inherit no-underline transition-colors hover:bg-[var(--accent)]"
+						>
+							<PhoneIcon class="size-4 text-[var(--muted-foreground)]" />
+							<span>{organization.phone}</span>
+						</a>
+					{/if}
+				</div>
+			</div>
+
+			<div class="grid min-w-[240px] grid-cols-2 gap-3 lg:w-[280px]">
+				{#each stats as stat}
+					<div class="rounded-2xl border border-[var(--border)] bg-[var(--background)] px-4 py-3">
+						<div class="font-serif text-2xl font-bold text-[var(--foreground)]">{stat.value}</div>
+						<div
+							class="text-[11px] font-bold tracking-[0.08em] text-[var(--muted-foreground)] uppercase"
+						>
+							{stat.label}
+						</div>
+					</div>
+				{/each}
+			</div>
+		</div>
 	</header>
 
-	<section class="kb-org-events">
-		<h2>Upcoming events</h2>
-		{#if events.length > 0}
-			<ul class="kb-org-event-grid">
-				{#each events as event, i}
-					<li><EventCard {event} index={i} /></li>
+	{#if collections.venues.length > 0}
+		<section class="mt-8 space-y-4">
+			<div class="flex items-center justify-between gap-3">
+				<div>
+					<p
+						class="text-[11px] font-bold tracking-[0.12em] text-[var(--muted-foreground)] uppercase"
+					>
+						Places
+					</p>
+					<h2 class="font-serif text-2xl font-semibold text-[var(--foreground)]">Linked venues</h2>
+				</div>
+			</div>
+			<div class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+				{#each collections.venues as venue}
+					<a
+						href={`/v/${venue.slug ?? venue.id}`}
+						class="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-4 text-inherit no-underline shadow-[var(--sh)] transition-transform hover:-translate-y-0.5"
+					>
+						<div class="font-serif text-xl font-semibold text-[var(--foreground)]">
+							{venue.name}
+						</div>
+						{#if venue.description}
+							<p class="mt-2 line-clamp-3 text-sm leading-6 text-[var(--muted-foreground)]">
+								{venue.description}
+							</p>
+						{/if}
+						{#if venue.address || venue.city || venue.state}
+							<p class="mt-3 text-sm text-[var(--muted-foreground)]">
+								{[venue.address, venue.city, venue.state].filter(Boolean).join(', ')}
+							</p>
+						{/if}
+					</a>
+				{/each}
+			</div>
+		</section>
+	{/if}
+
+	{#if !hasPublishedContent}
+		<section
+			class="mt-8 rounded-[28px] border border-dashed border-[var(--border)] bg-[var(--card)] px-6 py-10 text-center"
+		>
+			<h2 class="font-serif text-2xl font-semibold text-[var(--foreground)]">
+				No published content is linked yet
+			</h2>
+			<p class="mt-2 text-sm leading-6 text-[var(--muted-foreground)]">
+				This organization profile exists, but it is not yet connected to published events, funding,
+				jobs, directory listings, or toolbox resources.
+			</p>
+		</section>
+	{/if}
+
+	{#if collections.events.length > 0}
+		<section class="mt-8 space-y-4">
+			<div>
+				<p class="text-[11px] font-bold tracking-[0.12em] text-[var(--muted-foreground)] uppercase">
+					Events
+				</p>
+				<h2 class="font-serif text-2xl font-semibold text-[var(--foreground)]">Upcoming events</h2>
+			</div>
+			<ul class="grid list-none gap-4 p-0 md:grid-cols-2 xl:grid-cols-3">
+				{#each collections.events as event, index (event.id)}
+					<li><EventCard {event} {index} /></li>
 				{/each}
 			</ul>
-		{:else}
-			<p class="kb-org-no-events">No upcoming events at the moment.</p>
-		{/if}
-	</section>
+		</section>
+	{/if}
 
-	<p class="kb-org-back">
-		<Button variant="outline" href="/events">← Back to all events</Button>
-	</p>
+	{#if collections.funding.length > 0}
+		<section class="mt-8 space-y-4">
+			<div>
+				<p class="text-[11px] font-bold tracking-[0.12em] text-[var(--muted-foreground)] uppercase">
+					Funding
+				</p>
+				<h2 class="font-serif text-2xl font-semibold text-[var(--foreground)]">
+					Related funding opportunities
+				</h2>
+			</div>
+			<div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+				{#each collections.funding as item, index (item.id)}
+					<FundingCard {item} {index} />
+				{/each}
+			</div>
+		</section>
+	{/if}
+
+	{#if collections.jobs.length > 0}
+		<section class="mt-8 space-y-4">
+			<div>
+				<p class="text-[11px] font-bold tracking-[0.12em] text-[var(--muted-foreground)] uppercase">
+					Jobs
+				</p>
+				<h2 class="font-serif text-2xl font-semibold text-[var(--foreground)]">Open roles</h2>
+			</div>
+			<div class="flex flex-col gap-3">
+				{#each collections.jobs as job, index (job.id)}
+					<JobListItem {job} {index} />
+				{/each}
+			</div>
+		</section>
+	{/if}
+
+	{#if collections.redpages.length > 0}
+		<section class="mt-8 space-y-4">
+			<div>
+				<p class="text-[11px] font-bold tracking-[0.12em] text-[var(--muted-foreground)] uppercase">
+					Red Pages
+				</p>
+				<h2 class="font-serif text-2xl font-semibold text-[var(--foreground)]">
+					Directory listings
+				</h2>
+			</div>
+			<div class="flex flex-col gap-3">
+				{#each collections.redpages as vendor, index (vendor.id)}
+					<RedPagesListItem {vendor} {index} />
+				{/each}
+			</div>
+		</section>
+	{/if}
+
+	{#if collections.toolbox.length > 0}
+		<section class="mt-8 space-y-4">
+			<div>
+				<p class="text-[11px] font-bold tracking-[0.12em] text-[var(--muted-foreground)] uppercase">
+					Toolbox
+				</p>
+				<h2 class="font-serif text-2xl font-semibold text-[var(--foreground)]">Linked resources</h2>
+			</div>
+			<div class="grid gap-3 md:grid-cols-2">
+				{#each collections.toolbox as resource (resource.id)}
+					<a
+						href={`/toolbox/${resource.slug ?? resource.id}`}
+						class="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-4 text-inherit no-underline shadow-[var(--sh)] transition-transform hover:-translate-y-0.5"
+					>
+						<div class="flex flex-wrap gap-2">
+							{#if resource.mediaType}
+								<span
+									class="rounded-full bg-[var(--muted)] px-2.5 py-1 text-[11px] font-bold tracking-[0.08em] text-[var(--muted-foreground)] uppercase"
+								>
+									{resource.mediaType}
+								</span>
+							{/if}
+							{#if resource.category}
+								<span
+									class="rounded-full bg-[var(--muted)] px-2.5 py-1 text-[11px] font-bold tracking-[0.08em] text-[var(--muted-foreground)] uppercase"
+								>
+									{resource.category}
+								</span>
+							{/if}
+						</div>
+						<h3 class="mt-3 font-serif text-xl font-semibold text-[var(--foreground)]">
+							{resource.title}
+						</h3>
+						{#if resource.description}
+							<p class="mt-2 line-clamp-3 text-sm leading-6 text-[var(--muted-foreground)]">
+								{resource.description}
+							</p>
+						{/if}
+					</a>
+				{/each}
+			</div>
+		</section>
+	{/if}
+
+	<div class="mt-10">
+		<Button variant="outline" href="/">← Back to Knowledge Basket</Button>
+	</div>
 </div>
-
-<style>
-	.kb-event-header-wrap {
-		max-width: 1200px;
-		margin: 0 auto;
-		padding: 1rem 1.5rem 0;
-	}
-	.kb-org-header {
-		max-width: 1200px;
-		margin: 0 auto;
-		padding: 1.5rem 1.5rem 0;
-	}
-	.kb-org-logo {
-		width: 80px;
-		height: 80px;
-		object-fit: contain;
-		margin-bottom: 0.5rem;
-	}
-	.kb-org-title {
-		font-size: 1.75rem;
-		font-weight: 700;
-		margin: 0 0 0.5rem 0;
-	}
-	.kb-org-description {
-		color: var(--muted-foreground);
-		max-width: 60ch;
-		margin: 0 0 0.5rem 0;
-	}
-	.kb-org-website {
-		font-size: 0.875rem;
-	}
-	.kb-org-website:hover {
-		text-decoration: underline;
-	}
-	.kb-org-events {
-		max-width: 1200px;
-		margin: 0 auto;
-		padding: 0 1.5rem;
-	}
-	.kb-org-events h2 {
-		font-size: 1.25rem;
-		margin-bottom: 1rem;
-	}
-	.kb-org-event-grid {
-		list-style: none;
-		margin: 0;
-		padding: 0;
-		display: grid;
-		grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-		gap: 1rem;
-	}
-	.kb-org-no-events {
-		color: var(--muted-foreground);
-	}
-	.kb-org-back {
-		max-width: 1200px;
-		margin: 1.5rem auto 2rem;
-		padding: 0 1.5rem;
-	}
-</style>

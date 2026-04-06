@@ -27,6 +27,7 @@ describe('public route smoke tests', () => {
 			'/auth/reset-password?token=test-token',
 			'/auth/verify-email?email=test@example.com',
 			'/search?q=tribal',
+			'/api/health',
 			'/robots.txt',
 			'/sitemap.xml',
 			'/manifest.webmanifest'
@@ -41,7 +42,7 @@ describe('public route smoke tests', () => {
 	it('redirects unauthenticated admin traffic to login', async () => {
 		const response = await fetch(`${server.baseUrl}/admin`, { redirect: 'manual' });
 		expect(response.status).toBe(303);
-		expect(response.headers.get('location')).toContain('/auth/login?redirect=/admin');
+		expect(response.headers.get('location')).toContain('/auth/login?redirect=%2Fadmin');
 	});
 
 	it('renders metadata on top-level public pages', async () => {
@@ -86,13 +87,13 @@ describe('public route smoke tests', () => {
 		}
 	});
 
-	it('shows explicit limited-search messaging when the cross-coil index is unavailable', async () => {
+	it('shows explicit compatibility-search messaging when the cross-coil index is unavailable', async () => {
 		const html = await fetch(`${server.baseUrl}/search?q=tribal`).then((response) =>
 			response.text()
 		);
 		const normalized = html.replace(/\s+/g, ' ');
-		expect(normalized).toContain('Search is currently limited');
-		expect(normalized).toContain('results currently show events only');
+		expect(normalized).toContain('Search is running in compatibility mode');
+		expect(normalized).toContain('using the database fallback instead');
 	});
 
 	it('publishes discovery endpoints with sitemap and manifest links', async () => {

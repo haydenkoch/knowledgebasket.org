@@ -9,7 +9,9 @@
 
 	const query = $derived((data.query ?? '') as string);
 	const origin = $derived((data.origin ?? '') as string);
-	const searchMode = $derived((data.searchMode ?? 'events-only') as 'all' | 'events-only');
+	const searchMode = $derived((data.searchMode ?? 'offline') as 'offline' | 'partial' | 'ready');
+	const resultSource = $derived((data.resultSource ?? 'database') as 'database' | 'meilisearch');
+	const activeCoil = $derived((data.activeCoil ?? 'all') as CoilKey | 'all');
 	const results = $derived((data.results ?? {}) as Record<CoilKey, SearchDoc[]>);
 
 	const canonicalUrl = $derived(
@@ -28,9 +30,18 @@
 	};
 
 	const orderedCoils: CoilKey[] = ['events', 'funding', 'redpages', 'jobs', 'toolbox'];
+	const visibleCoils = $derived(activeCoil === 'all' ? orderedCoils : [activeCoil]);
 
 	function hrefFor(coil: CoilKey, item: SearchDoc): string {
 		return `${coilPaths[coil]}/${item.slug ?? item.id}`;
+	}
+
+	function hrefForFilter(coil: CoilKey | 'all'): string {
+		const params = new URLSearchParams();
+		if (query) params.set('q', query);
+		if (coil !== 'all') params.set('coil', coil);
+		const qs = params.toString();
+		return qs ? `/search?${qs}` : '/search';
 	}
 </script>
 
@@ -78,12 +89,21 @@
 		</form>
 	</header>
 
-	{#if searchMode === 'events-only'}
+	{#if searchMode !== 'ready'}
 		<Alert class="mb-6 border-amber-300 bg-amber-50 text-amber-950">
-			<AlertTitle>Search is currently limited</AlertTitle>
+			<AlertTitle>
+				{searchMode === 'offline'
+					? 'Search is running in compatibility mode'
+					: 'Search is partially indexed right now'}
+			</AlertTitle>
 			<AlertDescription>
-				Full cross-coil indexing is not available right now, so these results currently show events
-				only.
+				{#if searchMode === 'offline'}
+					Indexed search is unavailable right now, so these results are using the database fallback
+					instead.
+				{:else}
+					Some search indexes are missing or incomplete, so these results are falling back to the
+					database to stay truthful.
+				{/if}
 			</AlertDescription>
 		</Alert>
 	{/if}
@@ -101,12 +121,33 @@
 		</div>
 	{:else}
 		<div class="mb-4 text-sm text-muted-foreground">
-			Showing {totalResults} result{totalResults === 1 ? '' : 's'} across
-			{searchMode === 'all' ? 'all available coils' : 'events'}.
+			Showing {totalResults} result{totalResults === 1 ? '' : 's'}
+			{#if activeCoil === 'all'}
+				across all available coils
+			{:else}
+				in {coilLabels[activeCoil]}
+			{/if}
+			using {resultSource === 'meilisearch' ? 'indexed search' : 'database fallback'}.
+		</div>
+
+		<div class="mb-6 flex flex-wrap gap-2">
+			{#each ['all', ...orderedCoils] as coil}
+				<a
+					href={hrefForFilter(coil as CoilKey | 'all')}
+					class="rounded-full border px-3 py-1.5 text-sm font-medium no-underline transition-colors hover:no-underline"
+					class:border-primary={activeCoil === coil}
+					class:bg-primary={activeCoil === coil}
+					class:text-primary-foreground={activeCoil === coil}
+					class:border-border={activeCoil !== coil}
+					class:text-muted-foreground={activeCoil !== coil}
+				>
+					{coil === 'all' ? 'All coils' : coilLabels[coil as CoilKey]}
+				</a>
+			{/each}
 		</div>
 
 		<div class="space-y-8">
-			{#each orderedCoils as coil}
+			{#each visibleCoils as coil}
 				{#if results[coil]?.length}
 					<section aria-labelledby={`search-${coil}`}>
 						<div class="mb-3 flex items-center justify-between gap-3">

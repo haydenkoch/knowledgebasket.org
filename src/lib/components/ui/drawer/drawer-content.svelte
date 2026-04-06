@@ -8,16 +8,21 @@
 		class: className,
 		children,
 		showHandle = true,
+		overlayClass = '',
 		...restProps
 	}: WithoutChildrenOrChild<DrawerPrimitive.ContentProps> & {
 		children: Snippet;
 		showHandle?: boolean;
+		overlayClass?: string;
 	} = $props();
 </script>
 
 <DrawerPrimitive.Portal>
 	<DrawerPrimitive.Overlay
-		class="fixed inset-0 z-50 bg-black/50 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:animate-in data-[state=open]:fade-in-0"
+		class={cn(
+			'fixed inset-0 z-50 bg-black/50 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:animate-in data-[state=open]:fade-in-0',
+			overlayClass
+		)}
 	/>
 	<DrawerPrimitive.Content
 		bind:ref

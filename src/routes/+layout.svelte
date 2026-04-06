@@ -19,12 +19,12 @@
 	<link rel="icon" href={faviconHref} />
 	<link rel="manifest" href="/manifest.webmanifest" />
 	<meta name="theme-color" content="#132533" />
-	<link
-		rel="stylesheet"
-		href="https://use.typekit.net/fkv3aem.css"
-		media="print"
-		onload={(e) => ((e.currentTarget as HTMLLinkElement).media = 'all')}
-	/>
+	<link rel="dns-prefetch" href="//use.typekit.net" />
+	<link rel="dns-prefetch" href="//p.typekit.net" />
+	<link rel="preconnect" href="https://use.typekit.net" />
+	<link rel="preconnect" href="https://p.typekit.net" crossorigin="anonymous" />
+	<link rel="preload" href="https://use.typekit.net/fkv3aem.css" as="style" />
+	<link rel="stylesheet" href="https://use.typekit.net/fkv3aem.css" />
 	<noscript>
 		<link rel="stylesheet" href="https://use.typekit.net/fkv3aem.css" />
 	</noscript>

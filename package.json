@@ -19,7 +19,10 @@
 		"db:migrate": "drizzle-kit migrate",
 		"db:studio": "drizzle-kit studio",
 		"auth:schema": "better-auth generate --config src/lib/server/auth.ts --output src/lib/server/db/auth.schema.ts --yes",
-		"db:seed": "node scripts/seed-events.js",
+		"db:seed": "node scripts/seed-launch.mjs",
+		"db:seed:events": "node scripts/seed-events.js",
+		"db:seed:coils": "node scripts/seed-coils.js",
+		"db:seed:sources": "tsx scripts/seed-sources.ts",
 		"images:process": "node scripts/process-landscape-images.mjs"
 	},
 	"devDependencies": {
@@ -73,6 +76,7 @@
 		"vitest": "^3.2.4"
 	},
 	"dependencies": {
+		"@aws-sdk/client-s3": "^3.1024.0",
 		"@schedule-x/calendar": "^4.3.1",
 		"@schedule-x/events-service": "^4.3.1",
 		"@schedule-x/svelte": "^3.0.0",
@@ -84,6 +88,7 @@
 		"meilisearch": "^0.55.0",
 		"node-ical": "^0.25.5",
 		"nodemailer": "^8.0.4",
+		"svelte-dnd-action": "^0.9.69",
 		"temporal-polyfill": "^0.3.2",
 		"tinymce": "^8.3.2",
 		"xlsx": "^0.18.5"

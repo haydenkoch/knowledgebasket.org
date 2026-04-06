@@ -17,14 +17,20 @@
 	import type { CalendarApp } from '@schedule-x/calendar';
 	import EventCard from '$lib/components/molecules/EventCard.svelte';
 	import EventListItem from '$lib/components/molecules/EventListItem.svelte';
+	import EventsViewSelector from '$lib/components/molecules/EventsViewSelector.svelte';
 	import EventsToolbar from '$lib/components/molecules/EventsToolbar.svelte';
 	import CoilTheme from '$lib/components/organisms/CoilTheme.svelte';
+	import KbSubmitBanner from '$lib/components/organisms/KbSubmitBanner.svelte';
+	import MobilePeekPanel from '$lib/components/organisms/MobilePeekPanel.svelte';
 	import EventsSidebar from '$lib/components/organisms/EventsSidebar.svelte';
 	import EventsCalendarView from '$lib/components/organisms/EventsCalendarView.svelte';
 	import EventsRightSidebar from '$lib/components/organisms/EventsRightSidebar.svelte';
+	import { Button } from '$lib/components/ui/button/index.js';
+	import { useSidebar } from '$lib/components/ui/sidebar/index.js';
 	import { Alert, AlertDescription, AlertTitle } from '$lib/components/ui/alert/index.js';
 	import { tsToCalendarDate } from '$lib/utils/date.js';
 	import {
+		matchSearch,
 		parseEventStart,
 		formatEventTime,
 		eventCalendarParts,
@@ -37,6 +43,7 @@
 	import { eventToSx } from '$lib/calendar/event-to-sx.js';
 
 	type EventView = 'cards' | 'list' | 'calendar';
+	const MOBILE_FILTER_PEEK_HEIGHT = 70;
 
 	let { data } = $props();
 	const canonicalUrl = $derived(`${data.origin ?? ''}/events`);
@@ -58,6 +65,7 @@
 	type CalendarViewMode = 'week' | 'month' | 'quarter';
 
 	let eventView = $state<EventView>('list');
+	let mobileFiltersExpanded = $state(false);
 	let calendarYear = $state(now.getFullYear());
 	let calendarMonth = $state(now.getMonth());
 	let selectedDay = $state<number | null>(null);
@@ -68,6 +76,7 @@
 	let calendarSelectedId = $state<string | null>(null);
 	let eventDetailsOpen = $state(false);
 	const isMobile = new IsMobile();
+	const publicSidebar = useSidebar();
 	/** Right sidebar: show at 960px+ to match CoilLayout three-column breakpoint (not 768px). */
 	const isDesktopLayout = new IsMobile(960);
 
@@ -607,6 +616,35 @@
 			? `${selectedDayEvents.length} events · ${withTime} with times`
 			: `${selectedDayEvents.length} events`;
 	});
+
+	const mobileActiveFilterCount = $derived(
+		(filters.searchQuery.trim() ? 1 : 0) +
+			filters.regionSelect.length +
+			filters.typeSelect.length +
+			filters.costFilter.length +
+			(filters.rangeStart !== filters.todayStart || filters.rangeEnd !== filters.defaultRangeEnd
+				? 1
+				: 0)
+	);
+	const mobileSearchSuggestions = $derived.by(() => {
+		const query = filters.searchQuery.trim();
+		if (!query || mobileFiltersExpanded) return [];
+		return events
+			.filter((event) => matchSearch(event, query, ['location', 'region', 'type', 'title']))
+			.slice(0, 5);
+	});
+	function expandMobileFilters() {
+		mobileFiltersExpanded = true;
+	}
+
+	function collapseMobileFilters() {
+		mobileFiltersExpanded = false;
+	}
+
+	// Collapse filter panel when the main nav sidebar opens on mobile
+	$effect(() => {
+		if (publicSidebar.openMobile) mobileFiltersExpanded = false;
+	});
 </script>
 
 <svelte:head>
@@ -661,6 +699,9 @@
 		</section>
 	{/if}
 	<h2 class="sr-only">Upcoming events</h2>
+	<div class="mb-4 md:hidden">
+		<EventsViewSelector bind:eventView />
+	</div>
 	<EventsToolbar filteredTotal={filters.filteredTotal} />
 
 	{#if eventView === 'cards'}
@@ -773,13 +814,15 @@
 			role="presentation"
 		>
 			<div
-				class="coil-layout__left order-1 w-full flex-none overflow-hidden overflow-y-auto border-b border-[var(--rule)] bg-[var(--color-alpine-50,#fafaf8)] p-3 md:w-[272px] md:border-r md:border-b-0 md:px-3 md:py-5"
+				class="coil-layout__left order-1 hidden w-full flex-none overflow-hidden overflow-y-auto border-b border-[var(--rule)] bg-[var(--color-alpine-50,#fafaf8)] p-3 md:block md:w-[272px] md:border-r md:border-b-0 md:px-3 md:py-5"
 			>
 				<EventsSidebar
 					{filters}
 					bind:eventView
+					mobileMode={false}
 					{formatCostLabel}
 					{regionTriggerLabel}
+					activeFilterCount={mobileActiveFilterCount}
 					onTypeRemove={removeType}
 					onClear={handleClearFilters}
 				/>
@@ -789,23 +832,67 @@
 			>
 				{@render sidebarRight?.()}
 			</aside>
-			<main class="coil-layout__main order-2 min-w-0 flex-1 p-4 md:p-6 md:pl-7">
+			<main class="coil-layout__main order-2 min-w-0 flex-1 p-4 pb-28 md:p-6 md:pl-7">
 				{@render children?.()}
 			</main>
 		</div>
+
+		{#if mobileFiltersExpanded && !publicSidebar.openMobile}
+			<button
+				type="button"
+				class="events-mobile-filter-overlay md:hidden"
+				onclick={collapseMobileFilters}
+				aria-label="Collapse filters"
+			></button>
+		{/if}
+		<MobilePeekPanel
+			bind:expanded={mobileFiltersExpanded}
+			peekHeight={MOBILE_FILTER_PEEK_HEIGHT}
+			class="events-mobile-filter-panel md:hidden {publicSidebar.openMobile
+				? 'peek-behind-nav'
+				: ''}"
+		>
+			<div class="events-mobile-filter-drawer__body">
+				<EventsSidebar
+					{filters}
+					bind:eventView
+					mobileMode={true}
+					{formatCostLabel}
+					{regionTriggerLabel}
+					activeFilterCount={mobileActiveFilterCount}
+					isExpanded={mobileFiltersExpanded}
+					mobileSuggestions={mobileSearchSuggestions}
+					onTypeRemove={removeType}
+					onClear={handleClearFilters}
+				/>
+			</div>
+		</MobilePeekPanel>
 	</CoilTheme>
 
-	<div
-		class="flex flex-wrap items-center justify-between gap-6 border-t-[3px] border-[var(--granite-200,var(--teal))] bg-[var(--granite-200,var(--slate-lt))] px-4 py-7 sm:px-6 lg:px-10"
-	>
-		<div>
-			<h3>Know of an event we should list?</h3>
-			<p>Submit Indigenous-led and Indigenous-serving events for IFS staff review.</p>
-		</div>
-		<a
-			href="/events/submit"
-			class="inline-flex flex-none items-center justify-center rounded-[var(--radius)] bg-[var(--teal)] px-[26px] py-3 font-sans text-sm font-bold tracking-[0.03em] whitespace-nowrap text-white no-underline transition-[filter] hover:brightness-110"
-			>Submit an Event</a
-		>
-	</div>
+	<KbSubmitBanner
+		coil="events"
+		heading="Know of an event we should list?"
+		description="Submit Indigenous-led and Indigenous-serving events for IFS staff review."
+		href="/events/submit"
+		label="Submit an Event"
+	/>
 </div>
+
+<style>
+	:global(.events-mobile-filter-overlay) {
+		position: fixed;
+		inset: 0;
+		z-index: 40;
+		border: none;
+		background: rgba(15, 23, 42, 0.18);
+	}
+
+	.events-mobile-filter-drawer__body {
+		overflow-y: auto;
+		padding: 0.25rem 1.25rem 0.5rem;
+	}
+
+	:global(.peek-behind-nav.mobile-peek-panel) {
+		z-index: 39;
+	}
+</style>

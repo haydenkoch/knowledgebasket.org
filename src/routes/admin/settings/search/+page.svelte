@@ -56,16 +56,20 @@
 		{/snippet}
 		{#snippet meta()}
 			<span>
-				{data.snapshot.meilisearchAvailable
+				{data.snapshot.searchReadiness.state === 'ready'
 					? 'Search is connected across all indexed content'
-					: data.snapshot.meilisearchConfigured
-						? 'Search is configured but currently unavailable'
-						: 'Search is not fully connected yet'}
+					: data.snapshot.searchReadiness.state === 'partial'
+						? 'Search is reachable but only partially indexed'
+						: data.snapshot.meilisearchConfigured
+							? 'Search is configured but currently unavailable'
+							: 'Search is not fully connected yet'}
 			</span>
 			<span>
-				{data.snapshot.searchMode === 'all'
+				{data.snapshot.searchMode === 'ready'
 					? 'Cross-site content lookup is live'
-					: 'Content lookup falls back to events only until search is connected'}
+					: data.snapshot.searchMode === 'partial'
+						? 'Public search is falling back to database results until missing indexes are restored'
+						: 'Public search is running in database compatibility mode'}
 			</span>
 		{/snippet}
 	</AdminPageHeader>
@@ -89,19 +93,26 @@
 		{/each}
 	</div>
 
-	{#if !data.snapshot.meilisearchAvailable}
+	{#if data.snapshot.searchReadiness.state !== 'ready'}
 		<div
 			class="rounded-2xl border border-[color:color-mix(in_srgb,var(--color-flicker-300)_50%,transparent)] bg-[color:color-mix(in_srgb,var(--color-flicker-50)_70%,white)] px-5 py-4 text-sm text-[var(--color-flicker-900)]"
 		>
 			<div class="flex items-start gap-3">
 				<CircleAlert class="mt-0.5 h-4 w-4 shrink-0" />
 				<p>
-					{#if data.snapshot.meilisearchConfigured}
-						Meilisearch is configured but not reachable right now. Public search will fall back to
-						events only until the connection is healthy again.
+					{#if data.snapshot.searchReadiness.state === 'partial'}
+						Meilisearch is reachable, but some required indexes are still missing. Public search is
+						currently falling back to database results until {data.snapshot.searchReadiness
+							.missingCoils.length} missing index{data.snapshot.searchReadiness.missingCoils
+							.length === 1
+							? ''
+							: 'es'} are restored.
+					{:else if data.snapshot.meilisearchConfigured}
+						Meilisearch is configured but not reachable right now. Public search is running in
+						database compatibility mode until the connection is healthy again.
 					{:else}
-						This connection is not set up yet. Public search will fall back to events only until
-						Meilisearch is configured.
+						This connection is not set up yet. Public search will stay in database compatibility
+						mode until Meilisearch is configured.
 					{/if}
 				</p>
 			</div>

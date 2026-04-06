@@ -1,23 +1,99 @@
 import type { CoilKey } from '$lib/data/kb';
 import { getEvents, searchEventsFromDb } from '$lib/server/events';
-import { getPublishedFunding } from '$lib/server/funding';
-import { getPublishedJobs } from '$lib/server/jobs';
+import { getPublishedFunding, searchFundingFromDb } from '$lib/server/funding';
+import { getPublishedJobs, searchJobsFromDb } from '$lib/server/jobs';
 import {
-	isMeilisearchAvailable,
-	isMeilisearchConfigured,
+	getSearchReadiness,
 	reindexAllEvents,
 	reindexCoil,
-	searchAll,
+	searchAllWithStatus,
 	type SearchDoc
 } from '$lib/server/meilisearch';
 import { getOrganizations } from '$lib/server/organizations';
-import { getPublishedBusinesses } from '$lib/server/red-pages';
+import { getPublishedBusinesses, searchBusinessesFromDb } from '$lib/server/red-pages';
 import { getSourcesForAdmin } from '$lib/server/sources';
-import { getPublishedResources } from '$lib/server/toolbox';
+import { getPublishedResources, searchResourcesFromDb } from '$lib/server/toolbox';
 import { getVenues } from '$lib/server/venues';
 import { stripHtml } from '$lib/utils/format';
 
 type SearchReindexSummary = Record<CoilKey, number>;
+type PublicSearchResult = {
+	readiness: Awaited<ReturnType<typeof getSearchReadiness>>;
+	results: Record<CoilKey, SearchDoc[]>;
+	resultSource: 'meilisearch' | 'database';
+};
+
+const emptyResults: Record<CoilKey, SearchDoc[]> = {
+	events: [],
+	funding: [],
+	redpages: [],
+	jobs: [],
+	toolbox: []
+};
+
+export async function searchAllFromDb(
+	query: string,
+	limit = 12
+): Promise<Record<CoilKey, SearchDoc[]>> {
+	if (query.trim().length < 2) return { ...emptyResults };
+
+	const [events, funding, jobs, toolbox, redpages] = await Promise.all([
+		searchEventsFromDb(query)
+			.then((items) =>
+				items.slice(0, limit).map((item) => ({
+					id: item.id,
+					slug: item.slug ?? item.id,
+					title: item.title,
+					description: item.description,
+					coil: 'events' as const
+				}))
+			)
+			.catch(() => []),
+		searchFundingFromDb(query, limit)
+			.then((items) => items.map((item) => ({ ...item, coil: 'funding' as const })))
+			.catch(() => []),
+		searchJobsFromDb(query, limit)
+			.then((items) => items.map((item) => ({ ...item, coil: 'jobs' as const })))
+			.catch(() => []),
+		searchResourcesFromDb(query, limit)
+			.then((items) => items.map((item) => ({ ...item, coil: 'toolbox' as const })))
+			.catch(() => []),
+		searchBusinessesFromDb(query, limit)
+			.then((items) => items.map((item) => ({ ...item, coil: 'redpages' as const })))
+			.catch(() => [])
+	]);
+
+	return { events, funding, jobs, toolbox, redpages };
+}
+
+export async function runPublicSearch(query: string, limit = 12): Promise<PublicSearchResult> {
+	const readiness = await getSearchReadiness();
+	if (query.trim().length < 2) {
+		return {
+			readiness,
+			results: { ...emptyResults },
+			resultSource: readiness.state === 'ready' ? 'meilisearch' : 'database'
+		};
+	}
+
+	if (readiness.state === 'ready') {
+		const meili = await searchAllWithStatus(query, { limit });
+		if (meili.ok) {
+			return {
+				readiness,
+				results: meili.results,
+				resultSource: 'meilisearch'
+			};
+		}
+	}
+
+	return {
+		readiness:
+			readiness.state === 'ready' ? { ...readiness, state: 'partial' as const } : readiness,
+		results: await searchAllFromDb(query, limit),
+		resultSource: 'database'
+	};
+}
 
 export async function reindexPublishedContentCoil(coil: CoilKey): Promise<number> {
 	switch (coil) {
@@ -134,8 +210,7 @@ export async function reindexAllPublishedContent(): Promise<SearchReindexSummary
 }
 
 export async function getSearchOperationsSnapshot(query = '') {
-	const meilisearchConfigured = isMeilisearchConfigured();
-	const meilisearchAvailable = await isMeilisearchAvailable();
+	const searchReadiness = await getSearchReadiness();
 	const [events, funding, redpages, jobs, toolbox, organizations, venues, sources] =
 		await Promise.all([
 			getEvents({ includeIcal: false }),
@@ -156,33 +231,21 @@ export async function getSearchOperationsSnapshot(query = '') {
 		toolbox: toolbox.length
 	};
 
-	let contentResults: Record<CoilKey, SearchDoc[]> = {
-		events: [],
-		funding: [],
-		redpages: [],
-		jobs: [],
-		toolbox: []
-	};
+	let contentResults: Record<CoilKey, SearchDoc[]> = { ...emptyResults };
+	let resultSource: 'meilisearch' | 'database' = 'database';
 
 	if (query.trim().length >= 2) {
-		if (meilisearchAvailable) {
-			contentResults = await searchAll(query, { limit: 6 });
-		} else {
-			const eventResults = await searchEventsFromDb(query);
-			contentResults.events = eventResults.slice(0, 6).map((item) => ({
-				id: item.id,
-				slug: item.slug ?? item.id,
-				title: item.title,
-				description: item.description,
-				coil: 'events'
-			}));
-		}
+		const search = await runPublicSearch(query, 6);
+		contentResults = search.results;
+		resultSource = search.resultSource;
 	}
 
 	return {
-		meilisearchConfigured,
-		meilisearchAvailable,
-		searchMode: meilisearchAvailable ? 'all' : 'events-only',
+		meilisearchConfigured: searchReadiness.configured,
+		meilisearchAvailable: searchReadiness.available,
+		searchReadiness,
+		searchMode: searchReadiness.state,
+		resultSource,
 		publishedCounts,
 		contentResults,
 		entityResults: {

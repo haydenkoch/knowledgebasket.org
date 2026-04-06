@@ -80,13 +80,20 @@ pnpm db:generate
 pnpm db:migrate
 pnpm db:studio
 pnpm db:seed
+pnpm db:seed:events
+pnpm db:seed:coils
+pnpm db:seed:sources
 pnpm auth:schema
 ```
 
 Notes:
 
-- `pnpm db:seed` currently seeds events from CSV.
+- `pnpm db:seed` now runs the launch-data seed: events, non-event coils, and source registry seeds when the shared source seed file is available.
+- `pnpm db:seed:events` runs the legacy events CSV seed only.
+- `pnpm db:seed:coils` seeds Funding, Red Pages, Jobs, and Toolbox sample content.
+- `pnpm db:seed:sources` seeds the source registry from shared `seed-sources.json` data when that file is present in the linked data repo.
 - Search indexing uses Meilisearch when configured.
+- Health status for DB, search, object storage, and source ops is exposed at `GET /api/health`.
 - After applying DB migrations, restart the dev server so cached schema-health warnings clear.
 - Recent additive migrations include source-ops snapshot support and aliases on organizations/venues.
 - `POST /api/reindex` is protected in production. Use an admin/moderator session or send `x-reindex-secret` matching `REINDEX_SECRET`.

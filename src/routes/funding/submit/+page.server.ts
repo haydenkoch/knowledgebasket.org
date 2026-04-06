@@ -1,6 +1,7 @@
 import { fail } from '@sveltejs/kit';
 import type { Actions } from './$types';
 import { createFunding } from '$lib/server/funding';
+import { RATE_LIMIT_POLICIES, consumeRateLimit } from '$lib/server/rate-limit';
 import { buildSubmissionAdminNotes, parseDateInput } from '$lib/server/submission-notes';
 
 type FundingSubmitDeps = {
@@ -9,7 +10,19 @@ type FundingSubmitDeps = {
 
 export function _createFundingSubmitActions(deps: FundingSubmitDeps = { createFunding }): Actions {
 	return {
-		default: async ({ request, locals }) => {
+		default: async (event) => {
+			const rateLimit = consumeRateLimit(
+				event,
+				RATE_LIMIT_POLICIES.publicSubmit,
+				'/funding/submit'
+			);
+			if (!rateLimit.allowed) {
+				return fail(429, {
+					error: `Too many submissions. Please wait ${rateLimit.retryAfterSeconds} seconds and try again.`
+				});
+			}
+
+			const { request, locals } = event;
 			const formData = await request.formData();
 			const opportunity_name = formData.get('opportunity_name')?.toString().trim() ?? '';
 			const funder = formData.get('funder')?.toString().trim() ?? '';

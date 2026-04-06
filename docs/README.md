@@ -34,6 +34,8 @@ For implementation truth, use:
   - performance notes and follow-up work
 - `docs/SOURCE_OPS_HANDOFF.md`
   - source-ops and operational handoff context
+- `docs/PRODUCTION_RUNBOOK.md`
+  - launch operations, health checks, seed flows, scheduler, and backup/recovery notes
 - `docs/ops-content-workflows.md`
   - moderation and operations workflow notes
 - `docs/TAKEOVER_AUDIT.md`

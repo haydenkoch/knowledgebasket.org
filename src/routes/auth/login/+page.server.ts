@@ -2,6 +2,7 @@ import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { auth } from '$lib/server/auth';
 import { APIError } from 'better-auth/api';
+import { RATE_LIMIT_POLICIES, consumeRateLimit } from '$lib/server/rate-limit';
 
 function safeRedirect(redirectTo: string | null): string {
 	if (!redirectTo) return '/';
@@ -23,6 +24,14 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 
 export const actions: Actions = {
 	signIn: async (event) => {
+		const rateLimit = consumeRateLimit(event, RATE_LIMIT_POLICIES.authLogin, '/auth/login');
+		if (!rateLimit.allowed) {
+			return fail(429, {
+				message: `Too many sign-in attempts. Please wait ${rateLimit.retryAfterSeconds} seconds and try again.`,
+				email: ''
+			});
+		}
+
 		const formData = await event.request.formData();
 		const email = formData.get('email')?.toString().trim() ?? '';
 		const password = formData.get('password')?.toString() ?? '';

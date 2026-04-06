@@ -1,15 +1,25 @@
 import type { PageServerLoad, Actions } from './$types';
 import { fail } from '@sveltejs/kit';
+import { env } from '$env/dynamic/private';
 import { createEvent } from '$lib/server/events';
 import { fetchEventsFromIcalFeed } from '$lib/server/ical-feed';
 import type { EventItem } from '$lib/data/kb';
 
 export const load: PageServerLoad = async () => {
-	return {};
+	return {
+		legacyImportEnabled: env.ALLOW_LEGACY_EVENT_IMPORT === 'true'
+	};
 };
 
 export const actions: Actions = {
 	preview: async ({ request }) => {
+		if (env.ALLOW_LEGACY_EVENT_IMPORT !== 'true') {
+			return fail(403, {
+				error:
+					'Legacy iCal import is disabled. Use the source operations workflow for production ingestion.'
+			});
+		}
+
 		const fd = await request.formData();
 		const url = fd.get('url') as string;
 		if (!url?.trim()) return fail(400, { error: 'URL is required' });
@@ -24,6 +34,13 @@ export const actions: Actions = {
 		}
 	},
 	import: async ({ request, locals }) => {
+		if (env.ALLOW_LEGACY_EVENT_IMPORT !== 'true') {
+			return fail(403, {
+				error:
+					'Legacy iCal import is disabled. Use the source operations workflow for production ingestion.'
+			});
+		}
+
 		const fd = await request.formData();
 		const eventsJson = fd.get('events') as string;
 		if (!eventsJson) return fail(400, { error: 'No events data' });

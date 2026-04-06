@@ -1,12 +1,18 @@
 <script lang="ts">
 	import EventCard from '$lib/components/molecules/EventCard.svelte';
+	import JobListItem from '$lib/components/molecules/JobListItem.svelte';
+	import RedPagesListItem from '$lib/components/molecules/RedPagesListItem.svelte';
+	import FundingCard from '$lib/components/molecules/FundingCard.svelte';
 	import { Button } from '$lib/components/ui/button/index.js';
-	import MapPinIcon from '@lucide/svelte/icons/map-pin';
 	import * as Breadcrumb from '$lib/components/ui/breadcrumb/index.js';
+	import MapPinIcon from '@lucide/svelte/icons/map-pin';
+	import GlobeIcon from '@lucide/svelte/icons/globe';
+	import Building2Icon from '@lucide/svelte/icons/building-2';
 
 	let { data } = $props();
 	const venue = $derived(data.venue);
-	const events = $derived(data.events);
+	const organization = $derived(data.organization);
+	const collections = $derived(data.collections);
 
 	const addressLine = $derived(
 		[venue.address, venue.city, venue.state, venue.zip].filter(Boolean).join(', ')
@@ -18,129 +24,275 @@
 				? `https://www.google.com/maps?q=${venue.lat},${venue.lng}`
 				: ''
 	);
+	const linkedOrgContentCount = $derived(
+		collections.funding.length +
+			collections.jobs.length +
+			collections.redpages.length +
+			collections.toolbox.length
+	);
 </script>
 
 <svelte:head>
 	<title>{venue.name} | Venue | Knowledge Basket</title>
-	<meta name="description" content={venue.description ?? `Upcoming events at ${venue.name}.`} />
+	<meta
+		name="description"
+		content={venue.description ?? `Published Knowledge Basket content connected to ${venue.name}.`}
+	/>
 </svelte:head>
 
-<div class="kb-event-detail" style="--kb-accent: var(--teal)">
-	<div class="kb-event-header-wrap">
-		<Breadcrumb.Root>
-			<Breadcrumb.List>
-				<Breadcrumb.Item>
-					<Breadcrumb.Link href="/events">Events</Breadcrumb.Link>
-				</Breadcrumb.Item>
-				<Breadcrumb.Separator />
-				<Breadcrumb.Item>
-					<Breadcrumb.Page>{venue.name}</Breadcrumb.Page>
-				</Breadcrumb.Item>
-			</Breadcrumb.List>
-		</Breadcrumb.Root>
-	</div>
+<div class="mx-auto max-w-6xl px-4 py-6 sm:px-6">
+	<Breadcrumb.Root class="mb-5">
+		<Breadcrumb.List>
+			<Breadcrumb.Item>
+				<Breadcrumb.Link href="/">Knowledge Basket</Breadcrumb.Link>
+			</Breadcrumb.Item>
+			<Breadcrumb.Separator />
+			<Breadcrumb.Item>
+				<Breadcrumb.Page>{venue.name}</Breadcrumb.Page>
+			</Breadcrumb.Item>
+		</Breadcrumb.List>
+	</Breadcrumb.Root>
 
-	<header class="kb-venue-header">
-		<h1 class="kb-venue-title">{venue.name}</h1>
-		{#if venue.description}
-			<p class="kb-venue-description">{venue.description}</p>
-		{/if}
-		{#if addressLine}
-			<p class="kb-venue-address">
-				<MapPinIcon
-					class="kb-location-icon"
-					style="vertical-align: middle; width: 1rem; height: 1rem;"
-				/>
-				{addressLine}
-			</p>
-			{#if mapUrl}
-				<a href={mapUrl} target="_blank" rel="noopener" class="kb-venue-map-link"
-					>Get directions →</a
+	<header
+		class="rounded-[28px] border border-[var(--border)] bg-[var(--card)] p-6 shadow-[var(--sh)]"
+	>
+		<div class="grid gap-6 lg:grid-cols-[1fr_320px]">
+			<div class="space-y-4">
+				<div class="flex flex-wrap items-center gap-2">
+					{#if venue.venueType}
+						<span
+							class="rounded-full bg-[var(--muted)] px-3 py-1 text-[11px] font-bold tracking-[0.08em] text-[var(--muted-foreground)] uppercase"
+						>
+							{venue.venueType}
+						</span>
+					{/if}
+					{#if organization}
+						<span
+							class="rounded-full bg-[color-mix(in_srgb,var(--teal)_12%,white)] px-3 py-1 text-[11px] font-bold tracking-[0.08em] text-[var(--teal)] uppercase"
+						>
+							Linked organization
+						</span>
+					{/if}
+				</div>
+				<h1
+					class="font-serif text-3xl leading-tight font-bold text-[var(--foreground)] sm:text-4xl"
 				>
-			{/if}
-		{/if}
-		{#if venue.website}
-			<a href={venue.website} target="_blank" rel="noopener" class="kb-venue-website"
-				>Visit website →</a
-			>
-		{/if}
+					{venue.name}
+				</h1>
+				{#if venue.description}
+					<p class="max-w-3xl text-base leading-7 text-[var(--muted-foreground)]">
+						{venue.description}
+					</p>
+				{/if}
+				<div class="flex flex-wrap gap-3 text-sm text-[var(--foreground)]">
+					{#if addressLine}
+						<div class="inline-flex items-center gap-2 rounded-full bg-[var(--muted)] px-3 py-1.5">
+							<MapPinIcon class="size-4 text-[var(--muted-foreground)]" />
+							<span>{addressLine}</span>
+						</div>
+					{/if}
+					{#if mapUrl}
+						<a
+							href={mapUrl}
+							target="_blank"
+							rel="noopener"
+							class="inline-flex items-center gap-2 rounded-full bg-[var(--muted)] px-3 py-1.5 text-inherit no-underline transition-colors hover:bg-[var(--accent)]"
+						>
+							<MapPinIcon class="size-4 text-[var(--muted-foreground)]" />
+							<span>Directions</span>
+						</a>
+					{/if}
+					{#if venue.website}
+						<a
+							href={venue.website}
+							target="_blank"
+							rel="noopener"
+							class="inline-flex items-center gap-2 rounded-full bg-[var(--muted)] px-3 py-1.5 text-inherit no-underline transition-colors hover:bg-[var(--accent)]"
+						>
+							<GlobeIcon class="size-4 text-[var(--muted-foreground)]" />
+							<span>Website</span>
+						</a>
+					{/if}
+				</div>
+			</div>
+
+			<div class="rounded-3xl border border-[var(--border)] bg-[var(--background)] p-5">
+				<div class="grid grid-cols-2 gap-3">
+					<div class="rounded-2xl border border-[var(--border)] bg-[var(--card)] px-4 py-3">
+						<div class="font-serif text-2xl font-bold text-[var(--foreground)]">
+							{collections.events.length}
+						</div>
+						<div
+							class="text-[11px] font-bold tracking-[0.08em] text-[var(--muted-foreground)] uppercase"
+						>
+							Events here
+						</div>
+					</div>
+					<div class="rounded-2xl border border-[var(--border)] bg-[var(--card)] px-4 py-3">
+						<div class="font-serif text-2xl font-bold text-[var(--foreground)]">
+							{linkedOrgContentCount}
+						</div>
+						<div
+							class="text-[11px] font-bold tracking-[0.08em] text-[var(--muted-foreground)] uppercase"
+						>
+							Linked content
+						</div>
+					</div>
+				</div>
+
+				{#if organization}
+					<div class="mt-4 rounded-2xl border border-[var(--border)] bg-[var(--card)] p-4">
+						<div class="flex items-start gap-3">
+							<div
+								class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--muted)]"
+							>
+								<Building2Icon class="size-5 text-[var(--muted-foreground)]" />
+							</div>
+							<div class="min-w-0">
+								<p
+									class="text-[11px] font-bold tracking-[0.12em] text-[var(--muted-foreground)] uppercase"
+								>
+									Managed by
+								</p>
+								<h2 class="mt-1 font-serif text-xl font-semibold text-[var(--foreground)]">
+									{organization.name}
+								</h2>
+								{#if organization.description}
+									<p class="mt-2 line-clamp-3 text-sm leading-6 text-[var(--muted-foreground)]">
+										{organization.description}
+									</p>
+								{/if}
+								<Button variant="outline" href={`/o/${organization.slug}`} class="mt-4">
+									View organization hub
+								</Button>
+							</div>
+						</div>
+					</div>
+				{:else}
+					<p class="mt-4 text-sm leading-6 text-[var(--muted-foreground)]">
+						This venue is not yet linked to an organization profile, so only venue-specific event
+						content is shown here.
+					</p>
+				{/if}
+			</div>
+		</div>
 	</header>
 
-	<section class="kb-venue-events">
-		<h2>Upcoming events</h2>
-		{#if events.length > 0}
-			<ul class="kb-venue-event-grid">
-				{#each events as event, i}
-					<li><EventCard {event} index={i} /></li>
+	<section class="mt-8 space-y-4">
+		<div>
+			<p class="text-[11px] font-bold tracking-[0.12em] text-[var(--muted-foreground)] uppercase">
+				Events
+			</p>
+			<h2 class="font-serif text-2xl font-semibold text-[var(--foreground)]">
+				Upcoming events at this venue
+			</h2>
+		</div>
+		{#if collections.events.length > 0}
+			<ul class="grid list-none gap-4 p-0 md:grid-cols-2 xl:grid-cols-3">
+				{#each collections.events as event, index (event.id)}
+					<li><EventCard {event} {index} /></li>
 				{/each}
 			</ul>
 		{:else}
-			<p class="kb-venue-no-events">No upcoming events at this venue.</p>
+			<div
+				class="rounded-[28px] border border-dashed border-[var(--border)] bg-[var(--card)] px-6 py-10 text-center"
+			>
+				<p class="font-serif text-2xl font-semibold text-[var(--foreground)]">
+					No upcoming events are linked to this venue
+				</p>
+				<p class="mt-2 text-sm leading-6 text-[var(--muted-foreground)]">
+					Check back soon or explore the linked organization profile for additional activity.
+				</p>
+			</div>
 		{/if}
 	</section>
 
-	<p class="kb-venue-back">
-		<Button variant="outline" href="/events">← Back to all events</Button>
-	</p>
-</div>
+	{#if organization && linkedOrgContentCount > 0}
+		<section class="mt-8 space-y-6">
+			<div>
+				<p class="text-[11px] font-bold tracking-[0.12em] text-[var(--muted-foreground)] uppercase">
+					Linked organization
+				</p>
+				<h2 class="font-serif text-2xl font-semibold text-[var(--foreground)]">
+					More from {organization.name}
+				</h2>
+			</div>
 
-<style>
-	.kb-event-header-wrap {
-		max-width: 1200px;
-		margin: 0 auto;
-		padding: 1rem 1.5rem 0;
-	}
-	.kb-venue-header {
-		max-width: 1200px;
-		margin: 0 auto;
-		padding: 1.5rem 1.5rem 0;
-	}
-	.kb-venue-title {
-		font-size: 1.75rem;
-		font-weight: 700;
-		margin: 0 0 0.5rem 0;
-	}
-	.kb-venue-description {
-		color: var(--muted-foreground);
-		max-width: 60ch;
-		margin: 0 0 0.5rem 0;
-	}
-	.kb-venue-address {
-		margin: 0.5rem 0;
-	}
-	.kb-venue-map-link,
-	.kb-venue-website {
-		display: inline-block;
-		font-size: 0.875rem;
-		margin-right: 1rem;
-	}
-	.kb-venue-map-link:hover,
-	.kb-venue-website:hover {
-		text-decoration: underline;
-	}
-	.kb-venue-events {
-		max-width: 1200px;
-		margin: 0 auto;
-		padding: 0 1.5rem;
-	}
-	.kb-venue-events h2 {
-		font-size: 1.25rem;
-		margin-bottom: 1rem;
-	}
-	.kb-venue-event-grid {
-		list-style: none;
-		margin: 0;
-		padding: 0;
-		display: grid;
-		grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-		gap: 1rem;
-	}
-	.kb-venue-no-events {
-		color: var(--muted-foreground);
-	}
-	.kb-venue-back {
-		max-width: 1200px;
-		margin: 1.5rem auto 2rem;
-		padding: 0 1.5rem;
-	}
-</style>
+			{#if collections.funding.length > 0}
+				<div class="space-y-4">
+					<h3 class="font-serif text-xl font-semibold text-[var(--foreground)]">Funding</h3>
+					<div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+						{#each collections.funding as item, index (item.id)}
+							<FundingCard {item} {index} />
+						{/each}
+					</div>
+				</div>
+			{/if}
+
+			{#if collections.jobs.length > 0}
+				<div class="space-y-4">
+					<h3 class="font-serif text-xl font-semibold text-[var(--foreground)]">Jobs</h3>
+					<div class="flex flex-col gap-3">
+						{#each collections.jobs as job, index (job.id)}
+							<JobListItem {job} {index} />
+						{/each}
+					</div>
+				</div>
+			{/if}
+
+			{#if collections.redpages.length > 0}
+				<div class="space-y-4">
+					<h3 class="font-serif text-xl font-semibold text-[var(--foreground)]">Red Pages</h3>
+					<div class="flex flex-col gap-3">
+						{#each collections.redpages as vendor, index (vendor.id)}
+							<RedPagesListItem {vendor} {index} />
+						{/each}
+					</div>
+				</div>
+			{/if}
+
+			{#if collections.toolbox.length > 0}
+				<div class="space-y-4">
+					<h3 class="font-serif text-xl font-semibold text-[var(--foreground)]">Toolbox</h3>
+					<div class="grid gap-3 md:grid-cols-2">
+						{#each collections.toolbox as resource (resource.id)}
+							<a
+								href={`/toolbox/${resource.slug ?? resource.id}`}
+								class="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-4 text-inherit no-underline shadow-[var(--sh)] transition-transform hover:-translate-y-0.5"
+							>
+								<div class="flex flex-wrap gap-2">
+									{#if resource.mediaType}
+										<span
+											class="rounded-full bg-[var(--muted)] px-2.5 py-1 text-[11px] font-bold tracking-[0.08em] text-[var(--muted-foreground)] uppercase"
+										>
+											{resource.mediaType}
+										</span>
+									{/if}
+									{#if resource.category}
+										<span
+											class="rounded-full bg-[var(--muted)] px-2.5 py-1 text-[11px] font-bold tracking-[0.08em] text-[var(--muted-foreground)] uppercase"
+										>
+											{resource.category}
+										</span>
+									{/if}
+								</div>
+								<h3 class="mt-3 font-serif text-xl font-semibold text-[var(--foreground)]">
+									{resource.title}
+								</h3>
+								{#if resource.description}
+									<p class="mt-2 line-clamp-3 text-sm leading-6 text-[var(--muted-foreground)]">
+										{resource.description}
+									</p>
+								{/if}
+							</a>
+						{/each}
+					</div>
+				</div>
+			{/if}
+		</section>
+	{/if}
+
+	<div class="mt-10">
+		<Button variant="outline" href="/">← Back to Knowledge Basket</Button>
+	</div>
+</div>

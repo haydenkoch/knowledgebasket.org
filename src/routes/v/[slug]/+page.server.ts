@@ -1,10 +1,38 @@
 import { getVenueBySlug } from '$lib/server/venues';
 import { getUpcomingEventsByVenueId } from '$lib/server/events';
+import { getOrganizationById } from '$lib/server/organizations';
+import { getFundingByOrganizationId } from '$lib/server/funding';
+import { getJobsByOrganizationId } from '$lib/server/jobs';
+import { getBusinessesByOrganizationId } from '$lib/server/red-pages';
+import { getResourcesByOrganizationId } from '$lib/server/toolbox';
 import { error } from '@sveltejs/kit';
 
 export async function load({ params }) {
 	const venue = await getVenueBySlug(params.slug);
 	if (!venue) throw error(404, 'Venue not found');
 	const events = await getUpcomingEventsByVenueId(venue.id);
-	return { venue, events };
+	const organization = venue.organizationId
+		? await getOrganizationById(venue.organizationId)
+		: null;
+
+	const [funding, jobs, redpages, toolbox] = organization
+		? await Promise.all([
+				getFundingByOrganizationId(organization.id),
+				getJobsByOrganizationId(organization.id),
+				getBusinessesByOrganizationId(organization.id),
+				getResourcesByOrganizationId(organization.id)
+			])
+		: [[], [], [], []];
+
+	return {
+		venue,
+		organization,
+		collections: {
+			events,
+			funding,
+			jobs,
+			redpages,
+			toolbox
+		}
+	};
 }

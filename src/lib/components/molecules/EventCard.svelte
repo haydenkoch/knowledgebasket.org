@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { EventItem } from '$lib/data/kb';
 	import { stripHtml } from '$lib/utils/format';
+	import CalendarDays from '@lucide/svelte/icons/calendar-days';
 
 	let { event, index = 0 }: { event: EventItem; index?: number } = $props();
 
@@ -40,7 +41,7 @@
 				loading="lazy"
 			/>
 		{:else}
-			<span class="absolute text-[48px] opacity-[0.35]" aria-hidden="true">🗓</span>
+			<CalendarDays class="absolute h-12 w-12 text-white opacity-[0.35]" aria-hidden="true" />
 		{/if}
 		{#if event.startDate}
 			<span

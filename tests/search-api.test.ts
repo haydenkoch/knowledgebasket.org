@@ -15,16 +15,18 @@ describe('search API mode reporting', () => {
 		await server?.stop();
 	});
 
-	it('falls back to events-only mode when Meilisearch is configured but unavailable', async () => {
+	it('reports offline compatibility mode when Meilisearch is configured but unavailable', async () => {
 		const response = await fetch(`${server.baseUrl}/api/search?q=tribal`);
 		expect(response.status).toBe(200);
 
 		const payload = (await response.json()) as {
 			mode: string;
 			query: string;
+			resultSource: string;
 		};
 
 		expect(payload.query).toBe('tribal');
-		expect(payload.mode).toBe('events-only');
+		expect(payload.mode).toBe('offline');
+		expect(payload.resultSource).toBe('database');
 	});
 });

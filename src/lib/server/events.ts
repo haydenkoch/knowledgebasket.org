@@ -1,7 +1,20 @@
 /**
  * Events data layer: single source of truth for reviewed event content.
  */
-import { eq, ne, desc, asc, gte, ilike, or, and, sql, inArray, isNull } from 'drizzle-orm';
+import {
+	eq,
+	ne,
+	desc,
+	asc,
+	gte,
+	ilike,
+	or,
+	and,
+	sql,
+	inArray,
+	notInArray,
+	isNull
+} from 'drizzle-orm';
 import { db, type DbExecutor } from '$lib/server/db';
 import {
 	events as eventsTable,
@@ -248,6 +261,90 @@ export async function getUpcomingEventsByOrganizationId(
 		)
 		.orderBy(asc(eventsTable.startDate))
 		.limit(20);
+	return rows.map((r) => rowToEventItem(r));
+}
+
+/**
+ * Get the next N upcoming published events (non-unlisted).
+ */
+export async function getUpcomingEvents(limit: number): Promise<EventItem[]> {
+	const rows = await db
+		.select()
+		.from(eventsTable)
+		.where(
+			and(
+				eq(eventsTable.status, 'published'),
+				gte(eventsTable.startDate, new Date()),
+				or(eq(eventsTable.unlisted, false), isNull(eventsTable.unlisted))
+			)
+		)
+		.orderBy(asc(eventsTable.startDate))
+		.limit(limit);
+	return rows.map((r) => rowToEventItem(r));
+}
+
+/**
+ * Get the N most recently published events (non-unlisted).
+ */
+export async function getRecentEvents(limit: number): Promise<EventItem[]> {
+	const rows = await db
+		.select()
+		.from(eventsTable)
+		.where(
+			and(
+				eq(eventsTable.status, 'published'),
+				or(eq(eventsTable.unlisted, false), isNull(eventsTable.unlisted))
+			)
+		)
+		.orderBy(desc(eventsTable.publishedAt))
+		.limit(limit);
+	return rows.map((r) => rowToEventItem(r));
+}
+
+export interface HomepageQueryOpts {
+	limit: number;
+	sortBy: string;
+	sortDir: 'asc' | 'desc';
+	futureOnly: boolean;
+	excludedIds?: string[];
+	searchQuery?: string;
+}
+
+export async function queryEventsForHomepage(opts: HomepageQueryOpts): Promise<EventItem[]> {
+	const conditions = [
+		eq(eventsTable.status, 'published'),
+		or(eq(eventsTable.unlisted, false), isNull(eventsTable.unlisted))
+	];
+	if (opts.futureOnly) conditions.push(gte(eventsTable.startDate, new Date()));
+	if (opts.excludedIds?.length) conditions.push(notInArray(eventsTable.id, opts.excludedIds));
+	if (opts.searchQuery?.trim()) {
+		const query = `%${opts.searchQuery.trim()}%`;
+		conditions.push(
+			or(
+				ilike(eventsTable.title, query),
+				ilike(eventsTable.description, query),
+				ilike(eventsTable.location, query),
+				ilike(eventsTable.region, query),
+				ilike(eventsTable.hostOrg, query),
+				ilike(eventsTable.type, query)
+			)!
+		);
+	}
+
+	const sortCol =
+		opts.sortBy === 'date'
+			? eventsTable.startDate
+			: opts.sortBy === 'title'
+				? eventsTable.title
+				: eventsTable.publishedAt;
+	const orderFn = opts.sortDir === 'asc' ? asc : desc;
+
+	const rows = await db
+		.select()
+		.from(eventsTable)
+		.where(and(...conditions))
+		.orderBy(orderFn(sortCol))
+		.limit(opts.limit);
 	return rows.map((r) => rowToEventItem(r));
 }
 

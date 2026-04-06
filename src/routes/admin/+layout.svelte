@@ -28,7 +28,8 @@
 		User,
 		Inbox,
 		Globe2,
-		ShieldCheck
+		ShieldCheck,
+		LayoutDashboard
 	} from '@lucide/svelte';
 
 	let { data, children } = $props();
@@ -64,6 +65,7 @@
 	];
 
 	const settingsNav = [
+		{ href: '/admin/settings/homepage', label: 'Homepage', icon: LayoutDashboard },
 		{ href: '/admin/settings/taxonomies', label: 'Taxonomies', icon: Tags },
 		{ href: '/admin/settings/branding', label: 'Branding', icon: Palette },
 		{ href: '/admin/settings/integrations', label: 'Integrations', icon: Plug },
@@ -94,6 +96,7 @@
 		inbox: 'Inbox',
 		settings: 'Settings',
 		taxonomies: 'Taxonomies',
+		homepage: 'Homepage',
 		branding: 'Branding',
 		integrations: 'Integrations',
 		search: 'Search',

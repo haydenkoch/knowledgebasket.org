@@ -50,6 +50,9 @@ importers:
       posthog-js:
         specifier: ^1.364.7
         version: 1.364.7
+      site:
+        specifier: 'link:'
+        version: 'link:'
       svelte-dnd-action:
         specifier: ^0.9.69
         version: 0.9.69(svelte@5.53.8)

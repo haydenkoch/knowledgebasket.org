@@ -15,6 +15,62 @@ CREATE TYPE "public"."source_category" AS ENUM('government_federal', 'government
 CREATE TYPE "public"."source_health" AS ENUM('healthy', 'degraded', 'unhealthy', 'stale', 'broken', 'auth_required', 'unknown');--> statement-breakpoint
 CREATE TYPE "public"."source_status" AS ENUM('discovered', 'configuring', 'active', 'paused', 'deprecated', 'disabled', 'manual_only');--> statement-breakpoint
 
+CREATE TABLE "user" (
+	"id" text PRIMARY KEY NOT NULL,
+	"name" text NOT NULL,
+	"email" text NOT NULL,
+	"email_verified" boolean DEFAULT false NOT NULL,
+	"image" text,
+	"role" text DEFAULT 'contributor' NOT NULL,
+	"bio" text,
+	"avatar_url" text,
+	"tribal_affiliation" text,
+	"location" text,
+	"newsletter_opt_in" boolean DEFAULT false,
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	"updated_at" timestamp DEFAULT now() NOT NULL,
+	CONSTRAINT "user_email_unique" UNIQUE("email")
+);--> statement-breakpoint
+
+CREATE TABLE "session" (
+	"id" text PRIMARY KEY NOT NULL,
+	"expires_at" timestamp NOT NULL,
+	"token" text NOT NULL,
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	"updated_at" timestamp NOT NULL,
+	"ip_address" text,
+	"user_agent" text,
+	"user_id" text NOT NULL,
+	CONSTRAINT "session_token_unique" UNIQUE("token"),
+	CONSTRAINT "session_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action
+);--> statement-breakpoint
+
+CREATE TABLE "account" (
+	"id" text PRIMARY KEY NOT NULL,
+	"account_id" text NOT NULL,
+	"provider_id" text NOT NULL,
+	"user_id" text NOT NULL,
+	"access_token" text,
+	"refresh_token" text,
+	"id_token" text,
+	"access_token_expires_at" timestamp,
+	"refresh_token_expires_at" timestamp,
+	"scope" text,
+	"password" text,
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	"updated_at" timestamp NOT NULL,
+	CONSTRAINT "account_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action
+);--> statement-breakpoint
+
+CREATE TABLE "verification" (
+	"id" text PRIMARY KEY NOT NULL,
+	"identifier" text NOT NULL,
+	"value" text NOT NULL,
+	"expires_at" timestamp NOT NULL,
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	"updated_at" timestamp DEFAULT now() NOT NULL
+);--> statement-breakpoint
+
 CREATE TABLE "sources" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"name" text NOT NULL,
@@ -188,6 +244,9 @@ CREATE INDEX "canonical_records_content_fingerprint_idx" ON "canonical_records" 
 CREATE INDEX "canonical_records_composite_key_idx" ON "canonical_records" USING btree ("composite_key");--> statement-breakpoint
 CREATE INDEX "canonical_records_canonical_url_idx" ON "canonical_records" USING btree ("canonical_url");--> statement-breakpoint
 CREATE INDEX "canonical_records_canonical_title_idx" ON "canonical_records" USING btree ("canonical_title");--> statement-breakpoint
+CREATE INDEX "session_userId_idx" ON "session" USING btree ("user_id");--> statement-breakpoint
+CREATE INDEX "account_userId_idx" ON "account" USING btree ("user_id");--> statement-breakpoint
+CREATE INDEX "verification_identifier_idx" ON "verification" USING btree ("identifier");--> statement-breakpoint
 CREATE INDEX "import_batches_source_started_at_idx" ON "import_batches" USING btree ("source_id","started_at" DESC NULLS LAST);--> statement-breakpoint
 CREATE UNIQUE INDEX "imported_candidates_source_item_active_unique" ON "imported_candidates" USING btree ("source_id","source_item_id") WHERE "imported_candidates"."source_item_id" is not null and "imported_candidates"."status" not in ('rejected', 'archived');--> statement-breakpoint
 CREATE UNIQUE INDEX "imported_candidates_fingerprint_active_unique" ON "imported_candidates" USING btree ("coil","content_fingerprint") WHERE "imported_candidates"."content_fingerprint" is not null and "imported_candidates"."status" not in ('rejected', 'archived');--> statement-breakpoint

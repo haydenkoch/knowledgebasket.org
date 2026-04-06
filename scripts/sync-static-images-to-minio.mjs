@@ -11,12 +11,7 @@ import {
 import { readFile, readdir, stat } from 'node:fs/promises';
 import { extname, relative, resolve } from 'node:path';
 
-const {
-	MINIO_ENDPOINT,
-	MINIO_ACCESS_KEY,
-	MINIO_SECRET_KEY,
-	MINIO_BUCKET
-} = process.env;
+const { MINIO_ENDPOINT, MINIO_ACCESS_KEY, MINIO_SECRET_KEY, MINIO_BUCKET } = process.env;
 
 if (!MINIO_ENDPOINT || !MINIO_ACCESS_KEY || !MINIO_SECRET_KEY || !MINIO_BUCKET) {
 	console.error(
@@ -48,7 +43,7 @@ function buildPublicBucketPolicy(bucket) {
 			{
 				Sid: 'PublicReadGetObject',
 				Effect: 'Allow',
-				Principal: { AWS: ['*'] },
+				Principal: '*',
 				Action: ['s3:GetObject'],
 				Resource: [`arn:aws:s3:::${bucket}/*`]
 			}

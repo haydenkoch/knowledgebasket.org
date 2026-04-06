@@ -162,7 +162,7 @@ describe('public route smoke tests', () => {
 			response.text()
 		);
 		const normalized = html.replace(/\s+/g, ' ');
-		expect(normalized).toContain('Results for "tribal"');
+		expect(normalized).toContain('Search results for "tribal"');
 		expect(normalized).toContain('Search Knowledge Basket');
 	});
 

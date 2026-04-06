@@ -35,7 +35,7 @@ function buildPublicBucketPolicy(bucket: string): string {
 			{
 				Sid: 'PublicReadGetObject',
 				Effect: 'Allow',
-				Principal: { AWS: ['*'] },
+				Principal: '*',
 				Action: ['s3:GetObject'],
 				Resource: [`arn:aws:s3:::${bucket}/*`]
 			}

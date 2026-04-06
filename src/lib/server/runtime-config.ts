@@ -185,11 +185,7 @@ function validateProductionRuntimeConfig(
 		}
 
 		if (isBlank(values.PUBLIC_ASSET_BASE_URL)) {
-			addMissing(
-				missing,
-				'PUBLIC_ASSET_BASE_URL',
-				'PUBLIC_ASSET_BASE_URL is required.'
-			);
+			addMissing(missing, 'PUBLIC_ASSET_BASE_URL', 'PUBLIC_ASSET_BASE_URL is required.');
 		} else {
 			const publicAssetBaseUrlIssue = validateAbsoluteUrl(
 				values.PUBLIC_ASSET_BASE_URL,

@@ -1,4 +1,4 @@
-import { PUBLIC_ASSET_BASE_URL } from '$env/static/public';
+import { env } from '$env/dynamic/public';
 
 export const DEFAULT_LOGO_OBJECT_KEY = 'system/logo.png';
 export const LANDSCAPE_OBJECT_PREFIX = 'placeholders/landscapes';
@@ -33,16 +33,13 @@ export function normalizePublicAssetBaseUrl(value: string): string {
 }
 
 export function getPublicAssetBaseUrl(): string {
-	return normalizePublicAssetBaseUrl(PUBLIC_ASSET_BASE_URL);
+	return normalizePublicAssetBaseUrl(env.PUBLIC_ASSET_BASE_URL ?? '');
 }
 
 export function buildPublicAssetUrlFromBase(baseUrl: string, objectKey: string): string {
 	return `${normalizePublicAssetBaseUrl(baseUrl)}/${normalizeObjectKey(objectKey)}`;
 }
 
-export function buildPublicAssetUrl(
-	objectKey: string,
-	options?: { baseUrl?: string }
-): string {
+export function buildPublicAssetUrl(objectKey: string, options?: { baseUrl?: string }): string {
 	return buildPublicAssetUrlFromBase(options?.baseUrl ?? getPublicAssetBaseUrl(), objectKey);
 }

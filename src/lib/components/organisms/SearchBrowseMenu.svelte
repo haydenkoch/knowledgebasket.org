@@ -168,7 +168,7 @@
 		<p class="mt-1 text-sm text-[var(--mid)]">{description}</p>
 	</div>
 
-	<div class="grid gap-0 md:grid-cols-[208px_minmax(0,1fr)]">
+	<div class="grid gap-0 md:grid-cols-[180px_minmax(0,1fr)]">
 		<div class="border-b border-[color:var(--rule)] p-2 md:border-r md:border-b-0">
 			<div class="space-y-1">
 				{#each PUBLIC_SEARCH_PRESETS as preset}

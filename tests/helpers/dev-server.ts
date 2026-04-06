@@ -1,4 +1,5 @@
 import { spawn, type ChildProcess } from 'node:child_process';
+import net from 'node:net';
 import { setTimeout as delay } from 'node:timers/promises';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
@@ -13,10 +14,11 @@ export async function startDevServer(
 	process: ChildProcess;
 	stop: () => Promise<void>;
 }> {
-	const baseUrl = `http://127.0.0.1:${port}`;
+	const assignedPort = await findAvailablePort(port);
+	const baseUrl = `http://127.0.0.1:${assignedPort}`;
 	const child = spawn(
 		'pnpm',
-		['exec', 'vite', 'dev', '--host', '127.0.0.1', '--port', String(port), '--strictPort'],
+		['exec', 'vite', 'dev', '--host', '127.0.0.1', '--port', String(assignedPort), '--strictPort'],
 		{
 			cwd: repoRoot,
 			env: {
@@ -60,6 +62,38 @@ export async function startDevServer(
 			]);
 		}
 	};
+}
+
+async function findAvailablePort(preferredPort: number): Promise<number> {
+	for (let offset = 0; offset < 20; offset += 1) {
+		const candidate = preferredPort + offset;
+		if (await isPortAvailable(candidate)) return candidate;
+	}
+
+	return await new Promise<number>((resolve, reject) => {
+		const server = net.createServer();
+		server.once('error', reject);
+		server.listen(0, '127.0.0.1', () => {
+			const address = server.address();
+			if (!address || typeof address === 'string') {
+				server.close();
+				reject(new Error('Unable to determine an available port'));
+				return;
+			}
+
+			server.close(() => resolve(address.port));
+		});
+	});
+}
+
+function isPortAvailable(port: number): Promise<boolean> {
+	return new Promise((resolve) => {
+		const server = net.createServer();
+		server.once('error', () => resolve(false));
+		server.listen(port, '127.0.0.1', () => {
+			server.close(() => resolve(true));
+		});
+	});
 }
 
 async function waitForServer(

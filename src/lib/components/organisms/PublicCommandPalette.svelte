@@ -392,7 +392,7 @@
 		}
 	>
 		<Dialog.Content
-			class="max-w-[min(54rem,calc(100vw-2rem))] overflow-hidden rounded-[0.85rem] border-[color:var(--rule)] bg-[var(--background)] p-0 shadow-[0_30px_90px_rgba(10,18,28,0.28)]"
+			class="max-w-[min(40rem,calc(100vw-2rem))] sm:max-w-[min(40rem,calc(100vw-2rem))] overflow-hidden rounded-[0.85rem] border-[color:var(--rule)] bg-[var(--background)] p-0 shadow-[0_30px_90px_rgba(10,18,28,0.28)]"
 		>
 			<Dialog.Header class="sr-only">
 				<Dialog.Title>Search Knowledge Basket</Dialog.Title>

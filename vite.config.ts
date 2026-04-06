@@ -61,6 +61,9 @@ export default defineConfig(async () => {
 		resolve: {
 			dedupe: ['svelte', 'bits-ui']
 		},
+		optimizeDeps: {
+			include: ['svelte', '@sentry/sveltekit', 'posthog-js']
+		},
 		server: {
 			host: 'localhost',
 			strictPort: true,

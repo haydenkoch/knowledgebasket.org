@@ -119,9 +119,7 @@ describe('runtime config validation', () => {
 
 		expect(result.ok).toBe(false);
 		expect(result.invalid).toEqual(
-			expect.arrayContaining([
-				expect.objectContaining({ key: 'PUBLIC_ASSET_BASE_URL' })
-			])
+			expect.arrayContaining([expect.objectContaining({ key: 'PUBLIC_ASSET_BASE_URL' })])
 		);
 	});
 });

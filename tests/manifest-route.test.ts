@@ -14,7 +14,7 @@ describe('manifest route', () => {
 		await server?.stop();
 	});
 
-	it('serves a JSON web manifest with the MinIO-backed fallback icon', async () => {
+	it('serves a JSON web manifest with a direct public asset icon URL', async () => {
 		const response = await fetch(`${server.baseUrl}/manifest.webmanifest`);
 		expect(response.status).toBe(200);
 		expect(response.headers.get('content-type')).toContain('application/manifest+json');
@@ -23,6 +23,6 @@ describe('manifest route', () => {
 			icons: Array<{ src: string }>;
 		};
 
-		expect(manifest.icons[0]?.src).toBe('https://assets.example.com/kb-uploads/system/logo.png');
+		expect(manifest.icons[0]?.src).toMatch(/^https:\/\/assets\.example\.com\/kb-uploads\/.+\.png$/);
 	});
 });

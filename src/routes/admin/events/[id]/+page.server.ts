@@ -91,6 +91,17 @@ export const actions: Actions = {
 			nullableString(fd, 'waitlistUrl'),
 			'Waitlist URL must be a valid http or https URL.'
 		);
+		const priceMinRaw = (fd.get('priceMin') as string | null)?.trim() ?? '';
+		const priceMaxRaw = (fd.get('priceMax') as string | null)?.trim() ?? '';
+		const priceMin = priceMinRaw ? Number(priceMinRaw) : null;
+		const priceMax = priceMaxRaw ? Number(priceMaxRaw) : null;
+		if (priceMinRaw && !Number.isFinite(priceMin))
+			issues.push('Minimum price must be a valid number.');
+		if (priceMaxRaw && !Number.isFinite(priceMax))
+			issues.push('Maximum price must be a valid number.');
+		if (priceMin != null && priceMax != null && priceMax < priceMin) {
+			issues.push('Maximum price must be greater than or equal to minimum price.');
+		}
 		if (issues.length > 0) return fail(400, { error: issues[0], issues });
 		const current = await getEventById(params.id);
 		if (!current) return fail(404, { error: 'Event not found' });
@@ -186,6 +197,8 @@ export const actions: Actions = {
 			isAllDay: fd.has('isAllDay'),
 			featured: fd.has('featured'),
 			pricingTiers,
+			priceMin,
+			priceMax,
 			imageUrl: imageUrl ?? imageUrlInput ?? null,
 			lat: Number.isFinite(lat) ? lat! : null,
 			lng: Number.isFinite(lng) ? lng! : null,

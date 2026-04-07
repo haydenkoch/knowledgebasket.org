@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
+	import { getPlaceholderImageSrcset, DEFAULT_SIZES_HERO } from '$lib/data/placeholders';
 
 	interface Props {
 		coil?: 'home' | 'events' | 'funding' | 'redpages' | 'jobs' | 'toolbox';
@@ -8,9 +9,10 @@
 		description?: string;
 		weave?: Snippet;
 		stats?: Snippet;
+		bgImage?: string;
 	}
 
-	let { coil = 'home', eyebrow, title, description, weave, stats }: Props = $props();
+	let { coil = 'home', eyebrow, title, description, weave, stats, bgImage }: Props = $props();
 
 	const gradients: Record<string, string> = {
 		home: 'linear-gradient(135deg, var(--color-lakebed-950), var(--color-lakebed-800))',
@@ -21,13 +23,41 @@
 		toolbox: 'linear-gradient(135deg, var(--color-glacier-600), var(--color-glacier-200))'
 	};
 
+	const coilLandscapeIndex: Record<string, number> = {
+		home: 7,
+		events: 3,
+		funding: 4,
+		jobs: 2,
+		redpages: 6,
+		toolbox: 9
+	};
+
 	const bgGradient = $derived(gradients[coil] ?? gradients.home);
+
+	const resolvedBgImage = $derived.by(() => {
+		if (bgImage) return { src: bgImage, srcSet: undefined, sizes: undefined };
+		const index = coilLandscapeIndex[coil] ?? 7;
+		return getPlaceholderImageSrcset(index, { sizes: DEFAULT_SIZES_HERO });
+	});
 </script>
 
 <section
 	class="relative flex flex-col justify-end overflow-hidden px-4 pt-14 pb-12 sm:px-6 lg:px-10"
 >
-	<div class="pointer-events-none absolute inset-0" style="background: {bgGradient}"></div>
+	<img
+		src={resolvedBgImage.src}
+		srcset={resolvedBgImage.srcSet}
+		sizes={resolvedBgImage.sizes}
+		alt=""
+		aria-hidden="true"
+		class="pointer-events-none absolute inset-0 h-full w-full object-cover"
+		loading="eager"
+		fetchpriority="high"
+	/>
+	<div
+		class="pointer-events-none absolute inset-0 opacity-[0.82]"
+		style="background: {bgGradient}"
+	></div>
 
 	{#if weave}
 		<div

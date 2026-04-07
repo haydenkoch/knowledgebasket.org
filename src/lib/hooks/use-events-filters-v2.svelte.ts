@@ -1,6 +1,16 @@
 /**
- * Events filter and pagination state. Call from events +page.svelte only (uses runes).
- * Returns filter state, derived lists/counts, and handlers for client-side pagination and filters.
+ * Events filter and pagination state — v2.
+ *
+ * Same shape and contract as `use-events-filters.svelte.ts`, with new filter axes:
+ *   - formatSelect       (in_person | online | hybrid)
+ *   - audienceSelect     (free-text from event.audience, faceted)
+ *   - sortBy             (sort order, replaces hard-coded ascending sort)
+ *   - featuredOnly       (only event.featured === true)
+ *   - hideSoldOut        (drop event.soldOut === true)
+ *   - registrationOpen   (drop events whose registrationDeadline has passed)
+ *   - closingThisWeek    (only events with registrationDeadline in the next 7 days)
+ *
+ * Call from events +page.svelte only (uses runes).
  */
 import type { EventItem } from '$lib/data/kb';
 import { eventTypeGroups, eventTypeTags } from '$lib/data/formSchema';
@@ -19,6 +29,15 @@ import {
 } from '$lib/utils/format';
 const EVENTS_PAGE_SIZE = 12;
 
+export const EVENTS_SORT_OPTIONS = [
+	{ id: 'soonest', label: 'Soonest first' },
+	{ id: 'latest', label: 'Latest first' },
+	{ id: 'featured', label: 'Featured first' },
+	{ id: 'closing', label: 'Closing soon' },
+	{ id: 'alpha', label: 'Alphabetical' }
+] as const;
+export type EventsSortKey = (typeof EVENTS_SORT_OPTIONS)[number]['id'];
+
 function getDefaultRange() {
 	const d = new Date();
 	const start = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
@@ -26,9 +45,15 @@ function getDefaultRange() {
 	return { start, end };
 }
 
+function parseDeadline(value: string | undefined | null): number | null {
+	if (!value) return null;
+	const ts = Date.parse(value);
+	return Number.isNaN(ts) ? null : ts;
+}
+
 export type EventsFiltersData = { events?: EventItem[]; initialSearchQuery?: string | null };
 
-export function useEventsFilters(data: EventsFiltersData | (() => EventsFiltersData)) {
+export function useEventsFiltersV2(data: EventsFiltersData | (() => EventsFiltersData)) {
 	const events = $derived(
 		((typeof data === 'function' ? data() : data).events ?? []) as EventItem[]
 	);
@@ -40,6 +65,13 @@ export function useEventsFilters(data: EventsFiltersData | (() => EventsFiltersD
 	let regionSelect = $state<string[]>([]);
 	let typeSelect = $state<string[]>([]);
 	let costFilter = $state<string[]>([]);
+	let formatSelect = $state<string[]>([]);
+	let audienceSelect = $state<string[]>([]);
+	let sortBy = $state<EventsSortKey>('soonest');
+	let featuredOnly = $state(false);
+	let hideSoldOut = $state(false);
+	let registrationOpen = $state(false);
+	let closingThisWeek = $state(false);
 	let rangeStart = $state(getDefaultRange().start);
 	let rangeEnd = $state(getDefaultRange().end);
 	let sliderIndices = $state<[number, number] | null>(null);
@@ -53,6 +85,7 @@ export function useEventsFilters(data: EventsFiltersData | (() => EventsFiltersD
 	const defaultRangeEnd = $derived(
 		new Date(new Date().getFullYear(), new Date().getMonth() + 13, 0, 23, 59, 59, 999).getTime()
 	);
+	const oneWeekFromNow = $derived(todayStart + 7 * 24 * 60 * 60 * 1000);
 
 	const dateBuckets = $derived.by(() => {
 		const now = new Date();
@@ -107,13 +140,16 @@ export function useEventsFilters(data: EventsFiltersData | (() => EventsFiltersD
 	const sliderMaxIx = $derived(sliderIndices?.[1] ?? dateRangeMaxIx);
 
 	const regionCounts = $derived(facetCounts(events, 'region'));
+	const audienceCounts = $derived(facetCounts(events, 'audience'));
 	const typeGroupCounts = $derived(eventTypeGroupCounts(events, eventTypeGroups));
 	const costCounts = $derived(countEventsByCostBucket(events));
 	const regionValues = $derived(Object.keys(regionCounts).sort());
+	const audienceValues = $derived(Object.keys(audienceCounts).sort());
 	const costValues = $derived(
 		EVENT_COST_FILTERS.map((option) => option.id).filter((id) => (costCounts[id] ?? 0) > 0)
 	);
 
+	// ── Filter chain ──────────────────────────────────────────────────────────
 	const searchFiltered = $derived(
 		events.filter((e) => matchSearch(e, searchQuery, ['location', 'region', 'type', 'title']))
 	);
@@ -121,13 +157,21 @@ export function useEventsFilters(data: EventsFiltersData | (() => EventsFiltersD
 		searchFiltered.filter((e) => eventMatchesCostFilters(e, costFilter))
 	);
 	const regionFiltered = $derived(filterByFacets(costFiltered, { region: regionSelect }));
+	const audienceFiltered = $derived(
+		filterByFacets(regionFiltered, { audience: audienceSelect })
+	);
+	const formatFiltered = $derived(
+		formatSelect.length === 0
+			? audienceFiltered
+			: audienceFiltered.filter((e) => !!e.eventFormat && formatSelect.includes(e.eventFormat))
+	);
 	const typeGroupsForFilter = $derived(
 		eventTypeGroups.filter((g) => g.tags.some((tag) => typeSelect.includes(tag)))
 	);
 	const facetFiltered = $derived(
 		typeSelect.length === 0
-			? regionFiltered
-			: regionFiltered.filter((e) =>
+			? formatFiltered
+			: formatFiltered.filter((e) =>
 					typeGroupsForFilter.some((g) => eventMatchesTypeGroup(e, g.tags))
 				)
 	);
@@ -137,7 +181,24 @@ export function useEventsFilters(data: EventsFiltersData | (() => EventsFiltersD
 			return t != null && t >= rangeStart && t <= rangeEnd;
 		})
 	);
+	const statusFiltered = $derived(
+		dateFiltered.filter((e) => {
+			if (featuredOnly && !e.featured) return false;
+			if (hideSoldOut && e.soldOut) return false;
+			if (registrationOpen) {
+				const dl = parseDeadline(e.registrationDeadline);
+				if (dl != null && dl < todayStart) return false;
+				if (e.soldOut) return false;
+			}
+			if (closingThisWeek) {
+				const dl = parseDeadline(e.registrationDeadline);
+				if (dl == null || dl < todayStart || dl > oneWeekFromNow) return false;
+			}
+			return true;
+		})
+	);
 
+	// ── Derived counts (against current date range) ──────────────────────────
 	const eventsInDateRange = $derived(
 		searchFiltered.filter((e) => {
 			const t = parseEventStart(e.startDate);
@@ -146,7 +207,16 @@ export function useEventsFilters(data: EventsFiltersData | (() => EventsFiltersD
 	);
 	const costCountsInRange = $derived(countEventsByCostBucket(eventsInDateRange));
 	const regionCountsInRange = $derived(facetCounts(eventsInDateRange, 'region'));
+	const audienceCountsInRange = $derived(facetCounts(eventsInDateRange, 'audience'));
 	const typeGroupCountsInRange = $derived(eventTypeGroupCounts(eventsInDateRange, eventTypeGroups));
+	const formatCountsInRange = $derived.by(() => {
+		const out: Record<string, number> = {};
+		for (const e of eventsInDateRange) {
+			if (!e.eventFormat) continue;
+			out[e.eventFormat] = (out[e.eventFormat] ?? 0) + 1;
+		}
+		return out;
+	});
 	const costValuesVisible = $derived(
 		EVENT_COST_FILTERS.map((option) => option.id).filter(
 			(id) => (costCountsInRange[id] ?? 0) > 0 || costFilter.includes(id)
@@ -154,6 +224,11 @@ export function useEventsFilters(data: EventsFiltersData | (() => EventsFiltersD
 	);
 	const regionValuesVisible = $derived(
 		regionValues.filter((r) => (regionCountsInRange[r] ?? 0) > 0 || regionSelect.includes(r))
+	);
+	const audienceValuesVisible = $derived(
+		audienceValues.filter(
+			(a) => (audienceCountsInRange[a] ?? 0) > 0 || audienceSelect.includes(a)
+		)
 	);
 	const typeTagsVisible = $derived.by(() => {
 		return eventTypeTags.filter((tag) => {
@@ -163,13 +238,47 @@ export function useEventsFilters(data: EventsFiltersData | (() => EventsFiltersD
 		});
 	});
 
-	const filtered = $derived(
-		[...dateFiltered].sort((a, b) => {
-			const ta = parseEventStart(a.startDate) ?? Infinity;
-			const tb = parseEventStart(b.startDate) ?? Infinity;
-			return ta - tb;
-		})
-	);
+	// ── Sort ──────────────────────────────────────────────────────────────────
+	const filtered = $derived.by(() => {
+		const list = [...statusFiltered];
+		switch (sortBy) {
+			case 'latest':
+				return list.sort(
+					(a, b) =>
+						(parseEventStart(b.startDate) ?? -Infinity) -
+						(parseEventStart(a.startDate) ?? -Infinity)
+				);
+			case 'featured':
+				return list.sort((a, b) => {
+					const fa = a.featured ? 0 : 1;
+					const fb = b.featured ? 0 : 1;
+					if (fa !== fb) return fa - fb;
+					return (
+						(parseEventStart(a.startDate) ?? Infinity) -
+						(parseEventStart(b.startDate) ?? Infinity)
+					);
+				});
+			case 'closing':
+				return list.sort((a, b) => {
+					const da = parseDeadline(a.registrationDeadline) ?? Infinity;
+					const db = parseDeadline(b.registrationDeadline) ?? Infinity;
+					if (da !== db) return da - db;
+					return (
+						(parseEventStart(a.startDate) ?? Infinity) -
+						(parseEventStart(b.startDate) ?? Infinity)
+					);
+				});
+			case 'alpha':
+				return list.sort((a, b) => a.title.localeCompare(b.title));
+			case 'soonest':
+			default:
+				return list.sort(
+					(a, b) =>
+						(parseEventStart(a.startDate) ?? Infinity) -
+						(parseEventStart(b.startDate) ?? Infinity)
+				);
+		}
+	});
 	const filteredTotal = $derived(filtered.length);
 	const totalPages = $derived(Math.max(1, Math.ceil(filteredTotal / EVENTS_PAGE_SIZE)));
 	const currentPage = $derived(Math.min(Math.max(1, pageBinding), totalPages));
@@ -208,6 +317,13 @@ export function useEventsFilters(data: EventsFiltersData | (() => EventsFiltersD
 		regionSelect = [];
 		typeSelect = [];
 		costFilter = [];
+		formatSelect = [];
+		audienceSelect = [];
+		featuredOnly = false;
+		hideSoldOut = false;
+		registrationOpen = false;
+		closingThisWeek = false;
+		sortBy = 'soonest';
 		rangeStart = todayStart;
 		rangeEnd = defaultRangeEnd;
 	}
@@ -240,6 +356,48 @@ export function useEventsFilters(data: EventsFiltersData | (() => EventsFiltersD
 		},
 		set costFilter(v: string[]) {
 			costFilter = v;
+		},
+		get formatSelect() {
+			return formatSelect;
+		},
+		set formatSelect(v: string[]) {
+			formatSelect = v;
+		},
+		get audienceSelect() {
+			return audienceSelect;
+		},
+		set audienceSelect(v: string[]) {
+			audienceSelect = v;
+		},
+		get sortBy() {
+			return sortBy;
+		},
+		set sortBy(v: EventsSortKey) {
+			sortBy = v;
+		},
+		get featuredOnly() {
+			return featuredOnly;
+		},
+		set featuredOnly(v: boolean) {
+			featuredOnly = v;
+		},
+		get hideSoldOut() {
+			return hideSoldOut;
+		},
+		set hideSoldOut(v: boolean) {
+			hideSoldOut = v;
+		},
+		get registrationOpen() {
+			return registrationOpen;
+		},
+		set registrationOpen(v: boolean) {
+			registrationOpen = v;
+		},
+		get closingThisWeek() {
+			return closingThisWeek;
+		},
+		set closingThisWeek(v: boolean) {
+			closingThisWeek = v;
 		},
 		get rangeStart() {
 			return rangeStart;
@@ -286,6 +444,9 @@ export function useEventsFilters(data: EventsFiltersData | (() => EventsFiltersD
 		get regionCounts() {
 			return regionCounts;
 		},
+		get audienceCounts() {
+			return audienceCounts;
+		},
 		get typeGroupCounts() {
 			return typeGroupCounts;
 		},
@@ -294,6 +455,9 @@ export function useEventsFilters(data: EventsFiltersData | (() => EventsFiltersD
 		},
 		get regionValues() {
 			return regionValues;
+		},
+		get audienceValues() {
+			return audienceValues;
 		},
 		get costValues() {
 			return costValues;
@@ -307,11 +471,20 @@ export function useEventsFilters(data: EventsFiltersData | (() => EventsFiltersD
 		get regionFiltered() {
 			return regionFiltered;
 		},
+		get audienceFiltered() {
+			return audienceFiltered;
+		},
+		get formatFiltered() {
+			return formatFiltered;
+		},
 		get facetFiltered() {
 			return facetFiltered;
 		},
 		get dateFiltered() {
 			return dateFiltered;
+		},
+		get statusFiltered() {
+			return statusFiltered;
 		},
 		get eventsInDateRange() {
 			return eventsInDateRange;
@@ -322,14 +495,23 @@ export function useEventsFilters(data: EventsFiltersData | (() => EventsFiltersD
 		get regionCountsInRange() {
 			return regionCountsInRange;
 		},
+		get audienceCountsInRange() {
+			return audienceCountsInRange;
+		},
 		get typeGroupCountsInRange() {
 			return typeGroupCountsInRange;
+		},
+		get formatCountsInRange() {
+			return formatCountsInRange;
 		},
 		get costValuesVisible() {
 			return costValuesVisible;
 		},
 		get regionValuesVisible() {
 			return regionValuesVisible;
+		},
+		get audienceValuesVisible() {
+			return audienceValuesVisible;
 		},
 		get typeTagsVisible() {
 			return typeTagsVisible;

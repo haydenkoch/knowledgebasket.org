@@ -6,6 +6,10 @@
 	import type { EventItem } from '$lib/data/kb';
 	import { getPlaceholderImageSrcset, DEFAULT_SIZES_HERO } from '$lib/data/placeholders';
 	import { formatDisplayDate } from '$lib/utils/display';
+	import {
+		getEventPricingSummary,
+		getEventRegistrationCtaLabel
+	} from '$lib/utils/event-pricing';
 	import { buildOgImagePath } from '$lib/seo/metadata';
 	import {
 		formatEventDateRange,
@@ -36,6 +40,7 @@
 	const galleryImages = $derived(
 		event.imageUrl ? [event.imageUrl, ...(event.imageUrls ?? [])] : (event.imageUrls ?? [])
 	);
+	const pricing = $derived(getEventPricingSummary(event));
 	const primaryImage = $derived(galleryImages[0]);
 	const heroImgAttrs = $derived(
 		primaryImage
@@ -50,19 +55,13 @@
 	const hasRegistrationUrl = $derived(!!event.registrationUrl?.trim());
 	const dualCtas = $derived(hasEventUrl && hasRegistrationUrl);
 	const singleCtaUrl = $derived(hasEventUrl ? event.eventUrl! : (event.registrationUrl ?? null));
+	const registrationCtaLabel = $derived(getEventRegistrationCtaLabel(event));
+	const registrationCtaLabelLong = $derived(getEventRegistrationCtaLabel(event, { long: true }));
 	const singleCtaLabel = $derived(
-		event.cost === 'Free/Sponsored'
-			? 'Register'
-			: event.cost === 'Registration Fee Required'
-				? 'Get tickets'
-				: 'Learn more'
+		hasEventUrl && !hasRegistrationUrl ? 'Learn more' : registrationCtaLabel
 	);
 	const singleCtaLabelLong = $derived(
-		event.cost === 'Free/Sponsored'
-			? 'Register for free'
-			: event.cost === 'Registration Fee Required'
-				? 'Get tickets'
-				: 'Learn more & register'
+		hasEventUrl && !hasRegistrationUrl ? 'Learn more' : registrationCtaLabelLong
 	);
 	const formatLabel = $derived(
 		event.eventFormat === 'online'
@@ -85,6 +84,15 @@
 		if (isNaN(d.getTime())) return null;
 		return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
 	}
+	function formatTierPrice(price: number): string {
+		return price === 0
+			? 'Free'
+			: price.toLocaleString('en-US', {
+					style: 'currency',
+					currency: 'USD',
+					maximumFractionDigits: 2
+				});
+	}
 	const doorsOpenTime = $derived(formatDoorsOpen(event.doorsOpenAt));
 	const eventStartTime = $derived(formatEventTime(event.startDate));
 	const eventTimeSummary = $derived(formatEventTimeRange(event.startDate, event.endDate));
@@ -105,21 +113,15 @@
 	}
 	const directionsUrl = $derived(mapUrl(event.location));
 
-	// Short, single-line location for the utility bar meta. Prefers the venue
-	// name, then region, then the last two comma-separated segments of the
-	// free-text location (usually "City, State"), so the rail never shows a
-	// full street address that would wrap the bar onto two rows.
+	// Single-line location for the utility bar meta. Prefer the most descriptive
+	// available value (venue name → full free-text location → region). The rail
+	// CSS lets this grow to fill the space the action tail leaves behind, and
+	// falls back to ellipsis only when it genuinely cannot fit.
 	const shortLocation = $derived.by(() => {
 		if (event.venueName?.trim()) return event.venueName.trim();
+		if (event.location?.trim()) return event.location.trim();
 		if (event.region?.trim()) return event.region.trim();
-		const loc = event.location?.trim();
-		if (!loc) return null;
-		const parts = loc
-			.split(',')
-			.map((p) => p.trim())
-			.filter(Boolean);
-		if (parts.length >= 2) return parts.slice(-2).join(', ');
-		return parts[0] ?? loc;
+		return null;
 	});
 
 	function calendarUrl(mode: 'week' | 'month'): string {
@@ -249,6 +251,14 @@
 				<div class="kb-event-hero-tags">
 					{#if formatLabel}<span class="kb-event-hero-tag">{formatLabel}</span>{/if}
 					{#if event.region}<span class="kb-event-hero-tag">{event.region}</span>{/if}
+					{#if pricing.badgeLabel}
+						<span
+							class="kb-event-hero-tag"
+							class:kb-event-hero-tag--free={pricing.badgeTone === 'free'}
+						>
+							{pricing.badgeLabel}
+						</span>
+					{/if}
 					{#each getEventTypeTags(event) as tag (tag)}
 						<span class="kb-event-hero-tag">{tag}</span>
 					{/each}
@@ -375,11 +385,7 @@
 								signedIn: Boolean(data.user)
 							})}
 					>
-						{event.cost === 'Free/Sponsored'
-							? 'Register'
-							: event.cost === 'Registration Fee Required'
-								? 'Get tickets'
-								: 'Register'}
+						{registrationCtaLabel}
 						<ArrowRight class="size-4" />
 					</Button>
 				{:else if singleCtaUrl}
@@ -410,7 +416,9 @@
 			<section class="kb-event-about">
 				<h2>About this event</h2>
 				{#if event.description}
-					<div class="kb-detail-description">{@html event.description}</div>
+					<div class="kb-detail-description kb-detail-description--rich">
+						{@html event.description}
+					</div>
 				{:else}
 					<p class="kb-event-no-desc kb-detail-description">No description available.</p>
 				{/if}
@@ -483,42 +491,63 @@
 					<p class="kb-event-info-value">{event.ageRestriction}</p>
 				</div>
 			{/if}
-			{#if event.location || event.venueSlug}
+			{#if event.address || event.location || (event.lat != null && event.lng != null)}
+				<LocationMap
+					lat={event.lat}
+					lng={event.lng}
+					label={event.venueName ?? event.location ?? 'Event location'}
+					address={event.address ?? event.location ?? undefined}
+					searchText={event.address ?? event.location ?? event.venueName ?? undefined}
+					token={data.mapboxToken}
+					accent="var(--teal)"
+					eyebrow="Event location"
+					secondaryActionHref={event.venueSlug ? `/v/${event.venueSlug}` : undefined}
+					secondaryActionLabel={event.venueSlug ? 'Venue page' : undefined}
+					height={220}
+				/>
+			{:else if event.venueSlug}
 				<div class="kb-event-info-card">
 					<h3>Location</h3>
-					{#if event.venueSlug}
-						<p class="kb-event-info-value">
-							<a href="/v/{event.venueSlug}" class="kb-event-info-link-inline"
-								>{event.venueName ?? event.location ?? 'Venue'}</a
-							>
-						</p>
-					{/if}
-					{#if event.location && (!event.venueName || event.location !== event.venueName)}
-						<p class="kb-event-info-value">{event.location}</p>
-					{/if}
-					{#if event.lat != null && event.lng != null}
-						<div class="kb-event-info-map">
-							<LocationMap
-								lat={event.lat}
-								lng={event.lng}
-								label={event.venueName ?? event.location ?? 'Event location'}
-								address={event.address ?? event.location ?? undefined}
-								token={data.mapboxToken}
-								accent="#0c2540"
-								height={220}
-							/>
-						</div>
-					{:else if directionsUrl}
-						<a href={directionsUrl} target="_blank" rel="noopener" class="kb-event-info-link"
-							>Get directions <ArrowRight class="inline h-4 w-4" /></a
+					<p class="kb-event-info-value">
+						<a href="/v/{event.venueSlug}" class="kb-event-info-link-inline"
+							>{event.venueName ?? event.location ?? 'Venue'}</a
 						>
-					{/if}
+					</p>
+				</div>
+			{:else if (event.location || event.venueSlug) && directionsUrl}
+				<div class="kb-event-info-card">
+					<h3>Location</h3>
+					<a href={directionsUrl} target="_blank" rel="noopener" class="kb-event-info-link"
+						>Get directions <ArrowRight class="inline h-4 w-4" /></a
+					>
 				</div>
 			{/if}
-			{#if event.cost}
+			{#if pricing.summaryLabel || pricing.detailNote || pricing.pricingTiers.length > 0}
 				<div class="kb-event-info-card">
 					<h3>Cost</h3>
-					<p class="kb-event-info-value">{event.cost}</p>
+					<div class="kb-event-cost-stack">
+						{#if pricing.isFree || (pricing.minPrice != null && pricing.minPrice === pricing.maxPrice)}
+							<span
+								class="kb-event-cost-badge"
+								class:kb-event-cost-badge--free={pricing.badgeTone === 'free'}
+							>
+								{pricing.isFree ? 'Free' : formatTierPrice(pricing.minPrice as number)}
+							</span>
+						{/if}
+						{#if pricing.detailNote}
+							<p class="kb-event-info-note">{pricing.detailNote}</p>
+						{/if}
+						{#if pricing.pricingTiers.length > 0}
+							<ul class="kb-event-cost-tiers">
+								{#each pricing.pricingTiers as tier, index (tier.label + index)}
+									<li>
+										<span>{tier.label || `Tier ${index + 1}`}</span>
+										<span>{formatTierPrice(tier.price)}</span>
+									</li>
+								{/each}
+							</ul>
+						{/if}
+					</div>
 				</div>
 			{/if}
 			{#if event.audience}
@@ -548,28 +577,8 @@
 					{/if}
 				</div>
 			{/if}
-			{#if event.contactName || event.contactEmail || event.contactPhone}
-				<div class="kb-event-info-card">
-					<h3>Contact</h3>
-					{#if event.contactName}
-						<p class="kb-event-info-value">{event.contactName}</p>
-					{/if}
-					{#if event.contactEmail}
-						<p class="kb-event-info-value">
-							<a href={`mailto:${event.contactEmail}`} class="kb-event-info-link-inline"
-								>{event.contactEmail}</a
-							>
-						</p>
-					{/if}
-					{#if event.contactPhone}
-						<p class="kb-event-info-value">
-							<a href={`tel:${event.contactPhone}`} class="kb-event-info-link-inline"
-								>{event.contactPhone}</a
-							>
-						</p>
-					{/if}
-				</div>
-			{/if}
+			<!-- Contact info intentionally hidden on the public events detail page for now. -->
+
 			{#if event.soldOut && event.waitlistUrl}
 				<div class="kb-event-info-card">
 					<a href={event.waitlistUrl} target="_blank" rel="noopener" class="kb-event-primary-cta"
@@ -594,11 +603,7 @@
 						rel="noopener"
 						class="kb-event-primary-cta kb-event-cta-secondary"
 					>
-						{event.cost === 'Free/Sponsored'
-							? 'Register for free'
-							: event.cost === 'Registration Fee Required'
-								? 'Get tickets'
-								: 'Register'}
+						{registrationCtaLabelLong}
 					</a>
 				</div>
 			{:else if singleCtaUrl}
@@ -780,6 +785,9 @@
 		backdrop-filter: blur(4px);
 		-webkit-backdrop-filter: blur(4px);
 	}
+	.kb-event-hero-tag--free {
+		background: rgba(16, 185, 129, 0.22);
+	}
 	.kb-event-hero-title {
 		font-family: var(--font-display, var(--font-serif));
 		font-size: clamp(1.75rem, 5vw, 3.25rem);
@@ -821,20 +829,14 @@
 		align-items: center;
 		gap: 0.3rem;
 		min-width: 0;
-		max-width: 22ch;
+		flex: 0 1 auto;
 	}
-	.kb-event-meta-venue span:last-child {
+	.kb-event-meta-venue > span:last-child {
+		min-width: 0;
 		white-space: nowrap;
 		overflow: hidden;
 		text-overflow: ellipsis;
 	}
-	/* Sidebar location card wraps the embedded map */
-	.kb-event-info-map {
-		margin-top: 0.75rem;
-		border-radius: 10px;
-		overflow: hidden;
-	}
-
 	/* ── Main content grid ───────────────────────────────── */
 	.kb-event-detail-grid {
 		display: grid;
@@ -864,9 +866,56 @@
 	.kb-detail-description {
 		max-width: 65ch;
 		line-height: 1.6;
+		color: var(--foreground);
+		font: inherit;
 	}
 	.kb-detail-description :global(:first-child) {
 		margin-top: 0;
+	}
+	.kb-detail-description--rich :global(p) {
+		margin: 0 0 1rem 0;
+		font: inherit;
+		line-height: 1.75;
+		color: inherit;
+	}
+	.kb-detail-description--rich :global(h3) {
+		margin: 1.5rem 0 0.5rem 0;
+		font: inherit;
+		font-size: 1rem;
+		font-weight: 600;
+		line-height: 1.45;
+		color: inherit;
+	}
+	.kb-detail-description--rich :global(ul),
+	.kb-detail-description--rich :global(ol) {
+		margin: 0 0 1rem 0;
+		padding-left: 1.25rem;
+	}
+	.kb-detail-description--rich :global(ul) {
+		list-style: disc;
+	}
+	.kb-detail-description--rich :global(ol) {
+		list-style: decimal;
+	}
+	.kb-detail-description--rich :global(li) {
+		margin: 0.35rem 0;
+		padding-left: 0.15rem;
+		font: inherit;
+		line-height: 1.7;
+		color: inherit;
+	}
+	.kb-detail-description--rich :global(li::marker) {
+		color: var(--muted-foreground);
+	}
+	.kb-detail-description--rich :global(a) {
+		color: var(--teal);
+		font: inherit;
+		font-weight: 600;
+		text-decoration: none;
+		text-underline-offset: 0.18em;
+	}
+	.kb-detail-description--rich :global(a:hover) {
+		text-decoration: underline;
 	}
 	.kb-event-no-desc {
 		color: var(--muted-foreground);
@@ -901,6 +950,47 @@
 		margin: 0.35rem 0 0 0;
 		font-size: 0.8125rem;
 		color: var(--muted-foreground);
+	}
+	.kb-event-cost-stack {
+		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
+	}
+	.kb-event-cost-badge {
+		display: inline-flex;
+		width: fit-content;
+		align-items: center;
+		border-radius: 9999px;
+		background: rgba(15, 23, 42, 0.08);
+		padding: 0.2rem 0.55rem;
+		font-size: 0.75rem;
+		font-weight: 700;
+		letter-spacing: 0.02em;
+		color: var(--foreground);
+	}
+	.kb-event-cost-badge--free {
+		background: rgba(16, 185, 129, 0.14);
+		color: #0f766e;
+	}
+	.kb-event-cost-tiers {
+		list-style: none;
+		margin: 0;
+		padding: 0;
+		display: flex;
+		flex-direction: column;
+		gap: 0.4rem;
+	}
+	.kb-event-cost-tiers li {
+		display: flex;
+		align-items: baseline;
+		justify-content: space-between;
+		gap: 1rem;
+		font-size: 0.875rem;
+		color: var(--muted-foreground);
+	}
+	.kb-event-cost-tiers li span:last-child {
+		font-weight: 600;
+		color: var(--foreground);
 	}
 
 	/* Link styles: no permanent underline — hover only (matches global default) */

@@ -4,6 +4,7 @@
 	import * as Card from '$lib/components/ui/card/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog/index.js';
+	import { formatDisplayDateTime } from '$lib/utils/display';
 	import EventForm from '$lib/components/organisms/admin/EventForm.svelte';
 	import StatusBadge from '$lib/components/organisms/admin/StatusBadge.svelte';
 
@@ -144,7 +145,9 @@
 							<a href="/admin/events/{child.id}" class="font-medium text-primary hover:underline"
 								>{child.title}</a
 							>
-							<span class="text-muted-foreground">— {child.startDate ?? 'No date'}</span>
+							<span class="text-muted-foreground">
+								— {formatDisplayDateTime(child.startDate, undefined, 'No date')}
+							</span>
 						</li>
 					{/each}
 				</ul>

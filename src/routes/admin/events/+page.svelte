@@ -7,6 +7,7 @@
 	import * as Empty from '$lib/components/ui/empty/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
 	import { Label } from '$lib/components/ui/label/index.js';
+	import { formatDisplayDateTime } from '$lib/utils/display';
 	import AdminReviewQueue from '$lib/components/organisms/admin/AdminReviewQueue.svelte';
 	import StatusBadge from '$lib/components/organisms/admin/StatusBadge.svelte';
 	import Pencil from '@lucide/svelte/icons/pencil';
@@ -115,7 +116,9 @@
 				<Table.Cell class="text-sm text-[var(--mid)]">
 					{event.organizationName ?? event.hostOrg ?? '—'}
 				</Table.Cell>
-				<Table.Cell class="text-sm text-[var(--mid)]">{event.startDate ?? '—'}</Table.Cell>
+				<Table.Cell class="text-sm text-[var(--mid)]">
+					{formatDisplayDateTime(event.startDate, undefined, '—')}
+				</Table.Cell>
 				<Table.Cell class="text-sm text-[var(--mid)]">
 					{#if event.createdAt}
 						<div>{timeAgo(event.createdAt)}</div>

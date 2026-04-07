@@ -4,6 +4,7 @@
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Alert, AlertDescription, AlertTitle } from '$lib/components/ui/alert/index.js';
 	import { Label } from '$lib/components/ui/label/index.js';
+	import { formatDisplayDateTime } from '$lib/utils/display';
 	import StatusBadge from '$lib/components/organisms/admin/StatusBadge.svelte';
 
 	let { data, form } = $props();
@@ -53,8 +54,9 @@
 										<input type="radio" name="keeperId" value={event.id} class="h-4 w-4" />
 										<input type="hidden" name="mergeIds" value={event.id} />
 										<span class="font-medium">{event.title}</span>
-										<span class="text-xs text-muted-foreground">{event.startDate ?? 'No date'}</span
-										>
+										<span class="text-xs text-muted-foreground">
+											{formatDisplayDateTime(event.startDate, undefined, 'No date')}
+										</span>
 									</Label>
 									<StatusBadge status={event.status ?? 'unknown'} />
 									<Button href="/admin/events/{event.id}" variant="ghost" size="sm">Edit</Button>

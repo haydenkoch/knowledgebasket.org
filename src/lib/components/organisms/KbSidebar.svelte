@@ -1,8 +1,6 @@
 <script lang="ts">
 	import { Search, Sparkles, X } from '@lucide/svelte';
 	import Input from '$lib/components/ui/input/input.svelte';
-	import { buttonVariants } from '$lib/components/ui/button/index.js';
-	import { cn } from '$lib/utils.js';
 	import type { Snippet } from 'svelte';
 
 	interface Props {
@@ -101,7 +99,7 @@
 					</div>
 				{/if}
 			</div>
-			{#if showSummary && (resultsLabel || hasActiveFilters)}
+			{#if showSummary && (resultsLabel || activeFilterCount > 0)}
 				<div class="kb-sidebar__summary">
 					<div class="kb-sidebar__summary-text">
 						{#if resultsLabel}
@@ -111,15 +109,6 @@
 							<span class="kb-sidebar__badge">{activeFilterCount} active</span>
 						{/if}
 					</div>
-					{#if hasActiveFilters && onClear}
-						<button
-							type="button"
-							class={cn(buttonVariants({ variant: 'ghost', size: 'sm' }), 'kb-sidebar__clear')}
-							onclick={onClear}
-						>
-							Clear all
-						</button>
-					{/if}
 				</div>
 			{/if}
 		</div>
@@ -133,6 +122,14 @@
 		{#if children}
 			<div class="kb-sidebar__filters">
 				{@render children()}
+			</div>
+		{/if}
+
+		{#if hasActiveFilters && onClear}
+			<div class="kb-sidebar__clear-row">
+				<button type="button" class="kb-sidebar__clear-link" onclick={onClear}>
+					Clear all filters
+				</button>
 			</div>
 		{/if}
 	</div>
@@ -292,11 +289,33 @@
 		min-width: 0;
 	}
 
-	:global(.kb-sidebar__clear) {
-		height: 2rem;
-		padding-inline: 0.55rem;
-		font-size: 0.76rem;
-		font-weight: 700;
-		color: var(--color-lakebed-950, var(--foreground));
+	.kb-sidebar__clear-row {
+		display: flex;
+		justify-content: center;
+		margin-top: 1rem;
+		padding-top: 0.875rem;
+		border-top: 1px solid color-mix(in srgb, var(--rule, var(--border)) 60%, transparent);
+	}
+	.kb-sidebar__clear-link {
+		appearance: none;
+		background: transparent;
+		border: none;
+		padding: 0.25rem 0.4rem;
+		font-family: var(--font-sans);
+		font-size: 0.78rem;
+		font-weight: 600;
+		letter-spacing: 0.01em;
+		color: var(--muted-foreground);
+		cursor: pointer;
+		text-decoration: none;
+		transition: color 120ms ease;
+	}
+	.kb-sidebar__clear-link:hover,
+	.kb-sidebar__clear-link:focus-visible {
+		color: var(--foreground);
+		text-decoration: underline;
+		text-underline-offset: 3px;
+		text-decoration-thickness: 1px;
+		outline: none;
 	}
 </style>

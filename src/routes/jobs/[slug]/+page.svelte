@@ -305,8 +305,10 @@
 						lng={item.lng}
 						label={item.employerName ?? 'Job location'}
 						address={item.location ?? undefined}
+						searchText={item.location ?? item.employerName ?? undefined}
 						token={data.mapboxToken}
 						accent="var(--forest)"
+						eyebrow="Job location"
 						height={240}
 					/>
 				{/if}

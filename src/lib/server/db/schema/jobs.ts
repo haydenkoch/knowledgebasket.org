@@ -1,4 +1,14 @@
-import { pgTable, text, uuid, real, timestamp, boolean, index, unique, jsonb } from 'drizzle-orm/pg-core';
+import {
+	pgTable,
+	text,
+	uuid,
+	real,
+	timestamp,
+	boolean,
+	index,
+	unique,
+	jsonb
+} from 'drizzle-orm/pg-core';
 import { user } from '../auth.schema';
 import { organizations } from './organizations';
 

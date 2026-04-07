@@ -9,6 +9,7 @@
 	import * as AlertDialog from '$lib/components/ui/alert-dialog/index.js';
 	import * as Popover from '$lib/components/ui/popover/index.js';
 	import * as Command from '$lib/components/ui/command/index.js';
+	import { formatDisplayDateTime } from '$lib/utils/display';
 	import StatusBadge from '$lib/components/organisms/admin/StatusBadge.svelte';
 	import { Check, ChevronDown, GripVertical, MoveDown, MoveUp } from '@lucide/svelte';
 
@@ -123,7 +124,7 @@
 											<div class="min-w-0">
 												<div class="truncate">{event.title}</div>
 												<div class="text-xs text-[var(--mid)]">
-													{event.startDate ?? 'No date'} · {event.location ??
+													{formatDisplayDateTime(event.startDate, undefined, 'No date')} · {event.location ??
 														event.region ??
 														'No location'}
 												</div>
@@ -207,7 +208,7 @@
 									<StatusBadge status={ev.status ?? 'unknown'} />
 								</Table.Cell>
 								<Table.Cell class="text-sm text-[var(--mid)]">
-									{ev.startDate ?? 'No date'}
+									{formatDisplayDateTime(ev.startDate, undefined, 'No date')}
 								</Table.Cell>
 								<Table.Cell class="text-muted-foreground">{ev.slug}</Table.Cell>
 								<Table.Cell class="text-right">

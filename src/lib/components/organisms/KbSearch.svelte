@@ -278,21 +278,24 @@
 							{query}
 							initialScope={selectedScope === 'all' ? 'events' : selectedScope}
 							compact={isMobile.current}
-							headline="Start with a coil"
-							description="Pick a content area, then refine from there."
 							onNavigate={navigate}
 							onScopeChange={setScope}
 						/>
 
-						<Command.Group heading="Popular searches">
+						<div
+							class="border-t border-[color:var(--rule)] px-2 pt-1.5 pb-1 text-[9px] font-semibold tracking-[0.1em] text-[var(--mid)]/70 uppercase"
+						>
+							Trending
+						</div>
+						<Command.Group class="px-1 pb-1">
 							{#each PUBLIC_POPULAR_SEARCHES.slice(0, 4) as term}
 								<Command.Item
 									value={`popular ${term}`}
 									onSelect={() => void navigate(buildScopedSearchHref(term, selectedScope))}
-									class="rounded-[0.45rem] px-3 py-2.5 aria-selected:bg-[color-mix(in_srgb,var(--color-lakebed-950)_10%,white)] aria-selected:text-[var(--dark)]"
+									class="rounded-[0.4rem] px-2 py-1.5 aria-selected:bg-[color-mix(in_srgb,var(--color-lakebed-950)_8%,white)] aria-selected:text-[var(--dark)]"
 								>
 									<SearchIcon class="h-3.5 w-3.5 shrink-0 text-[var(--mid)]" />
-									<span class="text-sm text-[var(--dark)]">{term}</span>
+									<span class="text-[13px] text-[var(--dark)]">{term}</span>
 								</Command.Item>
 							{/each}
 						</Command.Group>

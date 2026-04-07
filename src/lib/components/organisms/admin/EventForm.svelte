@@ -76,6 +76,20 @@
 	});
 	const initialEventFormatValue = () => event?.eventFormat ?? '';
 	let eventFormatValue = $state(initialEventFormatValue());
+	const resolvedCostOptions = $derived.by(() => {
+		const seen = new Set<string>(['']);
+		const merged = [{ value: '', label: 'Select…' }];
+		for (const option of [...costOptions, ...eventCostOptions]) {
+			if (seen.has(option.value)) continue;
+			seen.add(option.value);
+			merged.push({ value: option.value, label: option.label });
+		}
+		const currentCost = event?.cost?.trim();
+		if (currentCost && !seen.has(currentCost)) {
+			merged.push({ value: currentCost, label: currentCost });
+		}
+		return merged;
+	});
 
 	$effect(() => {
 		descriptionHtml = event?.description ?? '';
@@ -96,11 +110,22 @@
 	function currentFieldDiffs(formData: FormData): EditorChangeLine[] {
 		const next = [
 			buildChangeLine('Title', event?.title, getFormValue(formData, 'title')),
-			buildChangeLine('Start date', event?.startDate, getFormValue(formData, 'startDate')),
-			buildChangeLine('End date', event?.endDate, getFormValue(formData, 'endDate')),
+			buildChangeLine(
+				'Start date',
+				event?.startDateInput ?? event?.startDate,
+				getFormValue(formData, 'startDate')
+			),
+			buildChangeLine(
+				'End date',
+				event?.endDateInput ?? event?.endDate,
+				getFormValue(formData, 'endDate')
+			),
 			buildChangeLine('Event format', event?.eventFormat, getFormValue(formData, 'eventFormat')),
 			buildChangeLine('Location', event?.location, getFormValue(formData, 'location')),
 			buildChangeLine('Region', event?.region, getFormValue(formData, 'region')),
+			buildChangeLine('Cost', event?.cost, getFormValue(formData, 'cost')),
+			buildChangeLine('Minimum price', event?.priceMin, getFormValue(formData, 'priceMin')),
+			buildChangeLine('Maximum price', event?.priceMax, getFormValue(formData, 'priceMax')),
 			buildChangeLine('Event URL', event?.eventUrl, getFormValue(formData, 'eventUrl')),
 			buildChangeLine(
 				'Registration URL',
@@ -134,6 +159,10 @@
 		const eventUrl = getFormValue(formData, 'eventUrl');
 		const registrationUrl = getFormValue(formData, 'registrationUrl');
 		const imageUrl = getFormValue(formData, 'imageUrl');
+		const priceMinValue = getFormValue(formData, 'priceMin');
+		const priceMaxValue = getFormValue(formData, 'priceMax');
+		const priceMin = priceMinValue ? Number(priceMinValue) : null;
+		const priceMax = priceMaxValue ? Number(priceMaxValue) : null;
 
 		if (!title) issues.push('Title is required.');
 		if (startDate && endDate && new Date(endDate).getTime() < new Date(startDate).getTime()) {
@@ -147,6 +176,13 @@
 			issues.push('Virtual event URL must be a valid http or https URL.');
 		if (!isValidHttpUrl(getFormValue(formData, 'waitlistUrl')))
 			issues.push('Waitlist URL must be a valid http or https URL.');
+		if (priceMinValue && !Number.isFinite(priceMin))
+			issues.push('Minimum price must be a valid number.');
+		if (priceMaxValue && !Number.isFinite(priceMax))
+			issues.push('Maximum price must be a valid number.');
+		if (priceMin != null && priceMax != null && priceMax < priceMin) {
+			issues.push('Maximum price must be greater than or equal to minimum price.');
+		}
 
 		return issues;
 	}
@@ -174,6 +210,9 @@
 				getFormValue(formData, 'type') ||
 				getFormValue(formData, 'audience') ||
 				getFormValue(formData, 'cost') ||
+				getFormValue(formData, 'priceMin') ||
+				getFormValue(formData, 'priceMax') ||
+				getFormValue(formData, 'pricingTiers') ||
 				getFormValue(formData, 'timezone') ||
 				getFormValue(formData, 'capacity') ||
 				getFormValue(formData, 'ageRestriction') ||
@@ -203,8 +242,7 @@
 			media: Boolean(
 				getFormValue(formData, 'imageUrl') ||
 				getFormValue(formData, 'imageUrls') ||
-				getFormValue(formData, 'tags') ||
-				getFormValue(formData, 'pricingTiers')
+				getFormValue(formData, 'tags')
 			),
 			admin: Boolean(
 				getFormValue(formData, 'slug') ||
@@ -460,16 +498,34 @@
 					<div class="space-y-1.5">
 						<Label for="cost">Cost</Label>
 						<select id="cost" name="cost" class={selectCls} value={event?.cost ?? ''}>
-							{#if costOptions.length}
-								{#each costOptions as opt}
-									<option value={opt.value}>{opt.label}</option>
-								{/each}
-							{:else}
-								{#each eventCostOptions as opt}
-									<option value={opt.value}>{opt.label}</option>
-								{/each}
-							{/if}
+							{#each resolvedCostOptions as opt}
+								<option value={opt.value}>{opt.label}</option>
+							{/each}
 						</select>
+					</div>
+					<div class="space-y-1.5">
+						<Label for="priceMin">Lowest advertised price</Label>
+						<Input
+							id="priceMin"
+							name="priceMin"
+							type="number"
+							min="0"
+							step="0.01"
+							value={event?.priceMin ?? ''}
+							placeholder="0"
+						/>
+					</div>
+					<div class="space-y-1.5">
+						<Label for="priceMax">Highest advertised price</Label>
+						<Input
+							id="priceMax"
+							name="priceMax"
+							type="number"
+							min="0"
+							step="0.01"
+							value={event?.priceMax ?? ''}
+							placeholder="Optional"
+						/>
 					</div>
 					<div class="space-y-1.5">
 						<Label for="timezone">Timezone</Label>
@@ -506,6 +562,16 @@
 							name="doorsOpenAt"
 							type="datetime-local"
 							value={event?.doorsOpenAtInput ?? ''}
+						/>
+					</div>
+					<div class="space-y-1.5 sm:col-span-2 lg:col-span-3">
+						<Label for="pricingTiers">Pricing tiers JSON</Label>
+						<Textarea
+							id="pricingTiers"
+							name="pricingTiers"
+							rows={5}
+							value={event?.pricingTiers ? JSON.stringify(event.pricingTiers, null, 2) : '[]'}
+							placeholder={`[{"label":"General admission","price":25}]`}
 						/>
 					</div>
 					<div class="space-y-1.5 sm:col-span-2 lg:col-span-3">
@@ -701,16 +767,6 @@
 							rows={4}
 							value={event?.imageUrls?.join('\n') ?? ''}
 							placeholder="One URL per line"
-						/>
-					</div>
-					<div class="space-y-1.5 sm:col-span-2">
-						<Label for="pricingTiers">Pricing tiers JSON</Label>
-						<Textarea
-							id="pricingTiers"
-							name="pricingTiers"
-							rows={5}
-							value={event?.pricingTiers ? JSON.stringify(event.pricingTiers, null, 2) : '[]'}
-							placeholder="JSON array of pricing tiers"
 						/>
 					</div>
 				</div>

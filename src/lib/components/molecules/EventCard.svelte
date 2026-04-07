@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { EventItem } from '$lib/data/kb';
 	import { formatDisplayDate } from '$lib/utils/display';
+	import { getEventPricingSummary } from '$lib/utils/event-pricing';
 	import { stripHtml } from '$lib/utils/format';
 	import CalendarDays from '@lucide/svelte/icons/calendar-days';
 	import MapPin from '@lucide/svelte/icons/map-pin';
@@ -23,6 +24,14 @@
 
 	const plainDesc = $derived(event.description ? stripHtml(event.description) : '');
 	const types = $derived(event.types?.length ? event.types : event.type ? [event.type] : []);
+	const pricing = $derived(getEventPricingSummary(event));
+	const costBadgeClass = $derived(
+		pricing.badgeTone === 'free'
+			? 'bg-emerald-500/95 text-white'
+			: pricing.badgeTone === 'paid'
+				? 'bg-black/55 text-white'
+				: 'bg-white/90 text-[var(--dark)]'
+	);
 </script>
 
 <a
@@ -50,12 +59,12 @@
 				>{formatDate(event.startDate)}</span
 			>
 		{/if}
-		{#if event.cost}
+		{#if pricing.badgeLabel && pricing.badgeTone === 'free'}
 			<span class="absolute right-[10px] bottom-[10px]">
 				<span
-					class="inline-flex items-center rounded-full bg-black/40 px-2 py-0.5 text-xs font-medium text-white backdrop-blur-sm"
+					class={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium backdrop-blur-sm ${costBadgeClass}`}
 				>
-					{event.cost === 'Free / Sponsored' ? 'Free' : '$'}
+					{pricing.badgeLabel}
 				</span>
 			</span>
 		{/if}

@@ -13,11 +13,13 @@ This plan standardizes the coils to a consistent baseline and brings image suppo
 **Goal:** Add `imageUrls` (JSONB array) to the three coils that lack it.
 
 Files to edit:
+
 - `src/lib/server/db/schema/funding.ts` — add `imageUrls: jsonb('image_urls').$type<string[]>().default([])`
 - `src/lib/server/db/schema/jobs.ts` — same
 - `src/lib/server/db/schema/toolbox.ts` — same
 
 Then generate and run migration:
+
 ```bash
 pnpm drizzle-kit generate
 pnpm drizzle-kit migrate
@@ -30,24 +32,30 @@ pnpm drizzle-kit migrate
 **Goal:** Surface `imageUrls` in item types, `rowToItem` converters, and Meilisearch search docs. Fix the `recentBusinesses` sort inconsistency.
 
 ### 2a. TypeScript types (`src/lib/data/kb.ts`)
+
 - Add `imageUrls?: string[]` to `FundingItem`, `JobItem`, `ToolboxItem`
 
 ### 2b. Server modules
 
 **`src/lib/server/funding.ts`**
+
 - `rowToItem`: map `row.imageUrls ?? []` → `imageUrls`
 - `itemToSearchDoc`: no change needed (search doc doesn't need raw image URLs)
 
 **`src/lib/server/jobs.ts`**
+
 - Same as funding
 
 **`src/lib/server/toolbox.ts`**
+
 - Same as funding
 
 **`src/lib/server/red-pages.ts`**
+
 - Fix `getRecentBusinesses` — sort by `publishedAt` not `createdAt` (inconsistent with all other coils)
 
 ### 2c. Meilisearch search docs — minor improvements
+
 - `funding`: add `amountMin`, `amountMax` to search doc so amount-based filtering is possible
 - `jobs`: add `applicationDeadline` to search doc for deadline-aware filtering
 
@@ -58,6 +66,7 @@ pnpm drizzle-kit migrate
 **Goal:** Every coil's admin edit form gets a consistent image section: primary image upload (`imageUrl`) + gallery image array (`imageUrls`).
 
 ### Pattern to follow (from events admin form)
+
 - `KbFileDropzone` component for primary image upload → sets `imageUrl`
 - Textarea (newline-separated URLs) for `imageUrls` array
 - Both wire into the form action which calls `uploadImage(file, scope)`
@@ -65,17 +74,21 @@ pnpm drizzle-kit migrate
 ### Files to edit
 
 **`src/routes/admin/toolbox/[id]/+page.server.ts`**
+
 - Add `uploadImage` import and call in form action for `toolbox` scope
 - Add `imageUrl` and `imageUrls` to form schema
 
 **`src/routes/admin/toolbox/[id]/+page.svelte`** (or ToolboxForm component)
+
 - Add image section with `KbFileDropzone` + imageUrls textarea
 
 **`src/routes/admin/funding/[id]/+page.server.ts`** (and form)
+
 - Upgrade from text input to `KbFileDropzone` + `uploadImage()` call (scope: `funding`)
 - Add `imageUrls` field
 
 **`src/routes/admin/red-pages/[id]/+page.server.ts`** (and form)
+
 - Upgrade from text input to `KbFileDropzone` + `uploadImage()` call (scope: `red-pages`)
 - Add `imageUrls` textarea (schema already has it, just needs to be wired up)
 
@@ -89,16 +102,18 @@ Jobs already has `KbFileDropzone` — only needs `imageUrls` field added to form
 
 ### Hero image standardization
 
-| Coil | Current | Target |
-|------|---------|--------|
-| Events | Full bleed image + gallery filmstrip ✓ | No change |
-| Jobs | Gradient placeholder if no image | Use imageUrl as hero background; gallery filmstrip if imageUrls present |
-| Funding | SVG grid pattern (ignores imageUrl entirely) | Use imageUrl as hero background when set; keep SVG fallback |
-| Red-Pages | imageUrl hero (no fallback indicator) ✓ | Add gallery filmstrip using imageUrls |
-| Toolbox | No image display at all | Use imageUrl as hero overlay when set; keep file icon fallback |
+| Coil      | Current                                      | Target                                                                  |
+| --------- | -------------------------------------------- | ----------------------------------------------------------------------- |
+| Events    | Full bleed image + gallery filmstrip ✓       | No change                                                               |
+| Jobs      | Gradient placeholder if no image             | Use imageUrl as hero background; gallery filmstrip if imageUrls present |
+| Funding   | SVG grid pattern (ignores imageUrl entirely) | Use imageUrl as hero background when set; keep SVG fallback             |
+| Red-Pages | imageUrl hero (no fallback indicator) ✓      | Add gallery filmstrip using imageUrls                                   |
+| Toolbox   | No image display at all                      | Use imageUrl as hero overlay when set; keep file icon fallback          |
 
 ### Gallery filmstrip component
+
 Events already has a gallery filmstrip organism. Extract/reuse it for:
+
 - `src/routes/jobs/[slug]/+page.svelte` — show below hero if `item.imageUrls?.length`
 - `src/routes/funding/[slug]/+page.svelte` — same
 - `src/routes/red-pages/[slug]/+page.svelte` — same

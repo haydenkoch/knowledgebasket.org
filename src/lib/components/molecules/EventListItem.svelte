@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { EventItem } from '$lib/data/kb';
 	import { formatDisplayDate } from '$lib/utils/display';
+	import { getEventPricingSummary } from '$lib/utils/event-pricing';
 	import { stripHtml } from '$lib/utils/format';
 	import Calendar from '@lucide/svelte/icons/calendar';
 	import MapPin from '@lucide/svelte/icons/map-pin';
@@ -23,6 +24,7 @@
 
 	const types = $derived(event.types?.length ? event.types : event.type ? [event.type] : []);
 	const plainDesc = $derived(event.description ? stripHtml(event.description).slice(0, 150) : '');
+	const pricing = $derived(getEventPricingSummary(event));
 </script>
 
 <a {href} class="kb-elist-item" style="animation-delay: {index * 30}ms">
@@ -46,6 +48,11 @@
 			{/if}
 			{#if event.region}
 				<span class="kb-elist-region">{event.region}</span>
+			{/if}
+			{#if pricing.badgeLabel && pricing.badgeTone === 'free'}
+				<span class="kb-elist-cost kb-elist-cost--free">
+					{pricing.badgeLabel}
+				</span>
 			{/if}
 		</div>
 		<h3 class="kb-elist-title">{event.title}</h3>
@@ -128,6 +135,18 @@
 		color: var(--muted-foreground, #666);
 		border-radius: 9999px;
 		padding: 1px 7px;
+	}
+	.kb-elist-cost {
+		font-size: 11px;
+		border-radius: 9999px;
+		padding: 1px 7px;
+		background: color-mix(in srgb, var(--teal) 14%, white);
+		color: var(--dark, #1c1c1c);
+		font-weight: 600;
+	}
+	.kb-elist-cost--free {
+		background: rgba(16, 185, 129, 0.15);
+		color: #0f766e;
 	}
 	.kb-elist-title {
 		font-size: 15px;

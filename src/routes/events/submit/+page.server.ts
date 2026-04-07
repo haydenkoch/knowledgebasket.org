@@ -36,6 +36,8 @@ export function _createEventSubmitActions(
 			const geography = (formData.get('geography') as string)?.trim();
 			const audience = (formData.get('audience') as string)?.trim();
 			const cost = (formData.get('cost') as string)?.trim();
+			const priceMinRaw = (formData.get('price_min') as string)?.trim();
+			const priceMaxRaw = (formData.get('price_max') as string)?.trim();
 			const description = (formData.get('description') as string)?.trim();
 			const start_date = (formData.get('start_date') as string)?.trim();
 			const end_date = (formData.get('end_date') as string)?.trim();
@@ -56,6 +58,8 @@ export function _createEventSubmitActions(
 				geography,
 				audience,
 				cost,
+				price_min: priceMinRaw,
+				price_max: priceMaxRaw,
 				description,
 				start_date,
 				end_date,
@@ -90,6 +94,21 @@ export function _createEventSubmitActions(
 				});
 			}
 
+			const priceMin = priceMinRaw ? Number(priceMinRaw) : undefined;
+			const priceMax = priceMaxRaw ? Number(priceMaxRaw) : undefined;
+			if (priceMinRaw && !Number.isFinite(priceMin)) {
+				return fail(400, { error: 'Lowest advertised price must be a valid number.', values });
+			}
+			if (priceMaxRaw && !Number.isFinite(priceMax)) {
+				return fail(400, { error: 'Highest advertised price must be a valid number.', values });
+			}
+			if (priceMin != null && priceMax != null && priceMax < priceMin) {
+				return fail(400, {
+					error: 'Highest advertised price must be greater than or equal to the lowest price.',
+					values
+				});
+			}
+
 			if (image && image.size > 0) {
 				if (image.size > MAX_IMAGE_SIZE) {
 					return fail(400, { error: 'Image must be 5 MB or smaller.', values });
@@ -118,6 +137,8 @@ export function _createEventSubmitActions(
 				region: geography || undefined,
 				audience: audience || undefined,
 				cost: cost || undefined,
+				priceMin: priceMin ?? undefined,
+				priceMax: priceMax ?? undefined,
 				eventUrl: event_url || undefined,
 				startDate: start_date || undefined,
 				endDate: end_date || undefined,

@@ -43,7 +43,9 @@ export function eventToSx(e: EventItem): {
 		timeZone: CALENDAR_TZ
 	});
 	return {
-		id: e.id,
+		// Match the page's selection convention (`slug ?? id`) so the
+		// onEventClick handler can resolve the event back to an EventItem.
+		id: e.slug ?? e.id,
 		title: e.title ?? '',
 		start,
 		end,

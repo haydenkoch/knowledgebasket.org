@@ -97,8 +97,12 @@ export const eventAudienceOptions = [
 
 export const eventCostOptions = [
 	{ value: '', label: 'Select…' },
-	{ value: 'Free / Sponsored', label: 'Free / Sponsored' },
-	{ value: 'Registration Fee Required', label: 'Registration Fee Required' }
+	{ value: 'Free', label: 'Free' },
+	{ value: 'Free, registration required', label: 'Free, registration required' },
+	{ value: 'Suggested donation / pay what you can', label: 'Suggested donation / pay what you can' },
+	{ value: 'Sliding scale', label: 'Sliding scale' },
+	{ value: 'Paid', label: 'Paid' },
+	{ value: 'Cost varies', label: 'Cost varies' }
 ] as const;
 
 /** Funding opportunity type (funder category) */

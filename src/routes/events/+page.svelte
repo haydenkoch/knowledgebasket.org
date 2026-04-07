@@ -23,14 +23,15 @@
 	import CoilTheme from '$lib/components/organisms/CoilTheme.svelte';
 	import KbSubmitBanner from '$lib/components/organisms/KbSubmitBanner.svelte';
 	import MobilePeekPanel from '$lib/components/organisms/MobilePeekPanel.svelte';
-	import EventsSidebar from '$lib/components/organisms/EventsSidebar.svelte';
+	import EventsSidebar from '$lib/components/organisms/EventsSidebarV2.svelte';
 	import EventsCalendarView from '$lib/components/organisms/EventsCalendarView.svelte';
 	import EventsRightSidebar from '$lib/components/organisms/EventsRightSidebar.svelte';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { useSidebar } from '$lib/components/ui/sidebar/index.js';
 	import { Alert, AlertDescription, AlertTitle } from '$lib/components/ui/alert/index.js';
-	import { formatDisplayDate } from '$lib/utils/display';
-	import { tsToCalendarDate } from '$lib/utils/date.js';
+import { formatDisplayDate } from '$lib/utils/display';
+import { formatEventCostFilterSelectionLabel } from '$lib/utils/event-pricing';
+import { tsToCalendarDate } from '$lib/utils/date.js';
 	import {
 		matchSearch,
 		parseEventStart,
@@ -41,7 +42,7 @@
 	} from '$lib/utils/format';
 	import { eventTypeTags } from '$lib/data/formSchema';
 	import { IsMobile } from '$lib/hooks/is-mobile.svelte';
-	import { useEventsFilters } from '$lib/hooks/use-events-filters.svelte';
+	import { useEventsFiltersV2 as useEventsFilters } from '$lib/hooks/use-events-filters-v2.svelte';
 	import { eventToSx } from '$lib/calendar/event-to-sx.js';
 	import { buildOgImagePath } from '$lib/seo/metadata';
 
@@ -461,8 +462,7 @@
 		filters.typeSelect = filters.typeSelect.filter((l) => l !== label);
 	}
 	function formatCostLabel() {
-		if (!filters.costFilter.length) return 'Any cost';
-		return `${filters.costFilter.length} selected`;
+		return formatEventCostFilterSelectionLabel(filters.costFilter);
 	}
 	const regionTriggerLabel = $derived(
 		filters.regionSelect.length ? `${filters.regionSelect.length} selected` : 'Any geography'
@@ -628,6 +628,12 @@
 			filters.regionSelect.length +
 			filters.typeSelect.length +
 			filters.costFilter.length +
+			filters.formatSelect.length +
+			filters.audienceSelect.length +
+			(filters.featuredOnly ? 1 : 0) +
+			(filters.hideSoldOut ? 1 : 0) +
+			(filters.registrationOpen ? 1 : 0) +
+			(filters.closingThisWeek ? 1 : 0) +
 			(filters.rangeStart !== filters.todayStart || filters.rangeEnd !== filters.defaultRangeEnd
 				? 1
 				: 0)
@@ -831,7 +837,7 @@
 			role="presentation"
 		>
 			<div
-				class="coil-layout__left order-1 hidden w-full flex-none overflow-hidden overflow-y-auto border-b border-[var(--rule)] bg-[var(--color-alpine-50,#fafaf8)] p-3 md:block md:w-[272px] md:border-r md:border-b-0 md:px-3 md:py-5"
+				class="coil-layout__left order-1 hidden w-full flex-none overflow-hidden overflow-y-auto border-b border-[var(--rule)] bg-[var(--color-alpine-50,#fafaf8)] p-3 md:block md:w-[312px] md:border-r md:border-b-0 md:px-4 md:py-5"
 			>
 				<EventsSidebar
 					{filters}

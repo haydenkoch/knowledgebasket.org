@@ -1,8 +1,16 @@
-/** Remove HTML tags for plain-text display (e.g. in list cards). */
+/** Remove HTML tags AND decode common HTML entities for plain-text display (e.g. in list cards). */
 export function stripHtml(html: string): string {
 	if (!html) return '';
 	return html
 		.replace(/<[^>]+>/g, ' ')
+		.replace(/&#(\d+);/g, (_, code) => String.fromCodePoint(Number(code)))
+		.replace(/&#x([0-9a-fA-F]+);/g, (_, hex) => String.fromCodePoint(parseInt(hex, 16)))
+		.replace(/&nbsp;/g, ' ')
+		.replace(/&amp;/g, '&')
+		.replace(/&lt;/g, '<')
+		.replace(/&gt;/g, '>')
+		.replace(/&quot;/g, '"')
+		.replace(/&apos;/g, "'")
 		.replace(/\s+/g, ' ')
 		.trim();
 }
@@ -97,6 +105,27 @@ export function parseEventStart(startDate?: string): number | null {
 	return isNaN(d.getTime()) ? null : d.getTime();
 }
 
+function isSameCalendarDay(start: Date, end: Date): boolean {
+	return (
+		start.getFullYear() === end.getFullYear() &&
+		start.getMonth() === end.getMonth() &&
+		start.getDate() === end.getDate()
+	);
+}
+
+function hasExplicitTime(date: Date): boolean {
+	return !(
+		date.getHours() === 0 &&
+		date.getMinutes() === 0 &&
+		date.getSeconds() === 0 &&
+		date.getMilliseconds() === 0
+	);
+}
+
+function formatClock(date: Date): string {
+	return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+}
+
 /** Format event date for list/card: "Jun 8" or "Jun 8 – 12". */
 export function formatEventDateShort(startDate?: string, endDate?: string): string {
 	const start = startDate?.trim() ? new Date(parseEventStart(startDate)!) : null;
@@ -105,7 +134,7 @@ export function formatEventDateShort(startDate?: string, endDate?: string): stri
 	const startStr = start.toLocaleDateString('en-US', opts);
 	if (!endDate?.trim()) return startStr;
 	const end = new Date(parseEventStart(endDate)!);
-	if (isNaN(end.getTime()) || end.getTime() === start.getTime()) return startStr;
+	if (isNaN(end.getTime()) || isSameCalendarDay(start, end)) return startStr;
 	const sameMonth =
 		start.getMonth() === end.getMonth() && start.getFullYear() === end.getFullYear();
 	return sameMonth
@@ -126,8 +155,9 @@ export function formatEventDateRange(startDate?: string, endDate?: string): stri
 	};
 	if (!endDate?.trim()) return startD.toLocaleDateString('en-US', longOpts);
 	const end = parseEventStart(endDate);
-	if (end == null || end === start) return startD.toLocaleDateString('en-US', longOpts);
+	if (end == null) return startD.toLocaleDateString('en-US', longOpts);
 	const endD = new Date(end);
+	if (isSameCalendarDay(startD, endD)) return startD.toLocaleDateString('en-US', longOpts);
 	const shortOpts: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric', year: 'numeric' };
 	return `${startD.toLocaleDateString('en-US', shortOpts)} – ${endD.toLocaleDateString('en-US', shortOpts)}`;
 }
@@ -203,8 +233,26 @@ export function formatEventTime(startDate?: string): string | null {
 	const t = parseEventStart(startDate);
 	if (t == null) return null;
 	const d = new Date(t);
-	if (d.getHours() === 0 && d.getMinutes() === 0 && d.getSeconds() === 0) return null;
-	return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+	if (!hasExplicitTime(d)) return null;
+	return formatClock(d);
+}
+
+/** Format a same-day time window (e.g. "10:00 AM – 3:00 PM") or a single start time. */
+export function formatEventTimeRange(startDate?: string, endDate?: string): string | null {
+	const startTs = parseEventStart(startDate);
+	if (startTs == null) return null;
+	const start = new Date(startTs);
+	if (!hasExplicitTime(start)) return null;
+
+	const endTs = endDate?.trim() ? parseEventStart(endDate) : null;
+	if (endTs == null || endTs <= startTs) return formatClock(start);
+
+	const end = new Date(endTs);
+	if (!isSameCalendarDay(start, end) || !hasExplicitTime(end)) return formatClock(start);
+
+	const startLabel = formatClock(start);
+	const endLabel = formatClock(end);
+	return startLabel === endLabel ? startLabel : `${startLabel} – ${endLabel}`;
 }
 
 /** Format date for Google Calendar URL: YYYYMMDDTHHmmssZ (UTC). */

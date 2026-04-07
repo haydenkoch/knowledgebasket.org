@@ -93,16 +93,22 @@
 
 	type DndFeaturedItem = HomepageFeaturedRef & { id: string };
 
-	const featuredDnd = $derived((section.items ?? []).map((item) => ({ ...item, id: item.itemId })));
+	let featuredDnd = $state<DndFeaturedItem[]>([]);
 	const featuredIds = $derived((section.items ?? []).map((item) => item.itemId));
 
+	// Mirror parent +page.svelte sections pattern: sync from the external prop only.
+	// Reading featuredDnd here would cause the effect to re-run during a drag and revert it.
+	$effect(() => {
+		featuredDnd = (section.items ?? []).map((item) => ({ ...item, id: item.itemId }));
+	});
+
 	function handleFeaturedConsider(e: CustomEvent) {
-		const items = (e.detail.items as DndFeaturedItem[]).map(({ id: _, ...rest }) => rest);
-		update((s) => ({ ...s, items }));
+		featuredDnd = e.detail.items as DndFeaturedItem[];
 	}
 
 	function handleFeaturedFinalize(e: CustomEvent) {
-		const items = (e.detail.items as DndFeaturedItem[]).map(({ id: _, ...rest }) => rest);
+		featuredDnd = e.detail.items as DndFeaturedItem[];
+		const items = featuredDnd.map(({ id: _, ...rest }) => rest);
 		update((s) => ({ ...s, items }));
 	}
 

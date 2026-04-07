@@ -137,7 +137,9 @@
 		padding: 0.85rem 1rem;
 		white-space: nowrap;
 		border-bottom: 2px solid transparent;
-		transition: color 0.12s ease, border-color 0.12s ease;
+		transition:
+			color 0.12s ease,
+			border-color 0.12s ease;
 	}
 	.legal-nav__link:hover {
 		color: var(--color-obsidian-900);

@@ -316,8 +316,10 @@
 						lng={item.lng}
 						label={item.title}
 						address={addressLine || undefined}
+						searchText={addressLine || item.title}
 						token={data.mapboxToken}
 						accent="var(--red)"
+						eyebrow="Business location"
 						height={300}
 					/>
 				{/if}

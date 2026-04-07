@@ -76,6 +76,137 @@
 	.kb-calendar-view {
 		width: 100%;
 		min-height: 400px;
+
+		/* Map Schedule-X (Material) tokens onto KB brand palette so the
+		   calendar inherits the same Lakebed/Alpine Snow/Obsidian look as
+		   the rest of the site. Variables cascade into the Schedule-X tree. */
+		--sx-color-primary: var(--color-lakebed-700);
+		--sx-color-on-primary: var(--color-alpine-snow-50);
+		--sx-color-primary-container: var(--color-lakebed-100);
+		--sx-color-on-primary-container: var(--color-lakebed-950);
+		--sx-color-secondary: var(--color-pinyon-700);
+		--sx-color-on-secondary: var(--color-alpine-snow-50);
+		--sx-color-secondary-container: var(--color-pinyon-100);
+		--sx-color-on-secondary-container: var(--color-pinyon-950);
+		--sx-color-tertiary: var(--color-flicker-800);
+		--sx-color-on-tertiary: var(--color-alpine-snow-50);
+		--sx-color-tertiary-container: var(--color-flicker-100);
+		--sx-color-on-tertiary-container: var(--color-flicker-950);
+
+		--sx-color-surface: var(--color-alpine-snow-50);
+		--sx-color-surface-dim: var(--color-alpine-snow-200);
+		--sx-color-surface-bright: var(--color-alpine-snow-50);
+		--sx-color-on-surface: var(--color-obsidian-950);
+		--sx-color-surface-container: var(--color-alpine-snow-100);
+		--sx-color-surface-container-low: var(--color-alpine-snow-50);
+		--sx-color-surface-container-high: var(--color-alpine-snow-200);
+		--sx-color-background: var(--color-alpine-snow-50);
+		--sx-color-on-background: var(--color-obsidian-950);
+
+		--sx-color-outline: var(--color-granite-400);
+		--sx-color-outline-variant: var(--color-granite-200);
+		--sx-color-neutral: var(--color-obsidian-700);
+		--sx-color-neutral-variant: var(--color-granite-500);
+		--sx-color-surface-tint: var(--color-lakebed-700);
+
+		--sx-internal-color-text: var(--color-obsidian-950);
+		--sx-internal-color-light-gray: var(--color-alpine-snow-100);
+		--sx-internal-color-gray-ripple-background: var(--color-alpine-snow-200);
+
+		--sx-border: 1px solid var(--color-granite-200);
+		--sx-color-popup-border: var(--color-granite-200);
+
+		/* Match shadcn radius scale (--radius is 6px in theme.css) */
+		--sx-rounding-extra-small: 6px;
+		--sx-rounding-small: 8px;
+		--sx-rounding-extra-large: 12px;
+		--sx-event-border-radius: 6px;
+
+		font-family: var(--font-sans);
+		color: var(--color-obsidian-950);
+	}
+
+	/* Fonts and weights: shadcn-svelte uses semibold headings + regular body.
+	   Schedule-X defaults pump some areas too bold; tame them. */
+	.kb-calendar-view :global(.sx__range-heading),
+	.kb-calendar-view :global(.sx__calendar-header__week-number) {
+		font-family: var(--font-sans);
+		font-weight: 600;
+		letter-spacing: -0.01em;
+	}
+	.kb-calendar-view :global(.sx__week-grid__day-name),
+	.kb-calendar-view :global(.sx__week-grid__date-number),
+	.kb-calendar-view :global(.sx__month-grid-day__header-day-name) {
+		font-family: var(--font-sans);
+		font-weight: 500;
+		color: var(--color-obsidian-700);
+	}
+
+	/* Event chips: clearer hover/affordance and tighter typography */
+	.kb-calendar-view :global(.sx__month-grid-event),
+	.kb-calendar-view :global(.sx__time-grid-event),
+	.kb-calendar-view :global(.sx__date-grid-event),
+	.kb-calendar-view :global(.sx__month-agenda-event) {
+		cursor: pointer;
+		font-family: var(--font-sans);
+		font-size: 0.75rem;
+		font-weight: 500;
+		transition:
+			background-color 120ms ease,
+			box-shadow 120ms ease,
+			transform 120ms ease;
+	}
+	.kb-calendar-view :global(.sx__month-grid-event:hover),
+	.kb-calendar-view :global(.sx__time-grid-event:hover),
+	.kb-calendar-view :global(.sx__date-grid-event:hover),
+	.kb-calendar-view :global(.sx__month-agenda-event:hover) {
+		box-shadow: var(--sh);
+	}
+
+	/* "Today" highlight: use lakebed tint instead of default purple */
+	.kb-calendar-view :global(.sx__date-picker__day--today) {
+		background-color: var(--color-lakebed-100);
+		color: var(--color-lakebed-950);
+	}
+
+	/* Dark mode: when .dark is on a parent (site theme) OR Schedule-X
+	   itself flips to .is-dark, swap the palette tokens. */
+	:global(.dark) .kb-calendar-view,
+	.kb-calendar-view :global(.is-dark) {
+		--sx-color-primary: var(--color-lakebed-300);
+		--sx-color-on-primary: var(--color-lakebed-950);
+		--sx-color-primary-container: var(--color-lakebed-800);
+		--sx-color-on-primary-container: var(--color-lakebed-100);
+		--sx-color-secondary: var(--color-pinyon-300);
+		--sx-color-on-secondary: var(--color-pinyon-950);
+		--sx-color-secondary-container: var(--color-pinyon-800);
+		--sx-color-on-secondary-container: var(--color-pinyon-100);
+		--sx-color-tertiary: var(--color-flicker-300);
+		--sx-color-on-tertiary: var(--color-flicker-950);
+		--sx-color-tertiary-container: var(--color-flicker-800);
+		--sx-color-on-tertiary-container: var(--color-flicker-100);
+
+		--sx-color-surface: var(--color-obsidian-950);
+		--sx-color-surface-dim: var(--color-obsidian-950);
+		--sx-color-surface-bright: var(--color-obsidian-800);
+		--sx-color-on-surface: var(--color-alpine-snow-100);
+		--sx-color-surface-container: var(--color-obsidian-900);
+		--sx-color-surface-container-low: var(--color-obsidian-950);
+		--sx-color-surface-container-high: var(--color-obsidian-800);
+		--sx-color-background: var(--color-lakebed-950);
+		--sx-color-on-background: var(--color-alpine-snow-100);
+
+		--sx-color-outline: var(--color-granite-600);
+		--sx-color-outline-variant: var(--color-granite-800);
+		--sx-color-neutral: var(--color-granite-300);
+		--sx-color-neutral-variant: var(--color-granite-500);
+		--sx-color-surface-tint: var(--color-lakebed-300);
+
+		--sx-internal-color-text: var(--color-alpine-snow-100);
+		--sx-internal-color-light-gray: var(--color-obsidian-900);
+		--sx-internal-color-gray-ripple-background: var(--color-obsidian-800);
+
+		--sx-border: 1px solid var(--color-granite-800);
 	}
 	.kb-calendar-loading {
 		display: flex;

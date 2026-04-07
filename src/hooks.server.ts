@@ -30,7 +30,8 @@ function buildContentSecurityPolicy(): string {
 		"'self'",
 		'https://photon.komoot.io',
 		'https://geocoding.geo.census.gov',
-		'https://api.mapbox.com'
+		'https://api.mapbox.com',
+		'https://events.mapbox.com'
 	];
 	const imgSrc = ["'self'", 'data:', 'blob:', 'https:'];
 
@@ -63,6 +64,7 @@ function buildContentSecurityPolicy(): string {
 	return [
 		"default-src 'self'",
 		`script-src ${scriptSrc.join(' ')}`,
+		"worker-src 'self' blob:",
 		"style-src 'self' 'unsafe-inline' https://use.typekit.net https://p.typekit.net",
 		"font-src 'self' data: https://use.typekit.net https://p.typekit.net",
 		`img-src ${imgSrc.join(' ')}`,

@@ -50,7 +50,8 @@
 				skin_url: '/tinymce/skins/ui/oxide',
 				content_css: '/tinymce/skins/content/default/content.css',
 				plugins: 'autolink link lists image code',
-				toolbar: 'bold italic | bullist numlist | link | code',
+				block_formats: 'Paragraph=p; Heading 2=h2; Heading 3=h3',
+				toolbar: 'blocks | bold italic | bullist numlist | link unlink | removeformat | code',
 				placeholder,
 				setup(ed: TinyMCEEditor) {
 					ed.on('input Change', () => {

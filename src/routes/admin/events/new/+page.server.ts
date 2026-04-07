@@ -71,6 +71,17 @@ export const actions: Actions = {
 			nullableString(fd, 'waitlistUrl'),
 			'Waitlist URL must be a valid http or https URL.'
 		);
+		const priceMinRaw = (fd.get('priceMin') as string | null)?.trim() ?? '';
+		const priceMaxRaw = (fd.get('priceMax') as string | null)?.trim() ?? '';
+		const priceMin = priceMinRaw ? Number(priceMinRaw) : null;
+		const priceMax = priceMaxRaw ? Number(priceMaxRaw) : null;
+		if (priceMinRaw && !Number.isFinite(priceMin))
+			issues.push('Minimum price must be a valid number.');
+		if (priceMaxRaw && !Number.isFinite(priceMax))
+			issues.push('Maximum price must be a valid number.');
+		if (priceMin != null && priceMax != null && priceMax < priceMin) {
+			issues.push('Maximum price must be greater than or equal to minimum price.');
+		}
 		if (issues.length > 0) return fail(400, { error: issues[0], issues });
 
 		let pricingTiers: PricingTier[] = [];
@@ -146,6 +157,8 @@ export const actions: Actions = {
 			tags: tags.length > 0 ? tags : undefined,
 			isAllDay: fd.has('isAllDay'),
 			pricingTiers,
+			priceMin: priceMin ?? undefined,
+			priceMax: priceMax ?? undefined,
 			imageUrl: imageUrl ?? imageUrlInput,
 			submittedById: locals.user?.id,
 			status: 'draft',

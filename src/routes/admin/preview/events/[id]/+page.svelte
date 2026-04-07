@@ -1,17 +1,12 @@
 <script lang="ts">
 	import * as Card from '$lib/components/ui/card/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
+	import { formatDisplayDateTime } from '$lib/utils/display';
 	import StatusBadge from '$lib/components/organisms/admin/StatusBadge.svelte';
 	import { CalendarDays, ExternalLink, MapPin } from '@lucide/svelte';
 	import type { PageData } from './$types';
 
 	let { data } = $props<{ data: PageData }>();
-
-	function formatDate(value?: string | null) {
-		if (!value) return null;
-		const date = new Date(value);
-		return Number.isNaN(date.getTime()) ? value : date.toLocaleString();
-	}
 </script>
 
 <div class="mx-auto max-w-4xl space-y-6 px-4 py-6 sm:px-6">
@@ -83,10 +78,10 @@
 						Date and time
 					</div>
 					<p class="mt-2 text-[var(--mid)]">
-						{formatDate(data.event.startDate) ?? 'No start date'}
+						{formatDisplayDateTime(data.event.startDate, undefined, 'No start date')}
 						{#if data.event.endDate}
 							<br />
-							Ends {formatDate(data.event.endDate)}
+							Ends {formatDisplayDateTime(data.event.endDate)}
 						{/if}
 					</p>
 				</div>

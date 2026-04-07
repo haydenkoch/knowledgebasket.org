@@ -1,23 +1,41 @@
 <script lang="ts">
-	import { ChevronDown, Check, X } from '@lucide/svelte';
+	import { ChevronDown, Check, X, Sparkles, AlarmClock, Ban } from '@lucide/svelte';
 	import type { EventItem } from '$lib/data/kb';
 	import * as Popover from '$lib/components/ui/popover/index.js';
 	import * as Command from '$lib/components/ui/command/index.js';
+	import * as Select from '$lib/components/ui/select/index.js';
+	import { Switch } from '$lib/components/ui/switch/index.js';
+	import { Badge } from '$lib/components/ui/badge/index.js';
+	import { Button } from '$lib/components/ui/button/index.js';
 	import KbSidebar from '$lib/components/organisms/KbSidebar.svelte';
 	import EventsViewSelector from '$lib/components/molecules/EventsViewSelector.svelte';
-	import { eventTypeTags } from '$lib/data/formSchema';
+	import { eventTypeGroups } from '$lib/data/formSchema';
 	import { IsMobile } from '$lib/hooks/is-mobile.svelte';
 	import { getEventCostFilterLabel } from '$lib/utils/event-pricing';
+	import {
+		EVENTS_SORT_OPTIONS,
+		type EventsSortKey
+	} from '$lib/hooks/use-events-filters-v2.svelte';
 
-	type EventFilters = {
+	type EventFiltersV2 = {
 		searchQuery: string;
 		regionSelect: string[];
 		typeSelect: string[];
 		costFilter: string[];
+		formatSelect: string[];
+		audienceSelect: string[];
+		sortBy: EventsSortKey;
+		featuredOnly: boolean;
+		hideSoldOut: boolean;
+		registrationOpen: boolean;
+		closingThisWeek: boolean;
 		regionValuesVisible: string[];
 		regionCountsInRange: Record<string, number>;
+		audienceValuesVisible: string[];
+		audienceCountsInRange: Record<string, number>;
 		costValuesVisible: string[];
 		costCountsInRange: Record<string, number>;
+		formatCountsInRange: Record<string, number>;
 		dateBuckets: {
 			buckets: { label: string; start: number; end: number; count: number }[];
 			maxCount: number;
@@ -27,15 +45,18 @@
 		sliderMaxIx: number;
 		rangeStart: number;
 		rangeEnd: number;
+		todayStart: number;
+		defaultRangeEnd: number;
 		typeTagsVisible: string[];
 		handleSliderChange: (vals: number[]) => void;
 		handleSliderCommit: (vals: number[]) => void;
+		setRangeFromIndices: (minIx: number, maxIx: number) => void;
 		clearFilters: () => void;
 		[key: string]: unknown;
 	};
 
 	interface Props {
-		filters: EventFilters;
+		filters: EventFiltersV2;
 		eventView: 'cards' | 'list' | 'calendar';
 		mobileMode?: boolean;
 		formatCostLabel: () => string;
@@ -96,9 +117,89 @@
 	const fromLabel = $derived(fmtDate(filters.rangeStart));
 	const toLabel = $derived(fmtDate(filters.rangeEnd));
 
+	// ── Date presets ─────────────────────────────────────────────────────────
+	type PresetId = 'today' | 'weekend' | 'next7' | 'thisMonth' | 'next3mo' | 'all';
+	const DATE_PRESETS: { id: PresetId; label: string }[] = [
+		{ id: 'today', label: 'Today' },
+		{ id: 'weekend', label: 'This weekend' },
+		{ id: 'next7', label: 'Next 7 days' },
+		{ id: 'thisMonth', label: 'This month' },
+		{ id: 'next3mo', label: 'Next 3 months' },
+		{ id: 'all', label: 'All' }
+	];
+
+	function presetRange(id: PresetId): { start: number; end: number } {
+		const now = new Date();
+		const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+		const endOfToday = new Date(
+			now.getFullYear(),
+			now.getMonth(),
+			now.getDate(),
+			23,
+			59,
+			59,
+			999
+		).getTime();
+		switch (id) {
+			case 'today':
+				return { start: startOfToday, end: endOfToday };
+			case 'weekend': {
+				const dow = now.getDay();
+				const daysUntilSat = (6 - dow + 7) % 7;
+				const sat = new Date(now.getFullYear(), now.getMonth(), now.getDate() + daysUntilSat);
+				const sun = new Date(
+					sat.getFullYear(),
+					sat.getMonth(),
+					sat.getDate() + 1,
+					23,
+					59,
+					59,
+					999
+				);
+				return { start: sat.getTime(), end: sun.getTime() };
+			}
+			case 'next7':
+				return {
+					start: startOfToday,
+					end:
+						new Date(now.getFullYear(), now.getMonth(), now.getDate() + 7, 23, 59, 59, 999).getTime()
+				};
+			case 'thisMonth':
+				return {
+					start: startOfToday,
+					end: new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999).getTime()
+				};
+			case 'next3mo':
+				return {
+					start: startOfToday,
+					end: new Date(now.getFullYear(), now.getMonth() + 3, 0, 23, 59, 59, 999).getTime()
+				};
+			case 'all':
+			default:
+				return { start: filters.todayStart, end: filters.defaultRangeEnd };
+		}
+	}
+
+	const activePreset = $derived.by<PresetId | null>(() => {
+		const start = filters.rangeStart;
+		const end = filters.rangeEnd;
+		for (const p of DATE_PRESETS) {
+			const r = presetRange(p.id);
+			if (r.start === start && r.end === end) return p.id;
+		}
+		return null;
+	});
+
+	function applyPreset(id: PresetId) {
+		const r = presetRange(id);
+		filters.rangeStart = r.start;
+		filters.rangeEnd = r.end;
+	}
+
 	// ── Popover state ─────────────────────────────────────────────────────────
 	let costOpen = $state(false);
 	let regionOpen = $state(false);
+	let audienceOpen = $state(false);
 	let typeOpen = $state(false);
 
 	// ── Labels ────────────────────────────────────────────────────────────────
@@ -112,6 +213,25 @@
 				? filters.regionSelect[0]
 				: `${filters.regionSelect.length} selected`
 	);
+	const audienceLabel = $derived(
+		filters.audienceSelect.length === 0
+			? 'Any audience'
+			: filters.audienceSelect.length === 1
+				? filters.audienceSelect[0]
+				: `${filters.audienceSelect.length} selected`
+	);
+
+	// ── Format toggle ─────────────────────────────────────────────────────────
+	const FORMAT_OPTIONS: { id: string; label: string }[] = [
+		{ id: 'in_person', label: 'In person' },
+		{ id: 'online', label: 'Online' },
+		{ id: 'hybrid', label: 'Hybrid' }
+	];
+	function toggleFormat(id: string) {
+		if (filters.formatSelect.includes(id))
+			filters.formatSelect = filters.formatSelect.filter((x) => x !== id);
+		else filters.formatSelect = [...filters.formatSelect, id];
+	}
 
 	// ── Helpers ───────────────────────────────────────────────────────────────
 	function toggleCost(v: string) {
@@ -124,21 +244,114 @@
 			filters.regionSelect = filters.regionSelect.filter((x) => x !== v);
 		else filters.regionSelect = [...filters.regionSelect, v];
 	}
+	function toggleAudience(v: string) {
+		if (filters.audienceSelect.includes(v))
+			filters.audienceSelect = filters.audienceSelect.filter((x) => x !== v);
+		else filters.audienceSelect = [...filters.audienceSelect, v];
+	}
 	function toggleType(tag: string) {
 		if (filters.typeSelect.includes(tag))
 			filters.typeSelect = filters.typeSelect.filter((x) => x !== tag);
 		else filters.typeSelect = [...filters.typeSelect, tag];
 	}
 
+	const dateRangeIsCustom = $derived(
+		filters.rangeStart !== filters.todayStart || filters.rangeEnd !== filters.defaultRangeEnd
+	);
+
 	const hasActiveFilters = $derived(
 		filters.regionSelect.length > 0 ||
 			filters.typeSelect.length > 0 ||
-			filters.costFilter.length > 0
+			filters.costFilter.length > 0 ||
+			filters.formatSelect.length > 0 ||
+			filters.audienceSelect.length > 0 ||
+			filters.featuredOnly ||
+			filters.hideSoldOut ||
+			filters.registrationOpen ||
+			filters.closingThisWeek ||
+			dateRangeIsCustom
 	);
+
+	// ── Active filter chip list (for the bar above sections) ─────────────────
+	type ActiveChip = { key: string; label: string; remove: () => void };
+	const activeChips = $derived.by<ActiveChip[]>(() => {
+		const out: ActiveChip[] = [];
+		if (dateRangeIsCustom) {
+			const presetLabel = activePreset
+				? (DATE_PRESETS.find((p) => p.id === activePreset)?.label ?? 'Custom dates')
+				: `${fmtDate(filters.rangeStart)} – ${fmtDate(filters.rangeEnd)}`;
+			out.push({
+				key: 'date',
+				label: presetLabel,
+				remove: () => {
+					filters.rangeStart = filters.todayStart;
+					filters.rangeEnd = filters.defaultRangeEnd;
+				}
+			});
+		}
+		for (const f of filters.formatSelect) {
+			const opt = FORMAT_OPTIONS.find((o) => o.id === f);
+			out.push({
+				key: `format:${f}`,
+				label: opt?.label ?? f,
+				remove: () => toggleFormat(f)
+			});
+		}
+		for (const c of filters.costFilter) {
+			out.push({
+				key: `cost:${c}`,
+				label: getEventCostFilterLabel(c),
+				remove: () => toggleCost(c)
+			});
+		}
+		for (const r of filters.regionSelect) {
+			out.push({ key: `region:${r}`, label: r, remove: () => toggleRegion(r) });
+		}
+		for (const a of filters.audienceSelect) {
+			out.push({ key: `audience:${a}`, label: a, remove: () => toggleAudience(a) });
+		}
+		for (const t of filters.typeSelect) {
+			out.push({ key: `type:${t}`, label: t, remove: () => onTypeRemove(t) });
+		}
+		if (filters.featuredOnly) {
+			out.push({
+				key: 'featured',
+				label: 'Featured only',
+				remove: () => (filters.featuredOnly = false)
+			});
+		}
+		if (filters.hideSoldOut) {
+			out.push({
+				key: 'soldout',
+				label: 'Hide sold out',
+				remove: () => (filters.hideSoldOut = false)
+			});
+		}
+		if (filters.registrationOpen) {
+			out.push({
+				key: 'regopen',
+				label: 'Registration open',
+				remove: () => (filters.registrationOpen = false)
+			});
+		}
+		if (filters.closingThisWeek) {
+			out.push({
+				key: 'closing',
+				label: 'Closing this week',
+				remove: () => (filters.closingThisWeek = false)
+			});
+		}
+		return out;
+	});
 
 	const minPct = $derived(filters.numBuckets > 1 ? (localMin / (filters.numBuckets - 1)) * 100 : 0);
 	const maxPct = $derived(
 		filters.numBuckets > 1 ? (localMax / (filters.numBuckets - 1)) * 100 : 100
+	);
+
+	// ── Sort selector ────────────────────────────────────────────────────────
+	const sortLabel = $derived(
+		EVENTS_SORT_OPTIONS.find((o) => o.id === filters.sortBy)?.label ?? 'Sort'
 	);
 </script>
 
@@ -175,9 +388,48 @@
 		<EventsViewSelector bind:eventView />
 	{/snippet}
 
+	<!-- Active filter chips -->
+	{#if activeChips.length > 0}
+		<div class="kb-section kb-active-chips-section">
+			<div class="kb-active-chips-row">
+				<div class="kb-active-chips">
+					{#each activeChips as chip (chip.key)}
+						<span class="kb-form-type-chip">
+							{chip.label}
+							<button
+								type="button"
+								class="kb-form-type-chip-remove"
+								aria-label="Remove {chip.label}"
+								onclick={chip.remove}
+							>
+								<X class="size-3" />
+							</button>
+						</span>
+					{/each}
+				</div>
+				<button type="button" class="kb-active-chips-clear" onclick={onClear}>Clear all</button>
+			</div>
+		</div>
+	{/if}
+
 	<!-- Date range -->
 	<div class="kb-section">
 		<div class="kb-section__title">Date Range</div>
+
+		<!-- Quick presets -->
+		<div class="kb-date-presets" role="group" aria-label="Date range presets">
+			{#each DATE_PRESETS as preset (preset.id)}
+				<button
+					type="button"
+					class="kb-date-preset"
+					class:kb-date-preset--active={activePreset === preset.id}
+					aria-pressed={activePreset === preset.id}
+					onclick={() => applyPreset(preset.id)}
+				>
+					<span>{preset.label}</span>
+				</button>
+			{/each}
+		</div>
 
 		<!-- Histogram -->
 		<div class="kb-histogram" aria-hidden="true">
@@ -245,7 +497,27 @@
 		</div>
 	</div>
 
-	<!-- Filter: Cost + Geography -->
+	<!-- Format -->
+	<div class="kb-section">
+		<div class="kb-section__title">Format</div>
+		<div class="kb-format-group" role="group" aria-label="Event format">
+			{#each FORMAT_OPTIONS as opt (opt.id)}
+				{@const sel = filters.formatSelect.includes(opt.id)}
+				<Button
+					type="button"
+					variant={sel ? 'default' : 'outline'}
+					size="sm"
+					aria-pressed={sel}
+					class="kb-format-button"
+					onclick={() => toggleFormat(opt.id)}
+				>
+					{opt.label}
+				</Button>
+			{/each}
+		</div>
+	</div>
+
+	<!-- Filter: Cost + Geography + Audience -->
 	<div class="kb-section">
 		<div class="kb-section__title">Filter</div>
 		<div class="kb-section__stack">
@@ -267,7 +539,7 @@
 									onSelect={() => toggleCost(cost)}
 									class="kb-filter-item {sel ? 'kb-filter-item--checked' : ''}"
 								>
-									<Check class="h-4 w-4 {sel ? 'opacity-100' : 'opacity-0'}" />
+									<Check class="h-4 w-4 text-current {sel ? 'opacity-100' : 'opacity-0'}" />
 									<span class="kb-filter-item__label">{getEventCostFilterLabel(cost)}</span>
 									{#if cnt > 0}
 										<span class="kb-filter-item__badge">{cnt}</span>
@@ -297,7 +569,7 @@
 									onSelect={() => toggleRegion(region)}
 									class="kb-filter-item {sel ? 'kb-filter-item--checked' : ''}"
 								>
-									<Check class="h-4 w-4 {sel ? 'opacity-100' : 'opacity-0'}" />
+									<Check class="h-4 w-4 text-current {sel ? 'opacity-100' : 'opacity-0'}" />
 									<span class="kb-filter-item__label">{region}</span>
 									{#if cnt > 0}
 										<span class="kb-filter-item__badge">{cnt}</span>
@@ -308,6 +580,70 @@
 					</Command.Root>
 				</Popover.Content>
 			</Popover.Root>
+
+			<!-- Audience -->
+			{#if filters.audienceValuesVisible.length > 0}
+				<Popover.Root bind:open={audienceOpen}>
+					<Popover.Trigger class="kb-refine-select">
+						<span>{audienceLabel}</span>
+						<ChevronDown class="h-4 w-4 shrink-0 opacity-50" />
+					</Popover.Trigger>
+					<Popover.Content class="kb-filter-popover-content p-0" align="start" sideOffset={4}>
+						<Command.Root>
+							<Command.List>
+								<Command.Empty>No audiences.</Command.Empty>
+								{#each filters.audienceValuesVisible as audience}
+									{@const sel = filters.audienceSelect.includes(audience)}
+									{@const cnt = filters.audienceCountsInRange[audience] ?? 0}
+									<Command.Item
+										value={audience}
+										onSelect={() => toggleAudience(audience)}
+										class="kb-filter-item {sel ? 'kb-filter-item--checked' : ''}"
+									>
+										<Check class="h-4 w-4 text-current {sel ? 'opacity-100' : 'opacity-0'}" />
+										<span class="kb-filter-item__label">{audience}</span>
+										{#if cnt > 0}
+											<span class="kb-filter-item__badge">{cnt}</span>
+										{/if}
+									</Command.Item>
+								{/each}
+							</Command.List>
+						</Command.Root>
+					</Popover.Content>
+				</Popover.Root>
+			{/if}
+		</div>
+
+		<!-- Quick toggles -->
+		<div class="kb-toggle-stack">
+			<label class="kb-toggle-row">
+				<span class="kb-toggle-row__label">
+					<Sparkles class="size-3.5 opacity-70" />
+					Featured only
+				</span>
+				<Switch bind:checked={filters.featuredOnly} size="sm" />
+			</label>
+			<label class="kb-toggle-row">
+				<span class="kb-toggle-row__label">
+					<Ban class="size-3.5 opacity-70" />
+					Hide sold out
+				</span>
+				<Switch bind:checked={filters.hideSoldOut} size="sm" />
+			</label>
+			<label class="kb-toggle-row">
+				<span class="kb-toggle-row__label">
+					<Check class="size-3.5 opacity-70" />
+					Registration open
+				</span>
+				<Switch bind:checked={filters.registrationOpen} size="sm" />
+			</label>
+			<label class="kb-toggle-row">
+				<span class="kb-toggle-row__label">
+					<AlarmClock class="size-3.5 opacity-70" />
+					Closing this week
+				</span>
+				<Switch bind:checked={filters.closingThisWeek} size="sm" />
+			</label>
 		</div>
 	</div>
 
@@ -348,23 +684,44 @@
 					<Command.Input placeholder="Search types…" />
 					<Command.List>
 						<Command.Empty>No type found.</Command.Empty>
-						<Command.Group>
-							{#each eventTypeTags as tag (tag)}
-								{@const sel = filters.typeSelect.includes(tag)}
-								<Command.Item
-									value={tag}
-									onSelect={() => toggleType(tag)}
-									class="kb-filter-item {sel ? 'kb-filter-item--checked' : ''}"
-								>
-									<Check class="h-4 w-4 {sel ? 'opacity-100' : 'opacity-0'}" />
-									<span class="kb-filter-item__label">{tag}</span>
-								</Command.Item>
-							{/each}
-						</Command.Group>
+						{#each eventTypeGroups as group (group.id)}
+							<Command.Group heading={group.label}>
+								{#each group.tags as tag (tag)}
+									{@const sel = filters.typeSelect.includes(tag)}
+									<Command.Item
+										value={tag}
+										onSelect={() => toggleType(tag)}
+										class="kb-filter-item {sel ? 'kb-filter-item--checked' : ''}"
+									>
+										<Check class="h-4 w-4 text-current {sel ? 'opacity-100' : 'opacity-0'}" />
+										<span class="kb-filter-item__label">{tag}</span>
+									</Command.Item>
+								{/each}
+							</Command.Group>
+						{/each}
 					</Command.List>
 				</Command.Root>
 			</Popover.Content>
 		</Popover.Root>
+	</div>
+
+	<!-- Sort -->
+	<div class="kb-section">
+		<div class="kb-section__title">Sort</div>
+		<Select.Root
+			type="single"
+			value={filters.sortBy}
+			onValueChange={(v: string) => (filters.sortBy = v as EventsSortKey)}
+		>
+			<Select.Trigger class="kb-refine-select w-full">
+				{sortLabel}
+			</Select.Trigger>
+			<Select.Content>
+				{#each EVENTS_SORT_OPTIONS as opt (opt.id)}
+					<Select.Item value={opt.id} label={opt.label}>{opt.label}</Select.Item>
+				{/each}
+			</Select.Content>
+		</Select.Root>
 	</div>
 </KbSidebar>
 
@@ -394,6 +751,137 @@
 		flex-direction: column;
 		gap: 6px;
 		width: 100%;
+		min-width: 0;
+	}
+
+	/* ── Active filter chips bar ──────────────────────────────────────── */
+	.kb-active-chips-section {
+		margin-bottom: 16px;
+		padding-bottom: 12px;
+	}
+	.kb-active-chips-row {
+		display: flex;
+		flex-direction: column;
+		gap: 8px;
+	}
+	.kb-active-chips {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 4px;
+	}
+	.kb-active-chips-clear {
+		align-self: flex-start;
+		background: transparent;
+		border: none;
+		padding: 0;
+		font-family: var(--font-sans);
+		font-size: 11px;
+		font-weight: 600;
+		text-transform: uppercase;
+		letter-spacing: 0.06em;
+		color: var(--muted-foreground);
+		cursor: pointer;
+	}
+	.kb-active-chips-clear:hover {
+		color: var(--foreground);
+		text-decoration: underline;
+	}
+
+	/* ── Date preset bar ──────────────────────────────────────────────── */
+	.kb-date-presets {
+		display: grid;
+		grid-template-columns: repeat(3, minmax(0, 1fr));
+		gap: 0;
+		margin-bottom: 14px;
+		border: 1px solid var(--border);
+		border-radius: var(--radius, 6px);
+		overflow: hidden;
+		background: var(--card);
+		box-shadow: 0 1px 0 rgba(15, 23, 42, 0.03);
+	}
+	.kb-date-preset {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		font-family: var(--font-sans);
+		font-size: 11px;
+		font-weight: 600;
+		letter-spacing: 0.01em;
+		padding: 7px 6px;
+		border: none;
+		border-right: 1px solid var(--border);
+		border-bottom: 1px solid var(--border);
+		background: transparent;
+		color: var(--muted-foreground);
+		cursor: pointer;
+		white-space: nowrap;
+		min-width: 0;
+		transition:
+			background 0.15s ease,
+			color 0.15s ease;
+	}
+	.kb-date-preset > span {
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+	.kb-date-preset:nth-child(3n) {
+		border-right: none;
+	}
+	.kb-date-preset:nth-last-child(-n + 3) {
+		border-bottom: none;
+	}
+	.kb-date-preset:hover {
+		background: color-mix(in srgb, var(--accent) 70%, transparent);
+		color: var(--foreground);
+	}
+	.kb-date-preset--active {
+		background: var(--color-lakebed-950, #172647);
+		color: #fff;
+	}
+	.kb-date-preset--active:hover {
+		background: var(--color-lakebed-950, #172647);
+		color: #fff;
+	}
+
+	/* ── Format toggle group ──────────────────────────────────────────── */
+	.kb-format-group {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 6px;
+	}
+	:global(.kb-format-button) {
+		flex: 1 1 0;
+		min-width: 0;
+	}
+	:global(.kb-format-button .kb-format-button__badge) {
+		height: 16px;
+		padding: 0 5px;
+		font-size: 9px;
+		line-height: 1;
+	}
+
+	/* ── Toggle row stack ─────────────────────────────────────────────── */
+	.kb-toggle-stack {
+		display: flex;
+		flex-direction: column;
+		gap: 6px;
+		margin-top: 10px;
+	}
+	.kb-toggle-row {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 8px;
+		padding: 4px 2px;
+		font-family: var(--font-sans);
+		font-size: 12px;
+		color: var(--foreground);
+		cursor: pointer;
+	}
+	.kb-toggle-row__label {
+		display: inline-flex;
+		align-items: center;
+		gap: 6px;
 		min-width: 0;
 	}
 
@@ -624,9 +1112,9 @@
 
 	/* ── Popover dropdown ────────────────────────────────────────────── */
 	:global(.kb-filter-popover-content) {
-		width: var(--radix-popover-trigger-width, 232px);
-		min-width: 200px;
-		max-width: var(--radix-popover-trigger-width, 280px);
+		width: var(--bits-popover-anchor-width, 232px);
+		min-width: var(--bits-popover-anchor-width, 200px);
+		max-width: var(--bits-popover-anchor-width, 280px);
 		box-sizing: border-box;
 	}
 	:global(.kb-filter-popover-content [data-slot='command-list']) {

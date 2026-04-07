@@ -86,14 +86,6 @@
 							? 'Toolbox'
 							: null
 	);
-	const browseHeadline = $derived(
-		currentScopeLabel ? `Continue in ${currentScopeLabel}` : 'Start with a coil'
-	);
-	const browseDescription = $derived(
-		currentScopeLabel
-			? `You're already in ${currentScopeLabel}. Stay here or jump to another part of the basket.`
-			: 'Pick the area you want, then choose a quick path.'
-	);
 	const searchAllHref = $derived(buildSearchHref({ q: query, scope: selectedScope }));
 	const inputBadgeLabel = $derived(SEARCH_SCOPE_LABELS[selectedScope]);
 	const inputPrompt = $derived(
@@ -304,47 +296,53 @@
 			{/if}
 		</div>
 
-		<Command.List class="max-h-[72vh] px-2 py-3">
+		<Command.List class="max-h-[72vh] px-2 py-2">
 			{#if query.trim().length < MIN_SEARCH_QUERY_LENGTH}
 				<SearchBrowseMenu
 					{query}
 					initialScope={selectedScope === 'all' ? (currentScope ?? 'events') : selectedScope}
 					compact={isMobile.current}
-					headline={browseHeadline}
-					description={browseDescription}
 					onNavigate={(href) => navigate(href)}
 					onScopeChange={setScope}
 				/>
 
-				<Command.Group heading={isMobile.current ? 'Popular' : 'Popular Searches'}>
+				<div
+					class="mt-1 border-t border-[color:var(--rule)] px-2 pt-2 pb-1 text-[9px] font-semibold tracking-[0.1em] text-[var(--mid)]/70 uppercase"
+				>
+					Trending
+				</div>
+				<Command.Group class="px-1 pb-1">
 					{#each isMobile.current ? PUBLIC_POPULAR_SEARCHES.slice(0, 3) : PUBLIC_POPULAR_SEARCHES as term}
 						<Command.Item
 							value={term}
 							onSelect={() => void navigate(buildScopedSearchHref(term, selectedScope))}
-							class="rounded-[0.45rem] px-3 py-3 aria-selected:bg-[color-mix(in_srgb,var(--color-lakebed-950)_10%,white)] aria-selected:text-[var(--dark)]"
+							class="rounded-[0.4rem] px-2 py-1.5 aria-selected:bg-[color-mix(in_srgb,var(--color-lakebed-950)_8%,white)] aria-selected:text-[var(--dark)]"
 						>
-							<SearchIcon class="h-4 w-4 text-[var(--mid)]" />
-							<div class="min-w-0">
-								<div class="text-sm font-semibold text-[var(--dark)]">{term}</div>
-								<div class="truncate text-xs text-[var(--mid)]">
-									Search {SEARCH_SCOPE_LABELS[selectedScope].toLowerCase()}
-								</div>
-							</div>
+							<SearchIcon class="h-3.5 w-3.5 shrink-0 text-[var(--mid)]" />
+							<span class="truncate text-[13px] font-medium text-[var(--dark)]">{term}</span>
+							<span class="ml-auto shrink-0 text-[10px] text-[var(--mid)]/60">
+								in {SEARCH_SCOPE_LABELS[selectedScope].toLowerCase()}
+							</span>
 						</Command.Item>
 					{/each}
 				</Command.Group>
 
-				<Command.Group heading={isMobile.current ? 'Pages' : 'Useful Pages'}>
+				<div
+					class="mt-1 border-t border-[color:var(--rule)] px-2 pt-2 pb-1 text-[9px] font-semibold tracking-[0.1em] text-[var(--mid)]/70 uppercase"
+				>
+					Jump to
+				</div>
+				<Command.Group class="px-1 pb-1">
 					{#each isMobile.current ? quickLinks.slice(0, 2) : quickLinks as link}
 						<Command.Item
 							value={`${link.label} ${link.meta}`}
 							onSelect={() => void navigate(link.href)}
-							class="rounded-[0.45rem] px-3 py-3 aria-selected:bg-[color-mix(in_srgb,var(--color-lakebed-950)_10%,white)] aria-selected:text-[var(--dark)]"
+							class="rounded-[0.4rem] px-2 py-1.5 aria-selected:bg-[color-mix(in_srgb,var(--color-lakebed-950)_8%,white)] aria-selected:text-[var(--dark)]"
 						>
-							<div class="min-w-0">
-								<div class="text-sm font-semibold text-[var(--dark)]">{link.label}</div>
-								<div class="truncate text-xs text-[var(--mid)]">{link.meta}</div>
-							</div>
+							<span class="truncate text-[13px] font-medium text-[var(--dark)]">{link.label}</span>
+							<span class="ml-auto shrink-0 truncate text-[10px] text-[var(--mid)]/60">
+								{link.meta}
+							</span>
 						</Command.Item>
 					{/each}
 				</Command.Group>

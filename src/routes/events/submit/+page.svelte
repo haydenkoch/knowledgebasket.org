@@ -511,6 +511,39 @@
 					</Field.Content>
 				</Field.Field>
 			</div>
+			<div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+				<Field.Field>
+					<Field.Label for="price_min">Lowest advertised price</Field.Label>
+					<Field.Content>
+						<Input
+							id="price_min"
+							name="price_min"
+							type="number"
+							min="0"
+							step="0.01"
+							value={form?.values?.price_min ?? ''}
+							placeholder="0"
+						/>
+					</Field.Content>
+					<Field.Description>Optional, but helpful for filtering.</Field.Description>
+				</Field.Field>
+
+				<Field.Field>
+					<Field.Label for="price_max">Highest advertised price</Field.Label>
+					<Field.Content>
+						<Input
+							id="price_max"
+							name="price_max"
+							type="number"
+							min="0"
+							step="0.01"
+							value={form?.values?.price_max ?? ''}
+							placeholder="Optional"
+						/>
+					</Field.Content>
+					<Field.Description>Use this when there are tiers or a range.</Field.Description>
+				</Field.Field>
+			</div>
 
 			<Field.Field>
 				<Field.Label for="description"

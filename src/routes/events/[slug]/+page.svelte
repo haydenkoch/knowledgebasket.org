@@ -398,7 +398,7 @@
 			<section class="kb-event-about">
 				<h2>About this event</h2>
 				{#if event.description}
-					<div class="kb-detail-description">{@html event.description}</div>
+					<div class="kb-detail-description">{event.description}</div>
 				{:else}
 					<p class="kb-event-no-desc kb-detail-description">No description available.</p>
 				{/if}
@@ -814,6 +814,7 @@
 	.kb-detail-description {
 		max-width: 65ch;
 		line-height: 1.6;
+		white-space: pre-line;
 	}
 	.kb-detail-description :global(:first-child) {
 		margin-top: 0;

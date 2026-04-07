@@ -1,4 +1,5 @@
 <script lang="ts">
+	import SeoHead from '$lib/components/SeoHead.svelte';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
 	import { untrack } from 'svelte';
@@ -10,6 +11,7 @@
 	import { Alert, AlertDescription, AlertTitle } from '$lib/components/ui/alert/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import type { JobItem } from '$lib/data/kb';
+	import { buildOgImagePath } from '$lib/seo/metadata';
 
 	type PaginationToken =
 		| { key: string; type: 'page'; value: number }
@@ -18,7 +20,7 @@
 	const MOBILE_FILTER_PEEK_HEIGHT = 70;
 
 	let { data } = $props();
-	const canonicalUrl = $derived(`${data.origin ?? ''}/jobs`);
+	const origin = $derived((data.seoOrigin ?? data.origin ?? '') as string);
 	const search = $derived(data.search);
 
 	function initialSearchQuery() {
@@ -155,14 +157,24 @@
 	});
 </script>
 
-<svelte:head>
-	<title>Job Board | Knowledge Basket</title>
-	<meta
-		name="description"
-		content="Browse job openings, fellowships, and career opportunities with Tribes and Indigenous-serving organizations."
-	/>
-	<link rel="canonical" href={canonicalUrl} />
-</svelte:head>
+<SeoHead
+	{origin}
+	pathname="/jobs"
+	title="Job Board | Knowledge Basket"
+	description="Browse job openings, fellowships, and career opportunities with Tribes and Indigenous-serving organizations."
+	robotsMode={data.seoIndexable === false ? 'noindex-follow' : 'index'}
+	ogImage={buildOgImagePath({
+		title: 'Job Board',
+		eyebrow: 'Knowledge Basket',
+		theme: 'jobs',
+		meta: 'Career opportunities with Tribes and Indigenous-serving organizations'
+	})}
+	ogImageAlt="Knowledge Basket jobs social preview"
+	breadcrumbItems={[
+		{ name: 'Knowledge Basket', pathname: '/' },
+		{ name: 'Jobs', pathname: '/jobs' }
+	]}
+/>
 
 {#snippet weave()}
 	<defs>

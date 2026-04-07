@@ -1,11 +1,16 @@
 <script lang="ts">
 	import { browser } from '$app/environment';
 	import { trackContentViewed, trackExternalLinkClicked } from '$lib/analytics/events';
+	import SeoHead from '$lib/components/SeoHead.svelte';
+	import { resolveAbsoluteUrl } from '$lib/config/public-assets';
 	import type { EventItem } from '$lib/data/kb';
 	import { getPlaceholderImageSrcset, DEFAULT_SIZES_HERO } from '$lib/data/placeholders';
+	import { formatDisplayDate } from '$lib/utils/display';
+	import { buildOgImagePath } from '$lib/seo/metadata';
 	import {
 		formatEventDateRange,
 		formatEventTime,
+		formatEventTimeRange,
 		getEventTypeTags,
 		eventDateForCalendarUrl,
 		eventGoogleCalendarUrl,
@@ -82,6 +87,16 @@
 	}
 	const doorsOpenTime = $derived(formatDoorsOpen(event.doorsOpenAt));
 	const eventStartTime = $derived(formatEventTime(event.startDate));
+	const eventTimeSummary = $derived(formatEventTimeRange(event.startDate, event.endDate));
+	const eventTimeLabel = $derived(
+		eventTimeSummary
+			? eventTimeSummary.includes('–')
+				? eventTimeSummary
+				: `Starts ${eventTimeSummary}`
+			: eventStartTime
+				? `Starts ${eventStartTime}`
+				: null
+	);
 
 	function mapUrl(location?: string): string {
 		if (!location?.trim()) return '';
@@ -113,7 +128,7 @@
 		return `/events?${params.toString()}`;
 	}
 
-	const origin = $derived(data.origin ?? '');
+	const origin = $derived((data.seoOrigin ?? data.origin ?? '') as string);
 	const canonicalUrl = $derived(event.slug ? `${origin}/events/${event.slug}` : origin + '/events');
 	const loginHref = $derived(
 		`/auth/login?redirect=${encodeURIComponent(event.slug ? `/events/${event.slug}` : '/events')}`
@@ -123,13 +138,27 @@
 			? stripHtml(String(event.description)).slice(0, 160)
 			: `${event.title}. ${event.region ?? ''} ${formatEventDateRange(event.startDate, event.endDate)}.`
 	);
-	const ogImage = $derived(
-		event.imageUrl
-			? event.imageUrl.startsWith('http')
-				? event.imageUrl
-				: `${origin}${event.imageUrl.startsWith('/') ? '' : '/'}${event.imageUrl}`
-			: ''
+	const coverImageUrl = $derived(
+		resolveAbsoluteUrl(event.imageUrl, {
+			origin
+		})
 	);
+	const socialImage = $derived(
+		buildOgImagePath({
+			title: event.title,
+			eyebrow: 'Knowledge Basket · Events',
+			theme: 'events',
+			meta: `${event.region ?? 'Indigenous events'}${event.hostOrg ? ` · ${event.hostOrg}` : ''}`
+		})
+	);
+	const breadcrumbItems = $derived([
+		{ name: 'Knowledge Basket', pathname: '/' },
+		{ name: 'Events', pathname: '/events' },
+		{
+			name: event.title,
+			pathname: event.slug ? `/events/${event.slug}` : '/events'
+		}
+	]);
 
 	function toIsoDate(dateStr?: string): string | null {
 		const ts = dateStr ? parseEventStart(dateStr) : null;
@@ -171,19 +200,12 @@
 			eventStatus: 'https://schema.org/EventScheduled',
 			eventAttendanceMode: attendanceMode,
 			...(location && { location }),
-			...(ogImage && { image: ogImage }),
+			...(coverImageUrl && { image: coverImageUrl }),
 			url: canonicalUrl,
 			...(event.hostOrg && { organizer: { '@type': 'Organization', name: event.hostOrg } }),
 			...(eventUrl && eventUrl !== canonicalUrl && { offers: { '@type': 'Offer', url: eventUrl } })
 		};
 	});
-	const jsonLdScript = $derived.by(() =>
-		[
-			'<script type="application/ld+json">',
-			JSON.stringify(jsonLd).replaceAll('<', '\\u003c'),
-			'</scr' + 'ipt>'
-		].join('')
-	);
 	let lastTrackedSlug = $state('');
 
 	$effect(() => {
@@ -198,26 +220,16 @@
 	});
 </script>
 
-<svelte:head>
-	<title>{event.title} | Events | Knowledge Basket</title>
-	<meta name="description" content={metaDescription} />
-	{#if canonicalUrl}
-		<link rel="canonical" href={canonicalUrl} />
-	{/if}
-	<!-- Open Graph -->
-	<meta property="og:title" content={event.title} />
-	<meta property="og:description" content={metaDescription} />
-	{#if ogImage}<meta property="og:image" content={ogImage} />{/if}
-	<meta property="og:url" content={canonicalUrl} />
-	<meta property="og:type" content="website" />
-	<!-- Twitter -->
-	<meta name="twitter:card" content="summary_large_image" />
-	<meta name="twitter:title" content={event.title} />
-	<meta name="twitter:description" content={metaDescription} />
-	{#if ogImage}<meta name="twitter:image" content={ogImage} />{/if}
-	<!-- JSON-LD Event -->
-	{@html jsonLdScript}
-</svelte:head>
+<SeoHead
+	{origin}
+	pathname={event.slug ? `/events/${event.slug}` : '/events'}
+	title={`${event.title} | Events | Knowledge Basket`}
+	description={metaDescription}
+	ogImage={socialImage}
+	ogImageAlt={`${event.title} event social preview`}
+	jsonLd={[jsonLd]}
+	{breadcrumbItems}
+/>
 
 <div class="kb-event-detail" style="--kb-accent: var(--teal)">
 	<!-- Hero (full-bleed, image-forward; gallery filmstrip docked inside) -->
@@ -426,17 +438,33 @@
 			<div class="kb-event-info-card">
 				<h3>Date & time</h3>
 				<p class="kb-event-info-value">{formatEventDateRange(event.startDate, event.endDate)}</p>
-				{#if doorsOpenTime && eventStartTime}
-					<p class="kb-event-info-note">Doors open {doorsOpenTime} · Event {eventStartTime}</p>
+				{#if doorsOpenTime && eventTimeLabel}
+					<p class="kb-event-info-note">Doors open {doorsOpenTime} · {eventTimeLabel}</p>
+				{:else if doorsOpenTime}
+					<p class="kb-event-info-note">Doors open {doorsOpenTime}</p>
+				{:else if eventTimeLabel}
+					<p class="kb-event-info-note">{eventTimeLabel}</p>
 				{:else if isIcalEvent}
 					<p class="kb-event-info-note">See event link for exact times.</p>
-				{:else}
-					<p class="kb-event-info-note">All times are local. Check event page for details.</p>
-				{/if}
-				{#if event.timezone}
-					<p class="kb-event-info-note">Time zone: {event.timezone}</p>
 				{/if}
 			</div>
+			{#if event.registrationDeadline}
+				<div class="kb-event-info-card">
+					<h3>Registration deadline</h3>
+					<p class="kb-event-info-value">
+						{formatDisplayDate(
+							event.registrationDeadline,
+							{
+								weekday: 'long',
+								month: 'long',
+								day: 'numeric',
+								year: 'numeric'
+							},
+							'Deadline not listed'
+						)}
+					</p>
+				</div>
+			{/if}
 			{#if event.capacity != null || event.soldOut}
 				<div class="kb-event-info-card">
 					<h3>Capacity</h3>
@@ -517,6 +545,28 @@
 						</p>
 					{:else}
 						<p class="kb-event-info-value">{event.hostOrg}</p>
+					{/if}
+				</div>
+			{/if}
+			{#if event.contactName || event.contactEmail || event.contactPhone}
+				<div class="kb-event-info-card">
+					<h3>Contact</h3>
+					{#if event.contactName}
+						<p class="kb-event-info-value">{event.contactName}</p>
+					{/if}
+					{#if event.contactEmail}
+						<p class="kb-event-info-value">
+							<a href={`mailto:${event.contactEmail}`} class="kb-event-info-link-inline"
+								>{event.contactEmail}</a
+							>
+						</p>
+					{/if}
+					{#if event.contactPhone}
+						<p class="kb-event-info-value">
+							<a href={`tel:${event.contactPhone}`} class="kb-event-info-link-inline"
+								>{event.contactPhone}</a
+							>
+						</p>
 					{/if}
 				</div>
 			{/if}

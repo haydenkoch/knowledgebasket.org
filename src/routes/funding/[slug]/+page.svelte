@@ -1,7 +1,10 @@
 <script lang="ts">
 	import { browser } from '$app/environment';
 	import { trackContentViewed, trackExternalLinkClicked } from '$lib/analytics/events';
+	import SeoHead from '$lib/components/SeoHead.svelte';
+	import { resolveAbsoluteUrl } from '$lib/config/public-assets';
 	import type { FundingItem } from '$lib/data/kb';
+	import { buildOgImagePath } from '$lib/seo/metadata';
 	import { formatDisplayValue } from '$lib/utils/display.js';
 	import { stripHtml } from '$lib/utils/format';
 	import { Button } from '$lib/components/ui/button/index.js';
@@ -19,7 +22,7 @@
 			: []
 	);
 	let selectedGalleryIndex = $state(0);
-	const origin = $derived(data.origin ?? '');
+	const origin = $derived((data.seoOrigin ?? data.origin ?? '') as string);
 	const isBookmarked = $derived(Boolean(data.isBookmarked));
 	const loginHref = $derived(
 		item?.slug
@@ -36,6 +39,31 @@
 				? stripHtml(String(item.description)).slice(0, 160)
 				: `${item.title}${item.funderName ? ` from ${item.funderName}` : ''}${item.amountDescription ? `. ${item.amountDescription}` : ''}.`
 			: ''
+	);
+	const coverImageUrl = $derived(
+		resolveAbsoluteUrl(item?.imageUrl, {
+			origin
+		})
+	);
+	const socialImage = $derived(
+		buildOgImagePath({
+			title: item?.title ?? 'Funding',
+			eyebrow: 'Knowledge Basket · Funding',
+			theme: 'funding',
+			meta: item?.funderName ?? item?.amountDescription ?? 'Funding opportunities'
+		})
+	);
+	const breadcrumbItems = $derived(
+		item
+			? [
+					{ name: 'Knowledge Basket', pathname: '/' },
+					{ name: 'Funding', pathname: '/funding' },
+					{ name: item.title, pathname: item.slug ? `/funding/${item.slug}` : '/funding' }
+				]
+			: [
+					{ name: 'Knowledge Basket', pathname: '/' },
+					{ name: 'Funding', pathname: '/funding' }
+				]
 	);
 
 	const fundingTypesDisplay = $derived(
@@ -105,18 +133,9 @@
 			};
 		}
 		if (item.deadline) ld.endDate = item.deadline;
-		if (item.imageUrl) ld.image = item.imageUrl;
+		if (coverImageUrl) ld.image = coverImageUrl;
 		return ld;
 	});
-	const jsonLdScript = $derived.by(() =>
-		jsonLd
-			? [
-					'<script type="application/ld+json">',
-					JSON.stringify(jsonLd).replaceAll('<', '\\u003c'),
-					'</scr' + 'ipt>'
-				].join('')
-			: null
-	);
 
 	let lastTrackedSlug = $state('');
 
@@ -132,27 +151,19 @@
 	});
 </script>
 
-<svelte:head>
-	<title
-		>{item
-			? `${item.title} | Funding | Knowledge Basket`
-			: 'Opportunity not found | Knowledge Basket'}</title
-	>
-	{#if item}
-		<meta name="description" content={metaDescription} />
-		<link rel="canonical" href={canonicalUrl} />
-		<meta property="og:title" content={item.title} />
-		<meta property="og:description" content={metaDescription} />
-		{#if item.imageUrl}<meta property="og:image" content={item.imageUrl} />{/if}
-		<meta property="og:url" content={canonicalUrl} />
-		<meta property="og:type" content="website" />
-		<meta name="twitter:card" content="summary_large_image" />
-		<meta name="twitter:title" content={item.title} />
-		<meta name="twitter:description" content={metaDescription} />
-		{#if item.imageUrl}<meta name="twitter:image" content={item.imageUrl} />{/if}
-		{#if jsonLdScript}{@html jsonLdScript}{/if}
-	{/if}
-</svelte:head>
+<SeoHead
+	{origin}
+	pathname={item?.slug ? `/funding/${item.slug}` : '/funding'}
+	title={item
+		? `${item.title} | Funding | Knowledge Basket`
+		: 'Opportunity not found | Knowledge Basket'}
+	description={item ? metaDescription : 'This funding opportunity is no longer available.'}
+	robotsMode={item ? 'index' : 'noindex-nofollow'}
+	ogImage={socialImage}
+	ogImageAlt={`${item?.title ?? 'Funding'} social preview`}
+	jsonLd={jsonLd ? [jsonLd] : []}
+	{breadcrumbItems}
+/>
 
 {#if !item}
 	<div class="mx-auto max-w-3xl px-4 py-12 sm:px-6">
@@ -211,7 +222,11 @@
 				</div>
 				{#if galleryImages.length > 0}
 					<figure class="kb-funding-hero-figure">
-						<img src={galleryImages[selectedGalleryIndex] ?? galleryImages[0]} alt="" loading="lazy" />
+						<img
+							src={galleryImages[selectedGalleryIndex] ?? galleryImages[0]}
+							alt=""
+							loading="lazy"
+						/>
 						{#if galleryImages.length > 1}
 							<div class="kb-funding-filmstrip" role="tablist" aria-label="Gallery">
 								{#each galleryImages as url, i (url + i)}

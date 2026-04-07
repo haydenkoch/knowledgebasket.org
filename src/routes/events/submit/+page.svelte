@@ -273,6 +273,7 @@
 		name="description"
 		content="Submit an Indigenous-led or Indigenous-serving event for the Knowledge Basket. Free listings; reviewed by IFS staff."
 	/>
+	<meta name="robots" content="noindex,nofollow" />
 </svelte:head>
 
 <KbFormShell

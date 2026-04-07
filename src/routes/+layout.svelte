@@ -54,6 +54,11 @@
 
 <svelte:head>
 	<link rel="icon" href={faviconHref} />
+	<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+	<link rel="icon" type="image/x-icon" href="/favicon.ico" />
+	<link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png" />
+	<link rel="icon" type="image/png" sizes="512x512" href="/icon-512.png" />
+	<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
 	<link rel="manifest" href="/manifest.webmanifest" />
 	<meta name="theme-color" content="#132533" />
 	<link rel="dns-prefetch" href="//use.typekit.net" />

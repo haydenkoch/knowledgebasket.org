@@ -19,6 +19,10 @@
 	}
 </script>
 
+<svelte:head>
+	<meta name="robots" content="noindex,nofollow" />
+</svelte:head>
+
 <section class="mx-auto flex w-full max-w-6xl flex-col gap-8 px-4 py-10 sm:px-6 lg:px-8 lg:py-14">
 	<div class="space-y-3">
 		<p class="text-sm font-semibold tracking-[0.18em] text-muted-foreground uppercase">

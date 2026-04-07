@@ -12,6 +12,7 @@ export const load: PageServerLoad = async ({ url }) => {
 
 	return {
 		search,
+		seoIndexable: false,
 		origin: url.origin
 	};
 };

@@ -1,6 +1,8 @@
 <script lang="ts">
+	import SeoHead from '$lib/components/SeoHead.svelte';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { legalConfig } from '$lib/legal/config';
+	import { buildOgImagePath } from '$lib/seo/metadata';
 	import ArrowRight from '@lucide/svelte/icons/arrow-right';
 	import CalendarDays from '@lucide/svelte/icons/calendar-days';
 	import HandCoins from '@lucide/svelte/icons/hand-coins';
@@ -9,7 +11,16 @@
 	import Wrench from '@lucide/svelte/icons/wrench';
 	import type { Component } from 'svelte';
 
-	const coils: { title: string; description: string; href: string; icon: Component; color: string }[] = [
+	let { data } = $props();
+	const origin = $derived((data.seoOrigin ?? '') as string);
+
+	const coils: {
+		title: string;
+		description: string;
+		href: string;
+		icon: Component;
+		color: string;
+	}[] = [
 		{
 			title: 'Events',
 			description: 'Gatherings, workshops, conferences, and cultural moments worth showing up for.',
@@ -19,7 +30,8 @@
 		},
 		{
 			title: 'Funding',
-			description: 'Grants, contracts, and fellowships supporting Indigenous communities and organizations.',
+			description:
+				'Grants, contracts, and fellowships supporting Indigenous communities and organizations.',
 			href: '/funding',
 			icon: HandCoins,
 			color: 'var(--gold)'
@@ -40,7 +52,8 @@
 		},
 		{
 			title: 'Toolbox',
-			description: 'Practical resources, guides, and materials gathered into a usable knowledge base.',
+			description:
+				'Practical resources, guides, and materials gathered into a usable knowledge base.',
 			href: '/toolbox',
 			icon: Wrench,
 			color: 'var(--slate)'
@@ -48,13 +61,23 @@
 	];
 </script>
 
-<svelte:head>
-	<title>About Knowledge Basket</title>
-	<meta
-		name="description"
-		content="Knowledge Basket brings events, opportunities, jobs, directory listings, and practical resources into one warmer, easier-to-use community product."
-	/>
-</svelte:head>
+<SeoHead
+	{origin}
+	pathname="/about"
+	title="About Knowledge Basket"
+	description="Knowledge Basket brings events, opportunities, jobs, directory listings, and practical resources into one warmer, easier-to-use community product."
+	ogImage={buildOgImagePath({
+		title: 'About Knowledge Basket',
+		eyebrow: 'A warmer way to explore community knowledge',
+		theme: 'about',
+		meta: 'About the product, its purpose, and what lives here'
+	})}
+	ogImageAlt="Knowledge Basket about page social preview"
+	breadcrumbItems={[
+		{ name: 'Knowledge Basket', pathname: '/' },
+		{ name: 'About', pathname: '/about' }
+	]}
+/>
 
 <article class="about-page">
 	<!-- Hero -->
@@ -65,9 +88,9 @@
 				A warmer way to explore<br />community knowledge.
 			</h1>
 			<p class="about-hero__lede">
-				Knowledge Basket brings together events, funding, jobs, a business directory, and
-				practical resources into one place — making it easier to find what is happening,
-				what is available, and who is doing meaningful work across the community.
+				Knowledge Basket brings together events, funding, jobs, a business directory, and practical
+				resources into one place — making it easier to find what is happening, what is available,
+				and who is doing meaningful work across the community.
 			</p>
 			<p class="about-hero__attribution">
 				Operated by {legalConfig.operatorName}
@@ -102,9 +125,9 @@
 			<h2 class="about-section-heading">How submissions work</h2>
 			<div class="about-prose">
 				<p>
-					Community members can submit events, funding, jobs, businesses, and resources.
-					Submissions enter a moderation flow before appearing publicly — staff may edit
-					for clarity, formatting, or policy compliance.
+					Community members can submit events, funding, jobs, businesses, and resources. Submissions
+					enter a moderation flow before appearing publicly — staff may edit for clarity,
+					formatting, or policy compliance.
 				</p>
 			</div>
 		</div>
@@ -117,8 +140,8 @@
 				<div class="about-link-block">
 					<h3 class="about-link-block__title">Open source</h3>
 					<p class="about-link-block__desc">
-						Knowledge Basket is built with open source software. We keep a public
-						thank-you page listing every dependency.
+						Knowledge Basket is built with open source software. We keep a public thank-you page
+						listing every dependency.
 					</p>
 					<Button href="/open-source" variant="secondary" class="mt-3 gap-2">
 						View open source thanks <ArrowRight size={14} />
@@ -300,7 +323,9 @@
 		color: var(--color-obsidian-400);
 		opacity: 0;
 		transform: translateX(-4px);
-		transition: opacity 0.15s ease, transform 0.15s ease;
+		transition:
+			opacity 0.15s ease,
+			transform 0.15s ease;
 	}
 	.about-coil-row:hover :global(.about-coil-row__arrow) {
 		opacity: 1;

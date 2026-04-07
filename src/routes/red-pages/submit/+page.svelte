@@ -64,6 +64,7 @@
 
 <svelte:head>
 	<title>Add your business | Red Pages | Knowledge Basket</title>
+	<meta name="robots" content="noindex,nofollow" />
 </svelte:head>
 
 <KbFormShell

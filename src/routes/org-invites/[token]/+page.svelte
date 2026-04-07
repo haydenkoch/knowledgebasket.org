@@ -5,6 +5,11 @@
 	let { data } = $props();
 </script>
 
+<svelte:head>
+	<title>Organization invite | Knowledge Basket</title>
+	<meta name="robots" content="noindex,nofollow" />
+</svelte:head>
+
 <section class="mx-auto max-w-2xl px-4 py-12 sm:px-6">
 	<Card.Root>
 		<Card.Header>

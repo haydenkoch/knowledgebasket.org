@@ -1,4 +1,5 @@
 <script lang="ts">
+	import SeoHead from '$lib/components/SeoHead.svelte';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
 	import { untrack } from 'svelte';
@@ -10,6 +11,7 @@
 	import { Alert, AlertDescription, AlertTitle } from '$lib/components/ui/alert/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import type { FundingItem } from '$lib/data/kb';
+	import { buildOgImagePath } from '$lib/seo/metadata';
 
 	type PaginationToken =
 		| { key: string; type: 'page'; value: number }
@@ -19,7 +21,7 @@
 	const MOBILE_FILTER_PEEK_HEIGHT = 70;
 
 	let { data } = $props();
-	const canonicalUrl = $derived(`${data.origin ?? ''}/funding`);
+	const origin = $derived((data.seoOrigin ?? data.origin ?? '') as string);
 	const search = $derived(data.search);
 	const futureOnly = $derived(Boolean(data.futureOnly));
 	const hasExplicitStatus = $derived(Boolean(data.hasExplicitStatus));
@@ -192,14 +194,24 @@
 	});
 </script>
 
-<svelte:head>
-	<title>Funding | Knowledge Basket</title>
-	<meta
-		name="description"
-		content="Browse grants, contracts, fellowships, and funding opportunities for Tribes, Native-led nonprofits, and Indigenous individuals."
-	/>
-	<link rel="canonical" href={canonicalUrl} />
-</svelte:head>
+<SeoHead
+	{origin}
+	pathname="/funding"
+	title="Funding | Knowledge Basket"
+	description="Browse grants, contracts, fellowships, and funding opportunities for Tribes, Native-led nonprofits, and Indigenous individuals."
+	robotsMode={data.seoIndexable === false ? 'noindex-follow' : 'index'}
+	ogImage={buildOgImagePath({
+		title: 'Funding',
+		eyebrow: 'Knowledge Basket',
+		theme: 'funding',
+		meta: 'Grants, contracts, fellowships, and funding opportunities'
+	})}
+	ogImageAlt="Knowledge Basket funding social preview"
+	breadcrumbItems={[
+		{ name: 'Knowledge Basket', pathname: '/' },
+		{ name: 'Funding', pathname: '/funding' }
+	]}
+/>
 
 {#snippet weave()}
 	<defs>

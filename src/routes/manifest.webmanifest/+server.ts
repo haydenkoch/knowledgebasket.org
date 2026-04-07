@@ -1,5 +1,10 @@
 import { getSetting, BRAND_FAVICON_KEY, BRAND_LOGO_KEY } from '$lib/server/settings';
-import { buildPublicAssetUrl, DEFAULT_LOGO_OBJECT_KEY } from '$lib/config/public-assets';
+import {
+	buildPublicAssetUrl,
+	DEFAULT_LOGO_OBJECT_KEY,
+	resolveAbsoluteUrl
+} from '$lib/config/public-assets';
+import { resolveSeoOrigin } from '$lib/server/seo';
 
 const DEFAULT_MANIFEST = {
 	name: 'Knowledge Basket',
@@ -12,13 +17,13 @@ const DEFAULT_MANIFEST = {
 		'Search Indigenous-led events, funding, Native-owned businesses, jobs, and practical resources.'
 };
 
-export async function GET() {
-	let iconUrl: string;
+export async function GET({ url }: { url: URL }) {
+	const origin = resolveSeoOrigin(url);
+	let iconUrl: string | null = null;
 	try {
 		iconUrl = buildPublicAssetUrl(DEFAULT_LOGO_OBJECT_KEY);
 	} catch {
-		// PUBLIC_ASSET_BASE_URL not set — use a static fallback so the manifest still loads
-		iconUrl = '/favicon.png';
+		// Public asset storage is optional in local development.
 	}
 
 	try {
@@ -26,21 +31,54 @@ export async function GET() {
 			getSetting(BRAND_FAVICON_KEY),
 			getSetting(BRAND_LOGO_KEY)
 		]);
-		iconUrl = normalizeManifestIconUrl(faviconUrl) ?? normalizeManifestIconUrl(logoUrl) ?? iconUrl;
+		iconUrl =
+			normalizeManifestIconUrl(faviconUrl, origin) ??
+			normalizeManifestIconUrl(logoUrl, origin) ??
+			iconUrl;
 	} catch {
-		// site_settings may not exist yet; fall back to the seeded default icon
+		// site_settings may not exist yet; fall back to seeded or static icons.
 	}
+
+	const staticIcons = [
+		{
+			src: resolveAbsoluteUrl('/icon-192.png', { origin }) ?? '/icon-192.png',
+			sizes: '192x192',
+			type: 'image/png',
+			purpose: 'any'
+		},
+		{
+			src: resolveAbsoluteUrl('/icon-512.png', { origin }) ?? '/icon-512.png',
+			sizes: '512x512',
+			type: 'image/png',
+			purpose: 'any'
+		},
+		{
+			src: resolveAbsoluteUrl('/maskable-icon-512.png', { origin }) ?? '/maskable-icon-512.png',
+			sizes: '512x512',
+			type: 'image/png',
+			purpose: 'maskable'
+		}
+	];
+
+	const icons = [
+		...(iconUrl
+			? [
+					{
+						src: resolveAbsoluteUrl(iconUrl, { origin }) ?? iconUrl,
+						sizes: '512x512',
+						type: 'image/png',
+						purpose: 'any'
+					}
+				]
+			: []),
+		...staticIcons
+	];
 
 	return new Response(
 		JSON.stringify({
 			...DEFAULT_MANIFEST,
-			icons: [
-				{
-					src: iconUrl,
-					sizes: '512x512',
-					type: 'image/png'
-				}
-			]
+			id: '/',
+			icons
 		}),
 		{
 			headers: {
@@ -51,8 +89,7 @@ export async function GET() {
 	);
 }
 
-function normalizeManifestIconUrl(value: string | null): string | null {
+function normalizeManifestIconUrl(value: string | null, origin: string): string | null {
 	if (!value) return null;
-	if (!value.startsWith('/uploads/')) return value;
-	return buildPublicAssetUrl(value.slice('/uploads/'.length));
+	return resolveAbsoluteUrl(value, { origin });
 }

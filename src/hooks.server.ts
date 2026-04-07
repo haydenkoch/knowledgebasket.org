@@ -8,6 +8,7 @@ import { auth, googleAuthEnabled } from '$lib/server/auth';
 import { guardAdminRequest } from '$lib/server/access-control';
 import { captureServerError } from '$lib/server/observability';
 import { assertProductionRuntimeConfig } from '$lib/server/runtime-config';
+import { getServerRobotsDirective } from '$lib/server/seo';
 import { svelteKitHandler } from 'better-auth/svelte-kit';
 
 function telemetryOrigin(value: string | undefined): string | null {
@@ -31,12 +32,18 @@ function buildContentSecurityPolicy(): string {
 		'https://geocoding.geo.census.gov',
 		'https://api.mapbox.com'
 	];
+	const imgSrc = ["'self'", 'data:', 'blob:', 'https:'];
 
 	const sentryOrigin = telemetryOrigin(publicEnv.PUBLIC_SENTRY_DSN);
 	if (sentryOrigin) connectSrc.push(sentryOrigin);
 
 	const posthogOrigin = telemetryOrigin(publicEnv.PUBLIC_POSTHOG_HOST);
 	if (posthogOrigin) connectSrc.push(posthogOrigin);
+
+	const publicAssetOrigin = telemetryOrigin(publicEnv.PUBLIC_ASSET_BASE_URL);
+	if (publicAssetOrigin && !imgSrc.includes(publicAssetOrigin)) {
+		imgSrc.push(publicAssetOrigin);
+	}
 
 	if (dev) {
 		connectSrc.push('ws:', 'wss:', 'http://localhost:*', 'http://127.0.0.1:*', 'http://0.0.0.0:*');
@@ -58,7 +65,7 @@ function buildContentSecurityPolicy(): string {
 		`script-src ${scriptSrc.join(' ')}`,
 		"style-src 'self' 'unsafe-inline' https://use.typekit.net https://p.typekit.net",
 		"font-src 'self' data: https://use.typekit.net https://p.typekit.net",
-		"img-src 'self' data: blob: https:",
+		`img-src ${imgSrc.join(' ')}`,
 		`connect-src ${connectSrc.join(' ')}`,
 		"object-src 'none'",
 		"frame-ancestors 'none'",
@@ -68,7 +75,7 @@ function buildContentSecurityPolicy(): string {
 	].join('; ');
 }
 
-function applySecurityHeaders(response: Response): Response {
+function applySecurityHeaders(response: Response, pathname?: string): Response {
 	response.headers.set('Content-Security-Policy', buildContentSecurityPolicy());
 	response.headers.set(
 		'Permissions-Policy',
@@ -79,6 +86,11 @@ function applySecurityHeaders(response: Response): Response {
 
 	if (!dev) {
 		response.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+	}
+
+	const robotsDirective = pathname ? getServerRobotsDirective(pathname) : null;
+	if (robotsDirective && !response.headers.has('X-Robots-Tag')) {
+		response.headers.set('X-Robots-Tag', robotsDirective);
 	}
 
 	return response;
@@ -105,13 +117,13 @@ const handleBetterAuth: Handle = async ({ event, resolve }) => {
 		const { isAuthPath } = await import('better-auth/svelte-kit');
 		const matched = isAuthPath(url, auth.options);
 		if (matched) {
-			return applySecurityHeaders(await auth.handler(event.request));
+			return applySecurityHeaders(await auth.handler(event.request), event.url.pathname);
 		}
 	}
 
 	const adminGuardResponse = guardAdminRequest(event);
 	if (adminGuardResponse) {
-		return applySecurityHeaders(adminGuardResponse);
+		return applySecurityHeaders(adminGuardResponse, event.url.pathname);
 	}
 
 	Sentry.setTag('runtime', 'railway');
@@ -130,7 +142,7 @@ const handleBetterAuth: Handle = async ({ event, resolve }) => {
 	Sentry.setTag('request.method', event.request.method);
 
 	const response = await svelteKitHandler({ event, resolve, auth, building });
-	return applySecurityHeaders(response);
+	return applySecurityHeaders(response, event.url.pathname);
 };
 
 export const handle: Handle = sequence(Sentry.sentryHandle(), handleBetterAuth);

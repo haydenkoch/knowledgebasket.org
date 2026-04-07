@@ -1,8 +1,11 @@
 <script lang="ts">
 	import { browser } from '$app/environment';
 	import { trackContentViewed, trackExternalLinkClicked } from '$lib/analytics/events';
+	import SeoHead from '$lib/components/SeoHead.svelte';
+	import { resolveAbsoluteUrl } from '$lib/config/public-assets';
 	import type { JobItem } from '$lib/data/kb';
 	import { getPlaceholderImage } from '$lib/data/placeholders';
+	import { buildOgImagePath } from '$lib/seo/metadata';
 	import { formatDisplayValue } from '$lib/utils/display.js';
 	import { stripHtml } from '$lib/utils/format';
 	import MapPinIcon from '@lucide/svelte/icons/map-pin';
@@ -15,7 +18,7 @@
 
 	let { data } = $props();
 	let item = $derived(data.item as JobItem | null);
-	const origin = $derived(data.origin ?? '');
+	const origin = $derived((data.seoOrigin ?? data.origin ?? '') as string);
 	const isBookmarked = $derived(Boolean(data.isBookmarked));
 	const galleryImages = $derived(
 		item
@@ -40,6 +43,31 @@
 				? stripHtml(String(item.description)).slice(0, 160)
 				: `${item.title}${item.employerName ? ` at ${item.employerName}` : ''}${item.location ? `. ${item.location}` : ''}.`
 			: ''
+	);
+	const coverImageUrl = $derived(
+		resolveAbsoluteUrl(item?.imageUrl, {
+			origin
+		})
+	);
+	const socialImage = $derived(
+		buildOgImagePath({
+			title: item?.title ?? 'Job Board',
+			eyebrow: 'Knowledge Basket · Jobs',
+			theme: 'jobs',
+			meta: item?.employerName ?? item?.location ?? 'Career opportunities'
+		})
+	);
+	const breadcrumbItems = $derived(
+		item
+			? [
+					{ name: 'Knowledge Basket', pathname: '/' },
+					{ name: 'Jobs', pathname: '/jobs' },
+					{ name: item.title, pathname: item.slug ? `/jobs/${item.slug}` : '/jobs' }
+				]
+			: [
+					{ name: 'Knowledge Basket', pathname: '/' },
+					{ name: 'Jobs', pathname: '/jobs' }
+				]
 	);
 
 	const compensationLabel = $derived(() => {
@@ -88,20 +116,12 @@
 			datePosted: item.publishedAt ?? undefined,
 			validThrough: item.applicationDeadline ?? undefined,
 			url: canonicalUrl,
+			...(coverImageUrl ? { image: coverImageUrl } : {}),
 			...(item.applyUrl
 				? { applicationContact: { '@type': 'ContactPoint', url: item.applyUrl } }
 				: {})
 		};
 	});
-	const jsonLdScript = $derived.by(() =>
-		jsonLd
-			? [
-					'<script type="application/ld+json">',
-					JSON.stringify(jsonLd).replaceAll('<', '\\u003c'),
-					'</scr' + 'ipt>'
-				].join('')
-			: ''
-	);
 	let lastTrackedSlug = $state('');
 
 	$effect(() => {
@@ -116,27 +136,19 @@
 	});
 </script>
 
-<svelte:head>
-	<title
-		>{item
-			? `${item.title}${item.employerName ? ` | ${item.employerName}` : ''} | Jobs | Knowledge Basket`
-			: 'Job not found | Knowledge Basket'}</title
-	>
-	{#if item}
-		<meta name="description" content={metaDescription} />
-		<link rel="canonical" href={canonicalUrl} />
-		<meta property="og:title" content={item.title} />
-		<meta property="og:description" content={metaDescription} />
-		{#if item.imageUrl}<meta property="og:image" content={item.imageUrl} />{/if}
-		<meta property="og:url" content={canonicalUrl} />
-		<meta property="og:type" content="website" />
-		<meta name="twitter:card" content="summary_large_image" />
-		<meta name="twitter:title" content={item.title} />
-		<meta name="twitter:description" content={metaDescription} />
-		{#if item.imageUrl}<meta name="twitter:image" content={item.imageUrl} />{/if}
-		{#if jsonLd}{@html jsonLdScript}{/if}
-	{/if}
-</svelte:head>
+<SeoHead
+	{origin}
+	pathname={item?.slug ? `/jobs/${item.slug}` : '/jobs'}
+	title={item
+		? `${item.title}${item.employerName ? ` | ${item.employerName}` : ''} | Jobs | Knowledge Basket`
+		: 'Job not found | Knowledge Basket'}
+	description={item ? metaDescription : 'This job listing is no longer available.'}
+	robotsMode={item ? 'index' : 'noindex-nofollow'}
+	ogImage={socialImage}
+	ogImageAlt={`${item?.title ?? 'Jobs'} social preview`}
+	jsonLd={jsonLd ? [jsonLd] : []}
+	{breadcrumbItems}
+/>
 
 {#if !item}
 	<div class="mx-auto max-w-3xl px-4 py-12 sm:px-6">

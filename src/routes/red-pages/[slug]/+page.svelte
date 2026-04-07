@@ -1,7 +1,10 @@
 <script lang="ts">
 	import { browser } from '$app/environment';
 	import { trackContentViewed, trackExternalLinkClicked } from '$lib/analytics/events';
+	import SeoHead from '$lib/components/SeoHead.svelte';
+	import { resolveAbsoluteUrl } from '$lib/config/public-assets';
 	import type { RedPagesItem } from '$lib/data/kb';
+	import { buildOgImagePath } from '$lib/seo/metadata';
 	import { stripHtml } from '$lib/utils/format';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import * as Tooltip from '$lib/components/ui/tooltip/index.js';
@@ -15,7 +18,7 @@
 
 	let { data } = $props();
 	let item = $derived(data.item as RedPagesItem | null);
-	const origin = $derived(data.origin ?? '');
+	const origin = $derived((data.seoOrigin ?? data.origin ?? '') as string);
 	const isBookmarked = $derived(Boolean(data.isBookmarked));
 	const loginHref = $derived(
 		item?.slug
@@ -44,6 +47,31 @@
 				? stripHtml(String(item.description)).slice(0, 160)
 				: `${item.title}${item.tribalAffiliation ? `, ${item.tribalAffiliation}` : ''}${item.serviceType ? `. ${item.serviceType}` : ''}.`
 			: ''
+	);
+	const coverImageUrl = $derived(
+		resolveAbsoluteUrl(item?.imageUrl, {
+			origin
+		})
+	);
+	const socialImage = $derived(
+		buildOgImagePath({
+			title: item?.title ?? 'Red Pages',
+			eyebrow: 'Knowledge Basket · Red Pages',
+			theme: 'redpages',
+			meta: item?.tribalAffiliation ?? item?.serviceType ?? 'Native-owned businesses and services'
+		})
+	);
+	const breadcrumbItems = $derived(
+		item
+			? [
+					{ name: 'Knowledge Basket', pathname: '/' },
+					{ name: 'Red Pages', pathname: '/red-pages' },
+					{ name: item.title, pathname: item.slug ? `/red-pages/${item.slug}` : '/red-pages' }
+				]
+			: [
+					{ name: 'Knowledge Basket', pathname: '/' },
+					{ name: 'Red Pages', pathname: '/red-pages' }
+				]
 	);
 
 	const addressLine = $derived(
@@ -80,6 +108,7 @@
 			description: metaDescription,
 			url: item.website ?? canonicalUrl
 		};
+		if (coverImageUrl) ld.image = coverImageUrl;
 		if (item.phone) ld.telephone = item.phone;
 		if (item.email) ld.email = item.email;
 		if (addressLine) {
@@ -93,15 +122,6 @@
 		}
 		return ld;
 	});
-	const jsonLdScript = $derived.by(() =>
-		jsonLd
-			? [
-					'<script type="application/ld+json">',
-					JSON.stringify(jsonLd).replaceAll('<', '\\u003c'),
-					'</scr' + 'ipt>'
-				].join('')
-			: ''
-	);
 	let lastTrackedSlug = $state('');
 
 	$effect(() => {
@@ -116,27 +136,19 @@
 	});
 </script>
 
-<svelte:head>
-	<title
-		>{item
-			? `${item.title} | Red Pages | Knowledge Basket`
-			: 'Listing not found | Knowledge Basket'}</title
-	>
-	{#if item}
-		<meta name="description" content={metaDescription} />
-		<link rel="canonical" href={canonicalUrl} />
-		<meta property="og:title" content={item.title} />
-		<meta property="og:description" content={metaDescription} />
-		{#if item.imageUrl}<meta property="og:image" content={item.imageUrl} />{/if}
-		<meta property="og:url" content={canonicalUrl} />
-		<meta property="og:type" content="website" />
-		<meta name="twitter:card" content="summary_large_image" />
-		<meta name="twitter:title" content={item.title} />
-		<meta name="twitter:description" content={metaDescription} />
-		{#if item.imageUrl}<meta name="twitter:image" content={item.imageUrl} />{/if}
-		{#if jsonLd}{@html jsonLdScript}{/if}
-	{/if}
-</svelte:head>
+<SeoHead
+	{origin}
+	pathname={item?.slug ? `/red-pages/${item.slug}` : '/red-pages'}
+	title={item
+		? `${item.title} | Red Pages | Knowledge Basket`
+		: 'Listing not found | Knowledge Basket'}
+	description={item ? metaDescription : 'This listing is no longer available.'}
+	robotsMode={item ? 'index' : 'noindex-nofollow'}
+	ogImage={socialImage}
+	ogImageAlt={`${item?.title ?? 'Red Pages'} social preview`}
+	jsonLd={jsonLd ? [jsonLd] : []}
+	{breadcrumbItems}
+/>
 
 {#if !item}
 	<div class="mx-auto max-w-3xl px-4 py-12 sm:px-6">

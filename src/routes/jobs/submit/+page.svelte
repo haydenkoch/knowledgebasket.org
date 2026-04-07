@@ -68,6 +68,7 @@
 
 <svelte:head>
 	<title>Post a job | Job Board | Knowledge Basket</title>
+	<meta name="robots" content="noindex,nofollow" />
 </svelte:head>
 
 <KbFormShell

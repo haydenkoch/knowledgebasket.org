@@ -1,5 +1,6 @@
 <script lang="ts">
 	import 'temporal-polyfill/global';
+	import SeoHead from '$lib/components/SeoHead.svelte';
 	import KbHero from '$lib/components/organisms/KbHero.svelte';
 	import {
 		Pagination,
@@ -42,12 +43,13 @@
 	import { IsMobile } from '$lib/hooks/is-mobile.svelte';
 	import { useEventsFilters } from '$lib/hooks/use-events-filters.svelte';
 	import { eventToSx } from '$lib/calendar/event-to-sx.js';
+	import { buildOgImagePath } from '$lib/seo/metadata';
 
 	type EventView = 'cards' | 'list' | 'calendar';
 	const MOBILE_FILTER_PEEK_HEIGHT = 70;
 
 	let { data } = $props();
-	const canonicalUrl = $derived(`${data.origin ?? ''}/events`);
+	const origin = $derived((data.seoOrigin ?? data.origin ?? '') as string);
 	const filters = useEventsFilters(() => data);
 
 	let pageBinding = $state(1);
@@ -651,14 +653,24 @@
 	});
 </script>
 
-<svelte:head>
-	<title>Events | Knowledge Basket</title>
-	<meta
-		name="description"
-		content="Indigenous gatherings, trainings, and cultural events in the Sierra Nevada bioregion and California. Find and submit events."
-	/>
-	<link rel="canonical" href={canonicalUrl} />
-</svelte:head>
+<SeoHead
+	{origin}
+	pathname="/events"
+	title="Events | Knowledge Basket"
+	description="Indigenous gatherings, trainings, and cultural events in the Sierra Nevada bioregion and California. Find and submit events."
+	robotsMode={data.seoIndexable === false ? 'noindex-follow' : 'index'}
+	ogImage={buildOgImagePath({
+		title: 'Events',
+		eyebrow: 'Knowledge Basket',
+		theme: 'events',
+		meta: 'Indigenous gatherings, trainings, and cultural events'
+	})}
+	ogImageAlt="Knowledge Basket events social preview"
+	breadcrumbItems={[
+		{ name: 'Knowledge Basket', pathname: '/' },
+		{ name: 'Events', pathname: '/events' }
+	]}
+/>
 
 {#snippet weave()}
 	<defs>

@@ -5,13 +5,16 @@
 		trackExternalLinkClicked,
 		trackOrganizationAction
 	} from '$lib/analytics/events';
+	import SeoHead from '$lib/components/SeoHead.svelte';
 	import EventCard from '$lib/components/molecules/EventCard.svelte';
 	import FundingCard from '$lib/components/molecules/FundingCard.svelte';
 	import JobListItem from '$lib/components/molecules/JobListItem.svelte';
 	import RedPagesListItem from '$lib/components/molecules/RedPagesListItem.svelte';
+	import { resolveAbsoluteUrl } from '$lib/config/public-assets';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Textarea } from '$lib/components/ui/textarea/index.js';
 	import * as Breadcrumb from '$lib/components/ui/breadcrumb/index.js';
+	import { buildOgImagePath } from '$lib/seo/metadata';
 	import MapPinIcon from '@lucide/svelte/icons/map-pin';
 	import GlobeIcon from '@lucide/svelte/icons/globe';
 	import MailIcon from '@lucide/svelte/icons/mail';
@@ -26,9 +29,55 @@
 	const isFollowing = $derived(Boolean(data.isFollowing));
 	const canManage = $derived(Boolean(data.canManageOrganization));
 	const isSignedIn = $derived(Boolean(data.user));
+	const origin = $derived((data.seoOrigin ?? '') as string);
 	const loginHref = $derived(
 		`/auth/login?redirect=${encodeURIComponent(`/o/${organization.slug}`)}`
 	);
+	const canonicalUrl = $derived(`${origin}/o/${organization.slug}`);
+	const metaDescription = $derived(
+		organization.description ??
+			`Published Knowledge Basket content connected to ${organization.name}.`
+	);
+	const organizationLogoUrl = $derived(
+		resolveAbsoluteUrl(organization.logoUrl, {
+			origin
+		})
+	);
+	const socialImage = $derived(
+		buildOgImagePath({
+			title: organization.name,
+			eyebrow: 'Knowledge Basket · Organization',
+			theme: 'organization',
+			meta: organization.region ?? organization.orgType ?? 'Organization hub'
+		})
+	);
+	const breadcrumbItems = $derived([
+		{ name: 'Knowledge Basket', pathname: '/' },
+		{ name: organization.name, pathname: `/o/${organization.slug}` }
+	]);
+	const organizationJsonLd = $derived.by(() => {
+		const schema: Record<string, unknown> = {
+			'@context': 'https://schema.org',
+			'@type': 'Organization',
+			name: organization.name,
+			description: metaDescription,
+			url: canonicalUrl
+		};
+		if (organization.website) schema.sameAs = [organization.website];
+		if (organizationLogoUrl) schema.logo = organizationLogoUrl;
+		if (organization.email) schema.email = organization.email;
+		if (organization.phone) schema.telephone = organization.phone;
+		if (locationLine) {
+			schema.address = {
+				'@type': 'PostalAddress',
+				streetAddress: organization.address,
+				addressLocality: organization.city,
+				addressRegion: organization.state,
+				postalCode: organization.zip
+			};
+		}
+		return schema;
+	});
 
 	const stats = $derived([
 		{ label: 'Events', value: collections.events.length },
@@ -66,22 +115,16 @@
 	});
 </script>
 
-<svelte:head>
-	<title>{organization.name} | Organization | Knowledge Basket</title>
-	<meta
-		name="description"
-		content={organization.description ??
-			`Published Knowledge Basket content connected to ${organization.name}.`}
-	/>
-	<meta property="og:title" content="{organization.name} | Organization" />
-	<meta
-		property="og:description"
-		content={organization.description ??
-			`Published Knowledge Basket content connected to ${organization.name}.`}
-	/>
-	{#if organization.logoUrl}<meta property="og:image" content={organization.logoUrl} />{/if}
-	<meta property="og:type" content="website" />
-</svelte:head>
+<SeoHead
+	{origin}
+	pathname={`/o/${organization.slug}`}
+	title={`${organization.name} | Organization | Knowledge Basket`}
+	description={metaDescription}
+	ogImage={socialImage}
+	ogImageAlt={`${organization.name} organization social preview`}
+	jsonLd={[organizationJsonLd]}
+	{breadcrumbItems}
+/>
 
 <div class="mx-auto max-w-6xl px-4 py-6 sm:px-6">
 	<Breadcrumb.Root class="mb-5">

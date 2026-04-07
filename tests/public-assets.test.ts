@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
 	buildPublicAssetUrlFromBase,
-	normalizePublicAssetBaseUrl
+	normalizePublicAssetBaseUrl,
+	resolveAbsoluteUrl
 } from '../src/lib/config/public-assets';
 import {
 	DEFAULT_SIZES_CARD,
@@ -49,5 +50,20 @@ describe('public asset URL helpers', () => {
 			].join(', '),
 			sizes: DEFAULT_SIZES_CARD
 		});
+	});
+
+	it('resolves upload paths against the public asset base when available', () => {
+		expect(
+			resolveAbsoluteUrl('/uploads/brand/logo.png', {
+				origin: 'https://kb.example.com',
+				baseUrl: 'https://assets.example.com/kb-uploads'
+			})
+		).toBe('https://assets.example.com/kb-uploads/brand/logo.png');
+	});
+
+	it('resolves site-relative paths against the canonical origin', () => {
+		expect(resolveAbsoluteUrl('/icon-192.png', { origin: 'https://kb.example.com' })).toBe(
+			'https://kb.example.com/icon-192.png'
+		);
 	});
 });

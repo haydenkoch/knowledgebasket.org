@@ -2,6 +2,7 @@ import type { PageServerLoad } from './$types';
 import { getPublishedFunding } from '$lib/server/funding';
 import { parseSearchRequestFromUrl, runUnifiedSearch } from '$lib/server/search-service';
 import { withPublicDataFallback } from '$lib/server/public-load';
+import { isIndexableBrowseRequest } from '$lib/server/seo';
 
 export const load: PageServerLoad = async ({ url }) => {
 	const { data: allFunding, unavailable } = await withPublicDataFallback(
@@ -34,6 +35,7 @@ export const load: PageServerLoad = async ({ url }) => {
 		dataUnavailable: unavailable,
 		origin: url.origin,
 		futureOnly,
-		hasExplicitStatus
+		hasExplicitStatus,
+		seoIndexable: isIndexableBrowseRequest(url)
 	};
 };

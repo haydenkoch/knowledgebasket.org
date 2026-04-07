@@ -3,6 +3,7 @@ import { getListBySlug, getPublicListEventIds } from '$lib/server/event-lists';
 import { env } from '$env/dynamic/private';
 import { withPublicDataFallback } from '$lib/server/public-load';
 import { parseEventStart } from '$lib/utils/format';
+import { isIndexableBrowseRequest } from '$lib/server/seo';
 
 export async function load({ url }) {
 	const today = new Date();
@@ -84,6 +85,7 @@ export async function load({ url }) {
 		initialSearchQuery,
 		mapboxToken,
 		dataUnavailable,
+		seoIndexable: isIndexableBrowseRequest(url),
 		origin: url.origin
 	};
 }

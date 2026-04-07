@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { browser } from '$app/environment';
+	import SeoHead from '$lib/components/SeoHead.svelte';
 	import { trackSearchPerformed, trackSearchResultClicked } from '$lib/analytics/events';
 	import type { SearchFacetGroup, SearchIndexScope } from '$lib/server/search-contracts';
 	import { Alert, AlertDescription, AlertTitle } from '$lib/components/ui/alert/index.js';
@@ -19,6 +20,7 @@
 	import SlidersHorizontal from '@lucide/svelte/icons/sliders-horizontal';
 	import X from '@lucide/svelte/icons/x';
 	import ChevronDown from '@lucide/svelte/icons/chevron-down';
+	import { buildOgImagePath } from '$lib/seo/metadata';
 
 	let { data } = $props();
 	let shortcutLabel = $state('Ctrl K');
@@ -27,10 +29,7 @@
 
 	const search = $derived(data.search);
 	const query = $derived(search.query ?? '');
-	const origin = $derived((data.origin ?? '') as string);
-	const canonicalUrl = $derived(
-		query ? `${origin}/search?q=${encodeURIComponent(query)}` : `${origin}/search`
-	);
+	const origin = $derived((data.seoOrigin ?? data.origin ?? '') as string);
 	const hasStructuredSearch = $derived(
 		search.request.scope !== 'all' ||
 			Boolean(search.request.dateFrom) ||
@@ -185,21 +184,22 @@
 	});
 </script>
 
-<svelte:head>
-	<title
-		>{query
-			? `Search results for "${query}" | Knowledge Basket`
-			: 'Search | Knowledge Basket'}</title
-	>
-	<meta
-		name="description"
-		content={query
-			? `Search Knowledge Basket for ${query}. Browse matching events, funding opportunities, Red Pages listings, jobs, and toolbox resources.`
-			: 'Search Knowledge Basket across events, funding, Red Pages, jobs, and toolbox resources.'}
-	/>
-	<link rel="canonical" href={canonicalUrl} />
-	<meta name="robots" content="noindex,follow" />
-</svelte:head>
+<SeoHead
+	{origin}
+	pathname="/search"
+	title={query ? `Search results for "${query}" | Knowledge Basket` : 'Search | Knowledge Basket'}
+	description={query
+		? `Search Knowledge Basket for ${query}. Browse matching events, funding opportunities, Red Pages listings, jobs, and toolbox resources.`
+		: 'Search Knowledge Basket across events, funding, Red Pages, jobs, and toolbox resources.'}
+	robotsMode="noindex-follow"
+	ogImage={buildOgImagePath({
+		title: query ? `Search: ${query}` : 'Search Knowledge Basket',
+		eyebrow: 'Global search',
+		theme: 'site',
+		meta: 'Events, funding, Red Pages, jobs, and toolbox resources'
+	})}
+	ogImageAlt="Knowledge Basket search social preview"
+/>
 
 <section class="search-page mx-auto max-w-6xl px-4 py-10 sm:px-6 lg:px-8">
 	<!-- ── Search bar (always visible) ────────────────────── -->

@@ -109,6 +109,10 @@
 	const isStaff = $derived(role === 'admin' || role === 'moderator');
 </script>
 
+<svelte:head>
+	<meta name="robots" content="noindex,nofollow" />
+</svelte:head>
+
 <section class="mx-auto flex w-full max-w-6xl flex-col gap-10 px-4 py-10 sm:px-6 lg:px-8 lg:py-14">
 	<div class="flex flex-wrap items-center gap-5 sm:gap-6">
 		<Avatar.Root class="size-16 border border-border/70">

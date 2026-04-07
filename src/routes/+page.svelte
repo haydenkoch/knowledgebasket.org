@@ -1,4 +1,5 @@
 <script lang="ts">
+	import SeoHead from '$lib/components/SeoHead.svelte';
 	import KbSearch from '$lib/components/organisms/KbSearch.svelte';
 	import KbHero from '$lib/components/organisms/KbHero.svelte';
 	import EventCard from '$lib/components/molecules/EventCard.svelte';
@@ -16,6 +17,7 @@
 		resolveSectionLayoutPreset,
 		type SectionSource
 	} from '$lib/data/homepage';
+	import { buildOgImagePath, buildWebSiteJsonLd } from '$lib/seo/metadata';
 
 	import CalendarDays from '@lucide/svelte/icons/calendar-days';
 	import HandCoins from '@lucide/svelte/icons/hand-coins';
@@ -31,7 +33,7 @@
 	import Paperclip from '@lucide/svelte/icons/paperclip';
 
 	let { data } = $props();
-	const canonicalUrl = $derived(`${data.origin ?? ''}/`);
+	const origin = $derived((data.seoOrigin ?? data.origin ?? '') as string);
 
 	const coilIcons: Record<string, typeof CalendarDays> = {
 		events: CalendarDays,
@@ -95,14 +97,21 @@
 	};
 </script>
 
-<svelte:head>
-	<title>Knowledge Basket</title>
-	<meta
-		name="description"
-		content="Search Knowledge Basket for Indigenous-led events, funding opportunities, Native-owned businesses, jobs, and practical resources."
-	/>
-	<link rel="canonical" href={canonicalUrl} />
-</svelte:head>
+<SeoHead
+	{origin}
+	pathname="/"
+	title="Knowledge Basket"
+	description="Search Knowledge Basket for Indigenous-led events, funding opportunities, Native-owned businesses, jobs, and practical resources."
+	robotsMode={data.seoIndexable === false ? 'noindex-follow' : 'index'}
+	ogImage={buildOgImagePath({
+		title: 'Knowledge Basket',
+		eyebrow: 'Indigenous-led opportunities and resources',
+		theme: 'site',
+		meta: 'Events, funding, businesses, jobs, and practical resources'
+	})}
+	ogImageAlt="Knowledge Basket homepage social preview"
+	jsonLd={[buildWebSiteJsonLd(origin)]}
+/>
 
 {#snippet weaveHome()}
 	<defs>

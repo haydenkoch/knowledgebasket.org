@@ -4,7 +4,9 @@ import { getPublishedFunding } from '$lib/server/funding';
 import { getPublishedJobs } from '$lib/server/jobs';
 import { getPublishedBusinesses } from '$lib/server/red-pages';
 import { getPublishedResources } from '$lib/server/toolbox';
-import { resolveRuntimeOrigin } from '$lib/server/runtime-config';
+import { getOrganizations } from '$lib/server/organizations';
+import { getVenues } from '$lib/server/venues';
+import { resolveSeoOrigin } from '$lib/server/seo';
 
 type SitemapEntry = {
 	loc: string;
@@ -35,7 +37,7 @@ async function safeLoad<T>(load: () => Promise<T>, fallback: T): Promise<T> {
 }
 
 export const GET: RequestHandler = async ({ url }) => {
-	const origin = resolveRuntimeOrigin() ?? url.origin;
+	const origin = resolveSeoOrigin(url);
 	const staticEntries: SitemapEntry[] = [
 		{ loc: `${origin}/` },
 		{ loc: `${origin}/about` },
@@ -47,12 +49,14 @@ export const GET: RequestHandler = async ({ url }) => {
 		{ loc: `${origin}/toolbox` }
 	];
 
-	const [events, funding, redPages, jobs, toolbox] = await Promise.all([
+	const [events, funding, redPages, jobs, toolbox, organizations, venues] = await Promise.all([
 		safeLoad(() => getEvents({ includeIcal: false }), []),
 		safeLoad(() => getPublishedFunding(), []),
 		safeLoad(() => getPublishedBusinesses(), []),
 		safeLoad(() => getPublishedJobs(), []),
-		safeLoad(() => getPublishedResources(), [])
+		safeLoad(() => getPublishedResources(), []),
+		safeLoad(async () => (await getOrganizations({ limit: 5000 })).orgs, []),
+		safeLoad(async () => (await getVenues({ limit: 5000 })).venues, [])
 	]);
 
 	const entries: SitemapEntry[] = [
@@ -76,6 +80,14 @@ export const GET: RequestHandler = async ({ url }) => {
 		...toolbox.map((item) => ({
 			loc: `${origin}/toolbox/${item.slug ?? item.id}`,
 			lastmod: asIsoDate(item.publishedAt ?? item.publishDate)
+		})),
+		...organizations.map((organization) => ({
+			loc: `${origin}/o/${organization.slug ?? organization.id}`,
+			lastmod: asIsoDate(String(organization.updatedAt))
+		})),
+		...venues.map((venue) => ({
+			loc: `${origin}/v/${venue.slug ?? venue.id}`,
+			lastmod: asIsoDate(String(venue.updatedAt))
 		}))
 	];
 

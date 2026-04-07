@@ -1,4 +1,5 @@
 <script lang="ts">
+	import SeoHead from '$lib/components/SeoHead.svelte';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
 	import { untrack } from 'svelte';
@@ -11,6 +12,7 @@
 	import { Alert, AlertDescription, AlertTitle } from '$lib/components/ui/alert/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import type { RedPagesItem } from '$lib/data/kb';
+	import { buildOgImagePath } from '$lib/seo/metadata';
 
 	type PaginationToken =
 		| { key: string; type: 'page'; value: number }
@@ -19,7 +21,7 @@
 	const MOBILE_FILTER_PEEK_HEIGHT = 70;
 
 	let { data } = $props();
-	const canonicalUrl = $derived(`${data.origin ?? ''}/red-pages`);
+	const origin = $derived((data.seoOrigin ?? data.origin ?? '') as string);
 	const search = $derived(data.search);
 
 	function initialSearchQuery() {
@@ -179,14 +181,24 @@
 	});
 </script>
 
-<svelte:head>
-	<title>Red Pages | Knowledge Basket</title>
-	<meta
-		name="description"
-		content="Browse Native-owned businesses, artists, and service providers in the Red Pages directory."
-	/>
-	<link rel="canonical" href={canonicalUrl} />
-</svelte:head>
+<SeoHead
+	{origin}
+	pathname="/red-pages"
+	title="Red Pages | Knowledge Basket"
+	description="Browse Native-owned businesses, artists, and service providers in the Red Pages directory."
+	robotsMode={data.seoIndexable === false ? 'noindex-follow' : 'index'}
+	ogImage={buildOgImagePath({
+		title: 'Red Pages',
+		eyebrow: 'Knowledge Basket',
+		theme: 'redpages',
+		meta: 'Native-owned businesses, artists, and service providers'
+	})}
+	ogImageAlt="Knowledge Basket Red Pages social preview"
+	breadcrumbItems={[
+		{ name: 'Knowledge Basket', pathname: '/' },
+		{ name: 'Red Pages', pathname: '/red-pages' }
+	]}
+/>
 
 {#snippet weave()}
 	<defs>

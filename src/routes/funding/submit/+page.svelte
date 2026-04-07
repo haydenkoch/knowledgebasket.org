@@ -70,6 +70,7 @@
 
 <svelte:head>
 	<title>Submit a funding opportunity | Funding | Knowledge Basket</title>
+	<meta name="robots" content="noindex,nofollow" />
 </svelte:head>
 
 <KbFormShell

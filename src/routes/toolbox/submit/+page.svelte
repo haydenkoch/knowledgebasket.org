@@ -65,6 +65,7 @@
 
 <svelte:head>
 	<title>Submit a resource | Toolbox | Knowledge Basket</title>
+	<meta name="robots" content="noindex,nofollow" />
 </svelte:head>
 
 <KbFormShell

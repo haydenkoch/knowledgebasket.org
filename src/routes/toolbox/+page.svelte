@@ -1,4 +1,5 @@
 <script lang="ts">
+	import SeoHead from '$lib/components/SeoHead.svelte';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
 	import { untrack } from 'svelte';
@@ -25,6 +26,7 @@
 	import { useSidebar } from '$lib/components/ui/sidebar/index.js';
 	import type { ToolboxItem } from '$lib/data/kb';
 	import { TOOLBOX_SUBSECTIONS } from '$lib/data/formSchema';
+	import { buildOgImagePath } from '$lib/seo/metadata';
 	import type { SearchResponse } from '$lib/server/search-contracts';
 	import { stripHtml } from '$lib/utils/format';
 
@@ -80,7 +82,7 @@
 
 	let { data } = $props();
 	const routeData = $derived(data ?? EMPTY_ROUTE_DATA);
-	const canonicalUrl = $derived(`${routeData.origin}/toolbox`);
+	const origin = $derived((routeData.seoOrigin ?? routeData.origin ?? '') as string);
 	const search = $derived(routeData.search ?? EMPTY_SEARCH);
 
 	function initialSearchQuery() {
@@ -272,14 +274,24 @@
 	});
 </script>
 
-<svelte:head>
-	<title>Toolbox | Knowledge Basket</title>
-	<meta
-		name="description"
-		content="Browse toolkits, policy documents, reports, and practical resources for Indigenous economic futures."
-	/>
-	<link rel="canonical" href={canonicalUrl} />
-</svelte:head>
+<SeoHead
+	{origin}
+	pathname="/toolbox"
+	title="Toolbox | Knowledge Basket"
+	description="Browse toolkits, policy documents, reports, and practical resources for Indigenous economic futures."
+	robotsMode={routeData.seoIndexable === false ? 'noindex-follow' : 'index'}
+	ogImage={buildOgImagePath({
+		title: 'Toolbox',
+		eyebrow: 'Knowledge Basket',
+		theme: 'toolbox',
+		meta: 'Toolkits, policy documents, reports, and practical resources'
+	})}
+	ogImageAlt="Knowledge Basket toolbox social preview"
+	breadcrumbItems={[
+		{ name: 'Knowledge Basket', pathname: '/' },
+		{ name: 'Toolbox', pathname: '/toolbox' }
+	]}
+/>
 
 {#snippet weave()}
 	<defs>

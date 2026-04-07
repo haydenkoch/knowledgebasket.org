@@ -20,6 +20,7 @@ import {
 	type HomepageSectionConfig
 } from '$lib/server/homepage';
 import { hasPrivilegedUser } from '$lib/server/access-control';
+import { isIndexableBrowseRequest } from '$lib/server/seo';
 import type { PageServerLoad } from './$types';
 
 async function getCoilCounts() {
@@ -111,6 +112,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 	return {
 		origin: url.origin,
 		draftPreview,
+		seoIndexable: !draftPreview && isIndexableBrowseRequest(url),
 		sections: visibleSections,
 		sectionData,
 		counts

@@ -1,10 +1,13 @@
 <script lang="ts">
+	import SeoHead from '$lib/components/SeoHead.svelte';
 	import EventCard from '$lib/components/molecules/EventCard.svelte';
 	import JobListItem from '$lib/components/molecules/JobListItem.svelte';
 	import RedPagesListItem from '$lib/components/molecules/RedPagesListItem.svelte';
 	import FundingCard from '$lib/components/molecules/FundingCard.svelte';
+	import { resolveAbsoluteUrl } from '$lib/config/public-assets';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import * as Breadcrumb from '$lib/components/ui/breadcrumb/index.js';
+	import { buildOgImagePath } from '$lib/seo/metadata';
 	import MapPinIcon from '@lucide/svelte/icons/map-pin';
 	import GlobeIcon from '@lucide/svelte/icons/globe';
 	import Building2Icon from '@lucide/svelte/icons/building-2';
@@ -14,6 +17,31 @@
 	const venue = $derived(data.venue);
 	const organization = $derived(data.organization);
 	const collections = $derived(data.collections);
+	const origin = $derived((data.seoOrigin ?? '') as string);
+	const canonicalUrl = $derived(`${origin}/v/${venue.slug}`);
+	const metaDescription = $derived(
+		venue.description ?? `Published Knowledge Basket content connected to ${venue.name}.`
+	);
+	const venueImageUrl = $derived(
+		resolveAbsoluteUrl(venue.imageUrl, {
+			origin
+		})
+	);
+	const socialImage = $derived(
+		buildOgImagePath({
+			title: venue.name,
+			eyebrow: 'Knowledge Basket · Venue',
+			theme: 'venue',
+			meta:
+				venue.city && venue.state
+					? `${venue.city}, ${venue.state}`
+					: (venue.venueType ?? 'Venue hub')
+		})
+	);
+	const breadcrumbItems = $derived([
+		{ name: 'Knowledge Basket', pathname: '/' },
+		{ name: venue.name, pathname: `/v/${venue.slug}` }
+	]);
 
 	const addressLine = $derived(
 		[venue.address, venue.city, venue.state, venue.zip].filter(Boolean).join(', ')
@@ -31,15 +59,46 @@
 			collections.redpages.length +
 			collections.toolbox.length
 	);
+	const venueJsonLd = $derived.by(() => {
+		const schema: Record<string, unknown> = {
+			'@context': 'https://schema.org',
+			'@type': 'Place',
+			name: venue.name,
+			description: metaDescription,
+			url: canonicalUrl
+		};
+		if (venueImageUrl) schema.image = venueImageUrl;
+		if (venue.website) schema.sameAs = [venue.website];
+		if (addressLine) {
+			schema.address = {
+				'@type': 'PostalAddress',
+				streetAddress: venue.address,
+				addressLocality: venue.city,
+				addressRegion: venue.state,
+				postalCode: venue.zip
+			};
+		}
+		if (venue.lat != null && venue.lng != null) {
+			schema.geo = {
+				'@type': 'GeoCoordinates',
+				latitude: venue.lat,
+				longitude: venue.lng
+			};
+		}
+		return schema;
+	});
 </script>
 
-<svelte:head>
-	<title>{venue.name} | Venue | Knowledge Basket</title>
-	<meta
-		name="description"
-		content={venue.description ?? `Published Knowledge Basket content connected to ${venue.name}.`}
-	/>
-</svelte:head>
+<SeoHead
+	{origin}
+	pathname={`/v/${venue.slug}`}
+	title={`${venue.name} | Venue | Knowledge Basket`}
+	description={metaDescription}
+	ogImage={socialImage}
+	ogImageAlt={`${venue.name} venue social preview`}
+	jsonLd={[venueJsonLd]}
+	{breadcrumbItems}
+/>
 
 <div class="mx-auto max-w-6xl px-4 py-6 sm:px-6">
 	<Breadcrumb.Root class="mb-5">

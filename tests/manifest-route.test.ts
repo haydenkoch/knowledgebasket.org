@@ -14,15 +14,18 @@ describe('manifest route', () => {
 		await server?.stop();
 	});
 
-	it('serves a JSON web manifest with a direct public asset icon URL', async () => {
+	it('serves a JSON web manifest with branded and static icons', async () => {
 		const response = await fetch(`${server.baseUrl}/manifest.webmanifest`);
 		expect(response.status).toBe(200);
 		expect(response.headers.get('content-type')).toContain('application/manifest+json');
 
 		const manifest = (await response.json()) as {
-			icons: Array<{ src: string }>;
+			icons: Array<{ src: string; purpose?: string }>;
 		};
 
 		expect(manifest.icons[0]?.src).toMatch(/^https:\/\/assets\.example\.com\/kb-uploads\/.+\.png$/);
+		expect(manifest.icons.some((icon) => icon.src.endsWith('/icon-192.png'))).toBe(true);
+		expect(manifest.icons.some((icon) => icon.src.endsWith('/icon-512.png'))).toBe(true);
+		expect(manifest.icons.some((icon) => icon.purpose === 'maskable')).toBe(true);
 	});
 });

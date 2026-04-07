@@ -266,7 +266,7 @@ export function getRuntimeConfigHealth(options: RuntimeConfigOptions): RuntimeCo
 }
 
 export function resolveRuntimeOrigin(): string | undefined {
-	return resolveRuntimeOriginFromValues(env);
+	return resolveRuntimeOriginFromValues({ ...env, ...process.env });
 }
 
 export function assertProductionRuntimeConfig(): void {

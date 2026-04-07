@@ -143,7 +143,25 @@ describe('public route smoke tests', () => {
 			expect(html).toContain(page.title);
 			expect(html).toContain(page.description);
 			expect(html).toContain('rel="canonical"');
+			expect(html).toContain('property="og:site_name"');
+			expect(html).toContain('property="og:image"');
+			expect(html).toContain('name="twitter:image"');
 		}
+	});
+
+	it('applies noindex metadata to filtered browse, search, and auth routes', async () => {
+		const filteredEvents = await fetch(`${server.baseUrl}/events?view=calendar`).then((response) =>
+			response.text()
+		);
+		const search = await fetch(`${server.baseUrl}/search?q=tribal`).then((response) =>
+			response.text()
+		);
+		const auth = await fetch(`${server.baseUrl}/auth/login`).then((response) => response.text());
+
+		expect(filteredEvents).toContain('name="robots" content="noindex,follow"');
+		expect(filteredEvents).toContain(`rel="canonical" href="${server.baseUrl}/events"`);
+		expect(search).toContain('name="robots" content="noindex,follow"');
+		expect(auth).toContain('name="robots" content="noindex,nofollow"');
 	});
 
 	it('renders semantic pagination navigation on public browse pages', async () => {
@@ -169,6 +187,8 @@ describe('public route smoke tests', () => {
 	it('publishes discovery endpoints with sitemap and manifest links', async () => {
 		const robots = await fetch(`${server.baseUrl}/robots.txt`).then((response) => response.text());
 		expect(robots).toContain('Sitemap:');
+		expect(robots).toContain('Disallow: /admin');
+		expect(robots).toContain('Disallow: /events/submit');
 
 		const sitemap = await fetch(`${server.baseUrl}/sitemap.xml`).then((response) =>
 			response.text()
@@ -181,6 +201,9 @@ describe('public route smoke tests', () => {
 		);
 		expect(manifest.name).toBe('Knowledge Basket');
 		expect(manifest.start_url).toBe('/');
+		expect(manifest.icons.some((icon: { src: string }) => icon.src.endsWith('/icon-512.png'))).toBe(
+			true
+		);
 	});
 
 	it('applies security headers to public responses', async () => {

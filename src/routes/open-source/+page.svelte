@@ -1,16 +1,29 @@
 <script lang="ts">
+	import SeoHead from '$lib/components/SeoHead.svelte';
+	import { buildOgImagePath } from '$lib/seo/metadata';
 	import ExternalLinkIcon from '@lucide/svelte/icons/external-link';
 
 	let { data } = $props();
+	const origin = $derived((data.seoOrigin ?? '') as string);
 </script>
 
-<svelte:head>
-	<title>Open Source Thanks | Knowledge Basket</title>
-	<meta
-		name="description"
-		content="A living thank-you page for the open source libraries and tools that help power Knowledge Basket."
-	/>
-</svelte:head>
+<SeoHead
+	{origin}
+	pathname="/open-source"
+	title="Open Source Thanks | Knowledge Basket"
+	description="A living thank-you page for the open source libraries and tools that help power Knowledge Basket."
+	ogImage={buildOgImagePath({
+		title: 'Open Source Thanks',
+		eyebrow: 'Built on the work of others',
+		theme: 'open-source',
+		meta: `${data.openSource.totalDirectPackages} packages powering Knowledge Basket`
+	})}
+	ogImageAlt="Knowledge Basket open source social preview"
+	breadcrumbItems={[
+		{ name: 'Knowledge Basket', pathname: '/' },
+		{ name: 'Open Source', pathname: '/open-source' }
+	]}
+/>
 
 <article class="oss-page">
 	<header class="oss-hero">
@@ -18,8 +31,8 @@
 			<p class="oss-hero__kicker">Open Source</p>
 			<h1 class="oss-hero__title">Built on the work of others.</h1>
 			<p class="oss-hero__lede">
-				Knowledge Basket depends on {data.openSource.totalDirectPackages} open source packages.
-				This page exists to say thank you. Click any name to visit its repository.
+				Knowledge Basket depends on {data.openSource.totalDirectPackages} open source packages. This page
+				exists to say thank you. Click any name to visit its repository.
 			</p>
 			<a href="/about" class="oss-hero__back">&larr; Back to About</a>
 		</div>

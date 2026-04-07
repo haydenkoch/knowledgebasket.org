@@ -1,7 +1,10 @@
 <script lang="ts">
 	import { browser } from '$app/environment';
 	import { trackContentViewed, trackExternalLinkClicked } from '$lib/analytics/events';
+	import SeoHead from '$lib/components/SeoHead.svelte';
+	import { resolveAbsoluteUrl } from '$lib/config/public-assets';
 	import type { ToolboxItem } from '$lib/data/kb';
+	import { buildOgImagePath } from '$lib/seo/metadata';
 	import { stripHtml } from '$lib/utils/format';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import CoilDetailActionRail from '$lib/components/organisms/CoilDetailActionRail.svelte';
@@ -20,6 +23,32 @@
 			: []
 	);
 	let selectedGalleryIndex = $state(0);
+	const origin = $derived((data.seoOrigin ?? data.origin ?? '') as string);
+	const coverImageUrl = $derived(
+		resolveAbsoluteUrl(item?.imageUrl, {
+			origin
+		})
+	);
+	const socialImage = $derived(
+		buildOgImagePath({
+			title: item?.title ?? 'Toolbox',
+			eyebrow: 'Knowledge Basket · Toolbox',
+			theme: 'toolbox',
+			meta: item?.sourceName ?? item?.category ?? 'Toolkits and practical resources'
+		})
+	);
+	const breadcrumbItems = $derived(
+		item
+			? [
+					{ name: 'Knowledge Basket', pathname: '/' },
+					{ name: 'Toolbox', pathname: '/toolbox' },
+					{ name: item.title, pathname: item.slug ? `/toolbox/${item.slug}` : '/toolbox' }
+				]
+			: [
+					{ name: 'Knowledge Basket', pathname: '/' },
+					{ name: 'Toolbox', pathname: '/toolbox' }
+				]
+	);
 
 	const jsonLd = $derived.by(() => {
 		if (!item) return null;
@@ -33,20 +62,10 @@
 		if (item.author) ld.author = { '@type': 'Person', name: item.author };
 		if (item.sourceName) ld.publisher = { '@type': 'Organization', name: item.sourceName };
 		if (item.publishDate) ld.datePublished = item.publishDate;
-		if (item.imageUrl) ld.image = item.imageUrl;
+		if (coverImageUrl) ld.image = coverImageUrl;
 		if (primaryUrl) ld.sameAs = primaryUrl;
 		return ld;
 	});
-	const jsonLdScript = $derived.by(() =>
-		jsonLd
-			? [
-					'<script type="application/ld+json">',
-					JSON.stringify(jsonLd).replaceAll('<', '\\u003c'),
-					'</scr' + 'ipt>'
-				].join('')
-			: null
-	);
-	const origin = $derived(data.origin ?? '');
 	const isBookmarked = $derived(Boolean(data.isBookmarked));
 	const fileUrl = $derived(item?.fileUrl ?? null);
 	const externalUrl = $derived(item?.externalUrl ?? null);
@@ -93,27 +112,19 @@
 	});
 </script>
 
-<svelte:head>
-	<title
-		>{item
-			? `${item.title} | Toolbox | Knowledge Basket`
-			: 'Resource not found | Knowledge Basket'}</title
-	>
-	{#if item}
-		<meta name="description" content={metaDescription} />
-		<link rel="canonical" href={canonicalUrl} />
-		<meta property="og:title" content={item.title} />
-		<meta property="og:description" content={metaDescription} />
-		{#if item.imageUrl}<meta property="og:image" content={item.imageUrl} />{/if}
-		<meta property="og:url" content={canonicalUrl} />
-		<meta property="og:type" content="website" />
-		<meta name="twitter:card" content="summary_large_image" />
-		<meta name="twitter:title" content={item.title} />
-		<meta name="twitter:description" content={metaDescription} />
-		{#if item.imageUrl}<meta name="twitter:image" content={item.imageUrl} />{/if}
-		{#if jsonLdScript}{@html jsonLdScript}{/if}
-	{/if}
-</svelte:head>
+<SeoHead
+	{origin}
+	pathname={item?.slug ? `/toolbox/${item.slug}` : '/toolbox'}
+	title={item
+		? `${item.title} | Toolbox | Knowledge Basket`
+		: 'Resource not found | Knowledge Basket'}
+	description={item ? metaDescription : 'This resource is no longer available.'}
+	robotsMode={item ? 'index' : 'noindex-nofollow'}
+	ogImage={socialImage}
+	ogImageAlt={`${item?.title ?? 'Toolbox'} social preview`}
+	jsonLd={jsonLd ? [jsonLd] : []}
+	{breadcrumbItems}
+/>
 
 {#if !item}
 	<div class="mx-auto max-w-3xl px-4 py-12 sm:px-6">

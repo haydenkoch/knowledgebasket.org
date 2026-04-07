@@ -4,6 +4,10 @@
 	let { data, children } = $props();
 </script>
 
+<svelte:head>
+	<meta name="robots" content="noindex,nofollow" />
+</svelte:head>
+
 <div class="auth-shell">
 	<header class="auth-shell__brand">
 		<a href="/" class="auth-shell__brand-link">

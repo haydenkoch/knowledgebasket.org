@@ -2,6 +2,7 @@ import type { PageServerLoad } from './$types';
 import { getPublishedJobs } from '$lib/server/jobs';
 import { parseSearchRequestFromUrl, runUnifiedSearch } from '$lib/server/search-service';
 import { withPublicDataFallback } from '$lib/server/public-load';
+import { isIndexableBrowseRequest } from '$lib/server/seo';
 
 export const load: PageServerLoad = async ({ url }) => {
 	const { data: jobs, unavailable } = await withPublicDataFallback(
@@ -21,6 +22,7 @@ export const load: PageServerLoad = async ({ url }) => {
 		search,
 		jobCount: jobs.length,
 		dataUnavailable: unavailable,
+		seoIndexable: isIndexableBrowseRequest(url),
 		origin: url.origin
 	};
 };

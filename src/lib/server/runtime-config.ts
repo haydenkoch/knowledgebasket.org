@@ -219,6 +219,31 @@ function validateProductionRuntimeConfig(
 		);
 	}
 
+	const googleClientIdConfigured = !isBlank(values.GOOGLE_CLIENT_ID);
+	const googleClientSecretConfigured = !isBlank(values.GOOGLE_CLIENT_SECRET);
+
+	if (googleClientIdConfigured !== googleClientSecretConfigured) {
+		addInvalid(
+			invalid,
+			googleClientIdConfigured ? 'GOOGLE_CLIENT_SECRET' : 'GOOGLE_CLIENT_ID',
+			'Google sign-in requires both GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET.'
+		);
+	} else if (!googleClientIdConfigured) {
+		addWarning(
+			warnings,
+			'GOOGLE_CLIENT_ID',
+			'Google sign-in is not configured; authentication will be limited to email and password.'
+		);
+	}
+
+	if (isBlank(values.PUBLIC_POSTHOG_KEY)) {
+		addWarning(
+			warnings,
+			'PUBLIC_POSTHOG_KEY',
+			'PostHog is not configured; product analytics and session replay are disabled.'
+		);
+	}
+
 	if (isBlank(values.ERROR_WEBHOOK_URL)) {
 		addWarning(
 			warnings,

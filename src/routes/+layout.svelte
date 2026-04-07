@@ -1,7 +1,10 @@
 <script lang="ts">
 	import './layout.css';
+	import * as Sentry from '@sentry/sveltekit';
+	import { browser } from '$app/environment';
 	import favicon from '$lib/assets/favicon.svg';
 	import { page } from '$app/stores';
+	import { identifyAnalyticsUser, resetAnalyticsUser } from '$lib/analytics/posthog.client';
 	import KbHeader from '$lib/components/organisms/KbHeader.svelte';
 	import KbPublicNavSidebar from '$lib/components/organisms/KbPublicNavSidebar.svelte';
 	import ConsentManager from '$lib/components/organisms/ConsentManager.svelte';
@@ -23,6 +26,30 @@
 			window.dispatchEvent(new CustomEvent('kb:open-global-search'));
 		}
 	}
+
+	$effect(() => {
+		if (!browser) return;
+
+		const user = data.user;
+
+		if (user?.id) {
+			const email = user.email?.trim() || undefined;
+			const role = user.role?.trim() || undefined;
+
+			Sentry.setUser({
+				id: user.id,
+				email
+			});
+			identifyAnalyticsUser(user.id, {
+				email: email ?? null,
+				role: role ?? null
+			});
+			return;
+		}
+
+		Sentry.setUser(null);
+		resetAnalyticsUser();
+	});
 </script>
 
 <svelte:head>

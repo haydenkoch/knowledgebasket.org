@@ -1,6 +1,12 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import { page } from '$app/stores';
+	import { onMount } from 'svelte';
+	import {
+		trackSubmissionCompleted,
+		trackSubmissionStarted,
+		trackSubmissionSubmitted
+	} from '$lib/analytics/events';
 	import RichTextEditor from '$lib/components/molecules/RichTextEditor.svelte';
 	import KbFormShell from '$lib/components/organisms/KbFormShell.svelte';
 	import * as Select from '$lib/components/ui/select/index.js';
@@ -50,6 +56,10 @@
 				}
 			: null
 	);
+
+	onMount(() => {
+		trackSubmissionStarted('redpage');
+	});
 </script>
 
 <svelte:head>
@@ -75,10 +85,16 @@
 		method="POST"
 		action="?/default"
 		use:enhance={() => {
+			trackSubmissionSubmitted('redpage');
 			submitting = true;
 			return async ({ result, update }) => {
 				try {
-					if (result.type === 'success' || result.type === 'failure') await update();
+					if (result.type === 'success') {
+						trackSubmissionCompleted('redpage');
+						await update();
+						return;
+					}
+					if (result.type === 'failure') await update();
 				} finally {
 					submitting = false;
 				}

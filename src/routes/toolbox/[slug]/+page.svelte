@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { browser } from '$app/environment';
+	import { trackContentViewed, trackExternalLinkClicked } from '$lib/analytics/events';
 	import type { ToolboxItem } from '$lib/data/kb';
 	import { stripHtml } from '$lib/utils/format';
 	import { Button } from '$lib/components/ui/button/index.js';
@@ -43,6 +45,18 @@
 	const hasPdfPreview = $derived(Boolean(previewUrl));
 
 	const primaryUrl = $derived(isFile ? (fileUrl ?? externalUrl) : externalUrl);
+	let lastTrackedSlug = $state('');
+
+	$effect(() => {
+		const slug = item?.slug?.trim();
+		if (!browser || !slug || lastTrackedSlug === slug) return;
+		lastTrackedSlug = slug;
+		trackContentViewed({
+			contentType: 'toolbox',
+			slug,
+			signedIn: Boolean(data.user)
+		});
+	});
 </script>
 
 <svelte:head>
@@ -132,6 +146,8 @@
 			isAuthed={!!data.user}
 			{isBookmarked}
 			{loginHref}
+			contentType="toolbox"
+			contentSlug={item.slug}
 			saveLabel="resource"
 			accent="var(--color-lakebed-700, #1a3a66)"
 		>
@@ -146,16 +162,54 @@
 			{/snippet}
 			{#snippet primary()}
 				{#if hasPdfPreview && (primaryUrl ?? previewUrl)}
-					<Button href={primaryUrl ?? previewUrl!} target="_blank" rel="noopener" size="sm">
+					<Button
+						href={primaryUrl ?? previewUrl!}
+						target="_blank"
+						rel="noopener"
+						size="sm"
+						onclick={() =>
+							trackExternalLinkClicked({
+								contentType: 'toolbox',
+								slug: item.slug,
+								action: 'open_pdf',
+								href: primaryUrl ?? previewUrl,
+								signedIn: Boolean(data.user)
+							})}
+					>
 						Open PDF <ExternalLinkIcon class="size-[14px]" />
 					</Button>
 				{:else if primaryUrl}
 					{#if isFile}
-						<Button href={primaryUrl} download size="sm">
+						<Button
+							href={primaryUrl}
+							download
+							size="sm"
+							onclick={() =>
+								trackExternalLinkClicked({
+									contentType: 'toolbox',
+									slug: item.slug,
+									action: 'download',
+									href: primaryUrl,
+									signedIn: Boolean(data.user)
+								})}
+						>
 							<DownloadIcon class="size-[14px]" /> Download
 						</Button>
 					{:else}
-						<Button href={primaryUrl} target="_blank" rel="noopener" size="sm">
+						<Button
+							href={primaryUrl}
+							target="_blank"
+							rel="noopener"
+							size="sm"
+							onclick={() =>
+								trackExternalLinkClicked({
+									contentType: 'toolbox',
+									slug: item.slug,
+									action: 'open_resource',
+									href: primaryUrl,
+									signedIn: Boolean(data.user)
+								})}
+						>
 							Open resource <ExternalLinkIcon class="size-[14px]" />
 						</Button>
 					{/if}

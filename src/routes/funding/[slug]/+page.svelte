@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { browser } from '$app/environment';
+	import { trackContentViewed, trackExternalLinkClicked } from '$lib/analytics/events';
 	import type { FundingItem } from '$lib/data/kb';
 	import { formatDisplayValue } from '$lib/utils/display.js';
 	import { stripHtml } from '$lib/utils/format';
@@ -75,6 +77,18 @@
 		if (days <= 14) return { label: `${days} days left`, urgent: true, closed: false };
 		if (days <= 60) return { label: `${days} days left`, urgent: false, closed: false };
 		return null;
+	});
+	let lastTrackedSlug = $state('');
+
+	$effect(() => {
+		const slug = item?.slug?.trim();
+		if (!browser || !slug || lastTrackedSlug === slug) return;
+		lastTrackedSlug = slug;
+		trackContentViewed({
+			contentType: 'funding',
+			slug,
+			signedIn: Boolean(data.user)
+		});
 	});
 </script>
 
@@ -166,6 +180,8 @@
 			isAuthed={!!data.user}
 			{isBookmarked}
 			{loginHref}
+			contentType="funding"
+			contentSlug={item.slug}
 			saveLabel="opportunity"
 			accent="var(--color-flicker-700, #ca4404)"
 		>
@@ -176,7 +192,20 @@
 			{/snippet}
 			{#snippet primary()}
 				{#if item.applyUrl}
-					<Button href={item.applyUrl} target="_blank" rel="noopener" size="sm">
+					<Button
+						href={item.applyUrl}
+						target="_blank"
+						rel="noopener"
+						size="sm"
+						onclick={() =>
+							trackExternalLinkClicked({
+								contentType: 'funding',
+								slug: item.slug,
+								action: 'apply',
+								href: item.applyUrl,
+								signedIn: Boolean(data.user)
+							})}
+					>
 						Apply <ExternalLinkIcon class="size-[14px]" />
 					</Button>
 				{/if}

@@ -122,4 +122,39 @@ describe('runtime config validation', () => {
 			expect.arrayContaining([expect.objectContaining({ key: 'PUBLIC_ASSET_BASE_URL' })])
 		);
 	});
+
+	it('flags partial Google OAuth configuration and missing PostHog analytics in production', () => {
+		const result = inspectRuntimeConfigForTests(
+			{
+				DATABASE_URL: 'postgres://kb:secret@example.com:5432/kb',
+				ORIGIN: 'https://kb.example.com',
+				BETTER_AUTH_SECRET: '12345678901234567890123456789012',
+				SMTP_HOST: 'smtp.example.com',
+				SMTP_PORT: '465',
+				SMTP_SECURE: 'true',
+				SMTP_REQUIRE_TLS: 'false',
+				SMTP_FROM: '"Knowledge Basket" <noreply@example.com>',
+				MEILISEARCH_HOST: 'https://search.example.com',
+				MEILISEARCH_API_KEY: 'search-secret',
+				MINIO_ENDPOINT: 'https://s3.example.com',
+				MINIO_ACCESS_KEY: 'access-key',
+				MINIO_SECRET_KEY: 'secret-key',
+				MINIO_BUCKET: 'kb-uploads',
+				PUBLIC_ASSET_BASE_URL: 'https://assets.example.com/kb-uploads',
+				REINDEX_SECRET: '12345678901234567890123456789012',
+				SOURCE_OPS_SECRET: '12345678901234567890123456789012',
+				SENTRY_DSN: 'https://key@example.ingest.sentry.io/123',
+				GOOGLE_CLIENT_ID: 'google-client-id'
+			},
+			{ enforceProduction: true }
+		);
+
+		expect(result.ok).toBe(false);
+		expect(result.invalid).toEqual(
+			expect.arrayContaining([expect.objectContaining({ key: 'GOOGLE_CLIENT_SECRET' })])
+		);
+		expect(result.warnings).toEqual(
+			expect.arrayContaining([expect.objectContaining({ key: 'PUBLIC_POSTHOG_KEY' })])
+		);
+	});
 });

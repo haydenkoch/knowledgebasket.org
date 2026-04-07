@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { trackSaveClicked } from '$lib/analytics/events';
 	import type { Snippet } from 'svelte';
 	import Heart from '@lucide/svelte/icons/heart';
 
@@ -29,6 +30,8 @@
 		isAuthed = false,
 		isBookmarked = false,
 		loginHref = '',
+		contentType = undefined,
+		contentSlug = undefined,
 		saveLabel = '',
 		accent = 'var(--teal)',
 		breadcrumb,
@@ -39,6 +42,8 @@
 		isAuthed?: boolean;
 		isBookmarked?: boolean;
 		loginHref?: string;
+		contentType?: 'event' | 'funding' | 'redpage' | 'job' | 'toolbox';
+		contentSlug?: string;
 		/** Short label for the save action, used in aria-label (e.g. "event", "job"). */
 		saveLabel?: string;
 		/** CSS color for the filled heart state; defaults to teal. */
@@ -66,7 +71,19 @@
 	<div class="coil-rail-tail">
 		{#if saveLabel}
 			{#if isAuthed}
-				<form method="POST" action="?/toggleBookmark" class="coil-rail-heart-form">
+				<form
+					method="POST"
+					action="?/toggleBookmark"
+					class="coil-rail-heart-form"
+					onsubmit={() =>
+						contentType &&
+						trackSaveClicked({
+							contentType,
+							slug: contentSlug,
+							signedIn: isAuthed,
+							isBookmarked
+						})}
+				>
 					<button
 						type="submit"
 						class="coil-rail-heart"
@@ -82,6 +99,15 @@
 					href={loginHref}
 					class="coil-rail-heart"
 					aria-label={`Sign in to save this ${saveLabel}`}
+					onclick={() =>
+						contentType &&
+						trackSaveClicked({
+							contentType,
+							slug: contentSlug,
+							signedIn: false,
+							isBookmarked,
+							requiresAuth: true
+						})}
 				>
 					<Heart class="size-[18px]" />
 				</a>

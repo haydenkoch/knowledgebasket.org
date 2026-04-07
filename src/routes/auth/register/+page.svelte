@@ -1,5 +1,7 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
+	import { onMount } from 'svelte';
+	import { trackAuthPageViewed, trackAuthSubmitted } from '$lib/analytics/events';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import * as Alert from '$lib/components/ui/alert/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
@@ -16,6 +18,10 @@
 	const fieldErrors = $derived(
 		form && 'errors' in form ? (form.errors as Record<string, string>) : undefined
 	);
+
+	onMount(() => {
+		trackAuthPageViewed('register');
+	});
 </script>
 
 <svelte:head>
@@ -47,40 +53,48 @@
 			</Alert.Root>
 		{/if}
 
-		<form method="post" action="?/signUpWithGoogle" class="auth-google-form">
-			<Button type="submit" variant="outline" class="auth-google-button">
-				<span class="auth-google-mark" aria-hidden="true">
-					<svg viewBox="0 0 24 24" focusable="false">
-						<path
-							fill="#4285F4"
-							d="M21.64 12.2045c0-.6382-.0573-1.2518-.1636-1.8409H12v3.4818h5.4109c-.2327 1.2527-.9391 2.3136-2.0027 3.0227v2.5091h3.24c1.8963-1.7455 2.9918-4.3182 2.9918-7.1727Z"
-						/>
-						<path
-							fill="#34A853"
-							d="M12 22c2.7 0 4.9636-.8955 6.6182-2.4227l-3.24-2.5091c-.8955.6-2.0409.9545-3.3782.9545-2.5954 0-4.7909-1.7545-5.5727-4.1136H3.0782v2.5909C4.7236 19.7691 8.0727 22 12 22Z"
-						/>
-						<path
-							fill="#FBBC05"
-							d="M6.4273 13.9091A5.9966 5.9966 0 0 1 6.1182 12c0-.6636.1136-1.3091.3091-1.9091V7.5H3.0782A9.996 9.996 0 0 0 2 12c0 1.6091.3864 3.1318 1.0782 4.5l3.3491-2.5909Z"
-						/>
-						<path
-							fill="#EA4335"
-							d="M12 5.9773c1.4682 0 2.7864.5045 3.8227 1.4954l2.8682-2.8682C16.9591 2.9954 14.6955 2 12 2 8.0727 2 4.7236 4.2309 3.0782 7.5l3.3491 2.5909C7.2091 7.7318 9.4045 5.9773 12 5.9773Z"
-						/>
-					</svg>
-				</span>
-				Continue with Google
-			</Button>
-		</form>
+		{#if data.googleEnabled}
+			<form
+				method="post"
+				action="?/signUpWithGoogle"
+				class="auth-google-form"
+				onsubmit={() => trackAuthSubmitted('register', 'google')}
+			>
+				<Button type="submit" variant="outline" class="auth-google-button">
+					<span class="auth-google-mark" aria-hidden="true">
+						<svg viewBox="0 0 24 24" focusable="false">
+							<path
+								fill="#4285F4"
+								d="M21.64 12.2045c0-.6382-.0573-1.2518-.1636-1.8409H12v3.4818h5.4109c-.2327 1.2527-.9391 2.3136-2.0027 3.0227v2.5091h3.24c1.8963-1.7455 2.9918-4.3182 2.9918-7.1727Z"
+							/>
+							<path
+								fill="#34A853"
+								d="M12 22c2.7 0 4.9636-.8955 6.6182-2.4227l-3.24-2.5091c-.8955.6-2.0409.9545-3.3782.9545-2.5954 0-4.7909-1.7545-5.5727-4.1136H3.0782v2.5909C4.7236 19.7691 8.0727 22 12 22Z"
+							/>
+							<path
+								fill="#FBBC05"
+								d="M6.4273 13.9091A5.9966 5.9966 0 0 1 6.1182 12c0-.6636.1136-1.3091.3091-1.9091V7.5H3.0782A9.996 9.996 0 0 0 2 12c0 1.6091.3864 3.1318 1.0782 4.5l3.3491-2.5909Z"
+							/>
+							<path
+								fill="#EA4335"
+								d="M12 5.9773c1.4682 0 2.7864.5045 3.8227 1.4954l2.8682-2.8682C16.9591 2.9954 14.6955 2 12 2 8.0727 2 4.7236 4.2309 3.0782 7.5l3.3491 2.5909C7.2091 7.7318 9.4045 5.9773 12 5.9773Z"
+							/>
+						</svg>
+					</span>
+					Continue with Google
+				</Button>
+			</form>
 
-		<div class="auth-divider" role="presentation">
-			<span>Or create an account with email</span>
-		</div>
+			<div class="auth-divider" role="presentation">
+				<span>Or create an account with email</span>
+			</div>
+		{/if}
 
 		<form
 			method="post"
 			action="?/signUp"
 			use:enhance={() => {
+				trackAuthSubmitted('register', 'password');
 				submitting = true;
 				return async ({ update }) => {
 					submitting = false;

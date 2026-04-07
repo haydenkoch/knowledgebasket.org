@@ -1,3 +1,4 @@
+import * as Sentry from '@sentry/sveltekit';
 import { env } from '$env/dynamic/private';
 
 type LogLevel = 'debug' | 'info' | 'warn' | 'error';
@@ -82,7 +83,8 @@ export function logServerEvent(
 export async function captureServerError(
 	event: string,
 	error: unknown,
-	details: Record<string, unknown> = {}
+	details: Record<string, unknown> = {},
+	options: { reportToSentry?: boolean } = {}
 ) {
 	const payload = {
 		timestamp: new Date().toISOString(),
@@ -93,5 +95,30 @@ export async function captureServerError(
 	};
 
 	console.error(JSON.stringify(payload));
+
+	if (options.reportToSentry !== false) {
+		Sentry.withScope((scope) => {
+			scope.setLevel('error');
+			scope.setTag('observability.event', event);
+			scope.setContext('observability', {
+				event,
+				...details,
+				error: payload.error
+			});
+
+			if (error instanceof Error) {
+				Sentry.captureException(error);
+				return;
+			}
+
+			Sentry.captureMessage(
+				typeof payload.error.message === 'string'
+					? `${event}: ${payload.error.message}`
+					: `${event}: unknown error`,
+				'error'
+			);
+		});
+	}
+
 	await sendErrorWebhook(payload);
 }

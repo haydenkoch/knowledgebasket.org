@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { browser } from '$app/environment';
+	import { trackContentViewed, trackExternalLinkClicked } from '$lib/analytics/events';
 	import type { EventItem } from '$lib/data/kb';
 	import { getPlaceholderImageSrcset, DEFAULT_SIZES_HERO } from '$lib/data/placeholders';
 	import {
@@ -182,6 +184,18 @@
 			'</scr' + 'ipt>'
 		].join('')
 	);
+	let lastTrackedSlug = $state('');
+
+	$effect(() => {
+		const slug = event.slug?.trim();
+		if (!browser || !slug || lastTrackedSlug === slug) return;
+		lastTrackedSlug = slug;
+		trackContentViewed({
+			contentType: 'event',
+			slug,
+			signedIn: Boolean(data.user)
+		});
+	});
 </script>
 
 <svelte:head>
@@ -258,6 +272,8 @@
 			isAuthed={!!data.user}
 			{isBookmarked}
 			{loginHref}
+			contentType="event"
+			contentSlug={event.slug}
 			saveLabel="event"
 			accent="var(--teal)"
 		>
@@ -286,6 +302,14 @@
 									variant="ghost"
 									size="icon-sm"
 									aria-label="Directions"
+									onclick={() =>
+										trackExternalLinkClicked({
+											contentType: 'event',
+											slug: event.slug,
+											action: 'directions',
+											href: directionsUrl,
+											signedIn: Boolean(data.user)
+										})}
 								>
 									<NavigationIcon class="size-4" />
 								</Button>
@@ -306,6 +330,14 @@
 									variant="ghost"
 									size="icon-sm"
 									aria-label="Add to calendar"
+									onclick={() =>
+										trackExternalLinkClicked({
+											contentType: 'event',
+											slug: event.slug,
+											action: 'calendar_google',
+											href: googleCalendarUrl,
+											signedIn: Boolean(data.user)
+										})}
 								>
 									<CalendarPlusIcon class="size-4" />
 								</Button>
@@ -317,7 +349,20 @@
 			{/snippet}
 			{#snippet primary()}
 				{#if dualCtas}
-					<Button href={event.registrationUrl!} target="_blank" rel="noopener" size="sm">
+					<Button
+						href={event.registrationUrl!}
+						target="_blank"
+						rel="noopener"
+						size="sm"
+						onclick={() =>
+							trackExternalLinkClicked({
+								contentType: 'event',
+								slug: event.slug,
+								action: 'register',
+								href: event.registrationUrl,
+								signedIn: Boolean(data.user)
+							})}
+					>
 						{event.cost === 'Free/Sponsored'
 							? 'Register'
 							: event.cost === 'Registration Fee Required'
@@ -326,7 +371,20 @@
 						<ArrowRight class="size-4" />
 					</Button>
 				{:else if singleCtaUrl}
-					<Button href={singleCtaUrl} target="_blank" rel="noopener" size="sm">
+					<Button
+						href={singleCtaUrl}
+						target="_blank"
+						rel="noopener"
+						size="sm"
+						onclick={() =>
+							trackExternalLinkClicked({
+								contentType: 'event',
+								slug: event.slug,
+								action: 'primary_cta',
+								href: singleCtaUrl,
+								signedIn: Boolean(data.user)
+							})}
+					>
 						{singleCtaLabel}
 						<ArrowRight class="size-4" />
 					</Button>
@@ -756,6 +814,9 @@
 	.kb-detail-description {
 		max-width: 65ch;
 		line-height: 1.6;
+	}
+	.kb-detail-description :global(:first-child) {
+		margin-top: 0;
 	}
 	.kb-event-no-desc {
 		color: var(--muted-foreground);

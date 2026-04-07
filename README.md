@@ -40,6 +40,7 @@ From the `site/` directory:
 
 ```sh
 pnpm install
+cp .env.local.example .env
 pnpm dev
 ```
 
@@ -68,7 +69,8 @@ docker compose up -d meilisearch
 curl http://localhost:7700/health
 ```
 
-Set `DATABASE_URL` in `site/.env`. See `.env.example` for the rest of the optional configuration.
+Use `.env.local.example` as the local development template and copy it to `site/.env`.
+Use `.env.example` as the production or staging checklist for your hosting environment variables.
 
 Public placeholder/branding assets are now expected to already exist in MinIO, with
 `PUBLIC_ASSET_BASE_URL` pointing at a public bucket root or CDN origin. `pnpm images:sync`

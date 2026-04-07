@@ -1,6 +1,12 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import { page } from '$app/stores';
+	import { onMount } from 'svelte';
+	import {
+		trackSubmissionCompleted,
+		trackSubmissionStarted,
+		trackSubmissionSubmitted
+	} from '$lib/analytics/events';
 	import RichTextEditor from '$lib/components/molecules/RichTextEditor.svelte';
 	import KbFormShell from '$lib/components/organisms/KbFormShell.svelte';
 	import KbFileDropzone from '$lib/components/molecules/KbFileDropzone.svelte';
@@ -255,6 +261,10 @@
 				}
 			: null
 	);
+
+	onMount(() => {
+		trackSubmissionStarted('event');
+	});
 </script>
 
 <svelte:head>
@@ -286,10 +296,16 @@
 		enctype="multipart/form-data"
 		aria-describedby={form?.error ? 'submit-error' : undefined}
 		use:enhance={() => {
+			trackSubmissionSubmitted('event');
 			submitting = true;
 			return async ({ result, update }) => {
 				try {
-					if (result.type === 'success' || result.type === 'failure') await update();
+					if (result.type === 'success') {
+						trackSubmissionCompleted('event');
+						await update();
+						return;
+					}
+					if (result.type === 'failure') await update();
 				} finally {
 					submitting = false;
 				}

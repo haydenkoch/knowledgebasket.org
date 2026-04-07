@@ -4,7 +4,7 @@ import * as Sentry from '@sentry/sveltekit';
 import { building, dev } from '$app/environment';
 import { env as privateEnv } from '$env/dynamic/private';
 import { env as publicEnv } from '$env/dynamic/public';
-import { auth } from '$lib/server/auth';
+import { auth, googleAuthEnabled } from '$lib/server/auth';
 import { guardAdminRequest } from '$lib/server/access-control';
 import { captureServerError } from '$lib/server/observability';
 import { assertProductionRuntimeConfig } from '$lib/server/runtime-config';
@@ -77,6 +77,11 @@ function buildContentSecurityPolicy(): string {
 		scriptSrc.push("'unsafe-eval'");
 	}
 
+	const formAction = ["'self'"];
+	if (googleAuthEnabled) {
+		formAction.push('https://accounts.google.com');
+	}
+
 	return [
 		"default-src 'self'",
 		`script-src ${scriptSrc.join(' ')}`,
@@ -87,7 +92,7 @@ function buildContentSecurityPolicy(): string {
 		"object-src 'none'",
 		"frame-ancestors 'none'",
 		"base-uri 'self'",
-		"form-action 'self'",
+		`form-action ${formAction.join(' ')}`,
 		"manifest-src 'self'"
 	].join('; ');
 }
@@ -159,12 +164,19 @@ export const handle: Handle = sequence(Sentry.sentryHandle(), handleBetterAuth);
 
 export const handleError: HandleServerError = Sentry.handleErrorWithSentry(
 	({ error, event, status, message }) => {
-		void captureServerError('request.unhandled', error, {
-			path: event.url.pathname,
-			method: event.request.method,
-			status,
-			message
-		});
+		void captureServerError(
+			'request.unhandled',
+			error,
+			{
+				path: event.url.pathname,
+				method: event.request.method,
+				status,
+				message
+			},
+			{
+				reportToSentry: false
+			}
+		);
 
 		return {
 			message

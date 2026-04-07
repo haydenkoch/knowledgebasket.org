@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { browser } from '$app/environment';
+	import { trackContentViewed, trackExternalLinkClicked } from '$lib/analytics/events';
 	import type { RedPagesItem } from '$lib/data/kb';
 	import { stripHtml } from '$lib/utils/format';
 	import { Button } from '$lib/components/ui/button/index.js';
@@ -92,6 +94,18 @@
 				].join('')
 			: ''
 	);
+	let lastTrackedSlug = $state('');
+
+	$effect(() => {
+		const slug = item?.slug?.trim();
+		if (!browser || !slug || lastTrackedSlug === slug) return;
+		lastTrackedSlug = slug;
+		trackContentViewed({
+			contentType: 'redpage',
+			slug,
+			signedIn: Boolean(data.user)
+		});
+	});
 </script>
 
 <svelte:head>
@@ -159,6 +173,8 @@
 				isAuthed={!!data.user}
 				{isBookmarked}
 				{loginHref}
+				contentType="redpage"
+				contentSlug={item.slug}
 				saveLabel="listing"
 				accent="var(--red)"
 			>
@@ -173,6 +189,14 @@
 										variant="ghost"
 										size="icon-sm"
 										aria-label="Call {item.phone}"
+										onclick={() =>
+											trackExternalLinkClicked({
+												contentType: 'redpage',
+												slug: item.slug,
+												action: 'call',
+												href: `tel:${item.phone}`,
+												signedIn: Boolean(data.user)
+											})}
 									>
 										<PhoneIcon class="size-4" />
 									</Button>
@@ -191,6 +215,14 @@
 										variant="ghost"
 										size="icon-sm"
 										aria-label="Email {item.email}"
+										onclick={() =>
+											trackExternalLinkClicked({
+												contentType: 'redpage',
+												slug: item.slug,
+												action: 'email',
+												href: `mailto:${item.email}`,
+												signedIn: Boolean(data.user)
+											})}
 									>
 										<MailIcon class="size-4" />
 									</Button>
@@ -202,7 +234,20 @@
 				{/snippet}
 				{#snippet primary()}
 					{#if item.website}
-						<Button href={item.website} target="_blank" rel="noopener" size="sm">
+						<Button
+							href={item.website}
+							target="_blank"
+							rel="noopener"
+							size="sm"
+							onclick={() =>
+								trackExternalLinkClicked({
+									contentType: 'redpage',
+									slug: item.slug,
+									action: 'visit_site',
+									href: item.website,
+									signedIn: Boolean(data.user)
+								})}
+						>
 							<GlobeIcon class="size-[14px]" /> Visit site
 						</Button>
 					{/if}

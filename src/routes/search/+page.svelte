@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { browser } from '$app/environment';
+	import { trackSearchPerformed, trackSearchResultClicked } from '$lib/analytics/events';
 	import type { SearchFacetGroup, SearchIndexScope } from '$lib/server/search-contracts';
 	import { Alert, AlertDescription, AlertTitle } from '$lib/components/ui/alert/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
@@ -21,6 +23,7 @@
 	let { data } = $props();
 	let shortcutLabel = $state('Ctrl K');
 	let filtersOpen = $state(false);
+	let lastTrackedSearchSignature = $state('');
 
 	const search = $derived(data.search);
 	const query = $derived(search.query ?? '');
@@ -35,7 +38,9 @@
 			search.facets.some((facet) => facet.buckets.some((bucket) => bucket.active))
 	);
 	const hasActiveQuery = $derived(query.length >= 2 || hasStructuredSearch);
-	const hasDateFilter = $derived(Boolean(search.request.dateFrom) || Boolean(search.request.dateTo));
+	const hasDateFilter = $derived(
+		Boolean(search.request.dateFrom) || Boolean(search.request.dateTo)
+	);
 	/** Facets excluding "Content Areas" since scope tabs handle that */
 	const refinementFacets = $derived(
 		search.facets.filter((f) => f.key !== 'scope' && f.key !== 'contentArea')
@@ -118,6 +123,61 @@
 		return `/search?${params.toString()}`;
 	}
 
+	function trackResultClick(item: {
+		id: string;
+		scope: SearchIndexScope;
+		kind: string;
+		slug?: string;
+		href: string;
+	}) {
+		const position =
+			search.results.findIndex((result) => result.id === item.id && result.scope === item.scope) +
+			1;
+
+		trackSearchResultClicked({
+			surface: 'global',
+			query,
+			scope: search.request.scope as 'all' | 'events' | 'funding' | 'redpages' | 'jobs' | 'toolbox',
+			resultScope: item.scope,
+			resultKind: item.kind,
+			resultSlug: item.slug ?? item.id,
+			href: item.href,
+			position
+		});
+	}
+
+	$effect(() => {
+		if (!browser) return;
+		if (!hasActiveQuery) {
+			lastTrackedSearchSignature = '';
+			return;
+		}
+
+		const signature = [
+			query,
+			search.request.scope,
+			search.pagination.total,
+			search.request.sort,
+			activeFilterCount,
+			search.resultSource,
+			search.experience.degraded ? '1' : '0'
+		].join('|');
+
+		if (lastTrackedSearchSignature === signature) return;
+		lastTrackedSearchSignature = signature;
+
+		trackSearchPerformed({
+			surface: 'global',
+			query,
+			scope: search.request.scope as 'all' | 'events' | 'funding' | 'redpages' | 'jobs' | 'toolbox',
+			resultCount: search.pagination.total,
+			sort: search.request.sort,
+			hasFilters: activeFilterCount > 0,
+			resultSource: search.resultSource,
+			isDegraded: search.experience.degraded
+		});
+	});
+
 	onMount(() => {
 		if (navigator.platform.toLowerCase().includes('mac')) {
 			shortcutLabel = '⌘K';
@@ -144,7 +204,9 @@
 <section class="search-page mx-auto max-w-6xl px-4 py-10 sm:px-6 lg:px-8">
 	<!-- ── Search bar (always visible) ────────────────────── -->
 	<form action="/search" method="GET" class="mb-6">
-		<div class="flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-3 shadow-sm transition-shadow focus-within:shadow-md">
+		<div
+			class="flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-3 shadow-sm transition-shadow focus-within:shadow-md"
+		>
 			<Search class="h-5 w-5 shrink-0 text-muted-foreground" />
 			<input
 				id="search-q"
@@ -202,7 +264,7 @@
 
 	<!-- ── Discovery presets (no active query) ────────────── -->
 	{#if !hasActiveQuery}
-		<div class="space-y-8 search-enter">
+		<div class="search-enter space-y-8">
 			<div class="text-center">
 				<h2 class="font-serif text-2xl font-semibold">Browse by section</h2>
 				<p class="mx-auto mt-2 max-w-xl text-sm leading-6 text-muted-foreground">
@@ -232,7 +294,7 @@
 									{#if Icon}<Icon class="h-5 w-5" style="color: {accent}" />{/if}
 								</div>
 								<div class="min-w-0 flex-1">
-									<h3 class="font-serif text-lg font-semibold leading-tight">{preset.label}</h3>
+									<h3 class="font-serif text-lg leading-tight font-semibold">{preset.label}</h3>
 									<p class="mt-0.5 text-sm leading-5 text-muted-foreground">{preset.description}</p>
 								</div>
 								<a
@@ -276,7 +338,7 @@
 			</div>
 		</div>
 
-	<!-- ── Active search results ──────────────────────────── -->
+		<!-- ── Active search results ──────────────────────────── -->
 	{:else}
 		<!-- Unified control bar: scope tabs + count + sort -->
 		<div class="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -293,7 +355,9 @@
 						class:border-border={!active}
 						class:text-muted-foreground={!active}
 						class:hover:bg-muted={!active}
-						style={active ? `background: ${scope === 'all' ? 'var(--primary)' : scopeColor(scope)}` : ''}
+						style={active
+							? `background: ${scope === 'all' ? 'var(--primary)' : scopeColor(scope)}`
+							: ''}
 					>
 						{#if Icon}<Icon class="h-3.5 w-3.5" />{/if}
 						{SEARCH_SCOPE_LABELS[scope as keyof typeof SEARCH_SCOPE_LABELS]}
@@ -335,7 +399,9 @@
 		<div class="mb-5 flex flex-wrap items-center gap-2">
 			<!-- Date chip -->
 			{#if hasDateFilter}
-				<span class="inline-flex items-center gap-1.5 rounded-full bg-muted px-3 py-1 text-sm text-foreground">
+				<span
+					class="inline-flex items-center gap-1.5 rounded-full bg-muted px-3 py-1 text-sm text-foreground"
+				>
 					<CalendarDays class="h-3.5 w-3.5 text-muted-foreground" />
 					{search.request.dateFrom ?? 'Any'} — {search.request.dateTo ?? 'Any'}
 				</span>
@@ -363,7 +429,9 @@
 				<SlidersHorizontal class="h-3.5 w-3.5" />
 				Filters
 				{#if activeFilterCount > 0}
-					<span class="flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold text-primary-foreground">
+					<span
+						class="flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold text-primary-foreground"
+					>
 						{activeFilterCount}
 					</span>
 				{/if}
@@ -442,7 +510,9 @@
 						<div class="grid gap-4 lg:grid-cols-2">
 							{#each refinementFacets as facet}
 								<div class="space-y-2">
-									<h3 class="text-[11px] font-semibold tracking-[0.1em] text-muted-foreground uppercase">
+									<h3
+										class="text-[11px] font-semibold tracking-[0.1em] text-muted-foreground uppercase"
+									>
 										{facet.label}
 									</h3>
 									<div class="flex flex-wrap gap-1.5">
@@ -494,16 +564,13 @@
 				{/if}
 			</div>
 
-		<!-- Result groups -->
+			<!-- Result groups -->
 		{:else}
-			<div class="space-y-10 search-enter">
+			<div class="search-enter space-y-10">
 				{#each search.groups as group, gi}
 					{@const groupColor = scopeColor(group.key)}
 					{@const GroupIcon = coilIcons[group.key]}
-					<section
-						aria-labelledby={`search-${group.key}`}
-						style="animation-delay: {gi * 80}ms"
-					>
+					<section aria-labelledby={`search-${group.key}`} style="animation-delay: {gi * 80}ms">
 						<!-- Group header -->
 						<div class="mb-4 flex items-center gap-3">
 							{#if GroupIcon}
@@ -514,10 +581,7 @@
 									<GroupIcon class="h-4 w-4" style="color: {groupColor}" />
 								</div>
 							{/if}
-							<h2
-								id={`search-${group.key}`}
-								class="font-serif text-xl font-semibold"
-							>
+							<h2 id={`search-${group.key}`} class="font-serif text-xl font-semibold">
 								{group.label}
 							</h2>
 							<div
@@ -535,6 +599,7 @@
 								{@const itemColor = scopeColor(item.scope)}
 								<a
 									href={item.href}
+									onclick={() => trackResultClick(item)}
 									class="result-card group relative overflow-hidden rounded-xl border border-border bg-card transition-all duration-200 hover:shadow-md"
 									style="--item-accent: {itemColor}; animation-delay: {gi * 80 + ri * 40}ms"
 								>
@@ -551,10 +616,7 @@
 											style="background: color-mix(in srgb, {itemColor} 10%, transparent)"
 										>
 											<span style="color: {itemColor}">
-												<SearchResultIcon
-													icon={item.presentation.icon}
-													class="h-4.5 w-4.5"
-												/>
+												<SearchResultIcon icon={item.presentation.icon} class="h-4.5 w-4.5" />
 											</span>
 										</div>
 
@@ -573,7 +635,9 @@
 													</span>
 												{/if}
 											</div>
-											<h3 class="font-serif text-base font-semibold leading-snug text-foreground group-hover:text-foreground/80">
+											<h3
+												class="font-serif text-base leading-snug font-semibold text-foreground group-hover:text-foreground/80"
+											>
 												{item.title}
 											</h3>
 											{#if item.summary}
@@ -586,7 +650,9 @@
 												style="color: {itemColor}"
 											>
 												{item.presentation.destinationLabel}
-												<ArrowRight class="ml-0.5 inline h-3 w-3 transition-transform duration-200 group-hover:translate-x-0.5" />
+												<ArrowRight
+													class="ml-0.5 inline h-3 w-3 transition-transform duration-200 group-hover:translate-x-0.5"
+												/>
 											</div>
 										</div>
 									</div>

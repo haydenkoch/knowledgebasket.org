@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { trackGlobalSearchOpened, trackSearchPerformed } from '$lib/analytics/events';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
 	import { onMount } from 'svelte';
@@ -61,6 +62,7 @@
 	let inputEl = $state<HTMLInputElement | null>(null);
 	let shortcutLabel = $state('Ctrl K');
 	let selectedScope = $state<(typeof scopeOptions)[number]>('all');
+	let lastTrackedSearchSignature = $state('');
 	const pathname = $derived($page.url.pathname);
 	const groups = $derived(searchGroupsWithResults(search?.groups ?? []));
 	const currentScope = $derived.by((): CoilKey | null => {
@@ -135,7 +137,7 @@
 		errorMessage = '';
 
 		try {
-			search = await fetchSearchResponse(
+			const nextSearch = await fetchSearchResponse(
 				fetch,
 				{
 					q: term,
@@ -146,7 +148,26 @@
 				},
 				controller
 			);
+			search = nextSearch;
 			if (query.trim() !== term) return;
+			const signature = [
+				term,
+				selectedScope,
+				nextSearch.pagination.total,
+				nextSearch.resultSource,
+				nextSearch.experience.degraded ? '1' : '0'
+			].join('|');
+			if (lastTrackedSearchSignature !== signature) {
+				lastTrackedSearchSignature = signature;
+				trackSearchPerformed({
+					surface: 'autocomplete',
+					query: term,
+					scope: selectedScope,
+					resultCount: nextSearch.pagination.total,
+					resultSource: nextSearch.resultSource,
+					isDegraded: nextSearch.experience.degraded
+				});
+			}
 		} catch (error) {
 			if ((error as Error).name === 'AbortError') return;
 			search = null;
@@ -169,7 +190,9 @@
 	function openWithQuery(nextQuery = '') {
 		open = true;
 		selectedScope = currentScope ?? 'all';
+		trackGlobalSearchOpened(currentScope ?? 'all');
 		query = nextQuery;
+		lastTrackedSearchSignature = '';
 		if (nextQuery.trim().length >= MIN_SEARCH_QUERY_LENGTH) {
 			search = null;
 			errorMessage = '';
@@ -343,6 +366,9 @@
 					{searchAllHref}
 					searchAllLabel={`View all results for "${query.trim()}"`}
 					emptyLabel="No quick matches yet."
+					surface="autocomplete"
+					{query}
+					{selectedScope}
 				/>
 			{/if}
 		</Command.List>
@@ -392,7 +418,7 @@
 		}
 	>
 		<Dialog.Content
-			class="max-w-[min(40rem,calc(100vw-2rem))] sm:max-w-[min(40rem,calc(100vw-2rem))] overflow-hidden rounded-[0.85rem] border-[color:var(--rule)] bg-[var(--background)] p-0 shadow-[0_30px_90px_rgba(10,18,28,0.28)]"
+			class="max-w-[min(40rem,calc(100vw-2rem))] overflow-hidden rounded-[0.85rem] border-[color:var(--rule)] bg-[var(--background)] p-0 shadow-[0_30px_90px_rgba(10,18,28,0.28)] sm:max-w-[min(40rem,calc(100vw-2rem))]"
 		>
 			<Dialog.Header class="sr-only">
 				<Dialog.Title>Search Knowledge Basket</Dialog.Title>

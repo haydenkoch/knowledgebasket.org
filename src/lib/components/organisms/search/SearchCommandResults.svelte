@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { trackSearchResultClicked } from '$lib/analytics/events';
 	import * as Command from '$lib/components/ui/command/index.js';
 	import ChevronRight from '@lucide/svelte/icons/chevron-right';
 	import CornerDownLeft from '@lucide/svelte/icons/corner-down-left';
@@ -11,7 +12,10 @@
 		searchAllHref,
 		searchAllLabel,
 		emptyLabel,
-		isAdmin = false
+		isAdmin = false,
+		surface = undefined,
+		query = '',
+		selectedScope = 'all'
 	}: {
 		groups: SearchGroup[];
 		onNavigate: (href: string) => void | Promise<void>;
@@ -19,10 +23,28 @@
 		searchAllLabel?: string;
 		emptyLabel: string;
 		isAdmin?: boolean;
+		surface?: 'global' | 'autocomplete';
+		query?: string;
+		selectedScope?: 'all' | 'events' | 'funding' | 'redpages' | 'jobs' | 'toolbox';
 	} = $props();
 
 	function itemValue(groupLabel: string, title: string, subtitle: string): string {
 		return [title, groupLabel, subtitle].filter(Boolean).join(' ');
+	}
+
+	function trackResultClick(result: SearchGroup['results'][number], position: number) {
+		if (!surface) return;
+
+		trackSearchResultClicked({
+			surface,
+			query,
+			scope: selectedScope,
+			resultScope: result.scope,
+			resultKind: result.kind,
+			resultSlug: result.slug ?? result.id,
+			href: result.href,
+			position
+		});
 	}
 </script>
 
@@ -42,10 +64,13 @@
 {:else}
 	{#each groups as group}
 		<Command.Group heading={group.label}>
-			{#each group.results as result}
+			{#each group.results as result, index}
 				<Command.Item
 					value={itemValue(group.label, result.title, result.presentation.subtitle)}
-					onSelect={() => void onNavigate(result.href)}
+					onSelect={() => {
+						trackResultClick(result, index + 1);
+						void onNavigate(result.href);
+					}}
 					class="rounded-xl px-3 py-3 aria-selected:bg-[color-mix(in_srgb,var(--color-lakebed-950)_10%,white)] aria-selected:text-[var(--dark)]"
 				>
 					<div class="flex min-w-0 flex-1 items-center gap-3">

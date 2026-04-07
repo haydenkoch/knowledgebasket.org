@@ -1,4 +1,10 @@
 <script lang="ts">
+	import { browser } from '$app/environment';
+	import {
+		trackContentViewed,
+		trackExternalLinkClicked,
+		trackOrganizationAction
+	} from '$lib/analytics/events';
 	import EventCard from '$lib/components/molecules/EventCard.svelte';
 	import FundingCard from '$lib/components/molecules/FundingCard.svelte';
 	import JobListItem from '$lib/components/molecules/JobListItem.svelte';
@@ -46,6 +52,18 @@
 			collections.redpages.length > 0 ||
 			collections.toolbox.length > 0
 	);
+	let lastTrackedSlug = $state('');
+
+	$effect(() => {
+		const slug = organization.slug?.trim();
+		if (!browser || !slug || lastTrackedSlug === slug) return;
+		lastTrackedSlug = slug;
+		trackContentViewed({
+			contentType: 'organization',
+			slug,
+			signedIn: Boolean(data.user)
+		});
+	});
 </script>
 
 <svelte:head>
@@ -141,6 +159,14 @@
 							target="_blank"
 							rel="noopener"
 							class="inline-flex items-center gap-2 rounded-full bg-[var(--muted)] px-3 py-1.5 text-inherit no-underline transition-colors hover:bg-[var(--accent)]"
+							onclick={() =>
+								trackExternalLinkClicked({
+									contentType: 'organization',
+									slug: organization.slug,
+									action: 'visit_site',
+									href: organization.website,
+									signedIn: Boolean(data.user)
+								})}
 						>
 							<GlobeIcon class="size-4 text-[var(--muted-foreground)]" />
 							<span>Website</span>
@@ -150,6 +176,14 @@
 						<a
 							href={`mailto:${organization.email}`}
 							class="inline-flex items-center gap-2 rounded-full bg-[var(--muted)] px-3 py-1.5 text-inherit no-underline transition-colors hover:bg-[var(--accent)]"
+							onclick={() =>
+								trackExternalLinkClicked({
+									contentType: 'organization',
+									slug: organization.slug,
+									action: 'email',
+									href: `mailto:${organization.email}`,
+									signedIn: Boolean(data.user)
+								})}
 						>
 							<MailIcon class="size-4 text-[var(--muted-foreground)]" />
 							<span>{organization.email}</span>
@@ -159,6 +193,14 @@
 						<a
 							href={`tel:${organization.phone}`}
 							class="inline-flex items-center gap-2 rounded-full bg-[var(--muted)] px-3 py-1.5 text-inherit no-underline transition-colors hover:bg-[var(--accent)]"
+							onclick={() =>
+								trackExternalLinkClicked({
+									contentType: 'organization',
+									slug: organization.slug,
+									action: 'call',
+									href: `tel:${organization.phone}`,
+									signedIn: Boolean(data.user)
+								})}
 						>
 							<PhoneIcon class="size-4 text-[var(--muted-foreground)]" />
 							<span>{organization.phone}</span>
@@ -180,7 +222,11 @@
 						{#if canManage}
 							<Button href={`/orgs/${organization.slug}`}>Manage organization</Button>
 						{:else if isSignedIn}
-							<form method="POST" action="?/toggleFollow">
+							<form
+								method="POST"
+								action="?/toggleFollow"
+								onsubmit={() => trackOrganizationAction('toggle_follow', organization.slug)}
+							>
 								<Button type="submit" variant={isFollowing ? 'outline' : 'default'} class="w-full">
 									{isFollowing ? 'Following organization' : 'Follow organization'}
 								</Button>
@@ -197,7 +243,12 @@
 									</form>
 								</div>
 							{:else}
-								<form method="POST" action="?/createClaim" class="space-y-2">
+								<form
+									method="POST"
+									action="?/createClaim"
+									class="space-y-2"
+									onsubmit={() => trackOrganizationAction('create_claim', organization.slug)}
+								>
 									<Textarea
 										name="evidence"
 										rows={3}
@@ -209,8 +260,19 @@
 								</form>
 							{/if}
 						{:else}
-							<Button href={loginHref}>Sign in to follow</Button>
-							<Button href={loginHref} variant="outline">Claim this organization</Button>
+							<Button
+								href={loginHref}
+								onclick={() => trackOrganizationAction('follow_requires_login', organization.slug)}
+							>
+								Sign in to follow
+							</Button>
+							<Button
+								href={loginHref}
+								variant="outline"
+								onclick={() => trackOrganizationAction('claim_requires_login', organization.slug)}
+							>
+								Claim this organization
+							</Button>
 						{/if}
 						{#if form?.error}
 							<p class="text-sm text-destructive">{form.error}</p>
@@ -283,8 +345,8 @@
 				No published content
 			</h2>
 			<p class="mt-2 text-sm leading-6 text-[var(--muted-foreground)]">
-				This organization does not have any published events, funding, jobs, directory listings,
-				or toolbox resources at this time.
+				This organization does not have any published events, funding, jobs, directory listings, or
+				toolbox resources at this time.
 			</p>
 		</section>
 	{/if}

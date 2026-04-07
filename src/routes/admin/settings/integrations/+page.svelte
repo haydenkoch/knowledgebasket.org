@@ -54,4 +54,36 @@
 			</div>
 		</Card.Content>
 	</Card.Root>
+
+	<Card.Root>
+		<Card.Header>
+			<Card.Title>PostHog</Card.Title>
+			<Card.Description>
+				Product analytics and session replay, only after visitors opt into analytics cookies.
+			</Card.Description>
+		</Card.Header>
+		<Card.Content class="space-y-3">
+			<div class="flex items-center gap-2">
+				{#if data.posthogConfigured}
+					<CheckCircle class="h-5 w-5 text-[var(--color-pinyon-600)]" />
+					<span class="font-medium text-[var(--color-pinyon-800)]">Connected</span>
+				{:else}
+					<XCircle class="h-5 w-5 text-[var(--color-ember-600)]" />
+					<span class="font-medium text-[var(--mid)]">This connection is not set up yet</span>
+				{/if}
+			</div>
+
+			<div class="text-sm text-muted-foreground">
+				<p>
+					Host:
+					<span class="font-medium text-foreground">{data.posthogHost}</span>
+				</p>
+				{#if data.posthogConfigured}
+					<p>Using `PUBLIC_POSTHOG_KEY` and `PUBLIC_POSTHOG_HOST` from the runtime environment.</p>
+				{:else}
+					<p>Add `PUBLIC_POSTHOG_KEY` in production to enable analytics and replay.</p>
+				{/if}
+			</div>
+		</Card.Content>
+	</Card.Root>
 </div>

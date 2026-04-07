@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { trackSearchPerformed } from '$lib/analytics/events';
 	import { goto } from '$app/navigation';
 	import { onMount } from 'svelte';
 	import SearchIcon from '@lucide/svelte/icons/search';
@@ -45,6 +46,7 @@
 	let rootEl = $state<HTMLDivElement | null>(null);
 	let shortcutLabel = $state('Ctrl K');
 	let selectedScope = $state<(typeof scopeOptions)[number]>('all');
+	let lastTrackedSearchSignature = $state('');
 	const isMobile = new IsMobile();
 
 	const badgeLabel = $derived(SEARCH_SCOPE_LABELS[selectedScope]);
@@ -62,6 +64,7 @@
 	function resetResults() {
 		search = null;
 		errorMessage = '';
+		lastTrackedSearchSignature = '';
 	}
 
 	async function runSearch(nextQuery: string) {
@@ -91,6 +94,24 @@
 				controller
 			);
 			search = payload;
+			const signature = [
+				term,
+				selectedScope,
+				payload.pagination.total,
+				payload.resultSource,
+				payload.experience.degraded ? '1' : '0'
+			].join('|');
+			if (lastTrackedSearchSignature !== signature) {
+				lastTrackedSearchSignature = signature;
+				trackSearchPerformed({
+					surface: 'autocomplete',
+					query: term,
+					scope: selectedScope,
+					resultCount: payload.pagination.total,
+					resultSource: payload.resultSource,
+					isDegraded: payload.experience.degraded
+				});
+			}
 		} catch (error) {
 			if ((error as Error).name === 'AbortError') return;
 			search = null;
@@ -287,6 +308,9 @@
 								{searchAllHref}
 								searchAllLabel={`View all results for "${query.trim()}"`}
 								emptyLabel="No quick matches yet."
+								surface="autocomplete"
+								{query}
+								{selectedScope}
 							/>
 						</div>
 					{/if}

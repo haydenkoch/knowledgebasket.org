@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { browser } from '$app/environment';
+	import { trackContentViewed, trackExternalLinkClicked } from '$lib/analytics/events';
 	import type { JobItem } from '$lib/data/kb';
 	import { getPlaceholderImage } from '$lib/data/placeholders';
 	import { formatDisplayValue } from '$lib/utils/display.js';
@@ -91,6 +93,18 @@
 				].join('')
 			: ''
 	);
+	let lastTrackedSlug = $state('');
+
+	$effect(() => {
+		const slug = item?.slug?.trim();
+		if (!browser || !slug || lastTrackedSlug === slug) return;
+		lastTrackedSlug = slug;
+		trackContentViewed({
+			contentType: 'job',
+			slug,
+			signedIn: Boolean(data.user)
+		});
+	});
 </script>
 
 <svelte:head>
@@ -165,6 +179,8 @@
 			isAuthed={!!data.user}
 			{isBookmarked}
 			{loginHref}
+			contentType="job"
+			contentSlug={item.slug}
 			saveLabel="job"
 			accent="var(--forest)"
 		>
@@ -175,7 +191,20 @@
 			{/snippet}
 			{#snippet primary()}
 				{#if item.applyUrl}
-					<Button href={item.applyUrl} target="_blank" rel="noopener" size="sm">
+					<Button
+						href={item.applyUrl}
+						target="_blank"
+						rel="noopener"
+						size="sm"
+						onclick={() =>
+							trackExternalLinkClicked({
+								contentType: 'job',
+								slug: item.slug,
+								action: 'apply',
+								href: item.applyUrl,
+								signedIn: Boolean(data.user)
+							})}
+					>
 						Apply now <ExternalLinkIcon class="size-[14px]" />
 					</Button>
 				{/if}

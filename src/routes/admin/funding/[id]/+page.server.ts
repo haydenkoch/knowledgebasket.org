@@ -77,6 +77,13 @@ export const actions: Actions = {
 			nullableString(formData, 'imageUrl'),
 			'Image URL must be a valid http or https URL.'
 		);
+		const imageUrlsRaw = (formData.get('imageUrls') as string) ?? '';
+		const imageUrls = imageUrlsRaw
+			? imageUrlsRaw
+					.split(/\r?\n/)
+					.map((s) => s.trim())
+					.filter(Boolean)
+			: [];
 		if (issues.length > 0) return fail(400, { error: issues[0], issues });
 
 		const current = await getFundingById(params.id);
@@ -128,6 +135,7 @@ export const actions: Actions = {
 			contactName: nullableString(formData, 'contactName'),
 			contactPhone: nullableString(formData, 'contactPhone'),
 			imageUrl: nullableString(formData, 'imageUrl'),
+			imageUrls: imageUrls.length > 0 ? imageUrls : null,
 			adminNotes: nullableString(formData, 'adminNotes'),
 			featured: formData.has('featured'),
 			unlisted: formData.has('unlisted'),

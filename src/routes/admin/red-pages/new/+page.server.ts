@@ -59,6 +59,13 @@ export const actions: Actions = {
 			nullableString(formData, 'imageUrl'),
 			'Image URL must be a valid http or https URL.'
 		);
+		const imageUrlsRaw = (formData.get('imageUrls') as string) ?? '';
+		const imageUrls = imageUrlsRaw
+			? imageUrlsRaw
+					.split(/\r?\n/)
+					.map((s) => s.trim())
+					.filter(Boolean)
+			: [];
 		if (issues.length > 0) return fail(400, { error: issues[0], issues });
 
 		const serviceArea = nullableString(formData, 'serviceArea');
@@ -85,6 +92,7 @@ export const actions: Actions = {
 			region: nullableString(formData, 'region') ?? serviceArea,
 			logoUrl: nullableString(formData, 'logoUrl'),
 			imageUrl: nullableString(formData, 'imageUrl'),
+			imageUrls: imageUrls.length > 0 ? imageUrls : null,
 			certifications: parseList(formData, 'certifications'),
 			socialLinks: parseSocialLinks(formData, 'socialLinks'),
 			status: 'draft',

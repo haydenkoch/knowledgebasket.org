@@ -58,6 +58,13 @@ export const actions: Actions = {
 		const fileUrl = nullableString(formData, 'fileUrl');
 		const imageUrl = nullableString(formData, 'imageUrl');
 		validateHttpUrl(issues, imageUrl, 'Image URL must be a valid http or https URL.');
+		const imageUrlsRaw = (formData.get('imageUrls') as string) ?? '';
+		const imageUrls = imageUrlsRaw
+			? imageUrlsRaw
+					.split(/\r?\n/)
+					.map((s) => s.trim())
+					.filter(Boolean)
+			: [];
 		if (contentMode === 'link') {
 			validateRequired(issues, externalUrl, 'External URL is required for link resources.');
 			validateHttpUrl(issues, externalUrl, 'External URL must be a valid http or https URL.');
@@ -108,6 +115,7 @@ export const actions: Actions = {
 			externalUrl,
 			fileUrl,
 			imageUrl,
+			imageUrls: imageUrls.length > 0 ? imageUrls : null,
 			author: nullableString(formData, 'author'),
 			publishDate: parseDateValue(formData, 'publishDate'),
 			lastReviewedAt: parseDateValue(formData, 'lastReviewedAt'),

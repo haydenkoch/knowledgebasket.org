@@ -1,4 +1,4 @@
-import { pgTable, text, uuid, real, timestamp, boolean, index, unique } from 'drizzle-orm/pg-core';
+import { pgTable, text, uuid, real, timestamp, boolean, index, unique, jsonb } from 'drizzle-orm/pg-core';
 import { user } from '../auth.schema';
 import { organizations } from './organizations';
 
@@ -54,6 +54,7 @@ export const jobs = pgTable(
 
 		// Media
 		imageUrl: text('image_url'),
+		imageUrls: jsonb('image_urls').$type<string[]>().default([]),
 
 		// Moderation
 		status: text('status').notNull().default('pending'),

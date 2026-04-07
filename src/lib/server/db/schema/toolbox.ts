@@ -1,4 +1,4 @@
-import { pgTable, text, uuid, timestamp, boolean, index } from 'drizzle-orm/pg-core';
+import { pgTable, text, uuid, timestamp, boolean, index, jsonb } from 'drizzle-orm/pg-core';
 import { user } from '../auth.schema';
 import { organizations } from './organizations';
 
@@ -31,6 +31,7 @@ export const toolboxResources = pgTable(
 
 		// Media
 		imageUrl: text('image_url'),
+		imageUrls: jsonb('image_urls').$type<string[]>().default([]),
 
 		// Metadata
 		author: text('author'),

@@ -11,6 +11,14 @@
 
 	let { data } = $props();
 	let item = $derived(data.item as FundingItem | null);
+	const galleryImages = $derived(
+		item
+			? item.imageUrl
+				? [item.imageUrl, ...(item.imageUrls ?? [])]
+				: (item.imageUrls ?? [])
+			: []
+	);
+	let selectedGalleryIndex = $state(0);
 	const origin = $derived(data.origin ?? '');
 	const isBookmarked = $derived(Boolean(data.isBookmarked));
 	const loginHref = $derived(
@@ -78,6 +86,38 @@
 		if (days <= 60) return { label: `${days} days left`, urgent: false, closed: false };
 		return null;
 	});
+	const jsonLd = $derived.by(() => {
+		if (!item) return null;
+		const ld: Record<string, unknown> = {
+			'@context': 'https://schema.org',
+			'@type': 'Grant',
+			name: item.title,
+			description: metaDescription,
+			url: canonicalUrl
+		};
+		if (item.funderName) ld.funder = { '@type': 'Organization', name: item.funderName };
+		if (item.amountMin != null || item.amountMax != null) {
+			ld.amount = {
+				'@type': 'MonetaryAmount',
+				minValue: item.amountMin ?? undefined,
+				maxValue: item.amountMax ?? undefined,
+				currency: 'USD'
+			};
+		}
+		if (item.deadline) ld.endDate = item.deadline;
+		if (item.imageUrl) ld.image = item.imageUrl;
+		return ld;
+	});
+	const jsonLdScript = $derived.by(() =>
+		jsonLd
+			? [
+					'<script type="application/ld+json">',
+					JSON.stringify(jsonLd).replaceAll('<', '\\u003c'),
+					'</scr' + 'ipt>'
+				].join('')
+			: null
+	);
+
 	let lastTrackedSlug = $state('');
 
 	$effect(() => {
@@ -110,6 +150,7 @@
 		<meta name="twitter:title" content={item.title} />
 		<meta name="twitter:description" content={metaDescription} />
 		{#if item.imageUrl}<meta name="twitter:image" content={item.imageUrl} />{/if}
+		{#if jsonLdScript}{@html jsonLdScript}{/if}
 	{/if}
 </svelte:head>
 
@@ -123,7 +164,7 @@
 {:else}
 	<div class="kb-funding-wrap">
 		<!-- Hero header -->
-		<div class="kb-funding-hero" class:has-image={!!item.imageUrl}>
+		<div class="kb-funding-hero" class:has-image={galleryImages.length > 0}>
 			<!-- Decorative grant-paper motif -->
 			<svg
 				class="kb-funding-hero-motif"
@@ -168,9 +209,26 @@
 						<p class="kb-funding-funder">Funded by {item.funderName}</p>
 					{/if}
 				</div>
-				{#if item.imageUrl}
+				{#if galleryImages.length > 0}
 					<figure class="kb-funding-hero-figure">
-						<img src={item.imageUrl} alt="" loading="lazy" />
+						<img src={galleryImages[selectedGalleryIndex] ?? galleryImages[0]} alt="" loading="lazy" />
+						{#if galleryImages.length > 1}
+							<div class="kb-funding-filmstrip" role="tablist" aria-label="Gallery">
+								{#each galleryImages as url, i (url + i)}
+									<button
+										type="button"
+										class="kb-funding-thumb"
+										class:selected={i === selectedGalleryIndex}
+										aria-label="View image {i + 1}"
+										aria-selected={i === selectedGalleryIndex}
+										role="tab"
+										onclick={() => (selectedGalleryIndex = i)}
+									>
+										<img src={url} alt="" loading="lazy" />
+									</button>
+								{/each}
+							</div>
+						{/if}
 					</figure>
 				{/if}
 			</div>
@@ -449,6 +507,39 @@
 		.kb-funding-hero.has-image .kb-funding-hero-figure {
 			display: block;
 		}
+	}
+	/* ── Gallery filmstrip inside figure ── */
+	.kb-funding-filmstrip {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.375rem;
+		padding: 0.375rem;
+		margin-top: 0.5rem;
+		background: rgba(0, 0, 0, 0.25);
+		border-radius: 8px;
+	}
+	.kb-funding-thumb {
+		width: 48px;
+		height: 48px;
+		padding: 0;
+		border: 2px solid transparent;
+		border-radius: 4px;
+		overflow: hidden;
+		cursor: pointer;
+		transition:
+			border-color 0.15s,
+			transform 0.15s;
+	}
+	.kb-funding-thumb:hover {
+		transform: translateY(-1px);
+	}
+	.kb-funding-thumb.selected {
+		border-color: white;
+	}
+	.kb-funding-thumb img {
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
 	}
 	@media (min-width: 1024px) {
 		.kb-funding-hero-figure {

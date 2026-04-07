@@ -10,11 +10,6 @@ import { captureServerError } from '$lib/server/observability';
 import { assertProductionRuntimeConfig } from '$lib/server/runtime-config';
 import { svelteKitHandler } from 'better-auth/svelte-kit';
 
-function configuredSampleRate(value: string | undefined, fallback: number): number {
-	const parsed = Number(value);
-	return Number.isFinite(parsed) && parsed >= 0 && parsed <= 1 ? parsed : fallback;
-}
-
 function telemetryOrigin(value: string | undefined): string | null {
 	if (!value?.trim()) return null;
 
@@ -25,32 +20,8 @@ function telemetryOrigin(value: string | undefined): string | null {
 	}
 }
 
-const serverDsn = privateEnv.SENTRY_DSN?.trim() || publicEnv.PUBLIC_SENTRY_DSN?.trim();
-
 if (!building && !dev) {
 	assertProductionRuntimeConfig();
-}
-
-if (serverDsn) {
-	Sentry.init({
-		dsn: serverDsn,
-		enabled: !building && (!dev || publicEnv.PUBLIC_SENTRY_ENABLE_DEV === 'true'),
-		environment:
-			privateEnv.SENTRY_ENVIRONMENT?.trim() ||
-			privateEnv.RAILWAY_ENVIRONMENT_NAME?.trim() ||
-			publicEnv.PUBLIC_SENTRY_ENVIRONMENT?.trim() ||
-			undefined,
-		release:
-			privateEnv.SENTRY_RELEASE?.trim() ||
-			privateEnv.RAILWAY_GIT_COMMIT_SHA?.trim() ||
-			publicEnv.PUBLIC_SENTRY_RELEASE?.trim() ||
-			undefined,
-		sendDefaultPii: false,
-		tracesSampleRate: configuredSampleRate(
-			privateEnv.SENTRY_TRACES_SAMPLE_RATE ?? publicEnv.PUBLIC_SENTRY_TRACES_SAMPLE_RATE,
-			dev ? 1 : 0.1
-		)
-	});
 }
 
 function buildContentSecurityPolicy(): string {
@@ -122,7 +93,8 @@ const handleBetterAuth: Handle = async ({ event, resolve }) => {
 
 		Sentry.setUser({
 			id: session.user.id,
-			email: session.user.email ?? undefined
+			email: session.user.email ?? undefined,
+			username: session.user.name ?? undefined
 		});
 	} else {
 		Sentry.setUser(null);
@@ -155,6 +127,7 @@ const handleBetterAuth: Handle = async ({ event, resolve }) => {
 	if (event.route.id) {
 		Sentry.setTag('sveltekit.route_id', event.route.id);
 	}
+	Sentry.setTag('request.method', event.request.method);
 
 	const response = await svelteKitHandler({ event, resolve, auth, building });
 	return applySecurityHeaders(response);

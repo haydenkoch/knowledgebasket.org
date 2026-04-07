@@ -143,7 +143,7 @@ export async function getRecentBusinesses(limit: number): Promise<RedPagesItem[]
 		.select()
 		.from(rpTable)
 		.where(eq(rpTable.status, 'published'))
-		.orderBy(desc(rpTable.createdAt))
+		.orderBy(desc(rpTable.publishedAt))
 		.limit(limit);
 	return rows.map((r) => rowToItem(r));
 }

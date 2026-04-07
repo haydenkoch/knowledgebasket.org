@@ -61,7 +61,15 @@
 		item?.serviceTypes?.length ? item.serviceTypes : item?.serviceType ? [item.serviceType] : []
 	);
 
-	const heroBanner = $derived(item?.imageUrl ?? item?.imageUrls?.[0] ?? null);
+	const galleryImages = $derived(
+		item
+			? item.imageUrl
+				? [item.imageUrl, ...(item.imageUrls ?? [])]
+				: (item.imageUrls ?? [])
+			: []
+	);
+	let selectedGalleryIndex = $state(0);
+	const heroBanner = $derived(galleryImages[selectedGalleryIndex] ?? null);
 
 	const jsonLd = $derived.by(() => {
 		if (!item) return null;
@@ -157,6 +165,23 @@
 				<h1 class="kb-rp-title">{item.title}</h1>
 				{#if item.tribalAffiliation}
 					<p class="kb-rp-affiliation">{item.tribalAffiliation}</p>
+				{/if}
+				{#if galleryImages.length > 1}
+					<div class="kb-rp-filmstrip" role="tablist" aria-label="Gallery">
+						{#each galleryImages as url, i (url + i)}
+							<button
+								type="button"
+								class="kb-rp-thumb"
+								class:selected={i === selectedGalleryIndex}
+								aria-label="View image {i + 1}"
+								aria-selected={i === selectedGalleryIndex}
+								role="tab"
+								onclick={() => (selectedGalleryIndex = i)}
+							>
+								<img src={url} alt="" loading="lazy" />
+							</button>
+						{/each}
+					</div>
 				{/if}
 			</div>
 			<div class="kb-rp-logo-wrap">
@@ -473,6 +498,48 @@
 		position: relative;
 		z-index: 2;
 		min-width: 0;
+	}
+	/* ── Gallery filmstrip ── */
+	.kb-rp-filmstrip {
+		display: none;
+		flex-shrink: 0;
+		gap: 0.5rem;
+		padding: 0.5rem;
+		margin-top: 0.75rem;
+		border-radius: 10px;
+		background: rgba(0, 0, 0, 0.35);
+		backdrop-filter: blur(6px);
+		-webkit-backdrop-filter: blur(6px);
+		border: 1px solid rgba(255, 255, 255, 0.1);
+	}
+	@media (min-width: 480px) {
+		.kb-rp-filmstrip {
+			display: flex;
+		}
+	}
+	.kb-rp-thumb {
+		width: 56px;
+		height: 56px;
+		padding: 0;
+		border: 2px solid transparent;
+		border-radius: 6px;
+		overflow: hidden;
+		background: rgba(255, 255, 255, 0.06);
+		cursor: pointer;
+		transition:
+			border-color 0.15s,
+			transform 0.15s;
+	}
+	.kb-rp-thumb:hover {
+		transform: translateY(-1px);
+	}
+	.kb-rp-thumb.selected {
+		border-color: white;
+	}
+	.kb-rp-thumb img {
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
 	}
 	.kb-rp-logo-wrap {
 		position: absolute;

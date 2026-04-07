@@ -176,6 +176,7 @@ export interface FundingItem extends BaseItem {
 	contactPhone?: string;
 
 	imageUrl?: string;
+	imageUrls?: string[];
 
 	status?: string;
 	source?: string;
@@ -280,6 +281,7 @@ export interface JobItem extends BaseItem {
 	tribalPreference?: string;
 
 	imageUrl?: string;
+	imageUrls?: string[];
 
 	status?: string;
 	source?: string;
@@ -317,6 +319,7 @@ export interface ToolboxItem extends BaseItem {
 	fileUrl?: string;
 
 	imageUrl?: string;
+	imageUrls?: string[];
 
 	author?: string;
 	publishDate?: string;

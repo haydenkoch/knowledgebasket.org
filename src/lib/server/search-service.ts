@@ -1,3 +1,4 @@
+import * as Sentry from '@sentry/sveltekit';
 import type {
 	CoilKey,
 	EventItem,
@@ -64,6 +65,30 @@ type ScopeConfig<T> = {
 	meiliFacetFields: string[];
 	meiliFilterFields: Partial<Record<keyof SearchFilters, string>>;
 };
+
+function withSearchSpan<T>(
+	name: string,
+	request: SearchRequest,
+	attributes: Record<string, string | number | boolean> = {},
+	run: () => Promise<T>
+): Promise<T> {
+	return Sentry.startSpan(
+		{
+			name,
+			op: 'search.query',
+			attributes: {
+				'search.scope': request.scope,
+				'search.surface': request.surface,
+				'search.page': request.page,
+				'search.limit': request.limit,
+				'search.sort': request.sort,
+				'search.query_length': request.q.length,
+				...attributes
+			}
+		},
+		run
+	);
+}
 
 const contentScopePaths: Record<CoilKey, string> = {
 	events: '/events',
@@ -794,75 +819,81 @@ async function runSingleScopeBrowseSearch(
 		'pagination' | 'facets' | 'results' | 'groups' | 'resultSource' | 'fallbackReason'
 	>
 > {
-	const readiness = await getSearchReadiness();
-	const config = contentScopeConfigs[scope];
+	return withSearchSpan(
+		'search.scope_browse',
+		request,
+		{ 'search.scope_resolved': scope },
+		async () => {
+			const readiness = await getSearchReadiness();
+			const config = contentScopeConfigs[scope];
 
-	if (readiness.state === 'ready' && (request.filters.subsection?.length ?? 0) === 0) {
-		try {
-			const offset = (request.page - 1) * request.limit;
-			const filter = [
-				...buildFilterExpression(request.filters, config),
-				...buildDateExpressions(request)
-			];
-			const meili = await searchIndex(scope, request.q, {
-				limit: request.limit,
-				offset,
-				filter: filter.length > 0 ? filter : undefined,
-				sort: config.meiliSort(request.sort),
-				facets: config.meiliFacetFields,
-				allowEmpty: true
-			});
+			if (readiness.state === 'ready' && (request.filters.subsection?.length ?? 0) === 0) {
+				try {
+					const offset = (request.page - 1) * request.limit;
+					const filter = [
+						...buildFilterExpression(request.filters, config),
+						...buildDateExpressions(request)
+					];
+					const meili = await searchIndex(scope, request.q, {
+						limit: request.limit,
+						offset,
+						filter: filter.length > 0 ? filter : undefined,
+						sort: config.meiliSort(request.sort),
+						facets: config.meiliFacetFields,
+						allowEmpty: true
+					});
+					const items = await config.getItems();
+					const itemMap = new Map(items.map((item) => [item.id, item]));
+					const hydratedResults = meili.hits.map((hit) => {
+						const matched = itemMap.get(hit.id);
+						return matched ? config.toResult(matched) : resultFromDoc(hit);
+					});
+					const results = (
+						await semanticSearchAdapter.rerankResults(request, hydratedResults)
+					).slice(0, request.limit);
+					const meiliFieldMap = config.meiliFilterFields as Partial<
+						Record<keyof SearchFilters, string>
+					>;
+					const facets = config.facets.map((facet) =>
+						facetGroup(
+							facet.key,
+							facet.label,
+							meili.facetDistribution?.[meiliFieldMap[facet.key] ?? String(facet.field)],
+							request.filters[facet.key],
+							String(facet.field)
+						)
+					);
+					return {
+						pagination: buildPagination(request.page, request.limit, meili.estimatedTotalHits),
+						facets,
+						results,
+						groups: [{ key: scope, label: config.label, total: meili.estimatedTotalHits, results }],
+						resultSource: 'meilisearch',
+						fallbackReason: undefined
+					};
+				} catch {
+					// Fall through to compatibility mode
+				}
+			}
+
 			const items = await config.getItems();
-			const itemMap = new Map(items.map((item) => [item.id, item]));
-			const hydratedResults = meili.hits.map((hit) => {
-				const matched = itemMap.get(hit.id);
-				return matched ? config.toResult(matched) : resultFromDoc(hit);
-			});
-			const results = (await semanticSearchAdapter.rerankResults(request, hydratedResults)).slice(
-				0,
-				request.limit
+			const { filtered, facets } = filterFallbackItems(items, scope, request);
+			const total = filtered.length;
+			const pageItems = filtered.slice(
+				(request.page - 1) * request.limit,
+				request.page * request.limit
 			);
-			const meiliFieldMap = config.meiliFilterFields as Partial<
-				Record<keyof SearchFilters, string>
-			>;
-			const facets = config.facets.map((facet) =>
-				facetGroup(
-					facet.key,
-					facet.label,
-					meili.facetDistribution?.[meiliFieldMap[facet.key] ?? String(facet.field)],
-					request.filters[facet.key],
-					String(facet.field)
-				)
-			);
+			const results = pageItems.map(config.toResult);
 			return {
-				pagination: buildPagination(request.page, request.limit, meili.estimatedTotalHits),
+				pagination: buildPagination(request.page, request.limit, total),
 				facets,
 				results,
-				groups: [{ key: scope, label: config.label, total: meili.estimatedTotalHits, results }],
-				resultSource: 'meilisearch',
-				fallbackReason: undefined
+				groups: [{ key: scope, label: config.label, total, results }],
+				resultSource: 'database',
+				fallbackReason: fallbackReasonFromReadiness(readiness, request.q.length)
 			};
-		} catch {
-			// Fall through to compatibility mode
 		}
-	}
-
-	const items = await config.getItems();
-	const { filtered, facets } = filterFallbackItems(items, scope, request);
-	const total = filtered.length;
-	const pageItems = filtered.slice(
-		(request.page - 1) * request.limit,
-		request.page * request.limit
 	);
-	const results = pageItems.map(config.toResult);
-	return {
-		pagination: buildPagination(request.page, request.limit, total),
-		facets,
-		results,
-		groups: [{ key: scope, label: config.label, total, results }],
-		resultSource: 'database',
-		fallbackReason: fallbackReasonFromReadiness(readiness, request.q.length)
-	};
 }
 
 async function runGroupedScopeSearch(
@@ -874,34 +905,158 @@ async function runGroupedScopeSearch(
 		'pagination' | 'facets' | 'results' | 'groups' | 'resultSource' | 'fallbackReason'
 	>
 > {
-	const readiness = await getSearchReadiness();
+	return withSearchSpan(
+		'search.grouped_scope',
+		request,
+		{
+			'search.scope_count': scopes.length,
+			'search.scopes': scopes.join(',')
+		},
+		async () => {
+			const readiness = await getSearchReadiness();
 
-	const canUseFastGroupedSearch =
-		request.q.length >= 2 &&
-		readiness.state === 'ready' &&
-		request.sort === 'relevance' &&
-		request.page === 1 &&
-		!hasRefinements(request);
+			const canUseFastGroupedSearch =
+				request.q.length >= 2 &&
+				readiness.state === 'ready' &&
+				request.sort === 'relevance' &&
+				request.page === 1 &&
+				!hasRefinements(request);
 
-	if (canUseFastGroupedSearch) {
-		const grouped = await searchScopesWithStatus(scopes, request.q, { limit: request.limit });
-		if (grouped.ok) {
-			const groups = scopes
-				.map((scope) => ({
-					key: scope,
-					label: SEARCH_SCOPE_LABELS[scope],
-					total: grouped.results[scope].length,
-					results: grouped.results[scope].map((doc) =>
-						adaptResultForSurface(resultFromDoc(doc), request.surface)
-					)
-				}))
-				.filter((group) => group.results.length > 0);
-			const results = await semanticSearchAdapter.rerankResults(
-				request,
-				groups.flatMap((group) => group.results)
+			if (canUseFastGroupedSearch) {
+				const grouped = await searchScopesWithStatus(scopes, request.q, { limit: request.limit });
+				if (grouped.ok) {
+					const groups = scopes
+						.map((scope) => ({
+							key: scope,
+							label: SEARCH_SCOPE_LABELS[scope],
+							total: grouped.results[scope].length,
+							results: grouped.results[scope].map((doc) =>
+								adaptResultForSurface(resultFromDoc(doc), request.surface)
+							)
+						}))
+						.filter((group) => group.results.length > 0);
+					const results = await semanticSearchAdapter.rerankResults(
+						request,
+						groups.flatMap((group) => group.results)
+					);
+					return {
+						pagination: buildPagination(1, request.limit, results.length),
+						facets:
+							request.scope === 'all'
+								? [
+										{
+											key: 'type',
+											label: 'Content Areas',
+											multi: true,
+											buckets: groups.map((group) => ({
+												value: group.key,
+												label: group.label,
+												count: group.total,
+												active: false
+											}))
+										}
+									]
+								: [],
+						results,
+						groups,
+						resultSource: 'meilisearch',
+						fallbackReason: undefined
+					};
+				}
+			}
+
+			const fallbackGroups = await Promise.all(
+				scopes.map(async (scope) => {
+					if (scope === 'organizations') {
+						const result = await getOrganizations({ search: request.q, limit: request.limit });
+						return {
+							key: scope,
+							label: SEARCH_SCOPE_LABELS[scope],
+							total: result.total,
+							results: result.orgs.map((org) =>
+								presentResult({
+									id: org.id,
+									title: org.name,
+									summary: org.description ? stripHtml(org.description) : undefined,
+									scope,
+									kind: 'organization' as const,
+									href: `/admin/organizations/${org.id}`,
+									meta: [org.region, org.website].filter(Boolean) as string[],
+									fields: org
+								})
+							)
+						};
+					}
+					if (scope === 'venues') {
+						const result = await getVenues({ search: request.q, limit: request.limit });
+						return {
+							key: scope,
+							label: SEARCH_SCOPE_LABELS[scope],
+							total: result.total,
+							results: result.venues.map((venue) =>
+								presentResult({
+									id: venue.id,
+									title: venue.name,
+									summary: [venue.address, venue.city, venue.state].filter(Boolean).join(', '),
+									scope,
+									kind: 'venue' as const,
+									href: `/admin/venues/${venue.id}`,
+									meta: [venue.city, venue.state].filter(Boolean) as string[],
+									fields: venue
+								})
+							)
+						};
+					}
+					if (scope === 'sources') {
+						const result = await getSourcesForAdmin({
+							search: request.q,
+							limit: request.limit,
+							sort: 'name',
+							order: 'asc'
+						});
+						return {
+							key: scope,
+							label: SEARCH_SCOPE_LABELS[scope],
+							total: result.total,
+							results: result.items.map((source) =>
+								presentResult({
+									id: source.id,
+									title: source.name,
+									summary: source.sourceUrl ?? source.fetchUrl ?? source.homepageUrl ?? undefined,
+									scope,
+									kind: 'source' as const,
+									href: `/admin/sources/${source.id}`,
+									meta: [source.healthStatus, source.status].filter(Boolean) as string[],
+									fields: source
+								})
+							)
+						};
+					}
+
+					const contentSearch = await runSingleScopeBrowseSearch(scope, {
+						...request,
+						scope,
+						surface: 'browse',
+						page: 1
+					});
+					return {
+						key: scope,
+						label: SEARCH_SCOPE_LABELS[scope],
+						total: contentSearch.pagination.total,
+						results: contentSearch.results
+							.slice(0, request.limit)
+							.map((result) => adaptResultForSurface(result, request.surface))
+					};
+				})
 			);
+
+			const groups = fallbackGroups.filter((group) => group.results.length > 0);
 			return {
-				pagination: buildPagination(1, request.limit, results.length),
+				pagination: buildPagination(
+					1,
+					request.limit,
+					groups.flatMap((group) => group.results).length
+				),
 				facets:
 					request.scope === 'all'
 						? [
@@ -918,170 +1073,62 @@ async function runGroupedScopeSearch(
 								}
 							]
 						: [],
-				results,
+				results: groups.flatMap((group) => group.results),
 				groups,
-				resultSource: 'meilisearch',
-				fallbackReason: undefined
+				resultSource: 'database',
+				fallbackReason: fallbackReasonFromReadiness(readiness, request.q.length)
 			};
 		}
-	}
-
-	const fallbackGroups = await Promise.all(
-		scopes.map(async (scope) => {
-			if (scope === 'organizations') {
-				const result = await getOrganizations({ search: request.q, limit: request.limit });
-				return {
-					key: scope,
-					label: SEARCH_SCOPE_LABELS[scope],
-					total: result.total,
-					results: result.orgs.map((org) =>
-						presentResult({
-							id: org.id,
-							title: org.name,
-							summary: org.description ? stripHtml(org.description) : undefined,
-							scope,
-							kind: 'organization' as const,
-							href: `/admin/organizations/${org.id}`,
-							meta: [org.region, org.website].filter(Boolean) as string[],
-							fields: org
-						})
-					)
-				};
-			}
-			if (scope === 'venues') {
-				const result = await getVenues({ search: request.q, limit: request.limit });
-				return {
-					key: scope,
-					label: SEARCH_SCOPE_LABELS[scope],
-					total: result.total,
-					results: result.venues.map((venue) =>
-						presentResult({
-							id: venue.id,
-							title: venue.name,
-							summary: [venue.address, venue.city, venue.state].filter(Boolean).join(', '),
-							scope,
-							kind: 'venue' as const,
-							href: `/admin/venues/${venue.id}`,
-							meta: [venue.city, venue.state].filter(Boolean) as string[],
-							fields: venue
-						})
-					)
-				};
-			}
-			if (scope === 'sources') {
-				const result = await getSourcesForAdmin({
-					search: request.q,
-					limit: request.limit,
-					sort: 'name',
-					order: 'asc'
-				});
-				return {
-					key: scope,
-					label: SEARCH_SCOPE_LABELS[scope],
-					total: result.total,
-					results: result.items.map((source) =>
-						presentResult({
-							id: source.id,
-							title: source.name,
-							summary: source.sourceUrl ?? source.fetchUrl ?? source.homepageUrl ?? undefined,
-							scope,
-							kind: 'source' as const,
-							href: `/admin/sources/${source.id}`,
-							meta: [source.healthStatus, source.status].filter(Boolean) as string[],
-							fields: source
-						})
-					)
-				};
-			}
-
-			const contentSearch = await runSingleScopeBrowseSearch(scope, {
-				...request,
-				scope,
-				surface: 'browse',
-				page: 1
-			});
-			return {
-				key: scope,
-				label: SEARCH_SCOPE_LABELS[scope],
-				total: contentSearch.pagination.total,
-				results: contentSearch.results
-					.slice(0, request.limit)
-					.map((result) => adaptResultForSurface(result, request.surface))
-			};
-		})
 	);
-
-	const groups = fallbackGroups.filter((group) => group.results.length > 0);
-	return {
-		pagination: buildPagination(1, request.limit, groups.flatMap((group) => group.results).length),
-		facets:
-			request.scope === 'all'
-				? [
-						{
-							key: 'type',
-							label: 'Content Areas',
-							multi: true,
-							buckets: groups.map((group) => ({
-								value: group.key,
-								label: group.label,
-								count: group.total,
-								active: false
-							}))
-						}
-					]
-				: [],
-		results: groups.flatMap((group) => group.results),
-		groups,
-		resultSource: 'database',
-		fallbackReason: fallbackReasonFromReadiness(readiness, request.q.length)
-	};
 }
 
 export async function runUnifiedSearch(request: SearchRequest): Promise<SearchResponse> {
-	const startedAt = Date.now();
-	const readiness = await getSearchReadiness();
-	const expandedTerms = await semanticSearchAdapter.expandQuery(request);
-	void expandedTerms;
+	return withSearchSpan('search.run_unified', request, {}, async () => {
+		const startedAt = Date.now();
+		const readiness = await getSearchReadiness();
+		const expandedTerms = await semanticSearchAdapter.expandQuery(request);
+		void expandedTerms;
 
-	let responseSlice:
-		| Pick<
-				SearchResponse,
-				'pagination' | 'facets' | 'results' | 'groups' | 'resultSource' | 'fallbackReason'
-		  >
-		| undefined;
+		let responseSlice:
+			| Pick<
+					SearchResponse,
+					'pagination' | 'facets' | 'results' | 'groups' | 'resultSource' | 'fallbackReason'
+			  >
+			| undefined;
 
-	if (
-		request.surface === 'browse' &&
-		request.scope !== 'all' &&
-		request.scope in contentScopeConfigs
-	) {
-		responseSlice = await runSingleScopeBrowseSearch(request.scope as CoilKey, request);
-	} else if (request.surface === 'admin') {
-		const scopes =
-			request.scope === 'all'
-				? ([...PUBLIC_SEARCH_SCOPES, 'organizations', 'venues', 'sources'] as SearchIndexScope[])
-				: [request.scope as SearchIndexScope];
-		responseSlice = await runGroupedScopeSearch(request, scopes);
-	} else if (request.scope === 'all') {
-		responseSlice = await runGroupedScopeSearch(request, [...PUBLIC_SEARCH_SCOPES]);
-	} else if (request.scope in contentScopeConfigs) {
-		responseSlice = await runSingleScopeBrowseSearch(request.scope as CoilKey, request);
-	} else {
-		responseSlice = await runGroupedScopeSearch(request, [request.scope as SearchIndexScope]);
-	}
+		if (
+			request.surface === 'browse' &&
+			request.scope !== 'all' &&
+			request.scope in contentScopeConfigs
+		) {
+			responseSlice = await runSingleScopeBrowseSearch(request.scope as CoilKey, request);
+		} else if (request.surface === 'admin') {
+			const scopes =
+				request.scope === 'all'
+					? ([...PUBLIC_SEARCH_SCOPES, 'organizations', 'venues', 'sources'] as SearchIndexScope[])
+					: [request.scope as SearchIndexScope];
+			responseSlice = await runGroupedScopeSearch(request, scopes);
+		} else if (request.scope === 'all') {
+			responseSlice = await runGroupedScopeSearch(request, [...PUBLIC_SEARCH_SCOPES]);
+		} else if (request.scope in contentScopeConfigs) {
+			responseSlice = await runSingleScopeBrowseSearch(request.scope as CoilKey, request);
+		} else {
+			responseSlice = await runGroupedScopeSearch(request, [request.scope as SearchIndexScope]);
+		}
 
-	return {
-		query: request.q,
-		request,
-		readiness,
-		resultSource: responseSlice.resultSource,
-		fallbackReason: responseSlice.fallbackReason,
-		latencyMs: Date.now() - startedAt,
-		pagination: responseSlice.pagination,
-		facets: responseSlice.facets,
-		groups: responseSlice.groups,
-		results: responseSlice.results,
-		suggestions: buildSuggestions(request),
-		experience: buildExperience(request, readiness, responseSlice.resultSource)
-	};
+		return {
+			query: request.q,
+			request,
+			readiness,
+			resultSource: responseSlice.resultSource,
+			fallbackReason: responseSlice.fallbackReason,
+			latencyMs: Date.now() - startedAt,
+			pagination: responseSlice.pagination,
+			facets: responseSlice.facets,
+			groups: responseSlice.groups,
+			results: responseSlice.results,
+			suggestions: buildSuggestions(request),
+			experience: buildExperience(request, readiness, responseSlice.resultSource)
+		};
+	});
 }

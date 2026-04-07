@@ -4,25 +4,71 @@ import { dev } from '$app/environment';
 import { env } from '$env/dynamic/public';
 import { CONSENT_UPDATED_EVENT, getConsent, type ConsentRecord } from '$lib/privacy/consent';
 import { syncAnalyticsConsent } from '$lib/analytics/posthog.client';
+import {
+	configuredBoolean,
+	configuredSampleRate,
+	SENTRY_CLIENT_IGNORED_ERRORS
+} from '$lib/shared/sentry';
 
 let sentryInitialized = false;
-
-function configuredSampleRate(value: string | undefined, fallback: number): number {
-	const parsed = Number(value);
-	return Number.isFinite(parsed) && parsed >= 0 && parsed <= 1 ? parsed : fallback;
-}
 
 function initializeSentry() {
 	const dsn = env.PUBLIC_SENTRY_DSN?.trim();
 	if (!dsn || sentryInitialized) return;
 
+	const replayEnabled = configuredBoolean(env.PUBLIC_SENTRY_ENABLE_REPLAY, true);
+	const feedbackEnabled = configuredBoolean(env.PUBLIC_SENTRY_ENABLE_FEEDBACK, true);
+	const integrations = [];
+
+	if (feedbackEnabled) {
+		integrations.push(
+			Sentry.feedbackIntegration({
+				autoInject: configuredBoolean(env.PUBLIC_SENTRY_FEEDBACK_AUTO_INJECT, true),
+				showBranding: false,
+				colorScheme: 'system',
+				formTitle: 'Report a bug',
+				triggerLabel: 'Report a bug',
+				triggerAriaLabel: 'Open bug report form',
+				showName: false,
+				showEmail: true,
+				isEmailRequired: false,
+				enableScreenshot: true,
+				useSentryUser: {
+					email: 'email',
+					name: 'name'
+				},
+				tags: {
+					app_area: 'site'
+				}
+			})
+		);
+	}
+
+	if (replayEnabled) {
+		integrations.push(
+			Sentry.replayIntegration({
+				maskAllText: true,
+				blockAllMedia: true
+			})
+		);
+	}
+
 	Sentry.init({
 		dsn,
 		enabled: !dev || env.PUBLIC_SENTRY_ENABLE_DEV === 'true',
-		environment: env.PUBLIC_SENTRY_ENVIRONMENT?.trim() || undefined,
+		environment: env.PUBLIC_SENTRY_ENVIRONMENT?.trim() || (dev ? 'development' : undefined),
 		release: env.PUBLIC_SENTRY_RELEASE?.trim() || undefined,
 		sendDefaultPii: false,
-		tracesSampleRate: configuredSampleRate(env.PUBLIC_SENTRY_TRACES_SAMPLE_RATE, dev ? 1 : 0.1)
+		strictTraceContinuation: true,
+		tracesSampleRate: configuredSampleRate(env.PUBLIC_SENTRY_TRACES_SAMPLE_RATE, dev ? 1 : 0.1),
+		replaysSessionSampleRate: replayEnabled
+			? configuredSampleRate(env.PUBLIC_SENTRY_REPLAY_SESSION_SAMPLE_RATE, dev ? 1 : 0.05)
+			: 0,
+		replaysOnErrorSampleRate: replayEnabled
+			? configuredSampleRate(env.PUBLIC_SENTRY_REPLAY_ON_ERROR_SAMPLE_RATE, 1)
+			: 0,
+		ignoreErrors: [...SENTRY_CLIENT_IGNORED_ERRORS],
+		integrations
 	});
 
 	sentryInitialized = true;
@@ -30,6 +76,11 @@ function initializeSentry() {
 
 function applyAnalyticsConsent(record: ConsentRecord) {
 	syncAnalyticsConsent(record.categories.analytics);
+
+	if (!sentryInitialized) return;
+
+	Sentry.setTag('consent.analytics', record.categories.analytics ? 'granted' : 'denied');
+	Sentry.setTag('privacy.global_privacy_control', record.globalPrivacyControl ? 'true' : 'false');
 }
 
 export const init: ClientInit = () => {

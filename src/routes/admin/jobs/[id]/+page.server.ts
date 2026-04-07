@@ -55,6 +55,13 @@ export const actions: Actions = {
 			nullableString(formData, 'imageUrl'),
 			'Image URL must be a valid http or https URL.'
 		);
+		const imageUrlsRaw = (formData.get('imageUrls') as string) ?? '';
+		const imageUrls = imageUrlsRaw
+			? imageUrlsRaw
+					.split(/\r?\n/)
+					.map((s) => s.trim())
+					.filter(Boolean)
+			: [];
 		validateNumberOrder(
 			issues,
 			parseNumberValue(formData, 'compensationMin'),
@@ -108,6 +115,7 @@ export const actions: Actions = {
 			indigenousPriority: formData.has('indigenousPriority'),
 			tribalPreference: nullableString(formData, 'tribalPreference'),
 			imageUrl: nullableString(formData, 'imageUrl'),
+			imageUrls: imageUrls.length > 0 ? imageUrls : null,
 			adminNotes: nullableString(formData, 'adminNotes'),
 			featured: formData.has('featured'),
 			unlisted: formData.has('unlisted'),

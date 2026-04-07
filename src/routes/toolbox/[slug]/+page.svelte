@@ -12,6 +12,40 @@
 
 	let { data } = $props();
 	let item = $derived(data.item as ToolboxItem | null);
+	const galleryImages = $derived(
+		item
+			? item.imageUrl
+				? [item.imageUrl, ...(item.imageUrls ?? [])]
+				: (item.imageUrls ?? [])
+			: []
+	);
+	let selectedGalleryIndex = $state(0);
+
+	const jsonLd = $derived.by(() => {
+		if (!item) return null;
+		const ld: Record<string, unknown> = {
+			'@context': 'https://schema.org',
+			'@type': 'CreativeWork',
+			name: item.title,
+			description: metaDescription,
+			url: canonicalUrl
+		};
+		if (item.author) ld.author = { '@type': 'Person', name: item.author };
+		if (item.sourceName) ld.publisher = { '@type': 'Organization', name: item.sourceName };
+		if (item.publishDate) ld.datePublished = item.publishDate;
+		if (item.imageUrl) ld.image = item.imageUrl;
+		if (primaryUrl) ld.sameAs = primaryUrl;
+		return ld;
+	});
+	const jsonLdScript = $derived.by(() =>
+		jsonLd
+			? [
+					'<script type="application/ld+json">',
+					JSON.stringify(jsonLd).replaceAll('<', '\\u003c'),
+					'</scr' + 'ipt>'
+				].join('')
+			: null
+	);
 	const origin = $derived(data.origin ?? '');
 	const isBookmarked = $derived(Boolean(data.isBookmarked));
 	const fileUrl = $derived(item?.fileUrl ?? null);
@@ -77,6 +111,7 @@
 		<meta name="twitter:title" content={item.title} />
 		<meta name="twitter:description" content={metaDescription} />
 		{#if item.imageUrl}<meta name="twitter:image" content={item.imageUrl} />{/if}
+		{#if jsonLdScript}{@html jsonLdScript}{/if}
 	{/if}
 </svelte:head>
 
@@ -118,10 +153,19 @@
 				</div>
 			</div>
 		{:else}
-			<div class="kb-tb-hero kb-tb-hero--gradient">
-				<div class="kb-tb-hero-icon" aria-hidden="true">
-					<FileTextIcon class="size-10" />
-				</div>
+			<div class="kb-tb-hero kb-tb-hero--gradient" class:has-image={galleryImages.length > 0}>
+				{#if galleryImages.length > 0}
+					<img
+						src={galleryImages[selectedGalleryIndex] ?? galleryImages[0]}
+						alt=""
+						class="kb-tb-hero-bg-img"
+					/>
+					<div class="kb-tb-hero-bg-overlay"></div>
+				{:else}
+					<div class="kb-tb-hero-icon" aria-hidden="true">
+						<FileTextIcon class="size-10" />
+					</div>
+				{/if}
 				<div class="kb-tb-hero-head">
 					<div class="kb-tb-hero-badges">
 						{#if item.mediaType}
@@ -137,6 +181,23 @@
 					<h1 class="kb-tb-hero-title">{item.title}</h1>
 					{#if item.sourceName}
 						<p class="kb-tb-hero-source">{item.sourceName}</p>
+					{/if}
+					{#if galleryImages.length > 1}
+						<div class="kb-tb-filmstrip" role="tablist" aria-label="Gallery">
+							{#each galleryImages as url, i (url + i)}
+								<button
+									type="button"
+									class="kb-tb-thumb"
+									class:selected={i === selectedGalleryIndex}
+									aria-label="View image {i + 1}"
+									aria-selected={i === selectedGalleryIndex}
+									role="tab"
+									onclick={() => (selectedGalleryIndex = i)}
+								>
+									<img src={url} alt="" loading="lazy" />
+								</button>
+							{/each}
+						</div>
 					{/if}
 				</div>
 			</div>
@@ -383,15 +444,64 @@
 		}
 	}
 	.kb-tb-hero--gradient {
+		position: relative;
 		display: flex;
 		align-items: center;
 		gap: 1.5rem;
 		padding: 2.5rem 2rem;
+		overflow: hidden;
 	}
 	@media (min-width: 1024px) {
 		.kb-tb-hero--gradient {
 			padding: 3rem 2.5rem;
 		}
+	}
+	.kb-tb-hero-bg-img {
+		position: absolute;
+		inset: 0;
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+	}
+	.kb-tb-hero-bg-overlay {
+		position: absolute;
+		inset: 0;
+		background: linear-gradient(135deg, rgba(26, 58, 102, 0.82) 0%, rgba(10, 25, 47, 0.92) 100%);
+	}
+	.kb-tb-hero--gradient .kb-tb-hero-head {
+		position: relative;
+		z-index: 1;
+	}
+	/* ── Gallery filmstrip ── */
+	.kb-tb-filmstrip {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.375rem;
+		margin-top: 0.75rem;
+	}
+	.kb-tb-thumb {
+		width: 52px;
+		height: 52px;
+		padding: 0;
+		border: 2px solid transparent;
+		border-radius: 5px;
+		overflow: hidden;
+		background: rgba(255, 255, 255, 0.06);
+		cursor: pointer;
+		transition:
+			border-color 0.15s,
+			transform 0.15s;
+	}
+	.kb-tb-thumb:hover {
+		transform: translateY(-1px);
+	}
+	.kb-tb-thumb.selected {
+		border-color: rgba(255, 255, 255, 0.85);
+	}
+	.kb-tb-thumb img {
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
 	}
 	.kb-tb-hero-icon {
 		display: flex;

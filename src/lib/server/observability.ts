@@ -1,5 +1,6 @@
 import * as Sentry from '@sentry/sveltekit';
 import { env } from '$env/dynamic/private';
+import { sanitizeSentryAttributes, sanitizeSentryValue } from '$lib/shared/sentry';
 
 type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 
@@ -78,6 +79,25 @@ export function logServerEvent(
 
 	const method = level === 'error' ? 'error' : level === 'warn' ? 'warn' : 'log';
 	console[method](JSON.stringify(payload));
+
+	const sentryAttributes = sanitizeSentryAttributes({
+		event,
+		...details
+	});
+
+	switch (level) {
+		case 'debug':
+			Sentry.logger.debug(event, sentryAttributes);
+			return;
+		case 'warn':
+			Sentry.logger.warn(event, sentryAttributes);
+			return;
+		case 'error':
+			Sentry.logger.error(event, sentryAttributes);
+			return;
+		default:
+			Sentry.logger.info(event, sentryAttributes);
+	}
 }
 
 export async function captureServerError(
@@ -96,14 +116,28 @@ export async function captureServerError(
 
 	console.error(JSON.stringify(payload));
 
+	const sentryDetails = sanitizeSentryAttributes(details);
+	const sentryError =
+		error instanceof Error
+			? {
+					name: error.name,
+					message: error.message
+				}
+			: (sanitizeSentryValue(payload.error, 'error') ?? payload.error);
+
+	Sentry.logger.error(event, {
+		...sentryDetails,
+		error: sentryError
+	});
+
 	if (options.reportToSentry !== false) {
 		Sentry.withScope((scope) => {
 			scope.setLevel('error');
 			scope.setTag('observability.event', event);
 			scope.setContext('observability', {
 				event,
-				...details,
-				error: payload.error
+				...sentryDetails,
+				error: sentryError
 			});
 
 			if (error instanceof Error) {

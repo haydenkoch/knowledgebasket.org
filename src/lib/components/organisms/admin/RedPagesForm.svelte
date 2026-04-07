@@ -456,7 +456,7 @@
 							placeholder="https://…"
 						/>
 					</div>
-					<div class="space-y-1.5 lg:col-span-2">
+					<div class="space-y-1.5">
 						<Label for="imageUrl">Image URL</Label>
 						<Input
 							id="imageUrl"
@@ -464,6 +464,16 @@
 							type="url"
 							value={business?.imageUrl ?? ''}
 							placeholder="https://…"
+						/>
+					</div>
+					<div class="space-y-1.5">
+						<Label for="imageUrls">Additional image URLs</Label>
+						<Textarea
+							id="imageUrls"
+							name="imageUrls"
+							rows={4}
+							value={business?.imageUrls?.join('\n') ?? ''}
+							placeholder="One URL per line"
 						/>
 					</div>
 				</div>

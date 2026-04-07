@@ -1,3 +1,4 @@
+import * as Sentry from '@sentry/sveltekit';
 import { and, eq, inArray, or, sql } from 'drizzle-orm';
 import { db } from '$lib/server/db';
 import { importBatches, importedCandidates, sourceFetchLog, sources } from '$lib/server/db/schema';
@@ -70,218 +71,243 @@ const ACTIVE_IMPORTED_CANDIDATE_STATUSES = [
 ] as const;
 
 export async function previewSource(sourceId: string): Promise<IngestionPreviewResult> {
-	const source = await loadSourceRecord(sourceId);
-	return runPreview(source);
+	return Sentry.startSpan(
+		{
+			name: 'ingestion.preview_source',
+			op: 'ingestion.preview',
+			attributes: {
+				'ingestion.source_id': sourceId
+			}
+		},
+		async () => {
+			const source = await loadSourceRecord(sourceId);
+			return runPreview(source);
+		}
+	);
 }
 
 export async function ingestSource(
 	sourceId: string,
 	options: IngestionExecutionOptions = {}
 ): Promise<IngestionResult> {
-	const source = await loadSourceRecord(sourceId);
-	const preview = await runPreview(source);
-	const now = new Date();
-	const errors = collectPreviewErrors(preview);
-	const contentChanged = preview.fetchResult.contentHash
-		? preview.fetchResult.contentHash !== source.lastContentHash
-		: null;
+	return Sentry.startSpan(
+		{
+			name: 'ingestion.ingest_source',
+			op: 'ingestion.run',
+			attributes: {
+				'ingestion.source_id': sourceId,
+				'ingestion.trigger': options.trigger ?? 'manual_import',
+				'ingestion.auto_approve_enabled': Boolean(options.enableAutoApprove)
+			}
+		},
+		async () => {
+			const source = await loadSourceRecord(sourceId);
+			const preview = await runPreview(source);
+			const now = new Date();
+			const errors = collectPreviewErrors(preview);
+			const contentChanged = preview.fetchResult.contentHash
+				? preview.fetchResult.contentHash !== source.lastContentHash
+				: null;
 
-	const trigger = options.trigger ?? 'manual_import';
-	const triggerRunId = options.triggerRunId ?? null;
-	const triggeredBy = options.triggeredBy ?? null;
+			const trigger = options.trigger ?? 'manual_import';
+			const triggerRunId = options.triggerRunId ?? null;
+			const triggeredBy = options.triggeredBy ?? null;
 
-	const sourceRun = await createSourceRun({
-		sourceId: source.id,
-		trigger,
-		triggerRunId,
-		triggeredBy,
-		adapterType: preview.adapterType,
-		adapterVersion: source.adapterVersion ?? '2026-04-ingestion-hardening',
-		fetchUrl: source.fetchUrl ?? source.sourceUrl
-	});
-
-	for (const stage of preview.stages) {
-		await recordSourceRunStage(sourceRun.id, stage.stage, {
-			status: stage.status,
-			startedAt: new Date(stage.startedAt),
-			completedAt: stage.completedAt ? new Date(stage.completedAt) : null,
-			durationMs: stage.durationMs,
-			itemCount: stage.itemCount ?? null,
-			warnings: stage.warnings,
-			errors: stage.errors,
-			metrics: stage.metrics,
-			details: stage.details
-		});
-	}
-
-	let fetchLogId: string | null = null;
-	let batchId: string | null = null;
-	let autoApprovedCount = 0;
-
-	if (!preview.fetchResult.success) {
-		const [fetchLog] = await db
-			.insert(sourceFetchLog)
-			.values({
+			const sourceRun = await createSourceRun({
 				sourceId: source.id,
-				status: preview.fetchResult.status,
-				httpStatusCode: preview.fetchResult.httpStatusCode,
-				responseTimeMs: preview.fetchResult.responseTimeMs,
-				contentHash: preview.fetchResult.contentHash,
-				contentChanged,
-				itemsFound: 0,
-				itemsNew: 0,
-				errorMessage: preview.fetchResult.errorMessage,
-				errorCategory: preview.fetchResult.errorCategory,
-				responseBytes: preview.fetchResult.contentSizeBytes
-			})
-			.returning({ id: sourceFetchLog.id });
-		fetchLogId = fetchLog?.id ?? null;
-
-		await updateSourceRuntimeState(source, {
-			now,
-			success: false,
-			contentChanged,
-			contentHash: preview.fetchResult.contentHash,
-			errorCategory: preview.fetchResult.errorCategory
-		});
-
-		await updateSourceRun(sourceRun.id, {
-			status: 'failed',
-			completedAt: now,
-			durationMs: preview.durationMs,
-			contentHash: preview.fetchResult.contentHash,
-			contentChanged,
-			errors,
-			metrics: buildRunMetrics(preview)
-		});
-
-		return {
-			...preview,
-			success: false,
-			batchId,
-			fetchLogId,
-			candidatesCreated: 0,
-			duplicatesSkipped: 0,
-			updatesQueued: 0,
-			autoApprovedCount,
-			errors
-		};
-	}
-
-	const dedupeCounts = countDedupeResults(preview.candidates);
-	const [fetchLog] = await db
-		.insert(sourceFetchLog)
-		.values({
-			sourceId: source.id,
-			status:
-				preview.parseResult?.errors.length || preview.normalizeResult?.errors.length
-					? 'partial'
-					: 'success',
-			httpStatusCode: preview.fetchResult.httpStatusCode,
-			responseTimeMs: preview.fetchResult.responseTimeMs,
-			contentHash: preview.fetchResult.contentHash,
-			contentChanged,
-			itemsFound: preview.parseResult?.totalFound ?? 0,
-			itemsNew: dedupeCounts.new,
-			errorMessage: errors[0] ?? null,
-			errorCategory: preview.parseResult?.errors.length ? 'parse' : null,
-			responseBytes: preview.fetchResult.contentSizeBytes
-		})
-		.returning({ id: sourceFetchLog.id });
-	fetchLogId = fetchLog?.id ?? null;
-
-	const [batch] = await db
-		.insert(importBatches)
-		.values({
-			sourceId: source.id,
-			sourceRunId: sourceRun.id,
-			fetchLogId,
-			status: 'running',
-			itemsFetched: preview.parseResult?.totalFound ?? 0,
-			itemsParsed: preview.parseResult?.items.length ?? 0,
-			itemsNormalized: preview.normalizeResult?.records.length ?? 0,
-			itemsNew: dedupeCounts.new,
-			itemsDuplicate: dedupeCounts.duplicate,
-			itemsUpdated: dedupeCounts.update,
-			itemsFailed:
-				(preview.parseResult?.errors.length ?? 0) + (preview.normalizeResult?.errors.length ?? 0),
-			errors: buildBatchErrors(preview, {
 				trigger,
 				triggerRunId,
 				triggeredBy,
-				sourceSlug: source.slug
-			})
-		})
-		.returning({ id: importBatches.id });
-	batchId = batch?.id ?? null;
+				adapterType: preview.adapterType,
+				adapterVersion: source.adapterVersion ?? '2026-04-ingestion-hardening',
+				fetchUrl: source.fetchUrl ?? source.sourceUrl
+			});
 
-	let candidatesCreated = 0;
-	let updatesQueued = 0;
-	if (batchId) {
-		for (const candidate of preview.candidates) {
-			if (candidate.dedupe.result === 'duplicate') continue;
-			const candidateId = await upsertImportedCandidate(source, batchId, candidate);
-			candidatesCreated += 1;
-			if (candidate.dedupe.result === 'update') updatesQueued += 1;
-			if (candidateId && shouldAutoApproveCandidate(source, candidate, options)) {
-				await approveCandidate(candidateId, null, {
-					reviewNotes: 'Auto-approved by source-ops scheduler',
-					allowAmbiguous: false
+			for (const stage of preview.stages) {
+				await recordSourceRunStage(sourceRun.id, stage.stage, {
+					status: stage.status,
+					startedAt: new Date(stage.startedAt),
+					completedAt: stage.completedAt ? new Date(stage.completedAt) : null,
+					durationMs: stage.durationMs,
+					itemCount: stage.itemCount ?? null,
+					warnings: stage.warnings,
+					errors: stage.errors,
+					metrics: stage.metrics,
+					details: stage.details
 				});
-				autoApprovedCount += 1;
 			}
+
+			let fetchLogId: string | null = null;
+			let batchId: string | null = null;
+			let autoApprovedCount = 0;
+
+			if (!preview.fetchResult.success) {
+				const [fetchLog] = await db
+					.insert(sourceFetchLog)
+					.values({
+						sourceId: source.id,
+						status: preview.fetchResult.status,
+						httpStatusCode: preview.fetchResult.httpStatusCode,
+						responseTimeMs: preview.fetchResult.responseTimeMs,
+						contentHash: preview.fetchResult.contentHash,
+						contentChanged,
+						itemsFound: 0,
+						itemsNew: 0,
+						errorMessage: preview.fetchResult.errorMessage,
+						errorCategory: preview.fetchResult.errorCategory,
+						responseBytes: preview.fetchResult.contentSizeBytes
+					})
+					.returning({ id: sourceFetchLog.id });
+				fetchLogId = fetchLog?.id ?? null;
+
+				await updateSourceRuntimeState(source, {
+					now,
+					success: false,
+					contentChanged,
+					contentHash: preview.fetchResult.contentHash,
+					errorCategory: preview.fetchResult.errorCategory
+				});
+
+				await updateSourceRun(sourceRun.id, {
+					status: 'failed',
+					completedAt: now,
+					durationMs: preview.durationMs,
+					contentHash: preview.fetchResult.contentHash,
+					contentChanged,
+					errors,
+					metrics: buildRunMetrics(preview)
+				});
+
+				return {
+					...preview,
+					success: false,
+					batchId,
+					fetchLogId,
+					candidatesCreated: 0,
+					duplicatesSkipped: 0,
+					updatesQueued: 0,
+					autoApprovedCount,
+					errors
+				};
+			}
+
+			const dedupeCounts = countDedupeResults(preview.candidates);
+			const [fetchLog] = await db
+				.insert(sourceFetchLog)
+				.values({
+					sourceId: source.id,
+					status:
+						preview.parseResult?.errors.length || preview.normalizeResult?.errors.length
+							? 'partial'
+							: 'success',
+					httpStatusCode: preview.fetchResult.httpStatusCode,
+					responseTimeMs: preview.fetchResult.responseTimeMs,
+					contentHash: preview.fetchResult.contentHash,
+					contentChanged,
+					itemsFound: preview.parseResult?.totalFound ?? 0,
+					itemsNew: dedupeCounts.new,
+					errorMessage: errors[0] ?? null,
+					errorCategory: preview.parseResult?.errors.length ? 'parse' : null,
+					responseBytes: preview.fetchResult.contentSizeBytes
+				})
+				.returning({ id: sourceFetchLog.id });
+			fetchLogId = fetchLog?.id ?? null;
+
+			const [batch] = await db
+				.insert(importBatches)
+				.values({
+					sourceId: source.id,
+					sourceRunId: sourceRun.id,
+					fetchLogId,
+					status: 'running',
+					itemsFetched: preview.parseResult?.totalFound ?? 0,
+					itemsParsed: preview.parseResult?.items.length ?? 0,
+					itemsNormalized: preview.normalizeResult?.records.length ?? 0,
+					itemsNew: dedupeCounts.new,
+					itemsDuplicate: dedupeCounts.duplicate,
+					itemsUpdated: dedupeCounts.update,
+					itemsFailed:
+						(preview.parseResult?.errors.length ?? 0) +
+						(preview.normalizeResult?.errors.length ?? 0),
+					errors: buildBatchErrors(preview, {
+						trigger,
+						triggerRunId,
+						triggeredBy,
+						sourceSlug: source.slug
+					})
+				})
+				.returning({ id: importBatches.id });
+			batchId = batch?.id ?? null;
+
+			let candidatesCreated = 0;
+			let updatesQueued = 0;
+			if (batchId) {
+				for (const candidate of preview.candidates) {
+					if (candidate.dedupe.result === 'duplicate') continue;
+					const candidateId = await upsertImportedCandidate(source, batchId, candidate);
+					candidatesCreated += 1;
+					if (candidate.dedupe.result === 'update') updatesQueued += 1;
+					if (candidateId && shouldAutoApproveCandidate(source, candidate, options)) {
+						await approveCandidate(candidateId, null, {
+							reviewNotes: 'Auto-approved by source-ops scheduler',
+							allowAmbiguous: false
+						});
+						autoApprovedCount += 1;
+					}
+				}
+			}
+
+			await db
+				.update(importBatches)
+				.set({
+					status: 'completed',
+					completedAt: new Date()
+				})
+				.where(eq(importBatches.id, batchId!));
+
+			await updateSourceRuntimeState(source, {
+				now,
+				success: true,
+				contentChanged,
+				contentHash: preview.fetchResult.contentHash,
+				errorCategory: preview.parseResult?.errors.length ? 'parse' : null,
+				itemsImportedDelta: candidatesCreated
+			});
+
+			await updateSourceRun(sourceRun.id, {
+				status: errors.length > 0 ? 'failed' : 'completed',
+				completedAt: now,
+				durationMs: preview.durationMs,
+				contentHash: preview.fetchResult.contentHash,
+				contentChanged,
+				itemsFetched: preview.parseResult?.totalFound ?? 0,
+				itemsParsed: preview.parseResult?.items.length ?? 0,
+				itemsNormalized: preview.normalizeResult?.records.length ?? 0,
+				itemsNew: dedupeCounts.new,
+				itemsDuplicate: dedupeCounts.duplicate,
+				itemsUpdated: dedupeCounts.update,
+				itemsFailed:
+					(preview.parseResult?.errors.length ?? 0) + (preview.normalizeResult?.errors.length ?? 0),
+				candidatesCreated,
+				autoApprovedCount,
+				warnings: preview.stages.flatMap((stage) => stage.warnings),
+				errors,
+				metrics: buildRunMetrics(preview)
+			});
+
+			return {
+				...preview,
+				success: true,
+				batchId,
+				fetchLogId,
+				candidatesCreated,
+				duplicatesSkipped: dedupeCounts.duplicate,
+				updatesQueued,
+				autoApprovedCount,
+				errors
+			};
 		}
-	}
-
-	await db
-		.update(importBatches)
-		.set({
-			status: 'completed',
-			completedAt: new Date()
-		})
-		.where(eq(importBatches.id, batchId!));
-
-	await updateSourceRuntimeState(source, {
-		now,
-		success: true,
-		contentChanged,
-		contentHash: preview.fetchResult.contentHash,
-		errorCategory: preview.parseResult?.errors.length ? 'parse' : null,
-		itemsImportedDelta: candidatesCreated
-	});
-
-	await updateSourceRun(sourceRun.id, {
-		status: errors.length > 0 ? 'failed' : 'completed',
-		completedAt: now,
-		durationMs: preview.durationMs,
-		contentHash: preview.fetchResult.contentHash,
-		contentChanged,
-		itemsFetched: preview.parseResult?.totalFound ?? 0,
-		itemsParsed: preview.parseResult?.items.length ?? 0,
-		itemsNormalized: preview.normalizeResult?.records.length ?? 0,
-		itemsNew: dedupeCounts.new,
-		itemsDuplicate: dedupeCounts.duplicate,
-		itemsUpdated: dedupeCounts.update,
-		itemsFailed:
-			(preview.parseResult?.errors.length ?? 0) + (preview.normalizeResult?.errors.length ?? 0),
-		candidatesCreated,
-		autoApprovedCount,
-		warnings: preview.stages.flatMap((stage) => stage.warnings),
-		errors,
-		metrics: buildRunMetrics(preview)
-	});
-
-	return {
-		...preview,
-		success: true,
-		batchId,
-		fetchLogId,
-		candidatesCreated,
-		duplicatesSkipped: dedupeCounts.duplicate,
-		updatesQueued,
-		autoApprovedCount,
-		errors
-	};
+	);
 }
 
 async function runPreview(source: SourceRecord): Promise<IngestionPreviewResult> {
@@ -1262,37 +1288,48 @@ async function executeStage<T>(
 		details?: Record<string, unknown>;
 	}
 ): Promise<T> {
-	const startedAt = new Date();
-	try {
-		const result = await run();
-		const details = collect?.(result) ?? {};
-		stages.push({
-			stage,
-			status: details.status ?? (details.errors?.length ? 'partial' : 'success'),
-			startedAt: startedAt.toISOString(),
-			completedAt: new Date().toISOString(),
-			durationMs: Date.now() - startedAt.getTime(),
-			itemCount: details.itemCount,
-			warnings: details.warnings ?? [],
-			errors: details.errors ?? [],
-			metrics: details.metrics ?? {},
-			details: details.details ?? {}
-		});
-		return result;
-	} catch (error) {
-		stages.push({
-			stage,
-			status: 'failure',
-			startedAt: startedAt.toISOString(),
-			completedAt: new Date().toISOString(),
-			durationMs: Date.now() - startedAt.getTime(),
-			warnings: [],
-			errors: [error instanceof Error ? error.message : 'Unknown stage failure'],
-			metrics: {},
-			details: {}
-		});
-		throw error;
-	}
+	return Sentry.startSpan(
+		{
+			name: `ingestion.stage.${stage}`,
+			op: 'ingestion.stage',
+			attributes: {
+				'ingestion.stage': stage
+			}
+		},
+		async () => {
+			const startedAt = new Date();
+			try {
+				const result = await run();
+				const details = collect?.(result) ?? {};
+				stages.push({
+					stage,
+					status: details.status ?? (details.errors?.length ? 'partial' : 'success'),
+					startedAt: startedAt.toISOString(),
+					completedAt: new Date().toISOString(),
+					durationMs: Date.now() - startedAt.getTime(),
+					itemCount: details.itemCount,
+					warnings: details.warnings ?? [],
+					errors: details.errors ?? [],
+					metrics: details.metrics ?? {},
+					details: details.details ?? {}
+				});
+				return result;
+			} catch (error) {
+				stages.push({
+					stage,
+					status: 'failure',
+					startedAt: startedAt.toISOString(),
+					completedAt: new Date().toISOString(),
+					durationMs: Date.now() - startedAt.getTime(),
+					warnings: [],
+					errors: [error instanceof Error ? error.message : 'Unknown stage failure'],
+					metrics: {},
+					details: {}
+				});
+				throw error;
+			}
+		}
+	);
 }
 
 function buildSyntheticStage(

@@ -469,6 +469,10 @@ export type FundingSearchDoc = SearchDoc & {
 	eligibilityType?: string;
 	fundingType?: string;
 	applicationStatus?: string;
+	region?: string;
+	amountMin?: number;
+	amountMax?: number;
+	deadline?: string;
 };
 
 export type RedPagesSearchDoc = SearchDoc & {
@@ -490,7 +494,9 @@ export type JobSearchDoc = SearchDoc & {
 	jobType?: string;
 	seniority?: string;
 	workArrangement?: string;
+	region?: string;
 	indigenousPriority?: boolean;
+	applicationDeadline?: string;
 };
 
 export type ToolboxSearchDoc = SearchDoc & {

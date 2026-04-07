@@ -48,6 +48,7 @@ function rowToItem(
 		externalUrl: row.externalUrl ?? undefined,
 		fileUrl: row.fileUrl ?? undefined,
 		imageUrl: row.imageUrl ?? undefined,
+		imageUrls: (row.imageUrls as string[] | null) ?? [],
 		author: row.author ?? undefined,
 		publishDate: row.publishDate?.toISOString() ?? undefined,
 		lastReviewedAt: row.lastReviewedAt?.toISOString() ?? undefined,

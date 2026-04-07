@@ -67,6 +67,7 @@ function rowToItem(
 		indigenousPriority: row.indigenousPriority ?? undefined,
 		tribalPreference: row.tribalPreference ?? undefined,
 		imageUrl: row.imageUrl ?? undefined,
+		imageUrls: (row.imageUrls as string[] | null) ?? [],
 		status: row.status,
 		source: row.source,
 		featured: row.featured ?? undefined,
@@ -101,7 +102,8 @@ function itemToSearchDoc(item: JobItem): JobSearchDoc {
 		seniority: item.seniority,
 		workArrangement: item.workArrangement,
 		region: item.region,
-		indigenousPriority: item.indigenousPriority
+		indigenousPriority: item.indigenousPriority,
+		applicationDeadline: item.applicationDeadline
 	};
 }
 

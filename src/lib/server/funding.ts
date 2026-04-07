@@ -60,6 +60,7 @@ function rowToItem(
 		contactName: row.contactName ?? undefined,
 		contactPhone: row.contactPhone ?? undefined,
 		imageUrl: row.imageUrl ?? undefined,
+		imageUrls: (row.imageUrls as string[] | null) ?? [],
 		status: row.status,
 		source: row.source,
 		featured: row.featured ?? undefined,
@@ -89,7 +90,10 @@ function itemToSearchDoc(item: FundingItem): FundingSearchDoc {
 		eligibilityType: item.eligibilityType,
 		fundingType: item.fundingType,
 		applicationStatus: item.applicationStatus,
-		region: item.region
+		region: item.region,
+		amountMin: item.amountMin ?? undefined,
+		amountMax: item.amountMax ?? undefined,
+		deadline: item.deadline
 	};
 }
 

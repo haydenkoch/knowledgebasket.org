@@ -17,7 +17,16 @@
 	let item = $derived(data.item as JobItem | null);
 	const origin = $derived(data.origin ?? '');
 	const isBookmarked = $derived(Boolean(data.isBookmarked));
-	const heroImage = $derived(item ? (item.imageUrl ?? getPlaceholderImage(0)) : '');
+	const galleryImages = $derived(
+		item
+			? item.imageUrl
+				? [item.imageUrl, ...(item.imageUrls ?? [])]
+				: (item.imageUrls ?? [])
+			: []
+	);
+	const primaryImage = $derived(galleryImages[0] ?? getPlaceholderImage(0));
+	let selectedGalleryIndex = $state(0);
+	const heroImage = $derived(galleryImages[selectedGalleryIndex] ?? primaryImage);
 	const loginHref = $derived(
 		item?.slug
 			? `/auth/login?redirect=${encodeURIComponent(`/jobs/${item.slug}`)}`
@@ -170,6 +179,23 @@
 					<div class="kb-job-hero-comp">
 						<span class="kb-job-hero-comp-label">Compensation</span>
 						<span class="kb-job-hero-comp-value">{compensationLabel()}</span>
+					</div>
+				{/if}
+				{#if galleryImages.length > 1}
+					<div class="kb-job-hero-filmstrip" role="tablist" aria-label="Job gallery">
+						{#each galleryImages as url, i (url + i)}
+							<button
+								type="button"
+								class="kb-job-hero-thumb"
+								class:selected={i === selectedGalleryIndex}
+								aria-label="View image {i + 1}"
+								aria-selected={i === selectedGalleryIndex}
+								role="tab"
+								onclick={() => (selectedGalleryIndex = i)}
+							>
+								<img src={url} alt="" loading="lazy" />
+							</button>
+						{/each}
 					</div>
 				{/if}
 			</div>
@@ -475,6 +501,47 @@
 		line-height: 1.1;
 		color: white;
 		white-space: nowrap;
+	}
+	/* ── Hero-docked filmstrip ── */
+	.kb-job-hero-filmstrip {
+		display: none;
+		flex-shrink: 0;
+		gap: 0.5rem;
+		padding: 0.5rem;
+		border-radius: 10px;
+		background: rgba(0, 0, 0, 0.35);
+		backdrop-filter: blur(6px);
+		-webkit-backdrop-filter: blur(6px);
+		border: 1px solid rgba(255, 255, 255, 0.1);
+	}
+	@media (min-width: 640px) {
+		.kb-job-hero-filmstrip {
+			display: flex;
+		}
+	}
+	.kb-job-hero-thumb {
+		width: 64px;
+		height: 64px;
+		padding: 0;
+		border: 2px solid transparent;
+		border-radius: 6px;
+		overflow: hidden;
+		background: rgba(255, 255, 255, 0.06);
+		cursor: pointer;
+		transition:
+			border-color 0.15s,
+			transform 0.15s;
+	}
+	.kb-job-hero-thumb:hover {
+		transform: translateY(-1px);
+	}
+	.kb-job-hero-thumb.selected {
+		border-color: white;
+	}
+	.kb-job-hero-thumb img {
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
 	}
 	.kb-job-hero-badges {
 		display: flex;

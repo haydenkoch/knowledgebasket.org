@@ -1,4 +1,4 @@
-import { pgTable, text, uuid, real, timestamp, boolean, index } from 'drizzle-orm/pg-core';
+import { pgTable, text, uuid, real, timestamp, boolean, index, jsonb } from 'drizzle-orm/pg-core';
 import { user } from '../auth.schema';
 import { organizations } from './organizations';
 
@@ -56,6 +56,7 @@ export const funding = pgTable(
 
 		// Media
 		imageUrl: text('image_url'),
+		imageUrls: jsonb('image_urls').$type<string[]>().default([]),
 
 		// Moderation
 		status: text('status').notNull().default('pending'),

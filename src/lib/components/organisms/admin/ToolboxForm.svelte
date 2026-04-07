@@ -504,6 +504,16 @@
 						/>
 					</div>
 					<div class="space-y-1.5">
+						<Label for="imageUrls">Additional image URLs</Label>
+						<Textarea
+							id="imageUrls"
+							name="imageUrls"
+							rows={4}
+							value={resource?.imageUrls?.join('\n') ?? ''}
+							placeholder="One URL per line"
+						/>
+					</div>
+					<div class="space-y-1.5 sm:col-span-2">
 						<Label for="tags">Tags</Label>
 						<Textarea
 							id="tags"

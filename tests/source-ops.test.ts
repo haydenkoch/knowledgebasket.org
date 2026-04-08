@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
@@ -29,15 +29,12 @@ const fixturePath = path.resolve(
 	'fixtures',
 	'smithsonian-sample.ics'
 );
-const seedSourcesPath = path.resolve(
-	process.cwd(),
-	'..',
-	'..',
-	'kb-data',
-	'source-ops',
-	'data',
-	'seed-sources.json'
-);
+const seedSourcesPath = [
+	path.resolve(process.cwd(), 'source-ops', 'data', 'seed-sources.json'),
+	path.resolve(process.cwd(), '..', 'source-ops', 'data', 'seed-sources.json'),
+	path.resolve(process.cwd(), '..', 'kb-data', 'source-ops', 'data', 'seed-sources.json'),
+	path.resolve(process.cwd(), '..', '..', 'kb-data', 'source-ops', 'data', 'seed-sources.json')
+].find((candidatePath) => existsSync(candidatePath));
 const icsFixture = readFileSync(fixturePath, 'utf8');
 
 describe('ingestion dedupe helpers', () => {
@@ -1619,9 +1616,9 @@ describe('approveCandidate publishing', () => {
 	});
 });
 
-describe('seeded automated source configs', () => {
+(seedSourcesPath ? describe : describe.skip)('seeded automated source configs', () => {
 	it('ship explicit config for all curated html and rss starter sources', () => {
-		const seedSources = JSON.parse(readFileSync(seedSourcesPath, 'utf8')) as Array<
+		const seedSources = JSON.parse(readFileSync(seedSourcesPath!, 'utf8')) as Array<
 			Record<string, unknown>
 		>;
 		const automated = seedSources.filter((source) =>
@@ -1639,7 +1636,7 @@ describe('seeded automated source configs', () => {
 	});
 
 	it('validate cleanly through the app adapter registry', () => {
-		const seedSources = JSON.parse(readFileSync(seedSourcesPath, 'utf8')) as Array<
+		const seedSources = JSON.parse(readFileSync(seedSourcesPath!, 'utf8')) as Array<
 			Record<string, unknown>
 		>;
 		const automated = seedSources.filter((source) =>

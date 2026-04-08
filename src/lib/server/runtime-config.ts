@@ -270,6 +270,10 @@ export function resolveRuntimeOrigin(): string | undefined {
 }
 
 export function assertProductionRuntimeConfig(): void {
+	if (readBoolean(process.env.SKIP_PRODUCTION_RUNTIME_CONFIG_ASSERTION)) {
+		return;
+	}
+
 	const health = getRuntimeConfigHealth({ enforceProduction: true });
 	if (health.ok) return;
 

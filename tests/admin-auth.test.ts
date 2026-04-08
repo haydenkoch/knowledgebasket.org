@@ -25,7 +25,9 @@ describe('admin request protection', () => {
 		const response = await fetch(`${server.baseUrl}/admin/funding?/bulkDelete`, {
 			method: 'POST',
 			headers: {
-				'Content-Type': 'application/x-www-form-urlencoded'
+				'Content-Type': 'application/x-www-form-urlencoded',
+				Origin: server.baseUrl,
+				Referer: `${server.baseUrl}/admin/funding`
 			},
 			body: new URLSearchParams({ ids: 'demo-id' })
 		});
@@ -38,7 +40,9 @@ describe('admin request protection', () => {
 		const response = await fetch(`${server.baseUrl}/admin/funding/new`, {
 			method: 'POST',
 			headers: {
-				'Content-Type': 'application/x-www-form-urlencoded'
+				'Content-Type': 'application/x-www-form-urlencoded',
+				Origin: server.baseUrl,
+				Referer: `${server.baseUrl}/admin/funding/new`
 			},
 			body: new URLSearchParams({ title: 'Test funding', funderName: 'Funder' })
 		});
@@ -49,7 +53,11 @@ describe('admin request protection', () => {
 
 	it('blocks unauthenticated admin funding moderation actions', async () => {
 		const response = await fetch(`${server.baseUrl}/admin/funding/demo-id?/approve`, {
-			method: 'POST'
+			method: 'POST',
+			headers: {
+				Origin: server.baseUrl,
+				Referer: `${server.baseUrl}/admin/funding/demo-id`
+			}
 		});
 
 		expect(response.status).toBe(401);

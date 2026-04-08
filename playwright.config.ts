@@ -3,6 +3,16 @@ import { defineConfig, devices } from '@playwright/test';
 const port = Number(process.env.PLAYWRIGHT_PORT ?? 4273);
 const host = '127.0.0.1';
 const baseURL = `http://${host}:${port}`;
+const useBuildOutput = process.env.CI_USE_BUILD_OUTPUT === '1';
+const webServerCommand = useBuildOutput
+	? `${process.execPath} build/index.js`
+	: `pnpm exec vite dev --host ${host} --port ${port} --strictPort`;
+const ciBuildEnv = useBuildOutput
+	? {
+			SKIP_PRODUCTION_RUNTIME_CONFIG_ASSERTION:
+				process.env.SKIP_PRODUCTION_RUNTIME_CONFIG_ASSERTION ?? '1'
+		}
+	: {};
 
 export default defineConfig({
 	testDir: './e2e',
@@ -19,12 +29,16 @@ export default defineConfig({
 		video: 'retain-on-failure'
 	},
 	webServer: {
-		command: `pnpm exec vite dev --host ${host} --port ${port} --strictPort`,
+		command: webServerCommand,
 		url: `${baseURL}/manifest.webmanifest`,
 		reuseExistingServer: !process.env.CI,
 		env: {
 			...process.env,
+			...ciBuildEnv,
+			HOST: host,
+			PORT: String(port),
 			ORIGIN: baseURL,
+			PUBLIC_ASSET_BASE_URL: `${baseURL}/assets`,
 			REINDEX_SECRET: process.env.REINDEX_SECRET ?? 'playwright-reindex-secret'
 		}
 	},

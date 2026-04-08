@@ -1618,7 +1618,7 @@ describe('approveCandidate publishing', () => {
 
 (seedSourcesPath ? describe : describe.skip)('seeded automated source configs', () => {
 	it('ship explicit config for all curated html and rss starter sources', () => {
-		const seedSources = JSON.parse(readFileSync(seedSourcesPath, 'utf8')) as Array<
+		const seedSources = JSON.parse(readFileSync(seedSourcesPath!, 'utf8')) as Array<
 			Record<string, unknown>
 		>;
 		const automated = seedSources.filter((source) =>
@@ -1636,7 +1636,7 @@ describe('approveCandidate publishing', () => {
 	});
 
 	it('validate cleanly through the app adapter registry', () => {
-		const seedSources = JSON.parse(readFileSync(seedSourcesPath, 'utf8')) as Array<
+		const seedSources = JSON.parse(readFileSync(seedSourcesPath!, 'utf8')) as Array<
 			Record<string, unknown>
 		>;
 		const automated = seedSources.filter((source) =>

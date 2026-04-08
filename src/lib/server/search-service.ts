@@ -1,4 +1,5 @@
 import * as Sentry from '@sentry/sveltekit';
+import { resolveAbsoluteUrl } from '$lib/config/public-assets';
 import type {
 	CoilKey,
 	EventItem,
@@ -371,17 +372,30 @@ function buildExperience(
 	};
 }
 
+function normalizeSearchDoc(doc: SearchDoc): SearchDoc {
+	const imageUrl =
+		typeof doc.imageUrl === 'string' ? (resolveAbsoluteUrl(doc.imageUrl) ?? doc.imageUrl) : undefined;
+
+	if (imageUrl === doc.imageUrl) return doc;
+
+	return {
+		...doc,
+		imageUrl
+	};
+}
+
 function resultFromDoc(doc: SearchDoc): SearchResult {
-	const scope = scopeFromDoc(doc);
+	const normalizedDoc = normalizeSearchDoc(doc);
+	const scope = scopeFromDoc(normalizedDoc);
 	return presentResult({
-		id: doc.id,
-		slug: doc.slug,
-		title: doc.title,
-		summary: doc.summary ?? doc.description,
+		id: normalizedDoc.id,
+		slug: normalizedDoc.slug,
+		title: normalizedDoc.title,
+		summary: normalizedDoc.summary ?? normalizedDoc.description,
 		scope,
-		coil: doc.coil,
+		coil: normalizedDoc.coil,
 		kind:
-			doc.kind ??
+			normalizedDoc.kind ??
 			(scope === 'organizations'
 				? 'organization'
 				: scope === 'venues'
@@ -390,17 +404,17 @@ function resultFromDoc(doc: SearchDoc): SearchResult {
 						? 'source'
 						: 'content'),
 		href:
-			doc.href ??
+			normalizedDoc.href ??
 			(scope in contentScopePaths
-				? `${contentScopePaths[scope as CoilKey]}/${doc.slug ?? doc.id}`
+				? `${contentScopePaths[scope as CoilKey]}/${normalizedDoc.slug ?? normalizedDoc.id}`
 				: scope === 'organizations'
-					? `/admin/organizations/${doc.id}`
+					? `/admin/organizations/${normalizedDoc.id}`
 					: scope === 'venues'
-						? `/admin/venues/${doc.id}`
-						: `/admin/sources/${doc.id}`),
-		meta: docMeta(doc),
-		imageUrl: typeof doc.imageUrl === 'string' ? doc.imageUrl : undefined,
-		fields: doc
+						? `/admin/venues/${normalizedDoc.id}`
+						: `/admin/sources/${normalizedDoc.id}`),
+		meta: docMeta(normalizedDoc),
+		imageUrl: typeof normalizedDoc.imageUrl === 'string' ? normalizedDoc.imageUrl : undefined,
+		fields: normalizedDoc
 	});
 }
 

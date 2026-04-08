@@ -1,6 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { SearchRequest, SearchResult } from '$lib/server/search-contracts';
 
+vi.mock('$env/dynamic/public', () => ({
+	env: {
+		PUBLIC_ASSET_BASE_URL: 'https://assets.example.com/kb-uploads'
+	}
+}));
+
 const meilisearchMock = vi.hoisted(() => ({
 	getSearchReadiness: vi.fn(),
 	searchIndex: vi.fn(),
@@ -157,5 +163,69 @@ describe('runUnifiedSearch', () => {
 		expect(response.experience.degraded).toBe(false);
 		expect(response.groups[0]?.results[0]?.presentation.subtitle).toContain('Indigenous Futures');
 		expect(response.groups[0]?.results[0]?.presentation.destinationLabel).toBe('Open result');
+	});
+
+	it('normalizes legacy local funding image URLs from indexed browse results', async () => {
+		meilisearchMock.getSearchReadiness.mockResolvedValue({
+			state: 'ready',
+			detail: 'ready',
+			configured: true,
+			available: true,
+			settingsVersion: 'test',
+			indexedScopes: [
+				'events',
+				'funding',
+				'redpages',
+				'jobs',
+				'toolbox',
+				'organizations',
+				'venues',
+				'sources'
+			],
+			missingScopes: [],
+			mismatchedScopes: [],
+			issues: []
+		});
+		fundingMock.getPublishedFunding.mockResolvedValue([]);
+		meilisearchMock.searchIndex.mockResolvedValue({
+			hits: [
+				{
+					id: 'funding-1',
+					slug: 'native-cultures-fund-grants',
+					title: 'Native Cultures Fund Grants',
+					scope: 'funding',
+					coil: 'funding',
+					description: 'Support for Native-led cultural projects.',
+					funderName: 'Native Cultures Fund',
+					applicationStatus: 'open',
+					fundingType: 'grant',
+					imageUrl: 'http://localhost:9000/kb-uploads/logos/funding/native-cultures-fund.png'
+				}
+			],
+			estimatedTotalHits: 1,
+			facetDistribution: {
+				fundingType: { grant: 1 },
+				applicationStatus: { open: 1 }
+			}
+		});
+
+		const { runUnifiedSearch } = await import('$lib/server/search-service');
+		const response = await runUnifiedSearch({
+			q: '',
+			surface: 'browse',
+			scope: 'funding',
+			page: 1,
+			limit: 6,
+			sort: 'date',
+			filters: {}
+		});
+
+		expect(response.resultSource).toBe('meilisearch');
+		expect(response.results[0]?.imageUrl).toBe(
+			'https://assets.example.com/kb-uploads/logos/funding/native-cultures-fund.png'
+		);
+		expect((response.results[0]?.fields as { imageUrl?: string } | undefined)?.imageUrl).toBe(
+			'https://assets.example.com/kb-uploads/logos/funding/native-cultures-fund.png'
+		);
 	});
 });

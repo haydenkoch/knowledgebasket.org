@@ -78,8 +78,8 @@
 	let eventDetailsOpen = $state(false);
 	const isMobile = new IsMobile();
 	const publicSidebar = useSidebar();
-	/** Right sidebar: show at 960px+ to match CoilLayout three-column breakpoint (not 768px). */
-	const isDesktopLayout = new IsMobile(960);
+	/** Right sidebar: only render when main column has breathing room (< 1120px squeezes titles). */
+	const isDesktopLayout = new IsMobile(1120);
 
 	/** Schedule-X calendar app (created when calendar view is active). Lazy-loaded with calendar bundle. */
 	let scheduleXApp = $state<CalendarApp | null>(null);
@@ -850,7 +850,7 @@
 				/>
 			</div>
 			<aside
-				class="coil-layout__right order-3 w-full shrink-0 min-[960px]:w-[320px] min-[960px]:max-w-[320px] [&:empty]:hidden"
+				class="coil-layout__right order-3 w-full shrink-0 min-[1120px]:w-[320px] min-[1120px]:max-w-[320px] [&:empty]:hidden"
 			>
 				{@render sidebarRight?.()}
 			</aside>

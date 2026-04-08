@@ -90,11 +90,7 @@
 	} = $props();
 </script>
 
-<div
-	class="coil-rail"
-	class:has-logo-overhang={hasLogoOverhang}
-	style="--coil-accent: {accent}"
->
+<div class="coil-rail" class:has-logo-overhang={hasLogoOverhang} style="--coil-accent: {accent}">
 	<div class="coil-rail-inner">
 		{#if breadcrumb}
 			<div class="coil-rail-crumb">
@@ -257,12 +253,7 @@
 		color: var(--muted-foreground);
 		font-variant-numeric: tabular-nums;
 
-		mask-image: linear-gradient(
-			to right,
-			black 0%,
-			black calc(100% - 1.75rem),
-			transparent 100%
-		);
+		mask-image: linear-gradient(to right, black 0%, black calc(100% - 1.75rem), transparent 100%);
 		-webkit-mask-image: linear-gradient(
 			to right,
 			black 0%,
@@ -326,8 +317,7 @@
 		border-color: var(--coil-accent, var(--teal));
 		color: var(--coil-accent, var(--teal));
 		transform: translateY(-1px);
-		box-shadow: 0 2px 12px
-			color-mix(in srgb, var(--coil-accent, var(--teal)) 20%, transparent);
+		box-shadow: 0 2px 12px color-mix(in srgb, var(--coil-accent, var(--teal)) 20%, transparent);
 	}
 	.coil-rail-heart:active {
 		transform: scale(0.92);

@@ -34,6 +34,8 @@ For implementation truth, use:
   - performance notes and follow-up work
 - `docs/ANALYTICS_AND_MARKETING.md`
   - PostHog capture contract, event inventory, and marketing-email template usage
+- `docs/RELEASE_PROCESS.md`
+  - protected-branch workflow, staging promotion checklist, and hotfix path
 - `docs/SOURCE_OPS_HANDOFF.md`
   - source-ops and operational handoff context
 - `docs/PRODUCTION_RUNBOOK.md`

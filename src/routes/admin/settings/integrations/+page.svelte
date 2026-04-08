@@ -59,8 +59,8 @@
 		<Card.Header>
 			<Card.Title>PostHog</Card.Title>
 			<Card.Description>
-				Explicit product analytics and masked session replay, only after visitors opt into
-				analytics cookies.
+				Explicit product analytics and masked session replay, only after visitors opt into analytics
+				cookies.
 			</Card.Description>
 		</Card.Header>
 		<Card.Content class="space-y-4">

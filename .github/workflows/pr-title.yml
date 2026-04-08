@@ -1,0 +1,31 @@
+name: PR Title
+
+on:
+  pull_request_target:
+    types:
+      - opened
+      - edited
+      - reopened
+      - synchronize
+
+jobs:
+  validate-pr-title:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate Conventional Commit PR title
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          node <<'EOF'
+          const title = process.env.PR_TITLE ?? '';
+          const pattern =
+            /^(build|chore|ci|docs|feat|fix|perf|refactor|release|revert|security|style|test)(\([^)]+\))?!?: .+/;
+
+          if (!pattern.test(title)) {
+            console.error(`Invalid PR title: "${title}"`);
+            console.error(
+              'Use Conventional Commit style, for example: fix(search): handle empty queries'
+            );
+            process.exit(1);
+          }
+          EOF

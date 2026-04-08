@@ -4,16 +4,16 @@
 	import { stripHtml } from '$lib/utils/format';
 	import { getPlaceholderImage } from '$lib/data/placeholders';
 
-let { item, index = 0 }: { item: FundingItem; index?: number } = $props();
+	let { item, index = 0 }: { item: FundingItem; index?: number } = $props();
 
-const href = $derived(`/funding/${item.slug ?? item.id}`);
-const plainDesc = $derived(item.description ? stripHtml(String(item.description)) : '');
-const mediaClass = $derived(
-	'relative flex h-[148px] items-center justify-center overflow-hidden bg-[var(--color-lakebed-950,#10181e)]'
-);
-const applicationStatusLabel = $derived(
-	item.applicationStatus
-		? formatDisplayValue(item.applicationStatus, { key: 'applicationStatus' })
+	const href = $derived(`/funding/${item.slug ?? item.id}`);
+	const plainDesc = $derived(item.description ? stripHtml(String(item.description)) : '');
+	const mediaClass = $derived(
+		'relative flex h-[148px] items-center justify-center overflow-hidden bg-[var(--color-lakebed-950,#10181e)]'
+	);
+	const applicationStatusLabel = $derived(
+		item.applicationStatus
+			? formatDisplayValue(item.applicationStatus, { key: 'applicationStatus' })
 			: null
 	);
 	const fundingTypeLabel = $derived(

@@ -123,11 +123,7 @@
 
 	{#if mapboxToken && mapPoints.length}
 		<div class="mx-auto max-w-6xl px-4 pt-6 sm:px-6">
-			<ListLocationMap
-				token={mapboxToken}
-				kind="organization"
-				points={mapPoints}
-			/>
+			<ListLocationMap token={mapboxToken} kind="organization" points={mapPoints} />
 		</div>
 	{/if}
 
@@ -208,9 +204,7 @@
 								</p>
 							{/if}
 							{#if location || org.region}
-								<div
-									class="mt-3 flex items-center gap-1.5 text-xs text-[var(--muted-foreground)]"
-								>
+								<div class="mt-3 flex items-center gap-1.5 text-xs text-[var(--muted-foreground)]">
 									<MapPinIcon class="size-3.5 shrink-0" />
 									<span class="truncate">{location || org.region}</span>
 								</div>

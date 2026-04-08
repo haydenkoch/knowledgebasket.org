@@ -36,18 +36,14 @@ function parseIpGeo(request: Request): IpGeo | null {
 		if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue;
 		if (lat < -90 || lat > 90 || lng < -180 || lng > 180) continue;
 
-		const city =
-			h.get('x-vercel-ip-city') ?? h.get('cf-ipcity') ?? h.get('x-nf-geo-city') ?? null;
+		const city = h.get('x-vercel-ip-city') ?? h.get('cf-ipcity') ?? h.get('x-nf-geo-city') ?? null;
 		const region =
 			h.get('x-vercel-ip-country-region') ??
 			h.get('cf-region') ??
 			h.get('x-nf-geo-subdivision-code') ??
 			null;
 		const country =
-			h.get('x-vercel-ip-country') ??
-			h.get('cf-ipcountry') ??
-			h.get('x-nf-geo-country') ??
-			null;
+			h.get('x-vercel-ip-country') ?? h.get('cf-ipcountry') ?? h.get('x-nf-geo-country') ?? null;
 
 		const place =
 			[decodeOrNull(city), decodeOrNull(region) ?? decodeOrNull(country)]
@@ -124,8 +120,7 @@ export async function load({ url, request }) {
 			logoUrl: null,
 			badge: p.venueType,
 			verified: false,
-			location:
-				[p.city, p.state].filter(Boolean).join(', ') || p.address || null,
+			location: [p.city, p.state].filter(Boolean).join(', ') || p.address || null,
 			description: p.description
 		})),
 		pagination: {

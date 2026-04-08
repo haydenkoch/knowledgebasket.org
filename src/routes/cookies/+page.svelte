@@ -53,9 +53,7 @@
 			Knowledge Basket uses PostHog for explicit product analytics and masked session replay after
 			analytics consent is granted.
 		</li>
-		<li>
-			The app does not use broad click autocapture or automatic pageview capture for PostHog.
-		</li>
+		<li>The app does not use broad click autocapture or automatic pageview capture for PostHog.</li>
 		<li>
 			For signed-in users who opt in, PostHog may receive account-level properties such as email,
 			role, and email-delivery preferences so the team can understand opted-in cohorts and prepare

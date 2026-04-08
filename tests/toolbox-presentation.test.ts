@@ -41,7 +41,13 @@ describe('toolbox presentation helpers', () => {
 	it('chooses provider-aware primary action labels', () => {
 		expect(
 			getToolboxPrimaryActionLabel(
-				{ coil: 'toolbox', id: '1', title: 'PBS video', contentMode: 'link', externalUrl: 'https://www.pbs.org/video/example' },
+				{
+					coil: 'toolbox',
+					id: '1',
+					title: 'PBS video',
+					contentMode: 'link',
+					externalUrl: 'https://www.pbs.org/video/example'
+				},
 				{ hasPdfPreview: false }
 			)
 		).toBe('Watch now');

@@ -149,7 +149,7 @@
 				side="top"
 				align="end"
 				sideOffset={12}
-				class="kb-dock__popover w-72 p-1.5 border-border/80 shadow-xl"
+				class="kb-dock__popover w-72 border-border/80 p-1.5 shadow-xl"
 				style={`--dock-accent: ${accent};`}
 			>
 				<div class="flex flex-col">
@@ -168,12 +168,7 @@
 						</a>
 					{/if}
 
-					<button
-						type="button"
-						onclick={openPrivacy}
-						class="kb-dock__item"
-						role="menuitem"
-					>
+					<button type="button" onclick={openPrivacy} class="kb-dock__item" role="menuitem">
 						<span class="kb-dock__icon">
 							<Shield class="h-4 w-4" />
 						</span>
@@ -181,12 +176,7 @@
 						<ChevronRight class="kb-dock__chev h-4 w-4" />
 					</button>
 
-					<button
-						type="button"
-						onclick={reportBug}
-						class="kb-dock__item"
-						role="menuitem"
-					>
+					<button type="button" onclick={reportBug} class="kb-dock__item" role="menuitem">
 						<span class="kb-dock__icon">
 							<Bug class="h-4 w-4" />
 						</span>

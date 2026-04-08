@@ -80,7 +80,13 @@
 >
 	{#if hasBanner}
 		{#if imageFit === 'logo-on-cover'}
-			<img src={activeBanner} alt="" aria-hidden="true" class="coil-hero-img coil-hero-img--bg" loading="lazy" />
+			<img
+				src={activeBanner}
+				alt=""
+				aria-hidden="true"
+				class="coil-hero-img coil-hero-img--bg"
+				loading="lazy"
+			/>
 			<img src={activeBanner} alt="" class="coil-hero-img coil-hero-img--logo" loading="lazy" />
 		{:else}
 			<img

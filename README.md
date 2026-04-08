@@ -122,6 +122,7 @@ Launch environments should set, at minimum:
 Recommended observability settings:
 
 - `SENTRY_DSN` and/or `PUBLIC_SENTRY_DSN`
+- `SENTRY_ENVIRONMENT`, `PUBLIC_SENTRY_ENVIRONMENT`, `SENTRY_RELEASE`, `PUBLIC_SENTRY_RELEASE`
 - `PUBLIC_POSTHOG_KEY` and optional `PUBLIC_POSTHOG_HOST`
 - `LOG_LEVEL`
 - `ERROR_WEBHOOK_URL`
@@ -138,18 +139,31 @@ The app is already configured for Railway's Node deployment path:
 
 Recommended Railway setup:
 
-1. Create an app service from this `site/` directory.
-2. Add a Postgres service and point `DATABASE_URL` at it.
-3. Generate a Railway public domain.
-4. Set `ORIGIN` to your app URL. If you are using only the generated Railway domain, the app can fall back to `RAILWAY_PUBLIC_DOMAIN`, but explicit `ORIGIN` is still the safer default.
-5. Add the rest of the required production variables from the contract above.
-6. Redeploy and verify `GET /api/health`, auth flows, and `/sitemap.xml`.
+1. Create separate Railway `staging` and `production` environments for this `site/` service.
+2. Add isolated services per environment for Postgres, Meilisearch, and any optional Redis/object-storage bindings. Do not share writable staging and production services.
+3. Generate a Railway public domain for each environment.
+4. Set `ORIGIN` to the correct environment URL. If you are using only the generated Railway domain, the app can fall back to `RAILWAY_PUBLIC_DOMAIN`, but explicit `ORIGIN` is still the safer default.
+5. Add the rest of the required variables from the contract above, including environment-specific Sentry/PostHog keys and release metadata.
+6. Keep staging protected/internal and use sanitized snapshot data there rather than a writable production copy.
+7. Verify `GET /api/health`, auth flows, and `/sitemap.xml` before promoting `staging` to `main`.
 
 Operational notes:
 
 - Railway injects `PORT`; the Node adapter will bind to it automatically.
 - The generated `RAILWAY_PUBLIC_DOMAIN` is good enough for a first deploy, but switch `ORIGIN` to your custom domain before finalizing Google OAuth or canonical URLs.
 - If you later split this repo into multiple Railway services, move the start command into each service's dashboard settings so the shared `railway.toml` does not force the same process everywhere.
+
+## Safe Delivery Flow
+
+Knowledge Basket now treats `main` as production-only and `staging` as the protected integration branch.
+
+- Normal work flows through `feature/* -> staging -> main`.
+- `main` and `staging` should both be protected from direct pushes.
+- Release PRs from `staging` into `main` should use a Conventional Commit title such as `release: promote staging to production (2026.04.08.1)`.
+- Emergency fixes branch from `main` as `hotfix/*`, merge into `main`, and then back-merge into `staging`.
+- Staging should stay internal, use sanitized production-derived data, and send telemetry to staging-specific Sentry/PostHog destinations.
+
+Use [docs/RELEASE_PROCESS.md](/Users/hayden/.claude-squad/worktrees/hayden/kb-safety-rollout/docs/RELEASE_PROCESS.md) and [docs/PRODUCTION_RUNBOOK.md](/Users/hayden/.claude-squad/worktrees/hayden/kb-safety-rollout/docs/PRODUCTION_RUNBOOK.md) as the operational source of truth for releases.
 
 ## Quality Status
 
@@ -172,6 +186,7 @@ As of the current takeover baseline:
 - `docs/DESIGN_SYSTEM.md`
 - `docs/PERFORMANCE.md`
 - `docs/ANALYTICS_AND_MARKETING.md`
+- `docs/RELEASE_PROCESS.md`
 - `docs/PRODUCTION_RUNBOOK.md`
 - `docs/ops-content-workflows.md`
 - `docs/SOURCE_OPS_HANDOFF.md`

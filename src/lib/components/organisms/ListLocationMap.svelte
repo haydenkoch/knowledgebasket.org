@@ -176,8 +176,7 @@
 			const opts: Intl.DateTimeFormatOptions = {
 				month: 'short',
 				day: 'numeric',
-				year:
-					startDate.getFullYear() === new Date().getFullYear() ? undefined : 'numeric'
+				year: startDate.getFullYear() === new Date().getFullYear() ? undefined : 'numeric'
 			};
 			const startText = startDate.toLocaleDateString(undefined, opts);
 			if (!end || end === start) return startText;
@@ -223,7 +222,8 @@
 		const coords: Array<[number, number]> = [];
 		for (let i = 0; i <= steps; i++) {
 			const bearing = (i / steps) * 2 * Math.PI;
-			const sinLat = Math.sin(latRad) * Math.cos(angular) +
+			const sinLat =
+				Math.sin(latRad) * Math.cos(angular) +
 				Math.cos(latRad) * Math.sin(angular) * Math.cos(bearing);
 			const nextLat = Math.asin(sinLat);
 			const nextLng =
@@ -348,30 +348,25 @@
 
 			// Pull every venue inside the cluster so we can list them in
 			// the side panel. Cap at 500 — plenty for any realistic cluster.
-			source.getClusterLeaves(
-				clusterId,
-				Math.max(pointCount, 1),
-				0,
-				(err, leaves) => {
-					if (err || !leaves) return;
-					const ids = leaves
-						.map((leaf) => {
-							const props = (leaf as GeoJSON.Feature).properties ?? {};
-							return typeof props.id === 'string' ? props.id : null;
-						})
-						.filter((id): id is string => id != null);
+			source.getClusterLeaves(clusterId, Math.max(pointCount, 1), 0, (err, leaves) => {
+				if (err || !leaves) return;
+				const ids = leaves
+					.map((leaf) => {
+						const props = (leaf as GeoJSON.Feature).properties ?? {};
+						return typeof props.id === 'string' ? props.id : null;
+					})
+					.filter((id): id is string => id != null);
 
-					if (ids.length === 0) return;
-					panelMode = { type: 'cluster', ids };
+				if (ids.length === 0) return;
+				panelMode = { type: 'cluster', ids };
 
-					const geom = feature.geometry as GeoJSON.Point;
-					map.easeTo({
-						center: [geom.coordinates[0], geom.coordinates[1]],
-						duration: 520,
-						offset: [-140, 0]
-					});
-				}
-			);
+				const geom = feature.geometry as GeoJSON.Point;
+				map.easeTo({
+					center: [geom.coordinates[0], geom.coordinates[1]],
+					duration: 520,
+					offset: [-140, 0]
+				});
+			});
 		});
 
 		map.on('click', pointLayerId, (e) => {
@@ -642,9 +637,7 @@
 
 	function updateSource() {
 		if (!mapInstance) return;
-		const source = mapInstance.getSource(sourceId) as
-			| import('mapbox-gl').GeoJSONSource
-			| undefined;
+		const source = mapInstance.getSource(sourceId) as import('mapbox-gl').GeoJSONSource | undefined;
 		if (source) source.setData(toGeoJSON(points));
 
 		updateRadiusOverlay();
@@ -892,11 +885,7 @@
 	}
 </script>
 
-<section
-	class="kb-list-map"
-	style="--kb-list-map-height: {height}px"
-	aria-label={eyebrow}
->
+<section class="kb-list-map" style="--kb-list-map-height: {height}px" aria-label={eyebrow}>
 	<header class="kb-list-map__header">
 		<div class="kb-list-map__header-top">
 			<div>
@@ -944,7 +933,11 @@
 				class="kb-map-panel"
 				class:is-open={panelMode.type !== 'none'}
 				aria-hidden={panelMode.type === 'none'}
-				aria-label={selected ? `${selected.name} details` : panelMode.type === 'cluster' ? `${clusterList.length} venues in this cluster` : undefined}
+				aria-label={selected
+					? `${selected.name} details`
+					: panelMode.type === 'cluster'
+						? `${clusterList.length} venues in this cluster`
+						: undefined}
 			>
 				{#if selected}
 					{@const selectedLabel = selected.location ?? null}
@@ -1056,9 +1049,7 @@
 								{clusterList.length}
 								{clusterList.length === 1 ? itemNoun.slice(0, -1) : itemNoun}
 							</h3>
-							<p class="kb-map-panel__cluster-hint">
-								Zoom in to separate them, or pick one below.
-							</p>
+							<p class="kb-map-panel__cluster-hint">Zoom in to separate them, or pick one below.</p>
 						</header>
 
 						<ul class="kb-map-panel__cluster-list">
@@ -1074,9 +1065,7 @@
 												<img src={venue.logoUrl} alt="" loading="lazy" />
 											</span>
 										{:else}
-											<span
-												class="kb-map-panel__cluster-logo kb-map-panel__cluster-logo--fallback"
-											>
+											<span class="kb-map-panel__cluster-logo kb-map-panel__cluster-logo--fallback">
 												{initialsOf(venue.name)}
 											</span>
 										{/if}
@@ -1269,10 +1258,7 @@
 				color-mix(in srgb, var(--foreground) 6%, transparent) 1px,
 				transparent 1px
 			),
-			linear-gradient(
-				color-mix(in srgb, var(--foreground) 6%, transparent) 1px,
-				transparent 1px
-			);
+			linear-gradient(color-mix(in srgb, var(--foreground) 6%, transparent) 1px, transparent 1px);
 		background-size: 26px 26px;
 		mask-image: radial-gradient(ellipse at center, black 35%, transparent 85%);
 	}
@@ -1720,7 +1706,9 @@
 	:global(.kb-map-panel__cluster-arrow) {
 		color: var(--muted-foreground);
 		flex: 0 0 auto;
-		transition: transform 0.15s ease, color 0.15s ease;
+		transition:
+			transform 0.15s ease,
+			color 0.15s ease;
 	}
 
 	.kb-map-panel__cluster-item:hover :global(.kb-map-panel__cluster-arrow) {

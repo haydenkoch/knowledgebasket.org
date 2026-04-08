@@ -8,8 +8,8 @@ import {
 	S3Client,
 	S3ServiceException
 } from '@aws-sdk/client-s3';
-import { env } from '$env/dynamic/private';
 import { buildPublicAssetUrl } from '$lib/config/public-assets';
+import { readRuntimeConfigValue } from '$lib/server/runtime-secrets';
 
 const DEFAULT_REGION = 'us-east-1';
 
@@ -23,7 +23,7 @@ export type ObjectStorageHealth = {
 };
 
 function getBucketName(): string {
-	const bucket = env.MINIO_BUCKET?.trim();
+	const bucket = readRuntimeConfigValue('MINIO_BUCKET')?.trim();
 	if (!bucket) throw new Error('MINIO_BUCKET is not configured');
 	return bucket;
 }
@@ -45,10 +45,10 @@ function buildPublicBucketPolicy(bucket: string): string {
 
 export function isObjectStorageConfigured(): boolean {
 	return !!(
-		env.MINIO_ENDPOINT?.trim() &&
-		env.MINIO_ACCESS_KEY?.trim() &&
-		env.MINIO_SECRET_KEY?.trim() &&
-		env.MINIO_BUCKET?.trim()
+		readRuntimeConfigValue('MINIO_ENDPOINT')?.trim() &&
+		readRuntimeConfigValue('MINIO_ACCESS_KEY')?.trim() &&
+		readRuntimeConfigValue('MINIO_SECRET_KEY')?.trim() &&
+		readRuntimeConfigValue('MINIO_BUCKET')?.trim()
 	);
 }
 
@@ -59,11 +59,11 @@ function getObjectStorageClient(): S3Client {
 
 	return new S3Client({
 		region: DEFAULT_REGION,
-		endpoint: env.MINIO_ENDPOINT,
+		endpoint: readRuntimeConfigValue('MINIO_ENDPOINT'),
 		forcePathStyle: true,
 		credentials: {
-			accessKeyId: env.MINIO_ACCESS_KEY ?? '',
-			secretAccessKey: env.MINIO_SECRET_KEY ?? ''
+			accessKeyId: readRuntimeConfigValue('MINIO_ACCESS_KEY') ?? '',
+			secretAccessKey: readRuntimeConfigValue('MINIO_SECRET_KEY') ?? ''
 		}
 	});
 }
@@ -181,7 +181,7 @@ export async function getObjectStorageHealth(): Promise<ObjectStorageHealth> {
 		return {
 			configured: true,
 			available: false,
-			bucket: env.MINIO_BUCKET?.trim() ?? null,
+			bucket: readRuntimeConfigValue('MINIO_BUCKET')?.trim() ?? null,
 			error: error instanceof Error ? error.message : 'Unable to reach object storage'
 		};
 	}

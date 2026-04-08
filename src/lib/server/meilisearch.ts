@@ -2,7 +2,6 @@
  * Unified Meilisearch client and index settings for public and admin search.
  */
 import { MeiliSearch } from 'meilisearch';
-import { env } from '$env/dynamic/private';
 import type { CoilKey, EventItem } from '$lib/data/kb';
 import { stripHtml } from '$lib/utils/format';
 import {
@@ -12,6 +11,7 @@ import {
 	type SearchIssue,
 	type SearchReadiness
 } from '$lib/server/search-contracts';
+import { readRuntimeConfigValue } from '$lib/server/runtime-secrets';
 
 const SEARCH_INDEX_VERSION = '2026-04-unified-search-v1';
 const MEILISEARCH_TIMEOUT_MS = 1500;
@@ -393,11 +393,11 @@ let lastHealthCheckAt = 0;
 let lastHealthStatus = false;
 
 function getClient(): MeiliSearch | null {
-	const host = env.MEILISEARCH_HOST?.trim();
+	const host = readRuntimeConfigValue('MEILISEARCH_HOST')?.trim();
 	if (!host) return null;
 	return new MeiliSearch({
 		host,
-		apiKey: env.MEILISEARCH_API_KEY || undefined
+		apiKey: readRuntimeConfigValue('MEILISEARCH_API_KEY') || undefined
 	});
 }
 
@@ -879,11 +879,11 @@ export async function reindexAllEvents(events: (EventItem & { id: string })[]): 
 }
 
 export function isMeilisearchConfigured(): boolean {
-	return !!env.MEILISEARCH_HOST?.trim();
+	return !!readRuntimeConfigValue('MEILISEARCH_HOST')?.trim();
 }
 
 export async function isMeilisearchAvailable(force = false): Promise<boolean> {
-	const host = env.MEILISEARCH_HOST?.trim();
+	const host = readRuntimeConfigValue('MEILISEARCH_HOST')?.trim();
 	if (!host) return false;
 
 	const now = Date.now();
@@ -893,11 +893,10 @@ export async function isMeilisearchAvailable(force = false): Promise<boolean> {
 
 	try {
 		const healthUrl = new URL('/health', host.endsWith('/') ? host : `${host}/`).toString();
+		const apiKey = readRuntimeConfigValue('MEILISEARCH_API_KEY');
 		const response = await withTimeout(
 			fetch(healthUrl, {
-				headers: env.MEILISEARCH_API_KEY
-					? { Authorization: `Bearer ${env.MEILISEARCH_API_KEY}` }
-					: undefined
+				headers: apiKey ? { Authorization: `Bearer ${apiKey}` } : undefined
 			}),
 			'meilisearch health'
 		);
@@ -911,13 +910,12 @@ export async function isMeilisearchAvailable(force = false): Promise<boolean> {
 }
 
 function getMeilisearchHeaders(): HeadersInit | undefined {
-	return env.MEILISEARCH_API_KEY
-		? { Authorization: `Bearer ${env.MEILISEARCH_API_KEY}` }
-		: undefined;
+	const apiKey = readRuntimeConfigValue('MEILISEARCH_API_KEY');
+	return apiKey ? { Authorization: `Bearer ${apiKey}` } : undefined;
 }
 
 async function listIndexUids(): Promise<string[]> {
-	const host = env.MEILISEARCH_HOST?.trim();
+	const host = readRuntimeConfigValue('MEILISEARCH_HOST')?.trim();
 	if (!host) return [];
 
 	const indexesUrl = new URL('/indexes', host.endsWith('/') ? host : `${host}/`).toString();

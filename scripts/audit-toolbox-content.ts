@@ -68,7 +68,13 @@ type Change = {
 	notes: string[];
 };
 
-const REQUIRED_ENV_VARS = ['DATABASE_URL', 'MINIO_ENDPOINT', 'MINIO_ACCESS_KEY', 'MINIO_SECRET_KEY', 'MINIO_BUCKET'];
+const REQUIRED_ENV_VARS = [
+	'DATABASE_URL',
+	'MINIO_ENDPOINT',
+	'MINIO_ACCESS_KEY',
+	'MINIO_SECRET_KEY',
+	'MINIO_BUCKET'
+];
 
 const DIRECT_PDF_PATTERNS = [/\.pdf(?:$|[?#])/i, /\/printable\/pdf(?:$|[?#])/i];
 
@@ -97,10 +103,9 @@ const REPLACEMENTS: Record<string, Replacement> = {
 	'native-language-preservation-toolkit': {
 		externalUrl: 'https://fpcc.ca/stories/fpcc-language-resources/'
 	},
-	'rebuilding-native-nations-strategies-for-governance-and-development-native-nations-institute':
-		{
-			externalUrl: 'https://nni.arizona.edu/our-work/digital-resources'
-		},
+	'rebuilding-native-nations-strategies-for-governance-and-development-native-nations-institute': {
+		externalUrl: 'https://nni.arizona.edu/our-work/digital-resources'
+	},
 	'self-governance-compacting-a-guide-for-tribes-self-governance-communication-and-education-tribal-con':
 		{
 			externalUrl: 'https://www.tribalselfgov.org/about/sgcetc/'
@@ -266,7 +271,7 @@ async function auditResource(
 
 	const candidateExternalUrl = replacement
 		? Object.prototype.hasOwnProperty.call(replacement, 'externalUrl')
-			? replacement.externalUrl ?? null
+			? (replacement.externalUrl ?? null)
 			: row.external_url
 		: row.external_url;
 	const resolvedExternalUrl = replacement?.dropExternal ? null : candidateExternalUrl;
@@ -304,7 +309,12 @@ async function auditResource(
 		);
 	}
 
-	if (!next.imageUrl && resolvedExternalUrl && audit?.ok && audit.contentType?.includes('text/html')) {
+	if (
+		!next.imageUrl &&
+		resolvedExternalUrl &&
+		audit?.ok &&
+		audit.contentType?.includes('text/html')
+	) {
 		try {
 			const metadata = await extractPageMetadata(resolvedExternalUrl);
 			if (metadata.imageUrl) {
@@ -397,7 +407,11 @@ async function resolvePdfSource(
 }
 
 function normalizeLoosePath(value: string) {
-	return value.replace(/\u00a0/g, ' ').replace(/\s+/g, ' ').trim().toLowerCase();
+	return value
+		.replace(/\u00a0/g, ' ')
+		.replace(/\s+/g, ' ')
+		.trim()
+		.toLowerCase();
 }
 
 async function resolveExistingResourcePath(baseDir: string, relativePath: string): Promise<string> {
@@ -406,11 +420,16 @@ async function resolveExistingResourcePath(baseDir: string, relativePath: string
 
 	const target = normalizeLoosePath(relativePath);
 	const candidates = await walkFiles(baseDir);
-	const match = candidates.find((candidate) => normalizeLoosePath(candidate.relativePath) === target);
+	const match = candidates.find(
+		(candidate) => normalizeLoosePath(candidate.relativePath) === target
+	);
 	return match?.absolutePath ?? directPath;
 }
 
-async function walkFiles(baseDir: string, currentDir = baseDir): Promise<Array<{ absolutePath: string; relativePath: string }>> {
+async function walkFiles(
+	baseDir: string,
+	currentDir = baseDir
+): Promise<Array<{ absolutePath: string; relativePath: string }>> {
 	const entries = await readdir(currentDir, { withFileTypes: true });
 	const out: Array<{ absolutePath: string; relativePath: string }> = [];
 
@@ -496,17 +515,11 @@ async function downloadText(url: string, options?: { insecureTls?: boolean }) {
 
 async function downloadBuffer(url: string, options?: { insecureTls?: boolean }) {
 	if (options?.insecureTls) {
-		const { stdout } = await execFile('curl', [
-			'-k',
-			'-L',
-			'--silent',
-			'--show-error',
-			'--max-time',
-			'30',
-			'-A',
-			'Mozilla/5.0',
-			url
-		], { encoding: 'buffer', maxBuffer: 1024 * 1024 * 30 });
+		const { stdout } = await execFile(
+			'curl',
+			['-k', '-L', '--silent', '--show-error', '--max-time', '30', '-A', 'Mozilla/5.0', url],
+			{ encoding: 'buffer', maxBuffer: 1024 * 1024 * 30 }
+		);
 		return {
 			bytes: stdout as Buffer,
 			contentType: guessContentTypeFromExtension(url)

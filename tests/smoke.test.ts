@@ -167,7 +167,7 @@ describe('public route smoke tests', () => {
 	});
 
 	it('renders semantic pagination navigation on public browse pages', async () => {
-		const html = await fetch(`${server.baseUrl}/toolbox`).then((response) => response.text());
+		const html = await fetch(`${server.baseUrl}/funding`).then((response) => response.text());
 		const $ = cheerio.load(html);
 		const paginationNav = $('nav[aria-label="Pagination"]');
 

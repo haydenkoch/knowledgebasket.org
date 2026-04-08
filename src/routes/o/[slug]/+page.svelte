@@ -182,88 +182,88 @@
 
 <div class="kb-org-wrap">
 	<CoilDetailActionRail accent="var(--teal)" hasLogoOverhang>
-			{#snippet meta()}
-				{#if shortLocation}
-					<span class="inline-flex items-center gap-1.5">
-						<MapPinIcon class="size-[13px] shrink-0" />
-						<span class="truncate">{shortLocation}</span>
-					</span>
-				{/if}
-			{/snippet}
-			{#snippet actions()}
-				{#if organization.phone}
-					<Tooltip.Root>
-						<Tooltip.Trigger>
-							{#snippet child({ props })}
-								<Button
-									{...props}
-									href={`tel:${organization.phone}`}
-									variant="ghost"
-									size="icon-sm"
-									aria-label="Call {organization.phone}"
-									onclick={() =>
-										trackExternalLinkClicked({
-											contentType: 'organization',
-											slug: organization.slug,
-											action: 'call',
-											href: `tel:${organization.phone}`,
-											signedIn: Boolean(data.user)
-										})}
-								>
-									<PhoneIcon class="size-4" />
-								</Button>
-							{/snippet}
-						</Tooltip.Trigger>
-						<Tooltip.Content>Call</Tooltip.Content>
-					</Tooltip.Root>
-				{/if}
-				{#if organization.email}
-					<Tooltip.Root>
-						<Tooltip.Trigger>
-							{#snippet child({ props })}
-								<Button
-									{...props}
-									href={`mailto:${organization.email}`}
-									variant="ghost"
-									size="icon-sm"
-									aria-label="Email {organization.email}"
-									onclick={() =>
-										trackExternalLinkClicked({
-											contentType: 'organization',
-											slug: organization.slug,
-											action: 'email',
-											href: `mailto:${organization.email}`,
-											signedIn: Boolean(data.user)
-										})}
-								>
-									<MailIcon class="size-4" />
-								</Button>
-							{/snippet}
-						</Tooltip.Trigger>
-						<Tooltip.Content>Email</Tooltip.Content>
-					</Tooltip.Root>
-				{/if}
-			{/snippet}
-			{#snippet primary()}
-				{#if organization.website}
-					<Button
-						href={organization.website}
-						target="_blank"
-						rel="noopener"
-						size="sm"
-						onclick={() =>
-							trackExternalLinkClicked({
-								contentType: 'organization',
-								slug: organization.slug,
-								action: 'visit_site',
-								href: organization.website,
-								signedIn: Boolean(data.user)
-							})}
-					>
-						<GlobeIcon class="size-[14px]" /> Visit site
-					</Button>
-				{/if}
-			{/snippet}
+		{#snippet meta()}
+			{#if shortLocation}
+				<span class="inline-flex items-center gap-1.5">
+					<MapPinIcon class="size-[13px] shrink-0" />
+					<span class="truncate">{shortLocation}</span>
+				</span>
+			{/if}
+		{/snippet}
+		{#snippet actions()}
+			{#if organization.phone}
+				<Tooltip.Root>
+					<Tooltip.Trigger>
+						{#snippet child({ props })}
+							<Button
+								{...props}
+								href={`tel:${organization.phone}`}
+								variant="ghost"
+								size="icon-sm"
+								aria-label="Call {organization.phone}"
+								onclick={() =>
+									trackExternalLinkClicked({
+										contentType: 'organization',
+										slug: organization.slug,
+										action: 'call',
+										href: `tel:${organization.phone}`,
+										signedIn: Boolean(data.user)
+									})}
+							>
+								<PhoneIcon class="size-4" />
+							</Button>
+						{/snippet}
+					</Tooltip.Trigger>
+					<Tooltip.Content>Call</Tooltip.Content>
+				</Tooltip.Root>
+			{/if}
+			{#if organization.email}
+				<Tooltip.Root>
+					<Tooltip.Trigger>
+						{#snippet child({ props })}
+							<Button
+								{...props}
+								href={`mailto:${organization.email}`}
+								variant="ghost"
+								size="icon-sm"
+								aria-label="Email {organization.email}"
+								onclick={() =>
+									trackExternalLinkClicked({
+										contentType: 'organization',
+										slug: organization.slug,
+										action: 'email',
+										href: `mailto:${organization.email}`,
+										signedIn: Boolean(data.user)
+									})}
+							>
+								<MailIcon class="size-4" />
+							</Button>
+						{/snippet}
+					</Tooltip.Trigger>
+					<Tooltip.Content>Email</Tooltip.Content>
+				</Tooltip.Root>
+			{/if}
+		{/snippet}
+		{#snippet primary()}
+			{#if organization.website}
+				<Button
+					href={organization.website}
+					target="_blank"
+					rel="noopener"
+					size="sm"
+					onclick={() =>
+						trackExternalLinkClicked({
+							contentType: 'organization',
+							slug: organization.slug,
+							action: 'visit_site',
+							href: organization.website,
+							signedIn: Boolean(data.user)
+						})}
+				>
+					<GlobeIcon class="size-[14px]" /> Visit site
+				</Button>
+			{/if}
+		{/snippet}
 	</CoilDetailActionRail>
 
 	<div class="kb-org-grid">

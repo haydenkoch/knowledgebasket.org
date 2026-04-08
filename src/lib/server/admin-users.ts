@@ -179,10 +179,7 @@ export async function adminRevokeUserSessions(input: { headers: Headers; userId:
 	});
 }
 
-export async function adminSendPasswordReset(input: {
-	email: string;
-	redirectTo?: string;
-}) {
+export async function adminSendPasswordReset(input: { email: string; redirectTo?: string }) {
 	return callUntypedAuthApi('requestPasswordReset', {
 		body: {
 			email: input.email,

@@ -5,8 +5,6 @@
  */
 import 'dotenv/config';
 import postgres from 'postgres';
-import { readFileSync, existsSync } from 'fs';
-import { join } from 'path';
 import { randomUUID } from 'crypto';
 import { syncCuratedFunding } from './lib/curated-funding-sync.mjs';
 import { syncCuratedRedPages } from './lib/curated-red-pages-sync.mjs';
@@ -38,38 +36,6 @@ function uniqueSlug(base, seen) {
 	while (seen.has(slug)) slug = `${base.slice(0, 90)}-${++n}`;
 	seen.add(slug);
 	return slug;
-}
-
-function parseCSV(content) {
-	const rows = [];
-	let row = [];
-	let field = '';
-	let inQuotes = false;
-	for (let i = 0; i < content.length; i++) {
-		const c = content[i];
-		if (inQuotes) {
-			if (c === '"' && content[i + 1] === '"') {
-				field += '"';
-				i++;
-			} else if (c === '"') inQuotes = false;
-			else field += c;
-		} else {
-			if (c === '"') inQuotes = true;
-			else if (c === ',' || c === '\n') {
-				row.push(field.trim());
-				field = '';
-				if (c === '\n') {
-					rows.push(row);
-					row = [];
-				}
-			} else field += c;
-		}
-	}
-	if (field || row.length) {
-		row.push(field.trim());
-		rows.push(row);
-	}
-	return rows;
 }
 
 async function upsertOrganization(seed) {

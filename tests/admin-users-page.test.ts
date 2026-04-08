@@ -18,16 +18,18 @@ type MockAdminUsersResult = {
 	bannedCount: number;
 };
 
-const listAdminManagedUsers = vi.fn(async (): Promise<MockAdminUsersResult> => ({
-	users: [],
-	search: '',
-	page: 1,
-	pageSize: 20,
-	total: 0,
-	totalPages: 1,
-	adminCount: 1,
-	bannedCount: 0
-}));
+const listAdminManagedUsers = vi.fn(
+	async (): Promise<MockAdminUsersResult> => ({
+		users: [],
+		search: '',
+		page: 1,
+		pageSize: 20,
+		total: 0,
+		totalPages: 1,
+		adminCount: 1,
+		bannedCount: 0
+	})
+);
 
 const adminSetUserRole = vi.fn(async () => undefined);
 const adminSendPasswordReset = vi.fn(async () => undefined);

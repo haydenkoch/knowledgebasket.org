@@ -14,6 +14,34 @@ This runbook is the current operational baseline for launching and maintaining K
   - `ERROR_WEBHOOK_URL` for forwarding structured server errors
   - `LOG_LEVEL` to tune structured stdout logging (`debug`, `info`, `warn`, `error`)
 
+## Secrets strategy
+
+- Keep env templates in git:
+  - `.env.local.example`
+  - `.env.staging.example`
+  - `.env.example`
+  - `.env.ci.example`
+- Keep real values in provider secret managers or deploy-platform secret UIs.
+- Prefer file-backed secrets where possible:
+  - `DATABASE_URL_FILE`
+  - `BETTER_AUTH_SECRET_FILE`
+  - `MEILISEARCH_API_KEY_FILE`
+  - `MINIO_SECRET_KEY_FILE`
+  - `SMTP_PASS_FILE`
+  - `REINDEX_SECRET_FILE`
+  - `SOURCE_OPS_SECRET_FILE`
+- Set `KB_ENVIRONMENT` explicitly per environment:
+  - local dev: `development`
+  - CI: `ci`
+  - staging: `staging`
+  - production: `production`
+- Validate the contract before deploy:
+  - `pnpm secrets:check:staging`
+  - `pnpm secrets:check:production`
+  - `pnpm secrets:check:ci`
+
+Staging should mirror production keys exactly. The values should differ, but the key set should not.
+
 ## Railway baseline
 
 - `railway.toml` is the deployment source of truth for the web service:
@@ -23,7 +51,35 @@ This runbook is the current operational baseline for launching and maintaining K
   - healthcheck: `GET /api/health`
 - Generate a Railway public domain before first launch.
 - Set `ORIGIN` explicitly once the final public URL is known.
+- Set `KB_ENVIRONMENT` to `staging` or `production` in each Railway environment.
 - If `ORIGIN` is temporarily omitted, the app can fall back to `RAILWAY_PUBLIC_DOMAIN`, but treat that as a bootstrap convenience rather than the steady-state production setting.
+
+## Delivery baseline
+
+- Branch roles:
+  - `staging` is the protected integration branch and Railway staging source
+  - `main` is production-only
+- Normal work:
+  - branch from `staging` as `feature/*`
+  - merge feature PRs into `staging`
+  - promote `staging` to `main` with a dedicated release PR
+- Hotfixes:
+  - branch from `main` as `hotfix/*`
+  - merge the hotfix into `main`
+  - immediately back-merge the hotfix into `staging`
+- Release PRs should use a Conventional Commit title with a CalVer payload such as `release: promote staging to production (2026.04.08.1)`.
+- `main` and `staging` should block direct pushes, force pushes, and branch deletion.
+
+## Staging isolation
+
+- Staging must be operationally separate from production:
+  - separate Postgres
+  - separate Meilisearch
+  - separate object-storage bucket or prefix
+  - separate optional Redis
+- Staging should stay protected/internal, not publicly indexed.
+- Staging data should come from sanitized snapshots or fixtures only. Do not point staging at a writable production database.
+- Staging should use separate telemetry destinations or strict environment partitioning so staging traffic does not pollute production Sentry triage or PostHog reporting.
 
 ## Health checks
 
@@ -57,6 +113,9 @@ After seeding published content:
 ## Migration parity
 
 - Apply the latest Drizzle migrations before launch and after every deployment that adds schema changes.
+- Persistent environments such as staging and production must use committed migrations, not schema pushes.
+- CI currently uses a throwaway database bootstrap via `pnpm db:push --force` because the historical migration set does not yet recreate every legacy content table from empty state.
+- CI seeds only curated in-repo coil fixtures with `pnpm db:seed:coils`; launch-data and shared source seeds stay out of the GitHub workflow.
 - Verify `GET /api/health` reports schema checks as healthy for:
   - source ops
   - privacy request storage
@@ -105,6 +164,16 @@ Recommended launch habit:
 - Keep one dashboard or saved query per area so on-call review is not dependent on admin UI memory alone.
 - Before GA, verify each alert path reaches a human inbox or paging destination.
 
+## Release checklist
+
+Before promoting `staging` into `main`:
+
+1. Confirm `checks` is green on the release PR.
+2. Verify `GET /api/health` is healthy in staging.
+3. Smoke-test auth, search, uploads/assets, and the admin/source-ops path in staging.
+4. Verify the latest committed migrations have been applied cleanly.
+5. Record a rollback note in the PR before merge.
+
 ## Backups and recovery
 
 - Postgres:
@@ -128,6 +197,13 @@ Run one full restore drill in staging before launch and record the exact timesta
 5. Verify `GET /api/health` is healthy.
 6. Spot-check `/search`, `/events`, `/account`, and a representative uploaded asset.
 7. Trigger `POST /api/source-ops/run-due` once and confirm the scheduler path still works after restore.
+
+## Environment drift prevention
+
+1. When a new env var is introduced, update the example templates in the same PR.
+2. Run the matching `pnpm secrets:check:<env>` command before merging.
+3. Apply the new key to staging first, then production.
+4. Do not create staging-only variable names when a staging-specific value under the production key name will do.
 
 ## Incident checks
 

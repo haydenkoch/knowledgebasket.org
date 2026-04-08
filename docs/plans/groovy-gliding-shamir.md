@@ -24,29 +24,31 @@ Goal: add a prominent interactive Mapbox map at the top of each list page, above
 ### 1. New organism: `src/lib/components/organisms/ListLocationMap.svelte`
 
 Props:
+
 ```ts
 type PreviewKind = 'organization' | 'venue';
 type MapPreview = {
-  id: string;
-  slug: string;
-  name: string;
-  lat: number;
-  lng: number;
-  logoUrl?: string | null;
-  badge?: string | null;       // orgType or venueType
-  verified?: boolean;
-  location?: string | null;    // "City, ST"
-  description?: string | null; // already stripped/trimmed server-side
+	id: string;
+	slug: string;
+	name: string;
+	lat: number;
+	lng: number;
+	logoUrl?: string | null;
+	badge?: string | null; // orgType or venueType
+	verified?: boolean;
+	location?: string | null; // "City, ST"
+	description?: string | null; // already stripped/trimmed server-side
 };
 type Props = {
-  token: string | null;
-  kind: PreviewKind;
-  points: MapPreview[];
-  height?: number;            // default 480
+	token: string | null;
+	kind: PreviewKind;
+	points: MapPreview[];
+	height?: number; // default 480
 };
 ```
 
 Behavior:
+
 - Dynamic `import('mapbox-gl')` + CSS, same pattern as `LocationMap.svelte:250-254`.
 - On mount: initialize map, add a clustered GeoJSON source from `points`, add three layers (cluster circles, cluster counts, unclustered points).
 - Fit bounds to all points on initial load; if ≤1 point, center + zoom 4.
@@ -58,20 +60,23 @@ Behavior:
 - Graceful fallback: if `token` is null or `points.length === 0`, render a skeleton/empty state (reuse the placeholder grid pattern from `LocationMap.svelte:464-476`).
 
 Popup HTML structure (built imperatively to avoid Svelte lifecycle inside Mapbox popups):
+
 ```html
 <article class="kb-map-popup">
-  <header>
-    <img src={logoUrl} />   <!-- or type badge chip -->
-    <div>
-      <span class="badge">{badge}</span>
-      <h3>{name}</h3>
-      <p class="loc">{location}</p>
-    </div>
-  </header>
-  <p class="desc">{description}</p>
-  <a href="/o/{slug}">View details →</a>
+	<header>
+		<img src="{logoUrl}" />
+		<!-- or type badge chip -->
+		<div>
+			<span class="badge">{badge}</span>
+			<h3>{name}</h3>
+			<p class="loc">{location}</p>
+		</div>
+	</header>
+	<p class="desc">{description}</p>
+	<a href="/o/{slug}">View details →</a>
 </article>
 ```
+
 Styled via a scoped `<style>` block in the component using `:global(.kb-map-popup ...)` so Mapbox's popup DOM picks up the styles. Follow the existing link styling rules (no underline, hover underline).
 
 ### 2. Server data additions
@@ -80,7 +85,9 @@ Add a dedicated geolocated-points query to each data layer. Keeping it separate 
 
 - `src/lib/server/organizations.ts`: add
   ```ts
-  export async function getOrganizationMapPoints(opts?: { search?: string }): Promise<MapPointRow[]>
+  export async function getOrganizationMapPoints(opts?: {
+  	search?: string;
+  }): Promise<MapPointRow[]>;
   ```
   Selects `id, slug, name, logoUrl, orgType, verified, city, state, description, lat, lng` where `lat IS NOT NULL AND lng IS NOT NULL`, applying the same `buildSearchWhere` helper already used by `getOrganizations` (`src/lib/server/organizations.ts:197`). No pagination. Cap at e.g. 500 rows as a safety net.
 - `src/lib/server/venues.ts`: add the analogous `getVenueMapPoints({ search })` with venue fields (`venueType`, `city`, `state`, description). Reuse whatever search predicate `getVenues` uses at `src/lib/server/venues.ts:144`.
@@ -102,13 +109,9 @@ Add a dedicated geolocated-points query to each data layer. Keeping it separate 
 - `src/routes/o/+page.svelte`: import `ListLocationMap`, render it after `<KbHero>` and before the search/results container:
   ```svelte
   {#if data.mapboxToken && data.mapPoints.length}
-    <div class="mx-auto max-w-6xl px-4 pt-6 sm:px-6">
-      <ListLocationMap
-        token={data.mapboxToken}
-        kind="organization"
-        points={data.mapPoints}
-      />
-    </div>
+  	<div class="mx-auto max-w-6xl px-4 pt-6 sm:px-6">
+  		<ListLocationMap token={data.mapboxToken} kind="organization" points={data.mapPoints} />
+  	</div>
   {/if}
   ```
   No change to the existing results grid or pagination.
@@ -120,15 +123,15 @@ Already covered — `src/hooks.server.ts` authorizes `api.mapbox.com` and `event
 
 ## Critical files to modify / create
 
-| File | Change |
-|---|---|
-| `src/lib/components/organisms/ListLocationMap.svelte` | **new** — hero map component |
-| `src/lib/server/organizations.ts` | add `getOrganizationMapPoints` |
-| `src/lib/server/venues.ts` | add `getVenueMapPoints` |
-| `src/routes/o/+page.server.ts` | load points + token |
-| `src/routes/o/+page.svelte` | render `<ListLocationMap kind="organization" />` |
-| `src/routes/v/+page.server.ts` | load points + token |
-| `src/routes/v/+page.svelte` | render `<ListLocationMap kind="venue" />` |
+| File                                                  | Change                                           |
+| ----------------------------------------------------- | ------------------------------------------------ |
+| `src/lib/components/organisms/ListLocationMap.svelte` | **new** — hero map component                     |
+| `src/lib/server/organizations.ts`                     | add `getOrganizationMapPoints`                   |
+| `src/lib/server/venues.ts`                            | add `getVenueMapPoints`                          |
+| `src/routes/o/+page.server.ts`                        | load points + token                              |
+| `src/routes/o/+page.svelte`                           | render `<ListLocationMap kind="organization" />` |
+| `src/routes/v/+page.server.ts`                        | load points + token                              |
+| `src/routes/v/+page.svelte`                           | render `<ListLocationMap kind="venue" />`        |
 
 ## Reuse
 

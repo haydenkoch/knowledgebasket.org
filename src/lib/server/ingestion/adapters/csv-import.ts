@@ -1,5 +1,5 @@
 import { parse as parseCsv } from 'csv-parse/sync';
-import * as XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
 import { normalizeUrl } from '../dedupe';
 import { fetchText, inferDownloadUrlFromHtml, selectSourceUrl, splitTags } from '../shared';
 import type {
@@ -56,7 +56,7 @@ export const csvImportAdapter: IngestionAdapter = {
 		try {
 			const cfg = config as CsvImportConfig;
 			const rows = rawContent.startsWith('PK')
-				? parseWorkbook(rawContent, cfg.sheet_name)
+				? await parseWorkbook(rawContent, cfg.sheet_name)
 				: (parseCsv(rawContent, {
 						columns: true,
 						skip_empty_lines: true,
@@ -154,13 +154,74 @@ export const csvImportAdapter: IngestionAdapter = {
 	}
 };
 
-function parseWorkbook(rawContent: string, sheetName?: string) {
-	const workbook = XLSX.read(Buffer.from(rawContent, 'binary'), { type: 'buffer' });
-	const targetSheet = sheetName && workbook.Sheets[sheetName] ? sheetName : workbook.SheetNames[0];
-	if (!targetSheet) return [];
-	return XLSX.utils.sheet_to_json(workbook.Sheets[targetSheet]!, { defval: null }) as Array<
-		Record<string, unknown>
-	>;
+async function parseWorkbook(rawContent: string, sheetName?: string) {
+	const workbook = new ExcelJS.Workbook();
+	const workbookSource = Buffer.from(rawContent, 'binary') as unknown as Parameters<
+		typeof workbook.xlsx.load
+	>[0];
+	await workbook.xlsx.load(workbookSource);
+
+	const worksheet =
+		(sheetName ? workbook.getWorksheet(sheetName) : undefined) ?? workbook.worksheets[0];
+	if (!worksheet) return [];
+
+	const headerRow = worksheet.getRow(1);
+	const headerValues = Array.isArray(headerRow.values)
+		? (headerRow.values.slice(1) as Array<ExcelJS.CellValue | undefined>)
+		: [];
+	const headers: string[] = headerValues.map(
+		(value, index) => readHeader(value) ?? `column_${index + 1}`
+	);
+
+	if (headers.length === 0) return [];
+
+	const rows: Array<Record<string, unknown>> = [];
+	for (let rowNumber = 2; rowNumber <= worksheet.actualRowCount; rowNumber += 1) {
+		const row = worksheet.getRow(rowNumber);
+		const record = Object.fromEntries(
+			headers.map((header, index) => [header, normalizeCellValue(row.getCell(index + 1).value)])
+		);
+
+		if (Object.values(record).some((value) => value !== null)) {
+			rows.push(record);
+		}
+	}
+
+	return rows;
+}
+
+function readHeader(value: ExcelJS.CellValue | undefined) {
+	const normalized = normalizeCellValue(value);
+	if (normalized === null || normalized === undefined) return null;
+	return String(normalized).trim() || null;
+}
+
+function normalizeCellValue(value: ExcelJS.CellValue | undefined): unknown {
+	if (value === undefined || value === null) return null;
+	if (typeof value === 'string') return value.trim() || null;
+	if (typeof value === 'number' || typeof value === 'boolean') return value;
+	if (value instanceof Date) return value.toISOString();
+	if (Array.isArray(value)) {
+		const richText = value
+			.map((entry) => (typeof entry === 'object' && entry && 'text' in entry ? entry.text : ''))
+			.join('')
+			.trim();
+		return richText || null;
+	}
+	if (typeof value === 'object') {
+		if ('result' in value) return normalizeCellValue(value.result);
+		if ('text' in value && typeof value.text === 'string') return value.text.trim() || null;
+		if ('hyperlink' in value && typeof value.hyperlink === 'string') return value.hyperlink;
+		if ('richText' in value && Array.isArray(value.richText)) {
+			const richText = value.richText
+				.map((entry) => entry.text)
+				.join('')
+				.trim();
+			return richText || null;
+		}
+		if ('error' in value && typeof value.error === 'string') return value.error;
+	}
+	return String(value).trim() || null;
 }
 
 function readString(value: unknown): string | null {

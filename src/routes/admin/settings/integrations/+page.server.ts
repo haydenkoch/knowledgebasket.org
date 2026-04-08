@@ -1,5 +1,4 @@
 import type { PageServerLoad } from './$types';
-import { env } from '$env/dynamic/private';
 import { env as publicEnv } from '$env/dynamic/public';
 import {
 	POSTHOG_DEFAULT_HOST,
@@ -8,16 +7,24 @@ import {
 	POSTHOG_IDENTIFIED_PERSON_PROPERTIES,
 	POSTHOG_MARKETING_SIGNALS
 } from '$lib/insights/catalog';
+import { readBoolean } from '$lib/config/runtime-config-core';
+import { readRuntimeConfigValue } from '$lib/server/runtime-secrets';
 
 export const load: PageServerLoad = async () => {
-	const mapboxConfigured = !!(env.MAPBOX_ACCESS_TOKEN ?? env.MAPBOX_TOKEN);
-	const meilisearchConfigured = !!(env.MEILISEARCH_HOST && env.MEILISEARCH_API_KEY);
+	const mapboxConfigured = !!(
+		readRuntimeConfigValue('MAPBOX_ACCESS_TOKEN') ?? readRuntimeConfigValue('MAPBOX_TOKEN')
+	);
+	const meilisearchConfigured = !!(
+		readRuntimeConfigValue('MEILISEARCH_HOST') && readRuntimeConfigValue('MEILISEARCH_API_KEY')
+	);
 	const posthogConfigured = !!publicEnv.PUBLIC_POSTHOG_KEY?.trim();
 	const posthogHost = publicEnv.PUBLIC_POSTHOG_HOST?.trim() || POSTHOG_DEFAULT_HOST;
-	const smtpConfigured = !!(env.SMTP_HOST?.trim() && env.SMTP_FROM?.trim());
-	const smtpTransportSecurity = env.SMTP_SECURE?.trim() === 'true'
+	const smtpConfigured = !!(
+		readRuntimeConfigValue('SMTP_HOST')?.trim() && readRuntimeConfigValue('SMTP_FROM')?.trim()
+	);
+	const smtpTransportSecurity = readBoolean(readRuntimeConfigValue('SMTP_SECURE'))
 		? 'SMTPS'
-		: env.SMTP_REQUIRE_TLS?.trim() === 'true'
+		: readBoolean(readRuntimeConfigValue('SMTP_REQUIRE_TLS'))
 			? 'STARTTLS'
 			: 'Not enforced';
 
@@ -31,7 +38,7 @@ export const load: PageServerLoad = async () => {
 		posthogMarketingSignals: POSTHOG_MARKETING_SIGNALS,
 		posthogEventCatalog: POSTHOG_EVENT_CATALOG,
 		smtpConfigured,
-		smtpFrom: env.SMTP_FROM?.trim() || null,
+		smtpFrom: readRuntimeConfigValue('SMTP_FROM')?.trim() || null,
 		smtpTransportSecurity
 	};
 };

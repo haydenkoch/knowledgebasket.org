@@ -1,6 +1,12 @@
 import { defineConfig } from 'drizzle-kit';
+import { readFileSync } from 'node:fs';
+import { resolveRuntimeConfigValue } from './src/lib/config/runtime-secrets';
 
-if (!process.env.DATABASE_URL) throw new Error('DATABASE_URL is not set');
+const databaseUrl = resolveRuntimeConfigValue(process.env, 'DATABASE_URL', {
+	readFile: (path) => readFileSync(path, 'utf8')
+}).value;
+
+if (!databaseUrl) throw new Error('DATABASE_URL is not set');
 
 const isDeployEnvironment =
 	process.env.CI === 'true' ||
@@ -10,7 +16,7 @@ const isDeployEnvironment =
 export default defineConfig({
 	schema: './src/lib/server/db/schema/index.ts',
 	dialect: 'postgresql',
-	dbCredentials: { url: process.env.DATABASE_URL },
+	dbCredentials: { url: databaseUrl },
 	verbose: !isDeployEnvironment,
 	strict: true
 });

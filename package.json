@@ -2,7 +2,17 @@
 	"name": "site",
 	"private": true,
 	"version": "0.0.1",
+	"packageManager": "pnpm@10.32.1",
 	"type": "module",
+	"engines": {
+		"node": "24.x",
+		"pnpm": "10.x"
+	},
+	"pnpm": {
+		"overrides": {
+			"picomatch": "^4.0.4"
+		}
+	},
 	"scripts": {
 		"dev": "vite dev",
 		"build": "vite build",
@@ -22,8 +32,12 @@
 		"test:e2e": "playwright test",
 		"test:e2e:ci": "node scripts/run-playwright-ci.mjs",
 		"format": "prettier --write .",
+		"secrets:check": "tsx scripts/check-secrets.ts",
+		"secrets:check:ci": "tsx scripts/check-secrets.ts --environment=ci",
+		"secrets:check:staging": "tsx scripts/check-secrets.ts --environment=staging",
+		"secrets:check:production": "tsx scripts/check-secrets.ts --environment=production",
 		"db:push": "drizzle-kit push",
-		"db:deploy": "drizzle-kit push --force",
+		"db:deploy": "drizzle-kit migrate",
 		"db:generate": "drizzle-kit generate",
 		"db:migrate": "drizzle-kit migrate",
 		"db:studio": "drizzle-kit studio",
@@ -60,8 +74,8 @@
 		"bits-ui": "^2.16.3",
 		"clsx": "^2.1.1",
 		"dotenv": "^16.6.1",
-		"drizzle-kit": "^0.31.8",
-		"drizzle-orm": "^0.45.1",
+		"drizzle-kit": "^0.31.10",
+		"drizzle-orm": "^0.45.2",
 		"embla-carousel-svelte": "^8.6.0",
 		"eslint": "^9.39.2",
 		"eslint-config-prettier": "^10.1.8",
@@ -88,7 +102,7 @@
 		"typescript": "^5.9.3",
 		"typescript-eslint": "^8.54.0",
 		"vaul-svelte": "1.0.0-next.7",
-		"vite": "^7.3.1",
+		"vite": "^7.3.2",
 		"vitest": "^3.2.4"
 	},
 	"dependencies": {
@@ -100,6 +114,7 @@
 		"@sentry/sveltekit": "^10.47.0",
 		"cheerio": "^1.2.0",
 		"csv-parse": "^6.2.1",
+		"exceljs": "^4.4.0",
 		"fast-xml-parser": "^5.5.9",
 		"mapbox-gl": "^3.19.1",
 		"meilisearch": "^0.55.0",
@@ -111,7 +126,6 @@
 		"site": "link:",
 		"svelte-dnd-action": "^0.9.69",
 		"temporal-polyfill": "^0.3.2",
-		"tinymce": "^8.3.2",
-		"xlsx": "^0.18.5"
+		"tinymce": "^8.3.2"
 	}
 }

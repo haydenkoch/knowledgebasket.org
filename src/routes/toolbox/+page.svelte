@@ -505,7 +505,9 @@
 										<div
 											class="pointer-events-none absolute inset-0 bg-gradient-to-t from-[rgba(8,24,44,0.72)] via-transparent to-transparent"
 										></div>
-										<div class="absolute right-3 bottom-3 left-3 flex items-end justify-between gap-3">
+										<div
+											class="absolute right-3 bottom-3 left-3 flex items-end justify-between gap-3"
+										>
 											<div>
 												<p
 													class="font-sans text-[11px] font-semibold tracking-[0.1em] text-white/78 uppercase"

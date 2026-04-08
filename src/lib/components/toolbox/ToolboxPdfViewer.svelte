@@ -640,10 +640,7 @@
 						</Button>
 					</div>
 				{:else}
-					<div
-						class="kb-pdf__paper"
-						style="width: {paperWidth}px; height: {paperHeight}px;"
-					>
+					<div class="kb-pdf__paper" style="width: {paperWidth}px; height: {paperHeight}px;">
 						<canvas bind:this={canvas} class="kb-pdf__canvas"></canvas>
 					</div>
 				{/if}
@@ -966,7 +963,9 @@
 	}
 
 	.kb-pdf__thumb:focus-visible .kb-pdf__thumb-preview {
-		box-shadow: 0 0 0 2px var(--background), 0 0 0 4px var(--ring, var(--foreground));
+		box-shadow:
+			0 0 0 2px var(--background),
+			0 0 0 4px var(--ring, var(--foreground));
 	}
 
 	.kb-pdf__thumb.is-active {

@@ -151,7 +151,9 @@
 {#snippet statsSnippet()}
 	<div class="flex flex-wrap gap-x-7 gap-y-2 font-sans text-sm text-white/80">
 		<span><strong class="text-lg font-bold text-white">{data.counts.events}</strong> Events</span>
-		<span><strong class="text-lg font-bold text-white">{data.counts.funding}</strong> Funding</span>
+		<span
+			><strong class="text-lg font-bold text-white">{data.counts.funding}</strong> Funding Opportunities</span
+		>
 		<span><strong class="text-lg font-bold text-white">{data.counts.jobs}</strong> Jobs</span>
 		<span
 			><strong class="text-lg font-bold text-white">{data.counts.redpages}</strong> Red Page Businesses</span

@@ -1,0 +1,472 @@
+[
+	{
+		"name": "NCAI Events Calendar",
+		"slug": "ncai-events",
+		"description": "National Congress of American Indians event calendar. Major tribal conferences and conventions.",
+		"source_url": "https://www.ncai.org/events",
+		"homepage_url": "https://www.ncai.org/",
+		"coils": ["events"],
+		"ingestion_method": "html_scrape",
+		"source_category": "nonprofit",
+		"adapter_type": "html_selector",
+		"fetch_cadence": "weekly",
+		"adapter_config": {
+			"base_url": "https://www.ncai.org",
+			"itemSelector": "a[href^='/event/']:has(.styles_title__srpcf)",
+			"maxItems": 40,
+			"fieldRules": {
+				"title": {
+					"selector": ".styles_title__srpcf",
+					"extract": "text",
+					"transform": "trim"
+				},
+				"date": {
+					"selector": ".styles_description__Diaz_",
+					"extract": "text",
+					"transform": "trim"
+				},
+				"url": {
+					"selector": ":scope",
+					"extract": "href"
+				},
+				"image_url": {
+					"selector": "img",
+					"extract": "src"
+				}
+			}
+		},
+		"confidence_score": 4,
+		"risk_profile": {
+			"freshness": "medium",
+			"duplication": "medium",
+			"legal": "low",
+			"normalization": "medium",
+			"maintenance": "medium",
+			"moderation": "medium"
+		},
+		"dedupe_strategies": ["composite_key", "url_match", "title_fuzzy"],
+		"attribution_required": true,
+		"attribution_text": "Source: National Congress of American Indians",
+		"review_required": true,
+		"steward_notes": "HTML scraping needed. Page structure may change. Major national events only."
+	},
+	{
+		"name": "Pow Wow Calendar",
+		"slug": "powwow-calendar",
+		"description": "Comprehensive pow wow and Native event calendar. Hundreds of events listed.",
+		"source_url": "https://calendar.powwows.com/",
+		"homepage_url": "https://www.powwows.com/",
+		"coils": ["events"],
+		"ingestion_method": "html_scrape",
+		"source_category": "community",
+		"adapter_type": "html_selector",
+		"fetch_cadence": "daily",
+		"adapter_config": {
+			"base_url": "https://calendar.powwows.com",
+			"itemSelector": "div.col-md-6:has(a[href*='calendar.powwows.com/events/'])",
+			"maxItems": 60,
+			"fieldRules": {
+				"title": {
+					"selector": "h2 a",
+					"extract": "text",
+					"transform": "trim"
+				},
+				"url": {
+					"selector": "h2 a",
+					"extract": "href"
+				},
+				"date": {
+					"selector": "p strong",
+					"extract": "text",
+					"transform": "trim"
+				},
+				"location": {
+					"selector": "p strong:last-child",
+					"extract": "text",
+					"transform": "trim"
+				},
+				"description": {
+					"selector": "p:last-of-type",
+					"extract": "text",
+					"transform": "trim"
+				}
+			}
+		},
+		"confidence_score": 4,
+		"risk_profile": {
+			"freshness": "high",
+			"duplication": "medium",
+			"legal": "low",
+			"normalization": "medium",
+			"maintenance": "medium",
+			"moderation": "medium"
+		},
+		"dedupe_strategies": ["composite_key", "url_match", "title_fuzzy"],
+		"attribution_required": true,
+		"attribution_text": "Source: PowWows.com Calendar",
+		"review_required": true,
+		"steward_notes": "High-volume source. Consider newsletter subscription as alternative to scraping. Community-submitted events."
+	},
+	{
+		"name": "First Nations Development Institute — Grantmaking",
+		"slug": "first-nations-grantmaking",
+		"description": "Native-focused grantmaking with rolling RFP windows. $100M+ in grants awarded.",
+		"source_url": "https://www.firstnations.org/grantmaking/",
+		"homepage_url": "https://www.firstnations.org/",
+		"coils": ["funding"],
+		"ingestion_method": "rss_import",
+		"source_category": "foundation",
+		"adapter_type": "rss_generic",
+		"fetch_cadence": "weekly",
+		"fetch_url": "https://www.firstnations.org/feed/",
+		"adapter_config": {
+			"maxItems": 50,
+			"fieldMap": {
+				"title": "title",
+				"description": ["content:encoded", "description"],
+				"url": "link",
+				"published_at": "pubDate",
+				"guid": "guid",
+				"source_item_id": "guid",
+				"categories": "category"
+			}
+		},
+		"confidence_score": 4,
+		"risk_profile": {
+			"freshness": "medium",
+			"duplication": "low",
+			"legal": "low",
+			"normalization": "medium",
+			"maintenance": "low",
+			"moderation": "medium"
+		},
+		"dedupe_strategies": ["url_match", "content_hash", "title_fuzzy"],
+		"attribution_required": true,
+		"attribution_text": "Source: First Nations Development Institute",
+		"review_required": true,
+		"steward_notes": "Check for RSS feed availability. May need HTML scraping fallback."
+	},
+	{
+		"name": "Tribal Funding Registry",
+		"slug": "tribal-funding-registry",
+		"description": "Free, tribal-specific grants database launched Spring 2025 by Hozhonigo Institute.",
+		"source_url": "https://www.tribalfunding.org/",
+		"homepage_url": "https://www.tribalfunding.org/",
+		"coils": ["funding"],
+		"ingestion_method": "html_scrape",
+		"source_category": "nonprofit",
+		"adapter_type": "html_selector",
+		"fetch_cadence": "weekly",
+		"adapter_config": {
+			"base_url": "https://www.tribalfunding.org",
+			"itemSelector": "a[href*='images.squarespace-cdn.com']",
+			"maxItems": 24,
+			"fieldRules": {
+				"title": {
+					"selector": "img",
+					"extract": "attribute",
+					"attribute": "alt",
+					"transform": "trim"
+				},
+				"description": {
+					"selector": "img",
+					"extract": "attribute",
+					"attribute": "alt",
+					"transform": "trim"
+				},
+				"url": {
+					"selector": ":scope",
+					"extract": "href"
+				}
+			}
+		},
+		"confidence_score": 4,
+		"risk_profile": {
+			"freshness": "high",
+			"duplication": "medium",
+			"legal": "low",
+			"normalization": "medium",
+			"maintenance": "medium",
+			"moderation": "medium"
+		},
+		"dedupe_strategies": ["composite_key", "url_match", "title_fuzzy"],
+		"attribution_required": true,
+		"attribution_text": "Source: Tribal Funding Registry (Hozhonigo Institute)",
+		"review_required": true,
+		"steward_notes": "Native-led. Modern platform launched 2025. May have API potential—reach out for partnership."
+	},
+	{
+		"name": "NativeHire Job Board",
+		"slug": "nativehire",
+		"description": "Dedicated Native American job board. Division of Southern California Tribal Chairmen's Association.",
+		"source_url": "https://www.nativehire.org/",
+		"homepage_url": "https://www.nativehire.org/",
+		"coils": ["jobs"],
+		"ingestion_method": "html_scrape",
+		"source_category": "nonprofit",
+		"adapter_type": "html_selector",
+		"fetch_cadence": "daily",
+		"adapter_config": {
+			"base_url": "https://www.nativehire.org",
+			"fetchUrl": "https://www.nativehire.org/",
+			"itemSelector": "div.job-spotlight__content",
+			"maxItems": 24,
+			"fieldRules": {
+				"title": {
+					"selector": "a.job-spotlight__title",
+					"extract": "text",
+					"transform": "trim"
+				},
+				"url": {
+					"selector": "a.job-spotlight__title",
+					"extract": "href"
+				},
+				"location": {
+					"selector": ".job_listing-location a",
+					"extract": "text",
+					"transform": "trim"
+				},
+				"description": {
+					"selector": "p:last-of-type",
+					"extract": "text",
+					"transform": "trim"
+				}
+			}
+		},
+		"confidence_score": 4,
+		"risk_profile": {
+			"freshness": "high",
+			"duplication": "medium",
+			"legal": "low",
+			"normalization": "medium",
+			"maintenance": "medium",
+			"moderation": "medium"
+		},
+		"dedupe_strategies": ["composite_key", "url_match", "title_fuzzy"],
+		"attribution_required": true,
+		"attribution_text": "Source: NativeHire",
+		"review_required": true,
+		"steward_notes": "Key Indigenous job board. Explore potential partnership for data feed."
+	},
+	{
+		"name": "Yurok Tribe Careers (GovernmentJobs)",
+		"slug": "yurok-careers",
+		"description": "California's largest tribe career portal. Hosted on GovernmentJobs.com structured platform.",
+		"source_url": "https://www.governmentjobs.com/careers/yuroktribe",
+		"homepage_url": "https://www.yuroktribe.org/",
+		"coils": ["jobs"],
+		"ingestion_method": "html_scrape",
+		"source_category": "government_tribal",
+		"adapter_type": "html_selector",
+		"fetch_cadence": "daily",
+		"adapter_config": {
+			"base_url": "https://www.governmentjobs.com",
+			"itemSelector": "tr:has(a[aria-label*='Job Details']), tr:has(a[href*='/careers/yuroktribe/classspecs'])",
+			"maxItems": 25,
+			"fieldRules": {
+				"title": {
+					"selector": "a[href*='/careers/yuroktribe/classspecs'], a[aria-label*='Job Details']",
+					"extract": "text",
+					"transform": "trim"
+				},
+				"url": {
+					"selector": "a[href*='/careers/yuroktribe/classspecs'], a[aria-label*='Job Details']",
+					"extract": "href"
+				},
+				"description": {
+					"selector": ":scope",
+					"extract": "text",
+					"transform": "trim"
+				}
+			}
+		},
+		"confidence_score": 4,
+		"risk_profile": {
+			"freshness": "high",
+			"duplication": "low",
+			"legal": "low",
+			"normalization": "low",
+			"maintenance": "low",
+			"moderation": "low"
+		},
+		"dedupe_strategies": ["composite_key", "url_match", "title_fuzzy"],
+		"attribution_required": true,
+		"attribution_text": "Source: Yurok Tribe",
+		"review_required": true,
+		"steward_notes": "GovernmentJobs.com platform = structured, stable HTML. Indian hiring preference. Good first CA tribal careers adapter."
+	},
+	{
+		"name": "CRIHB Careers — CA Rural Indian Health Board",
+		"slug": "crihb-careers",
+		"description": "Consortium of 20 California tribal health programs. Centralized job listings portal.",
+		"source_url": "https://crihb.org/about/careers/jobs/",
+		"homepage_url": "https://crihb.org/",
+		"coils": ["jobs"],
+		"ingestion_method": "html_scrape",
+		"source_category": "nonprofit",
+		"adapter_type": "html_selector",
+		"fetch_cadence": "daily",
+		"fetch_url": "https://crihb.org/careers/",
+		"adapter_config": {
+			"base_url": "https://crihb.org",
+			"itemSelector": "li:has(a[href*='crihb.org/careers'])",
+			"maxItems": 20,
+			"fieldRules": {
+				"title": {
+					"selector": "a[href*='crihb.org/careers']",
+					"extract": "text",
+					"transform": "trim"
+				},
+				"url": {
+					"selector": "a[href*='crihb.org/careers']",
+					"extract": "href"
+				},
+				"description": {
+					"selector": ":scope",
+					"extract": "text",
+					"transform": "trim"
+				}
+			}
+		},
+		"confidence_score": 4,
+		"risk_profile": {
+			"freshness": "high",
+			"duplication": "low",
+			"legal": "low",
+			"normalization": "medium",
+			"maintenance": "medium",
+			"moderation": "low"
+		},
+		"dedupe_strategies": ["composite_key", "url_match", "title_fuzzy"],
+		"attribution_required": true,
+		"attribution_text": "Source: California Rural Indian Health Board",
+		"review_required": true,
+		"steward_notes": "Key CA healthcare jobs source. 20 tribal health programs statewide. Also good Red Pages source via clinic finder."
+	},
+	{
+		"name": "California Grants Portal — Tribal Programs",
+		"slug": "ca-grants-portal-tribal",
+		"description": "California state grants portal with tribal-specific programs. RSS and email alerts available.",
+		"source_url": "https://www.grants.ca.gov/",
+		"homepage_url": "https://www.grants.ca.gov/",
+		"coils": ["funding"],
+		"ingestion_method": "rss_import",
+		"source_category": "government_state",
+		"adapter_type": "rss_generic",
+		"fetch_cadence": "weekly",
+		"fetch_url": "https://www.grants.ca.gov/feed/",
+		"adapter_config": {
+			"maxItems": 50,
+			"fieldMap": {
+				"title": "title",
+				"description": ["content:encoded", "description"],
+				"url": "link",
+				"published_at": "pubDate",
+				"guid": "guid",
+				"source_item_id": "guid",
+				"categories": "category"
+			}
+		},
+		"confidence_score": 4,
+		"risk_profile": {
+			"freshness": "high",
+			"duplication": "low",
+			"legal": "low",
+			"normalization": "medium",
+			"maintenance": "low",
+			"moderation": "medium"
+		},
+		"dedupe_strategies": ["url_match", "content_hash", "title_fuzzy"],
+		"attribution_required": true,
+		"attribution_text": "Source: California Grants Portal",
+		"review_required": true,
+		"steward_notes": "State portal with RSS/email alerts. Filter for tribal keywords. Includes Listos, TNBS, Wildfire Resilience programs."
+	},
+	{
+		"name": "CA Gambling Control Commission — Tribal Casinos",
+		"slug": "ca-tribal-casino-directory",
+		"description": "Official directory of 63 California tribes operating casinos. Printable maps and structured lists.",
+		"source_url": "https://www.cgcc.ca.gov/?pageID=tribalinfo",
+		"homepage_url": "https://www.cgcc.ca.gov/",
+		"coils": ["red_pages"],
+		"ingestion_method": "directory_sync",
+		"source_category": "government_state",
+		"adapter_type": "html_selector",
+		"fetch_cadence": "monthly",
+		"adapter_config": {
+			"base_url": "https://www.cgcc.ca.gov",
+			"itemSelector": "#main_content .list_style_1 a",
+			"maxItems": 20,
+			"fieldRules": {
+				"title": {
+					"selector": ":scope",
+					"extract": "text",
+					"transform": "trim"
+				},
+				"url": {
+					"selector": ":scope",
+					"extract": "href"
+				},
+				"description": {
+					"selector": ":scope",
+					"extract": "text",
+					"transform": "trim"
+				}
+			}
+		},
+		"confidence_score": 5,
+		"risk_profile": {
+			"freshness": "low",
+			"duplication": "low",
+			"legal": "low",
+			"normalization": "low",
+			"maintenance": "low",
+			"moderation": "low"
+		},
+		"dedupe_strategies": ["external_id", "url_match", "composite_key"],
+		"attribution_required": true,
+		"attribution_text": "Source: California Gambling Control Commission",
+		"review_required": false,
+		"auto_approve": true,
+		"steward_notes": "Official state data. 63 tribes with casino operations. Structured list. Good auto-approve candidate."
+	},
+	{
+		"name": "American Indian Reporter",
+		"slug": "american-indian-reporter",
+		"description": "Dedicated California tribal news service covering Northern, Central, and Southern CA.",
+		"source_url": "https://americanindianreporter.com/",
+		"homepage_url": "https://americanindianreporter.com/",
+		"coils": ["events"],
+		"ingestion_method": "rss_import",
+		"source_category": "news_media",
+		"adapter_type": "rss_generic",
+		"fetch_cadence": "daily",
+		"fetch_url": "https://americanindianreporter.com/?feed=rss2",
+		"adapter_config": {
+			"maxItems": 40,
+			"fieldMap": {
+				"title": "title",
+				"description": ["content:encoded", "description"],
+				"url": "link",
+				"published_at": "pubDate",
+				"guid": "guid",
+				"source_item_id": "guid",
+				"categories": "category"
+			}
+		},
+		"confidence_score": 4,
+		"risk_profile": {
+			"freshness": "high",
+			"duplication": "medium",
+			"legal": "low",
+			"normalization": "high",
+			"maintenance": "medium",
+			"moderation": "medium"
+		},
+		"dedupe_strategies": ["url_match", "content_hash", "title_fuzzy"],
+		"attribution_required": true,
+		"attribution_text": "Source: American Indian Reporter",
+		"review_required": true,
+		"steward_notes": "CA-specific news source. Event mentions within news articles need newsletter_triage approach. Check for RSS feed."
+	}
+]

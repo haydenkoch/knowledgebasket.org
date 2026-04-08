@@ -3,7 +3,7 @@ builder = "RAILPACK"
 buildCommand = "pnpm build"
 
 [deploy]
-preDeployCommand = "pnpm db:deploy"
+preDeployCommand = "pnpm db:migrate"
 startCommand = "pnpm start:app"
 healthcheckPath = "/api/health"
 healthcheckTimeout = 120

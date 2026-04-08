@@ -109,51 +109,119 @@ async function seedEvents(organizationId) {
 }
 
 async function seedFunding(organizationId) {
-	await sql`
-		INSERT INTO funding (
-			slug,
-			title,
-			description,
-			funder_name,
-			organization_id,
-			funding_type,
-			application_status,
-			deadline,
-			region,
-			apply_url,
-			status,
-			source,
-			published_at
-		) VALUES (
-			${'kb-ci-tribal-resilience-grant'},
-			${'Tribal Resilience Grant'},
-			${'Support for tribal climate resilience, emergency preparedness, and local infrastructure planning.'},
-			${'Knowledge Basket CI Collective'},
-			${organizationId},
-			${'grant'},
-			${'open'},
-			${new Date('2026-08-15T23:59:59.000Z')},
-			${'National'},
-			${'https://example.com/funding/tribal-resilience-grant'},
-			${'published'},
-			${'seed:ci'},
-			${new Date('2026-01-15T00:00:00.000Z')}
-		)
-		ON CONFLICT (slug) DO UPDATE SET
-			title = EXCLUDED.title,
-			description = EXCLUDED.description,
-			funder_name = EXCLUDED.funder_name,
-			organization_id = EXCLUDED.organization_id,
-			funding_type = EXCLUDED.funding_type,
-			application_status = EXCLUDED.application_status,
-			deadline = EXCLUDED.deadline,
-			region = EXCLUDED.region,
-			apply_url = EXCLUDED.apply_url,
-			status = EXCLUDED.status,
-			source = EXCLUDED.source,
-			published_at = EXCLUDED.published_at,
-			updated_at = NOW()
-	`;
+	const fundingFixtures = [
+		{
+			slug: 'kb-ci-tribal-resilience-grant',
+			title: 'Tribal Resilience Grant',
+			description:
+				'Support for tribal climate resilience, emergency preparedness, and local infrastructure planning.',
+			deadline: new Date('2026-08-15T23:59:59.000Z'),
+			region: 'National',
+			applyUrl: 'https://example.com/funding/tribal-resilience-grant'
+		},
+		{
+			slug: 'kb-ci-language-revitalization-fund',
+			title: 'Language Revitalization Fund',
+			description:
+				'Flexible funding for Indigenous language apprenticeships, curriculum design, and archive access.',
+			deadline: new Date('2026-08-18T23:59:59.000Z'),
+			region: 'National',
+			applyUrl: 'https://example.com/funding/language-revitalization-fund'
+		},
+		{
+			slug: 'kb-ci-food-sovereignty-microgrant',
+			title: 'Food Sovereignty Microgrant',
+			description:
+				'Seed support for tribal growers, community freezers, and Indigenous-led food distribution projects.',
+			deadline: new Date('2026-08-20T23:59:59.000Z'),
+			region: 'Northwest',
+			applyUrl: 'https://example.com/funding/food-sovereignty-microgrant'
+		},
+		{
+			slug: 'kb-ci-digital-archives-award',
+			title: 'Digital Archives Award',
+			description:
+				'Project support for digitization, metadata cleanup, and community-controlled archival access.',
+			deadline: new Date('2026-08-22T23:59:59.000Z'),
+			region: 'National',
+			applyUrl: 'https://example.com/funding/digital-archives-award'
+		},
+		{
+			slug: 'kb-ci-youth-leadership-fellowship',
+			title: 'Youth Leadership Fellowship',
+			description:
+				'Supports stipends, travel, and facilitation for Indigenous youth civic and cultural leadership cohorts.',
+			deadline: new Date('2026-08-24T23:59:59.000Z'),
+			region: 'Southwest',
+			applyUrl: 'https://example.com/funding/youth-leadership-fellowship'
+		},
+		{
+			slug: 'kb-ci-housing-readiness-grant',
+			title: 'Housing Readiness Grant',
+			description:
+				'Planning funds for tribal housing pipeline development, site readiness, and community consultation.',
+			deadline: new Date('2026-08-26T23:59:59.000Z'),
+			region: 'National',
+			applyUrl: 'https://example.com/funding/housing-readiness-grant'
+		},
+		{
+			slug: 'kb-ci-community-health-innovation-award',
+			title: 'Community Health Innovation Award',
+			description:
+				'Supports Indigenous-led health coordination, telehealth access, and culturally grounded prevention work.',
+			deadline: new Date('2026-08-28T23:59:59.000Z'),
+			region: 'Great Plains',
+			applyUrl: 'https://example.com/funding/community-health-innovation-award'
+		}
+	];
+
+	for (const item of fundingFixtures) {
+		await sql`
+			INSERT INTO funding (
+				slug,
+				title,
+				description,
+				funder_name,
+				organization_id,
+				funding_type,
+				application_status,
+				deadline,
+				region,
+				apply_url,
+				status,
+				source,
+				published_at
+			) VALUES (
+				${item.slug},
+				${item.title},
+				${item.description},
+				${'Knowledge Basket CI Collective'},
+				${organizationId},
+				${'grant'},
+				${'open'},
+				${item.deadline},
+				${item.region},
+				${item.applyUrl},
+				${'published'},
+				${'seed:ci'},
+				${new Date('2026-01-15T00:00:00.000Z')}
+			)
+			ON CONFLICT (slug) DO UPDATE SET
+				title = EXCLUDED.title,
+				description = EXCLUDED.description,
+				funder_name = EXCLUDED.funder_name,
+				organization_id = EXCLUDED.organization_id,
+				funding_type = EXCLUDED.funding_type,
+				application_status = EXCLUDED.application_status,
+				deadline = EXCLUDED.deadline,
+				region = EXCLUDED.region,
+				apply_url = EXCLUDED.apply_url,
+				status = EXCLUDED.status,
+				source = EXCLUDED.source,
+				published_at = EXCLUDED.published_at,
+				updated_at = NOW()
+		`;
+	}
 }
 
 async function seedJobs(organizationId) {

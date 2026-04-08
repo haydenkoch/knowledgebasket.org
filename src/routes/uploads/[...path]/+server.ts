@@ -41,9 +41,7 @@ export async function GET({ params }) {
 					? String(object.contentLength)
 					: String(object.body.length),
 				'Cache-Control': 'public, max-age=31536000, immutable',
-				...(contentType.startsWith('application/pdf')
-					? { 'Content-Disposition': 'inline' }
-					: {}),
+				...(contentType.startsWith('application/pdf') ? { 'Content-Disposition': 'inline' } : {}),
 				...(object.lastModified ? { 'Last-Modified': object.lastModified.toUTCString() } : {}),
 				...(object.etag ? { ETag: object.etag } : {})
 			}

@@ -16,12 +16,14 @@ Goal: restructure both pages into a `main + sticky sidebar` layout that mirrors 
 ## Critical files
 
 **To modify**
+
 - `src/routes/o/[slug]/+page.svelte` — restructure layout, add sidebar, tabs, map
 - `src/routes/o/[slug]/+page.server.ts` — add `mapboxToken` to return
 - `src/routes/v/[slug]/+page.svelte` — restructure layout, add sidebar, hero image, map
 - `src/routes/v/[slug]/+page.server.ts` — add `mapboxToken` to return
 
 **To reuse (do not modify)**
+
 - `src/lib/components/molecules/LocationMap.svelte` — already supports `markers` array for multi-point display, geocoding fallback, accent colors
 - `src/lib/components/ui/tabs/` — shadcn-svelte Tabs for grouping related content
 - `src/lib/components/ui/breadcrumb/`, `button/`, `textarea/`
@@ -38,8 +40,8 @@ Both `+page.server.ts` files gain the same line other detail loaders already use
 import { env } from '$env/dynamic/private';
 // ...
 return {
-  // existing fields...
-  mapboxToken: env.MAPBOX_ACCESS_TOKEN ?? env.MAPBOX_TOKEN ?? null
+	// existing fields...
+	mapboxToken: env.MAPBOX_ACCESS_TOKEN ?? env.MAPBOX_TOKEN ?? null
 };
 ```
 
@@ -77,6 +79,7 @@ Back to Knowledge Basket
 ```
 
 **Key moves**
+
 - **Stats grid** → flattened to a single horizontal strip at the bottom of the hero card (6 pill-style cells with count + label). Frees the right side of the hero entirely.
 - **Organization access block** (follow button / claim form / manage link / form error / role chip) → moves out of the hero into its own sidebar card labeled "Organization access". Same form actions (`?/toggleFollow`, `?/createClaim`, `?/cancelClaim`) — no server changes.
 - **Events** → stay as a prominent stacked section at the top of the main column (they're the most time-sensitive collection and deserve visibility without a click).
@@ -87,6 +90,7 @@ Back to Knowledge Basket
 **Accent color**: `var(--teal)` (consistent with events).
 
 **`LocationMap` props for `/o`**
+
 ```svelte
 <LocationMap
   lat={organization.lat}
@@ -145,6 +149,7 @@ Back
 ```
 
 **Key moves**
+
 - **Hero image**: if `venue.imageUrl` exists, render a full-bleed rounded banner at the top of the hero card with a soft dark gradient and title overlaid (mirrors the events hero treatment, simpler version). Fall back to the current text-only card header.
 - **Managed-by organization card** → moves from the right column of the hero into the sidebar below the map.
 - **Stats (Events here / Linked content)** → move to sidebar as a compact strip under the org card.
@@ -152,17 +157,18 @@ Back
 - **Remove duplicated Google Maps link** — keep only one "Directions" pill in the hero; the `LocationMap` already provides its own directions button via `secondaryActionHref`/built-in Google Maps link.
 
 **`LocationMap` props for `/v`**
+
 ```svelte
 <LocationMap
-  lat={venue.lat}
-  lng={venue.lng}
-  label={venue.name}
-  address={addressLine || undefined}
-  searchText={addressLine || venue.name}
-  token={data.mapboxToken}
-  accent="var(--teal)"
-  eyebrow="Venue location"
-  height={260}
+	lat={venue.lat}
+	lng={venue.lng}
+	label={venue.name}
+	address={addressLine || undefined}
+	searchText={addressLine || venue.name}
+	token={data.mapboxToken}
+	accent="var(--teal)"
+	eyebrow="Venue location"
+	height={260}
 />
 ```
 
@@ -172,26 +178,28 @@ Both pages use the same pattern for related content:
 
 ```svelte
 <script>
-  const tabs = $derived(
-    [
-      { value: 'funding', label: 'Funding', count: collections.funding.length },
-      { value: 'jobs', label: 'Jobs', count: collections.jobs.length },
-      { value: 'redpages', label: 'Red Pages', count: collections.redpages.length },
-      { value: 'toolbox', label: 'Toolbox', count: collections.toolbox.length },
-      { value: 'venues', label: 'Venues', count: collections.venues?.length ?? 0 }
-    ].filter((t) => t.count > 0)
-  );
-  let activeTab = $state(tabs[0]?.value ?? 'funding');
+	const tabs = $derived(
+		[
+			{ value: 'funding', label: 'Funding', count: collections.funding.length },
+			{ value: 'jobs', label: 'Jobs', count: collections.jobs.length },
+			{ value: 'redpages', label: 'Red Pages', count: collections.redpages.length },
+			{ value: 'toolbox', label: 'Toolbox', count: collections.toolbox.length },
+			{ value: 'venues', label: 'Venues', count: collections.venues?.length ?? 0 }
+		].filter((t) => t.count > 0)
+	);
+	let activeTab = $state(tabs[0]?.value ?? 'funding');
 </script>
 
 <Tabs.Root bind:value={activeTab}>
-  <Tabs.List>
-    {#each tabs as t}
-      <Tabs.Trigger value={t.value}>{t.label} <span class="ml-1.5 text-xs opacity-60">{t.count}</span></Tabs.Trigger>
-    {/each}
-  </Tabs.List>
-  <Tabs.Content value="funding">…existing FundingCard grid…</Tabs.Content>
-  <!-- etc. -->
+	<Tabs.List>
+		{#each tabs as t}
+			<Tabs.Trigger value={t.value}
+				>{t.label} <span class="ml-1.5 text-xs opacity-60">{t.count}</span></Tabs.Trigger
+			>
+		{/each}
+	</Tabs.List>
+	<Tabs.Content value="funding">…existing FundingCard grid…</Tabs.Content>
+	<!-- etc. -->
 </Tabs.Root>
 ```
 

@@ -1,10 +1,40 @@
 import { spawn, type ChildProcess } from 'node:child_process';
+import { existsSync } from 'node:fs';
 import net from 'node:net';
 import { setTimeout as delay } from 'node:timers/promises';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
+const host = '127.0.0.1';
+
+type ServerCommand = {
+	command: string;
+	args: string[];
+};
+
+function getPnpmExecutable() {
+	return process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm';
+}
+
+function getServerCommand(port: number): ServerCommand {
+	if (process.env.CI_USE_BUILD_OUTPUT === '1') {
+		const buildEntry = path.join(repoRoot, 'build', 'index.js');
+		if (!existsSync(buildEntry)) {
+			throw new Error(`CI build output is enabled, but ${buildEntry} does not exist.`);
+		}
+
+		return {
+			command: process.execPath,
+			args: [buildEntry]
+		};
+	}
+
+	return {
+		command: getPnpmExecutable(),
+		args: ['exec', 'vite', 'dev', '--host', host, '--port', String(port), '--strictPort']
+	};
+}
 
 export async function startDevServer(
 	port: number,
@@ -15,21 +45,20 @@ export async function startDevServer(
 	stop: () => Promise<void>;
 }> {
 	const assignedPort = await findAvailablePort(port);
-	const baseUrl = `http://127.0.0.1:${assignedPort}`;
-	const child = spawn(
-		'pnpm',
-		['exec', 'vite', 'dev', '--host', '127.0.0.1', '--port', String(assignedPort), '--strictPort'],
-		{
-			cwd: repoRoot,
-			env: {
-				...process.env,
-				ORIGIN: baseUrl,
-				PUBLIC_ASSET_BASE_URL: `${baseUrl}/assets`,
-				...envOverrides
-			},
-			stdio: ['ignore', 'pipe', 'pipe']
-		}
-	);
+	const baseUrl = `http://${host}:${assignedPort}`;
+	const { command, args } = getServerCommand(assignedPort);
+	const child = spawn(command, args, {
+		cwd: repoRoot,
+		env: {
+			...process.env,
+			HOST: host,
+			PORT: String(assignedPort),
+			ORIGIN: baseUrl,
+			PUBLIC_ASSET_BASE_URL: `${baseUrl}/assets`,
+			...envOverrides
+		},
+		stdio: ['ignore', 'pipe', 'pipe']
+	});
 
 	let output = '';
 	child.stdout.on('data', (chunk) => {

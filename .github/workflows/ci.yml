@@ -207,8 +207,8 @@ jobs:
           throw new Error('Timed out waiting for Postgres');
           EOF
 
-      - name: Apply database schema
-        run: pnpm db:deploy
+      - name: Bootstrap ephemeral database schema
+        run: pnpm db:push --force
 
       - name: Seed database
         run: pnpm db:seed:ci
@@ -317,8 +317,8 @@ jobs:
           }
           EOF
 
-      - name: Apply database schema
-        run: pnpm db:deploy
+      - name: Bootstrap ephemeral database schema
+        run: pnpm db:push --force
 
       - name: Seed database
         run: pnpm db:seed:ci
@@ -401,8 +401,8 @@ jobs:
           throw new Error('Timed out waiting for Postgres');
           EOF
 
-      - name: Apply database schema
-        run: pnpm db:deploy
+      - name: Bootstrap ephemeral database schema
+        run: pnpm db:push --force
 
       - name: Seed database
         run: pnpm db:seed:ci
@@ -501,8 +501,8 @@ jobs:
           throw new Error('Timed out waiting for Postgres');
           EOF
 
-      - name: Apply database schema
-        run: pnpm db:deploy
+      - name: Bootstrap ephemeral database schema
+        run: pnpm db:push --force
 
       - name: Seed database
         run: pnpm db:seed:ci

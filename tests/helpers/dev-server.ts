@@ -47,10 +47,18 @@ export async function startDevServer(
 	const assignedPort = await findAvailablePort(port);
 	const baseUrl = `http://${host}:${assignedPort}`;
 	const { command, args } = getServerCommand(assignedPort);
+	const ciBuildEnv =
+		process.env.CI_USE_BUILD_OUTPUT === '1'
+			? {
+					SKIP_PRODUCTION_RUNTIME_CONFIG_ASSERTION:
+						process.env.SKIP_PRODUCTION_RUNTIME_CONFIG_ASSERTION ?? '1'
+				}
+			: {};
 	const child = spawn(command, args, {
 		cwd: repoRoot,
 		env: {
 			...process.env,
+			...ciBuildEnv,
 			HOST: host,
 			PORT: String(assignedPort),
 			ORIGIN: baseUrl,

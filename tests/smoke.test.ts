@@ -35,7 +35,9 @@ async function signInAndGetCookie(baseUrl: string, email: string, password: stri
 		method: 'POST',
 		redirect: 'manual',
 		headers: {
-			'content-type': 'application/x-www-form-urlencoded'
+			'content-type': 'application/x-www-form-urlencoded',
+			Origin: baseUrl,
+			Referer: `${baseUrl}/auth/login`
 		},
 		body: new URLSearchParams({ email, password })
 	});

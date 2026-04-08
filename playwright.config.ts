@@ -7,6 +7,12 @@ const useBuildOutput = process.env.CI_USE_BUILD_OUTPUT === '1';
 const webServerCommand = useBuildOutput
 	? `${process.execPath} build/index.js`
 	: `pnpm exec vite dev --host ${host} --port ${port} --strictPort`;
+const ciBuildEnv = useBuildOutput
+	? {
+			SKIP_PRODUCTION_RUNTIME_CONFIG_ASSERTION:
+				process.env.SKIP_PRODUCTION_RUNTIME_CONFIG_ASSERTION ?? '1'
+		}
+	: {};
 
 export default defineConfig({
 	testDir: './e2e',
@@ -28,6 +34,7 @@ export default defineConfig({
 		reuseExistingServer: !process.env.CI,
 		env: {
 			...process.env,
+			...ciBuildEnv,
 			HOST: host,
 			PORT: String(port),
 			ORIGIN: baseURL,

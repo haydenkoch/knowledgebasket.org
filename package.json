@@ -13,6 +13,7 @@
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
 		"lint": "prettier --check . && eslint .",
+		"lint:ci": "node scripts/run-changed-lint-ci.mjs",
 		"test": "vitest run --maxWorkers=1",
 		"test:unit:ci": "node scripts/run-vitest-ci.mjs unit",
 		"test:http:ci": "node scripts/run-vitest-ci.mjs http",

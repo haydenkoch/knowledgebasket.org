@@ -323,7 +323,7 @@
 			</div>
 		</div>
 
-		<Command.List class="max-h-[72vh] px-2 py-2">
+		<Command.List class="max-h-[60vh] px-2 py-2">
 			{#if query.trim().length < MIN_SEARCH_QUERY_LENGTH}
 				<SearchBrowseMenu
 					{query}
@@ -424,7 +424,7 @@
 		}
 	>
 		<Drawer.Content
-			class="max-h-[88vh] overflow-hidden border-[color:var(--rule)] bg-[var(--background)] p-0 shadow-[0_30px_90px_rgba(10,18,28,0.28)]"
+			class="max-h-[70vh] overflow-hidden border-[color:var(--rule)] bg-[var(--background)] p-0 shadow-[0_30px_90px_rgba(10,18,28,0.28)]"
 		>
 			<Drawer.Header class="sr-only">
 				<Drawer.DrawerTitle>Search Knowledge Basket</Drawer.DrawerTitle>

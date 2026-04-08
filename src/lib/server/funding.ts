@@ -7,6 +7,7 @@ import { funding as fundingTable, organizations, user as userTable } from '$lib/
 import { indexDocument, removeDocument } from '$lib/server/meilisearch';
 import { getSourceProvenanceByPublishedRecord } from '$lib/server/source-provenance';
 import { sanitizeRichTextHtml } from '$lib/server/sanitize-rich-text';
+import { resolveAbsoluteUrl } from '$lib/config/public-assets';
 import type { FundingItem } from '$lib/data/kb';
 import type { FundingSearchDoc } from '$lib/server/meilisearch';
 import { stripHtml } from '$lib/utils/format';
@@ -24,6 +25,11 @@ function rowToItem(
 		submitterEmail?: string;
 	}
 ): FundingItem {
+	const imageUrl = resolveAbsoluteUrl(row.imageUrl) ?? undefined;
+	const imageUrls = Array.isArray(row.imageUrls)
+		? (row.imageUrls as string[]).map((url) => resolveAbsoluteUrl(url) ?? url)
+		: [];
+
 	return {
 		id: row.id,
 		slug: row.slug,
@@ -60,8 +66,8 @@ function rowToItem(
 		contactEmail: row.contactEmail ?? undefined,
 		contactName: row.contactName ?? undefined,
 		contactPhone: row.contactPhone ?? undefined,
-		imageUrl: row.imageUrl ?? undefined,
-		imageUrls: (row.imageUrls as string[] | null) ?? [],
+		imageUrl,
+		imageUrls,
 		status: row.status,
 		source: row.source,
 		featured: row.featured ?? undefined,

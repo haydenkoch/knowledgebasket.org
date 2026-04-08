@@ -9,6 +9,7 @@ import { guardAdminRequest } from '$lib/server/access-control';
 import { captureServerError } from '$lib/server/observability';
 import { assertProductionRuntimeConfig } from '$lib/server/runtime-config';
 import { getServerRobotsDirective } from '$lib/server/seo';
+import { POSTHOG_DEFAULT_HOST } from '$lib/insights/catalog';
 import { svelteKitHandler } from 'better-auth/svelte-kit';
 
 function telemetryOrigin(value: string | undefined): string | null {
@@ -19,6 +20,25 @@ function telemetryOrigin(value: string | undefined): string | null {
 	} catch {
 		return null;
 	}
+}
+
+function posthogAssetOrigin(value: string | undefined): string | null {
+	const origin = telemetryOrigin(value);
+	if (!origin) return null;
+
+	try {
+		const parsed = new URL(origin);
+		const match = parsed.hostname.match(/^([a-z0-9-]+?)(?:-assets)?\.i\.posthog\.com$/i);
+		if (!match) return null;
+		parsed.hostname = `${match[1]}-assets.i.posthog.com`;
+		return parsed.origin;
+	} catch {
+		return null;
+	}
+}
+
+function pushIfMissing(target: string[], value: string | null): void {
+	if (value && !target.includes(value)) target.push(value);
 }
 
 if (!building && !dev) {
@@ -44,17 +64,20 @@ function buildContentSecurityPolicy(pathname?: string, nonce?: string): string {
 		'https://events.mapbox.com'
 	];
 	const imgSrc = ["'self'", 'data:', 'blob:', 'https:'];
+	const posthogHost =
+		publicEnv.PUBLIC_POSTHOG_HOST?.trim() ||
+		(publicEnv.PUBLIC_POSTHOG_KEY?.trim() ? POSTHOG_DEFAULT_HOST : undefined);
 
 	const sentryOrigin = telemetryOrigin(publicEnv.PUBLIC_SENTRY_DSN);
-	if (sentryOrigin) connectSrc.push(sentryOrigin);
+	pushIfMissing(connectSrc, sentryOrigin);
 
-	const posthogOrigin = telemetryOrigin(publicEnv.PUBLIC_POSTHOG_HOST);
-	if (posthogOrigin) connectSrc.push(posthogOrigin);
+	const posthogOrigin = telemetryOrigin(posthogHost);
+	const posthogAssetsOrigin = posthogAssetOrigin(posthogHost);
+	pushIfMissing(connectSrc, posthogOrigin);
+	pushIfMissing(connectSrc, posthogAssetsOrigin);
 
 	const publicAssetOrigin = telemetryOrigin(publicEnv.PUBLIC_ASSET_BASE_URL);
-	if (publicAssetOrigin && !imgSrc.includes(publicAssetOrigin)) {
-		imgSrc.push(publicAssetOrigin);
-	}
+	pushIfMissing(imgSrc, publicAssetOrigin);
 
 	if (dev) {
 		connectSrc.push('ws:', 'wss:', 'http://localhost:*', 'http://127.0.0.1:*', 'http://0.0.0.0:*');
@@ -64,6 +87,7 @@ function buildContentSecurityPolicy(pathname?: string, nonce?: string): string {
 	if (nonce) {
 		scriptSrc.push(`'nonce-${nonce}'`);
 	}
+	pushIfMissing(scriptSrc, posthogAssetsOrigin);
 	if (dev) {
 		scriptSrc.push("'unsafe-inline'");
 		scriptSrc.push("'unsafe-eval'");

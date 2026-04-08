@@ -28,7 +28,7 @@
 		bind:ref
 		data-slot="drawer-content"
 		class={cn(
-			'fixed inset-x-0 bottom-0 z-50 mt-24 flex max-h-[90vh] flex-col rounded-t-[1.35rem] border bg-background shadow-lg outline-none',
+			'fixed inset-x-0 bottom-0 z-50 mt-24 flex max-h-[70vh] flex-col rounded-t-[1.35rem] border bg-background shadow-lg outline-none',
 			className
 		)}
 		{...restProps}

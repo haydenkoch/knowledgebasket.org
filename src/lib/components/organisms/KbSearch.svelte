@@ -235,7 +235,7 @@
 						onkeydown={onKeydown}
 						aria-controls={resultsListId}
 						aria-expanded={showPanel}
-						class="w-full rounded-[0.5rem] border border-input bg-background py-3 pr-26 pl-10 text-sm shadow-[0_18px_45px_rgba(15,23,42,0.12)] focus:ring-2 focus:ring-ring focus:outline-none sm:pr-32 md:pl-[10.5rem] {variant ===
+						class="w-full rounded-[0.5rem] border border-input bg-background py-3 pr-26 pl-10 text-base shadow-[0_18px_45px_rgba(15,23,42,0.12)] focus:ring-2 focus:ring-ring focus:outline-none sm:pr-32 md:pl-[10.5rem] md:text-sm {variant ===
 						'light'
 							? 'bg-white/90'
 							: ''}"

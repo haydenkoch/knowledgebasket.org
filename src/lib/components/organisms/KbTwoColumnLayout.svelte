@@ -163,7 +163,7 @@
 		font-weight: 700;
 	}
 	:global(.kb-two-col__mobile-sheet) {
-		max-height: min(88vh, 48rem);
+		max-height: min(70vh, 48rem);
 		border-top-left-radius: 1.25rem;
 		border-top-right-radius: 1.25rem;
 	}

@@ -30,7 +30,11 @@ const fixturePath = path.resolve(
 	'smithsonian-sample.ics'
 );
 const seedSourcesPath = [
-	path.resolve(path.dirname(fileURLToPath(import.meta.url)), 'fixtures', 'automated-seed-sources.json'),
+	path.resolve(
+		path.dirname(fileURLToPath(import.meta.url)),
+		'fixtures',
+		'automated-seed-sources.json'
+	),
 	path.resolve(process.cwd(), 'source-ops', 'data', 'seed-sources.json'),
 	path.resolve(process.cwd(), '..', 'source-ops', 'data', 'seed-sources.json'),
 	path.resolve(process.cwd(), '..', 'kb-data', 'source-ops', 'data', 'seed-sources.json'),

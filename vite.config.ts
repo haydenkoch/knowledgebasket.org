@@ -56,6 +56,9 @@ const sentryPlugins = await sentrySvelteKit({
 
 export default defineConfig({
 	plugins: [...sentryPlugins, tailwindcss(), sveltekit(), tinymceSelfHosted()],
+	ssr: {
+		external: ['sharp']
+	},
 	resolve: {
 		dedupe: ['svelte', 'bits-ui']
 	},

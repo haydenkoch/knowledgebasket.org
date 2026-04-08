@@ -1,9 +1,10 @@
 import type { RequestHandler } from './$types';
-import sharp from 'sharp';
+import { createRequire } from 'node:module';
 import { getSeoThemePalette, type SeoTheme } from '$lib/seo/site';
 
 const WIDTH = 1200;
 const HEIGHT = 630;
+const require = createRequire(import.meta.url);
 const ALLOWED_THEMES = new Set<SeoTheme>([
 	'site',
 	'about',
@@ -17,6 +18,12 @@ const ALLOWED_THEMES = new Set<SeoTheme>([
 	'venue',
 	'neutral'
 ]);
+
+type SharpRenderer = typeof import('sharp');
+
+function getSharpRenderer(): SharpRenderer {
+	return require('sharp') as SharpRenderer;
+}
 
 function escapeXml(value: string): string {
 	return value
@@ -184,6 +191,7 @@ export const GET: RequestHandler = async ({ url }) => {
 	);
 	const theme = normalizeTheme(url.searchParams.get('theme'));
 	const svg = buildOgSvg({ title, eyebrow, meta, theme });
+	const sharp = getSharpRenderer();
 	const png = await sharp(Buffer.from(svg)).png().toBuffer();
 
 	return new Response(new Uint8Array(png), {

@@ -271,60 +271,81 @@ async function seedRedPages(organizationId) {
 }
 
 async function seedToolbox(organizationId) {
-	await sql`
-		INSERT INTO toolbox_resources (
-			slug,
-			title,
-			description,
-			body,
-			source_name,
-			organization_id,
-			resource_type,
-			media_type,
-			category,
-			content_mode,
-			external_url,
-			author,
-			publish_date,
-			status,
-			source,
-			published_at
-		) VALUES (
-			${'kb-ci-tribal-funding-toolkit'},
-			${'Tribal Funding Toolkit'},
-			${'Practical guide for tribal grant readiness, documentation, and community review workflows.'},
-			${'A concise toolkit covering tribal funding preparation, document checklists, and storytelling prompts.'},
-			${'Knowledge Basket CI Collective'},
-			${organizationId},
-			${'guide'},
-			${'text/html'},
-			${'Funding'},
-			${'link'},
-			${'https://example.com/toolbox/tribal-funding-toolkit'},
-			${'Knowledge Basket CI Collective'},
-			${new Date('2026-01-10T00:00:00.000Z')},
-			${'published'},
-			${'seed:ci'},
-			${new Date('2026-01-15T00:00:00.000Z')}
-		)
-		ON CONFLICT (slug) DO UPDATE SET
-			title = EXCLUDED.title,
-			description = EXCLUDED.description,
-			body = EXCLUDED.body,
-			source_name = EXCLUDED.source_name,
-			organization_id = EXCLUDED.organization_id,
-			resource_type = EXCLUDED.resource_type,
-			media_type = EXCLUDED.media_type,
-			category = EXCLUDED.category,
-			content_mode = EXCLUDED.content_mode,
-			external_url = EXCLUDED.external_url,
-			author = EXCLUDED.author,
-			publish_date = EXCLUDED.publish_date,
-			status = EXCLUDED.status,
-			source = EXCLUDED.source,
-			published_at = EXCLUDED.published_at,
-			updated_at = NOW()
-	`;
+	const toolboxFixtures = Array.from({ length: 24 }, (_, index) => {
+		const itemNumber = index + 1;
+		const slugSuffix = itemNumber === 1 ? '' : `-${itemNumber}`;
+		const publishDay = String(Math.min(itemNumber, 28)).padStart(2, '0');
+
+		return {
+			slug: `kb-ci-tribal-funding-toolkit${slugSuffix}`,
+			title:
+				itemNumber === 1
+					? 'Tribal Funding Toolkit'
+					: `Tribal Funding Toolkit Library ${itemNumber}`,
+			description: `Practical tribal funding resource ${itemNumber} covering grant readiness, documentation, and community review workflows.`,
+			body: `CI toolbox fixture ${itemNumber} with tribal grant preparation checklists, story prompts, and reviewer notes.`,
+			externalUrl: `https://example.com/toolbox/tribal-funding-toolkit${slugSuffix || '-1'}`,
+			publishDate: new Date(`2026-01-${publishDay}T00:00:00.000Z`),
+			publishedAt: new Date(`2026-02-${publishDay}T00:00:00.000Z`)
+		};
+	});
+
+	for (const fixture of toolboxFixtures) {
+		await sql`
+			INSERT INTO toolbox_resources (
+				slug,
+				title,
+				description,
+				body,
+				source_name,
+				organization_id,
+				resource_type,
+				media_type,
+				category,
+				content_mode,
+				external_url,
+				author,
+				publish_date,
+				status,
+				source,
+				published_at
+			) VALUES (
+				${fixture.slug},
+				${fixture.title},
+				${fixture.description},
+				${fixture.body},
+				${'Knowledge Basket CI Collective'},
+				${organizationId},
+				${'guide'},
+				${'text/html'},
+				${'Funding'},
+				${'link'},
+				${fixture.externalUrl},
+				${'Knowledge Basket CI Collective'},
+				${fixture.publishDate},
+				${'published'},
+				${'seed:ci'},
+				${fixture.publishedAt}
+			)
+			ON CONFLICT (slug) DO UPDATE SET
+				title = EXCLUDED.title,
+				description = EXCLUDED.description,
+				body = EXCLUDED.body,
+				source_name = EXCLUDED.source_name,
+				organization_id = EXCLUDED.organization_id,
+				resource_type = EXCLUDED.resource_type,
+				media_type = EXCLUDED.media_type,
+				category = EXCLUDED.category,
+				content_mode = EXCLUDED.content_mode,
+				external_url = EXCLUDED.external_url,
+				author = EXCLUDED.author,
+				publish_date = EXCLUDED.publish_date,
+				status = EXCLUDED.status,
+				source = EXCLUDED.source,
+				published_at = EXCLUDED.published_at,
+				updated_at = NOW()
+		`;
+	}
 }
 
 async function run() {

@@ -84,6 +84,9 @@ After seeding published content:
 ## Migration parity
 
 - Apply the latest Drizzle migrations before launch and after every deployment that adds schema changes.
+- Persistent environments such as staging and production must use committed migrations, not schema pushes.
+- CI currently uses a throwaway database bootstrap via `pnpm db:push --force` because the historical migration set does not yet recreate every legacy content table from empty state.
+- CI seeds only curated in-repo coil fixtures with `pnpm db:seed:coils`; launch-data and shared source seeds stay out of the GitHub workflow.
 - Verify `GET /api/health` reports schema checks as healthy for:
   - source ops
   - privacy request storage

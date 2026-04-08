@@ -30,13 +30,9 @@ const fixturePath = path.resolve(
 	'smithsonian-sample.ics'
 );
 const seedSourcesPath = path.resolve(
-	process.cwd(),
-	'..',
-	'..',
-	'kb-data',
-	'source-ops',
-	'data',
-	'seed-sources.json'
+	path.dirname(fileURLToPath(import.meta.url)),
+	'fixtures',
+	'automated-seed-sources.json'
 );
 const icsFixture = readFileSync(fixturePath, 'utf8');
 

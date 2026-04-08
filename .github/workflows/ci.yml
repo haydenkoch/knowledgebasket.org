@@ -105,11 +105,11 @@ jobs:
           }
           EOF
 
-      - name: Apply database schema
-        run: pnpm db:deploy
+      - name: Bootstrap ephemeral database schema
+        run: pnpm db:push --force
 
       - name: Seed database
-        run: pnpm db:seed
+        run: pnpm db:seed:coils
 
       - name: Test
         run: pnpm test

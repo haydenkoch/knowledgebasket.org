@@ -99,6 +99,8 @@ Notes:
 - `pnpm db:seed:events` runs the legacy events CSV seed only.
 - `pnpm db:seed:coils` seeds Funding, Red Pages, Jobs, and Toolbox sample content.
 - `pnpm db:seed:sources` seeds the source registry from shared `seed-sources.json` data when that file is present in the linked data repo.
+- The committed migration chain is the required path for persistent environments, but fresh ephemeral databases in CI still bootstrap with `pnpm db:push --force` until the repo has a full historical baseline migration for all content tables.
+- CI seeds only the curated in-repo coil fixtures with `pnpm db:seed:coils`; the broader `pnpm db:seed` launcher is for local launch-data restores and optional shared source seeds.
 - Search indexing uses Meilisearch when configured.
 - Health status for DB, search, object storage, and source ops is exposed at `GET /api/health`.
 - After applying DB migrations, restart the dev server so cached schema-health warnings clear.

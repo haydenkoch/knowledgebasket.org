@@ -54,6 +54,33 @@ Staging should mirror production keys exactly. The values should differ, but the
 - Set `KB_ENVIRONMENT` to `staging` or `production` in each Railway environment.
 - If `ORIGIN` is temporarily omitted, the app can fall back to `RAILWAY_PUBLIC_DOMAIN`, but treat that as a bootstrap convenience rather than the steady-state production setting.
 
+## Delivery baseline
+
+- Branch roles:
+  - `staging` is the protected integration branch and Railway staging source
+  - `main` is production-only
+- Normal work:
+  - branch from `staging` as `feature/*`
+  - merge feature PRs into `staging`
+  - promote `staging` to `main` with a dedicated release PR
+- Hotfixes:
+  - branch from `main` as `hotfix/*`
+  - merge the hotfix into `main`
+  - immediately back-merge the hotfix into `staging`
+- Release PRs should use a Conventional Commit title with a CalVer payload such as `release: promote staging to production (2026.04.08.1)`.
+- `main` and `staging` should block direct pushes, force pushes, and branch deletion.
+
+## Staging isolation
+
+- Staging must be operationally separate from production:
+  - separate Postgres
+  - separate Meilisearch
+  - separate object-storage bucket or prefix
+  - separate optional Redis
+- Staging should stay protected/internal, not publicly indexed.
+- Staging data should come from sanitized snapshots or fixtures only. Do not point staging at a writable production database.
+- Staging should use separate telemetry destinations or strict environment partitioning so staging traffic does not pollute production Sentry triage or PostHog reporting.
+
 ## Health checks
 
 - App/system health:
@@ -133,6 +160,16 @@ Recommended launch habit:
   - unhandled server exceptions reported through Sentry and/or `ERROR_WEBHOOK_URL`
 - Keep one dashboard or saved query per area so on-call review is not dependent on admin UI memory alone.
 - Before GA, verify each alert path reaches a human inbox or paging destination.
+
+## Release checklist
+
+Before promoting `staging` into `main`:
+
+1. Confirm `checks` is green on the release PR.
+2. Verify `GET /api/health` is healthy in staging.
+3. Smoke-test auth, search, uploads/assets, and the admin/source-ops path in staging.
+4. Verify the latest committed migrations have been applied cleanly.
+5. Record a rollback note in the PR before merge.
 
 ## Backups and recovery
 

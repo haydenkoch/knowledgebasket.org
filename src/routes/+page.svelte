@@ -462,15 +462,15 @@
 						</h2>
 					{/if}
 					<div
-						class="grid gap-6"
-						style="grid-template-columns: repeat({section.columns ?? 2}, 1fr)"
+						class="grid grid-cols-1 gap-6 md:[grid-template-columns:var(--kb-container-cols)]"
+						style="--kb-container-cols: repeat({section.columns ?? 2}, minmax(0, 1fr))"
 					>
 						{#each section.children.filter((c) => c.visible) as child (child.id)}
 							{@const childItems = (data.sectionData as Record<string, unknown[]>)[child.id] ?? []}
 							{@const childLayout = resolveSectionLayoutPreset(child)}
 							{@const ChildIcon = coilIcons[child.source]}
 							{@const childColor = coilColors[child.source]}
-							<div>
+							<div class="min-w-0">
 								{#if child.heading}
 									<h3
 										class="mb-3 flex items-center gap-2 font-sans text-[11px] font-bold tracking-[0.08em] text-[var(--mid)] uppercase"

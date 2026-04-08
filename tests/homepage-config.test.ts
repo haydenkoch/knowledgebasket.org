@@ -1,5 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+vi.mock('$env/dynamic/public', () => ({
+	env: {
+		PUBLIC_ASSET_BASE_URL: 'https://assets.example.com/kb-uploads'
+	}
+}));
+
 const { getSetting, setSetting } = vi.hoisted(() => ({
 	getSetting: vi.fn(),
 	setSetting: vi.fn()
@@ -128,6 +134,63 @@ describe('homepage config', () => {
 
 		expect(config.sections[0]?.layoutPreset).toBe('auto');
 		expect(resolveSectionLayoutPreset(config.sections[0]!)).toBe('list');
+	});
+
+	it('normalizes legacy local asset URLs inside stored image sections', async () => {
+		getSetting.mockResolvedValue(
+			JSON.stringify({
+				featured: [],
+				sections: [
+					{
+						id: 'hero-image',
+						source: 'image',
+						visible: true,
+						limit: 1,
+						sortBy: 'published',
+						sortDir: 'desc',
+						futureOnly: false,
+						heading: 'Hero image',
+						imageUrl: 'http://localhost:9000/kb-uploads/homepage/hero.png?version=2#intro',
+						imageAlt: 'Homepage hero'
+					},
+					{
+						id: 'container-1',
+						source: 'container',
+						visible: true,
+						limit: 1,
+						sortBy: 'published',
+						sortDir: 'desc',
+						futureOnly: false,
+						heading: '',
+						columns: 2,
+						children: [
+							{
+								id: 'child-image',
+								source: 'image',
+								visible: true,
+								limit: 1,
+								sortBy: 'published',
+								sortDir: 'desc',
+								futureOnly: false,
+								heading: 'Child image',
+								imageUrl: 'http://localhost:9000/kb-uploads/events/curated/elderberry.png'
+							}
+						]
+					}
+				]
+			})
+		);
+
+		const config = await getHomepageConfig();
+		const imageSection = config.sections.find((section) => section.id === 'hero-image');
+		const container = config.sections.find((section) => section.id === 'container-1');
+
+		expect(imageSection?.imageUrl).toBe(
+			'https://assets.example.com/kb-uploads/homepage/hero.png?version=2#intro'
+		);
+		expect(container?.children?.[0]?.imageUrl).toBe(
+			'https://assets.example.com/kb-uploads/events/curated/elderberry.png'
+		);
 	});
 
 	it('returns a fresh default config each time settings are missing', async () => {

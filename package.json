@@ -30,7 +30,8 @@
 		"db:seed:coils": "node scripts/seed-coils.js",
 		"db:seed:sources": "tsx scripts/seed-sources.ts",
 		"images:process": "node scripts/process-landscape-images.mjs",
-		"images:sync": "node scripts/sync-static-images-to-minio.mjs"
+		"images:sync": "node scripts/sync-static-images-to-minio.mjs",
+		"assets:normalize-legacy": "tsx scripts/normalize-legacy-public-assets.ts"
 	},
 	"devDependencies": {
 		"@axe-core/playwright": "^4.11.1",

@@ -12,6 +12,7 @@ import {
 import { indexDocument, removeDocument } from '$lib/server/meilisearch';
 import { getSourceProvenanceByPublishedRecord } from '$lib/server/source-provenance';
 import { sanitizeRichTextHtml } from '$lib/server/sanitize-rich-text';
+import { resolveAbsoluteUrl } from '$lib/config/public-assets';
 import type { JobItem } from '$lib/data/kb';
 import type { JobSearchDoc } from '$lib/server/meilisearch';
 import { stripHtml } from '$lib/utils/format';
@@ -58,6 +59,11 @@ function rowToItem(
 		submitterEmail?: string;
 	}
 ): JobItem {
+	const imageUrl = resolveAbsoluteUrl(row.imageUrl) ?? undefined;
+	const imageUrls = Array.isArray(row.imageUrls)
+		? (row.imageUrls as string[]).map((url) => resolveAbsoluteUrl(url) ?? url)
+		: [];
+
 	return {
 		id: row.id,
 		slug: row.slug,
@@ -94,8 +100,8 @@ function rowToItem(
 		applicationInstructions: sanitizeRichTextHtml(row.applicationInstructions ?? undefined),
 		indigenousPriority: row.indigenousPriority ?? undefined,
 		tribalPreference: row.tribalPreference ?? undefined,
-		imageUrl: row.imageUrl ?? undefined,
-		imageUrls: (row.imageUrls as string[] | null) ?? [],
+		imageUrl,
+		imageUrls,
 		status: row.status,
 		source: row.source,
 		featured: row.featured ?? undefined,

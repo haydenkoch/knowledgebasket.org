@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 import {
 	buildPublicAssetUrlFromBase,
 	normalizePublicAssetBaseUrl,
-	resolveAbsoluteUrl
+	resolveAbsoluteUrl,
+	rewriteLegacyLocalObjectStorageUrlsInValue
 } from '../src/lib/config/public-assets';
 import {
 	DEFAULT_SIZES_CARD,
@@ -67,6 +68,30 @@ describe('public asset URL helpers', () => {
 				baseUrl: 'https://assets.example.com/kb-uploads'
 			})
 		).toBe('https://assets.example.com/kb-uploads/events/curated/elderberry.png');
+	});
+
+	it('rewrites nested legacy local object storage URLs while preserving query strings and hashes', () => {
+		const result = rewriteLegacyLocalObjectStorageUrlsInValue(
+			{
+				hero: {
+					imageUrl: 'http://localhost:9000/kb-uploads/homepage/hero.png?version=2#intro'
+				},
+				gallery: ['http://localhost:9000/kb-uploads/events/curated/elderberry.png'],
+				untouched: 'https://knowledgebasket.org'
+			},
+			{
+				baseUrl: 'https://assets.example.com/kb-uploads'
+			}
+		);
+
+		expect(result.changes).toBe(2);
+		expect(result.value).toEqual({
+			hero: {
+				imageUrl: 'https://assets.example.com/kb-uploads/homepage/hero.png?version=2#intro'
+			},
+			gallery: ['https://assets.example.com/kb-uploads/events/curated/elderberry.png'],
+			untouched: 'https://knowledgebasket.org'
+		});
 	});
 
 	it('resolves site-relative paths against the canonical origin', () => {

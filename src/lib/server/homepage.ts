@@ -13,6 +13,7 @@ import { queryResourcesForHomepage } from '$lib/server/toolbox';
 import { getBusinessById } from '$lib/server/red-pages';
 import { queryBusinessesForHomepage } from '$lib/server/red-pages';
 import { sanitizeRichTextHtml } from '$lib/server/sanitize-rich-text';
+import { rewriteLegacyLocalObjectStorageUrlsInValue } from '$lib/config/public-assets';
 import type {
 	CoilKey,
 	EventItem,
@@ -81,7 +82,9 @@ function sanitizeHomepageSectionContent(section: HomepageSectionConfig): Homepag
 function parseHomepageConfig(raw: string | null): HomepageConfig {
 	if (!raw) return createDefaultHomepageConfig();
 	try {
-		const parsed = JSON.parse(raw) as Record<string, unknown>;
+		const parsed = rewriteLegacyLocalObjectStorageUrlsInValue(
+			JSON.parse(raw) as Record<string, unknown>
+		).value;
 
 		// Parse legacy global featured array (for migration)
 		const legacyFeatured = parseFeaturedRefs(parsed.featured);

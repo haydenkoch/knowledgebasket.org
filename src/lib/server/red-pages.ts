@@ -11,6 +11,7 @@ import {
 import { indexDocument, removeDocument } from '$lib/server/meilisearch';
 import { getSourceProvenanceByPublishedRecord } from '$lib/server/source-provenance';
 import { sanitizeRichTextHtml } from '$lib/server/sanitize-rich-text';
+import { resolveAbsoluteUrl } from '$lib/config/public-assets';
 import type { RedPagesItem } from '$lib/data/kb';
 import type { RedPagesSearchDoc } from '$lib/server/meilisearch';
 import { stripHtml } from '$lib/utils/format';
@@ -28,6 +29,12 @@ function rowToItem(
 		submitterEmail?: string;
 	}
 ): RedPagesItem {
+	const logoUrl = resolveAbsoluteUrl(row.logoUrl) ?? undefined;
+	const imageUrl = resolveAbsoluteUrl(row.imageUrl) ?? undefined;
+	const imageUrls = Array.isArray(row.imageUrls)
+		? (row.imageUrls as string[]).map((url) => resolveAbsoluteUrl(url) ?? url)
+		: undefined;
+
 	return {
 		id: row.id,
 		title: row.name,
@@ -59,9 +66,9 @@ function rowToItem(
 		businessHours: Array.isArray(row.businessHours)
 			? (row.businessHours as { day: string; open: string; close: string }[])
 			: undefined,
-		logoUrl: row.logoUrl ?? undefined,
-		imageUrl: row.imageUrl ?? undefined,
-		imageUrls: Array.isArray(row.imageUrls) ? (row.imageUrls as string[]) : undefined,
+		logoUrl,
+		imageUrl,
+		imageUrls,
 		certifications: row.certifications ?? undefined,
 		socialLinks: row.socialLinks as Record<string, string> | undefined,
 		status: row.status,

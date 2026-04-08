@@ -1,6 +1,7 @@
 import { and, desc, eq, gte, ilike, inArray, isNotNull, lte, or, sql } from 'drizzle-orm';
 import { db } from '$lib/server/db';
 import { events, venues } from '$lib/server/db/schema';
+import { resolveAbsoluteUrl } from '$lib/config/public-assets';
 import { stripHtml } from '$lib/utils/format';
 
 export type GeoFilter = {
@@ -15,18 +16,12 @@ function toRadians(deg: number): number {
 	return (deg * Math.PI) / 180;
 }
 
-export function haversineMiles(
-	aLat: number,
-	aLng: number,
-	bLat: number,
-	bLng: number
-): number {
+export function haversineMiles(aLat: number, aLng: number, bLat: number, bLng: number): number {
 	const dLat = toRadians(bLat - aLat);
 	const dLng = toRadians(bLng - aLng);
 	const lat1 = toRadians(aLat);
 	const lat2 = toRadians(bLat);
-	const h =
-		Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
+	const h = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
 	return 2 * EARTH_RADIUS_MI * Math.asin(Math.sqrt(h));
 }
 
@@ -42,8 +37,7 @@ function boundingBox(center: GeoFilter): {
 	maxLng: number;
 } {
 	const latDelta = center.radiusMiles / 69; // ~69 mi per degree of latitude
-	const lngDelta =
-		center.radiusMiles / (69 * Math.max(Math.cos(toRadians(center.lat)), 0.000001));
+	const lngDelta = center.radiusMiles / (69 * Math.max(Math.cos(toRadians(center.lat)), 0.000001));
 	return {
 		minLat: center.lat - latDelta,
 		maxLat: center.lat + latDelta,
@@ -146,6 +140,7 @@ function parseAliasesInput(value?: string | string[] | null): string[] {
 function normalizeVenueRow(row: VenueRowCompat): VenueRow {
 	return {
 		...row,
+		imageUrl: resolveAbsoluteUrl(row.imageUrl) ?? null,
 		aliases: row.aliases ?? []
 	};
 }
@@ -339,7 +334,7 @@ export async function getVenueMapPoints(opts?: {
 				name: row.name,
 				lat: row.lat,
 				lng: row.lng,
-				imageUrl: row.imageUrl ?? null,
+				imageUrl: resolveAbsoluteUrl(row.imageUrl) ?? null,
 				venueType: row.venueType ?? null,
 				city: row.city ?? null,
 				state: row.state ?? null,

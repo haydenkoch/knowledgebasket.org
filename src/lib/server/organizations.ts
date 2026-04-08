@@ -9,6 +9,7 @@ import {
 	toolboxResources,
 	venues
 } from '$lib/server/db/schema';
+import { resolveAbsoluteUrl } from '$lib/config/public-assets';
 import { stripHtml } from '$lib/utils/format';
 
 export type OrganizationRow = typeof organizations.$inferSelect;
@@ -112,6 +113,7 @@ function parseAliasesInput(value?: string | string[] | null): string[] {
 function normalizeOrganizationRow(row: OrganizationRowCompat): OrganizationRow {
 	return {
 		...row,
+		logoUrl: resolveAbsoluteUrl(row.logoUrl) ?? null,
 		aliases: row.aliases ?? []
 	};
 }
@@ -276,7 +278,7 @@ export async function getOrganizationMapPoints(opts?: {
 				name: row.name,
 				lat: row.lat,
 				lng: row.lng,
-				logoUrl: row.logoUrl ?? null,
+				logoUrl: resolveAbsoluteUrl(row.logoUrl) ?? null,
 				orgType: row.orgType ?? null,
 				verified: Boolean(row.verified),
 				city: row.city ?? null,

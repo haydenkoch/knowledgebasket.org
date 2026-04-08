@@ -12,6 +12,7 @@ import {
 import { indexDocument, removeDocument } from '$lib/server/meilisearch';
 import { getSourceProvenanceByPublishedRecord } from '$lib/server/source-provenance';
 import { sanitizeRichTextHtml } from '$lib/server/sanitize-rich-text';
+import { resolveAbsoluteUrl } from '$lib/config/public-assets';
 import type { ToolboxItem } from '$lib/data/kb';
 import type { ToolboxSearchDoc } from '$lib/server/meilisearch';
 import { stripHtml } from '$lib/utils/format';
@@ -29,6 +30,11 @@ function rowToItem(
 		submitterEmail?: string;
 	}
 ): ToolboxItem {
+	const imageUrl = resolveAbsoluteUrl(row.imageUrl) ?? undefined;
+	const imageUrls = Array.isArray(row.imageUrls)
+		? (row.imageUrls as string[]).map((url) => resolveAbsoluteUrl(url) ?? url)
+		: [];
+
 	return {
 		id: row.id,
 		slug: row.slug,
@@ -48,8 +54,8 @@ function rowToItem(
 		contentMode: row.contentMode,
 		externalUrl: row.externalUrl ?? undefined,
 		fileUrl: row.fileUrl ?? undefined,
-		imageUrl: row.imageUrl ?? undefined,
-		imageUrls: (row.imageUrls as string[] | null) ?? [],
+		imageUrl,
+		imageUrls,
 		author: row.author ?? undefined,
 		publishDate: row.publishDate?.toISOString() ?? undefined,
 		lastReviewedAt: row.lastReviewedAt?.toISOString() ?? undefined,

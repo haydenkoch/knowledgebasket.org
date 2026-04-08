@@ -23,7 +23,9 @@ function initializeSentry() {
 	if (feedbackEnabled) {
 		integrations.push(
 			Sentry.feedbackIntegration({
-				autoInject: configuredBoolean(env.PUBLIC_SENTRY_FEEDBACK_AUTO_INJECT, false),
+				// Our custom Help dock owns the visible trigger, so never let Sentry
+				// inject a parallel floating "Report a bug" button.
+				autoInject: false,
 				showBranding: false,
 				colorScheme: 'system',
 				formTitle: 'Report a bug',

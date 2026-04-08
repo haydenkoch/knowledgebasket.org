@@ -7,8 +7,7 @@ const repoRoot = process.cwd();
 
 const schemaPatterns = [
 	'src/lib/server/db/schema/',
-	'src/lib/server/db/auth.schema.ts',
-	'drizzle.config.ts'
+	'src/lib/server/db/auth.schema.ts'
 ];
 
 const migrationPatterns = ['drizzle/', 'drizzle/meta/'];

@@ -1,7 +1,5 @@
 #!/usr/bin/env node
 import { execFileSync } from 'node:child_process';
-import { existsSync } from 'node:fs';
-import path from 'node:path';
 
 const repoRoot = process.cwd();
 
@@ -47,9 +45,7 @@ function getChangedFiles() {
 		.filter(Boolean);
 }
 
-const changedFiles = [...new Set(getChangedFiles())]
-	.filter(Boolean)
-	.filter((file) => existsSync(path.join(repoRoot, file)));
+const changedFiles = [...new Set(getChangedFiles())].filter(Boolean);
 
 if (changedFiles.length === 0) {
 	console.log('[migrations-ci] No changed files detected; skipping.');

@@ -1,24 +1,6 @@
 import nodemailer from 'nodemailer';
+import { readBoolean } from '$lib/config/runtime-config-core';
 import { readRuntimeConfigValue } from '$lib/server/runtime-secrets';
-
-function readBoolean(value: string | undefined, fallback = false): boolean {
-	if (!value) return fallback;
-
-	switch (value.trim().toLowerCase()) {
-		case '1':
-		case 'true':
-		case 'yes':
-		case 'on':
-			return true;
-		case '0':
-		case 'false':
-		case 'no':
-		case 'off':
-			return false;
-		default:
-			return fallback;
-	}
-}
 
 const smtpHost = readRuntimeConfigValue('SMTP_HOST') ?? 'localhost';
 const smtpPort = Number.parseInt(readRuntimeConfigValue('SMTP_PORT') ?? '1025', 10);

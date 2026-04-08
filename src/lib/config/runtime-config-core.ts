@@ -61,7 +61,7 @@ function addWarning(target: RuntimeConfigIssue[], key: string, message: string) 
 	target.push({ key, message });
 }
 
-function readBoolean(value: string | undefined, fallback = false): boolean {
+export function readBoolean(value: string | undefined, fallback = false): boolean {
 	if (!value) return fallback;
 
 	switch (value.trim().toLowerCase()) {

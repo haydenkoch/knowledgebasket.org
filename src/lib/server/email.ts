@@ -35,16 +35,19 @@ const transporter = nodemailer.createTransport({
 export async function sendMail({
 	to,
 	subject,
-	html
+	html,
+	text
 }: {
 	to: string;
 	subject: string;
 	html: string;
+	text?: string;
 }): Promise<void> {
 	await transporter.sendMail({
 		from: env.SMTP_FROM ?? '"Knowledge Basket" <noreply@knowledgebasket.ca>',
 		to,
 		subject,
-		html
+		html,
+		text
 	});
 }

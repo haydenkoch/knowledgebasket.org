@@ -372,14 +372,14 @@
 		<!-- Image -->
 		<div class="space-y-5 border-b border-[var(--border)] py-8">
 			<h3 class="font-serif text-lg font-semibold text-foreground">
-				Image <span class="text-sm font-normal text-muted-foreground">(Optional)</span>
+				Logo <span class="text-sm font-normal text-muted-foreground">(Optional)</span>
 			</h3>
 			<Field.Field>
-				<Field.Label for="image">Company logo or role image</Field.Label>
+				<Field.Label for="image">Hiring entity logo</Field.Label>
 				<Field.Content>
 					<KbFileDropzone
 						name="image"
-						hint="JPG, PNG, or WebP, max 5 MB. Helps your posting stand out in the list."
+						hint="JPG, PNG, or WebP, max 5 MB. This appears as the employer logo on the public listing."
 					/>
 				</Field.Content>
 				<Field.Description>

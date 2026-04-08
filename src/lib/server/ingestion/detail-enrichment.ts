@@ -20,6 +20,7 @@ import type {
 } from './types';
 import { absoluteUrl } from './shared';
 import { normalizeUrl } from './dedupe';
+import { fetchSafeOutboundResource, normalizePublicHttpUrl } from '$lib/server/url-safety';
 
 type DetailEnrichmentArtifacts = {
 	records: NormalizedRecord[];
@@ -125,11 +126,11 @@ function getDetailUrl(
 ) {
 	const source =
 		config.fetchFrom === 'normalizedUrl' ? record.url : (parsedItem?.sourceItemUrl ?? record.url);
-	return normalizeUrl(source);
+	return normalizePublicHttpUrl(normalizeUrl(source));
 }
 
 async function fetchDetailHtml(url: string) {
-	const response = await fetch(url, {
+	const response = await fetchSafeOutboundResource(fetch, url, {
 		headers: {
 			Accept: 'text/html, application/xhtml+xml;q=0.9, */*;q=0.8',
 			'User-Agent': 'KnowledgeBasket-SourceOps/1.0 (+https://knowledgebasket.org)'
@@ -762,7 +763,7 @@ function mergeUrlRoles(left: UrlRoleMap, right: UrlRoleMap): UrlRoleMap {
 function normalizeDetailUrl(value: string | null | undefined, baseUrl?: string) {
 	if (!value?.trim()) return null;
 	const absolute = absoluteUrl(value.trim(), baseUrl ?? value.trim());
-	return normalizeUrl(absolute);
+	return normalizePublicHttpUrl(normalizeUrl(absolute));
 }
 
 function resolveImageLikeUrl(target: ReturnType<ReturnType<typeof load>>, baseUrl?: string) {

@@ -7,6 +7,7 @@
 	import Store from '@lucide/svelte/icons/store';
 	import BriefcaseBusiness from '@lucide/svelte/icons/briefcase-business';
 	import LibraryBig from '@lucide/svelte/icons/library-big';
+	import LifeBuoy from '@lucide/svelte/icons/life-buoy';
 	import Info from '@lucide/svelte/icons/info';
 	import Shield from '@lucide/svelte/icons/shield';
 	import FileText from '@lucide/svelte/icons/file-text';
@@ -69,6 +70,7 @@
 	const secondaryLinks: Array<{ href: string; label: string; icon: typeof Info }> = [];
 	const legalIcons: Record<string, typeof Info> = {
 		About: Info,
+		Support: LifeBuoy,
 		Privacy: Shield,
 		Terms: FileText,
 		Cookies: Cookie,
@@ -158,7 +160,7 @@
 		{/if}
 
 		<Sidebar.Group>
-			<Sidebar.GroupLabel>Legal</Sidebar.GroupLabel>
+			<Sidebar.GroupLabel>Support &amp; legal</Sidebar.GroupLabel>
 			<Sidebar.GroupContent>
 				<Sidebar.Menu>
 					{#each legalNavLinks as link}

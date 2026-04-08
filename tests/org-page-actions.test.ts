@@ -113,12 +113,13 @@ describe('organization public page actions', () => {
 		isFollowingOrganization.mockResolvedValueOnce(true);
 		const mod = await import('../src/routes/o/[slug]/+page.server');
 
-		await mod.actions.toggleFollow({
+		const result = await mod.actions.toggleFollow({
 			locals: { user: { id: 'user-1', email: 'hello@example.com' } },
 			params: { slug: 'river-house' }
 		} as never);
 
 		expect(unfollowOrganization).toHaveBeenCalledWith('user-1', 'org-1');
 		expect(followOrganization).not.toHaveBeenCalled();
+		expect(result).toEqual({ success: true, following: false });
 	});
 });

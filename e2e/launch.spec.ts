@@ -70,8 +70,6 @@ async function expectNoAxeViolations(
 test.beforeEach(async ({ context }) => {
 	await context.addInitScript((consentValue: string) => {
 		window.localStorage.setItem('kb:consent', consentValue);
-		window.localStorage.setItem('kb:privacy-launcher-dismissed', '1');
-		window.localStorage.setItem('kb-submit-dismissed-events', '1');
 	}, seededConsent);
 	await context.addCookies([
 		{

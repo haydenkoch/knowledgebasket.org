@@ -75,7 +75,9 @@
 	}
 
 	function currentPoints(): MapPoint[] {
-		const explicit = markers.filter((point) => isFiniteNumber(point.lat) && isFiniteNumber(point.lng));
+		const explicit = markers.filter(
+			(point) => isFiniteNumber(point.lat) && isFiniteNumber(point.lng)
+		);
 		if (explicit.length > 0) return explicit;
 
 		const activeLat = isFiniteNumber(lat) ? lat : resolvedCoords?.lat;
@@ -133,7 +135,10 @@
 		};
 		const center = data.features?.[0]?.center;
 		const result =
-			Array.isArray(center) && center.length === 2 && Number.isFinite(center[0]) && Number.isFinite(center[1])
+			Array.isArray(center) &&
+			center.length === 2 &&
+			Number.isFinite(center[0]) &&
+			Number.isFinite(center[1])
 				? { lng: center[0], lat: center[1] }
 				: null;
 		geocodeCache.set(query, result);
@@ -372,12 +377,12 @@
 						rel="noopener"
 						aria-label="Open directions in Google Maps"
 					>
-						<MapPinIcon class="size-[13px] shrink-0 mt-[2px]" />
+						<MapPinIcon class="mt-[2px] size-[13px] shrink-0" />
 						<span>{resolvedAddress}</span>
 					</a>
 				{:else}
 					<p class="coil-map-address">
-						<MapPinIcon class="size-[13px] shrink-0 mt-[2px]" />
+						<MapPinIcon class="mt-[2px] size-[13px] shrink-0" />
 						<span>{resolvedAddress}</span>
 					</p>
 				{/if}
@@ -448,20 +453,23 @@
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		background:
-			linear-gradient(
-				145deg,
-				color-mix(in srgb, var(--coil-map-accent, var(--teal)) 14%, var(--card)) 0%,
-				color-mix(in srgb, var(--coil-map-accent, var(--teal)) 5%, var(--card)) 60%,
-				var(--card) 100%
-			);
+		background: linear-gradient(
+			145deg,
+			color-mix(in srgb, var(--coil-map-accent, var(--teal)) 14%, var(--card)) 0%,
+			color-mix(in srgb, var(--coil-map-accent, var(--teal)) 5%, var(--card)) 60%,
+			var(--card) 100%
+		);
 	}
 
 	.coil-map-grid {
 		position: absolute;
 		inset: 0;
 		background:
-			linear-gradient(90deg, color-mix(in srgb, var(--foreground) 7%, transparent) 1px, transparent 1px),
+			linear-gradient(
+				90deg,
+				color-mix(in srgb, var(--foreground) 7%, transparent) 1px,
+				transparent 1px
+			),
 			linear-gradient(color-mix(in srgb, var(--foreground) 7%, transparent) 1px, transparent 1px);
 		background-size: 22px 22px;
 		mask-image: radial-gradient(ellipse at center, black 40%, transparent 90%);
@@ -488,7 +496,11 @@
 		right: 0;
 		bottom: 0;
 		height: 32px;
-		background: linear-gradient(to bottom, transparent, color-mix(in srgb, var(--card) 65%, transparent));
+		background: linear-gradient(
+			to bottom,
+			transparent,
+			color-mix(in srgb, var(--card) 65%, transparent)
+		);
 		pointer-events: none;
 		z-index: 1;
 	}

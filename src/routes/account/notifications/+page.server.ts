@@ -1,5 +1,6 @@
 import { fail } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
+import { requireAuthenticatedUser } from '$lib/server/access-control';
 import {
 	getUnreadNotificationCount,
 	getUserNotificationPreferences,
@@ -10,10 +11,11 @@ import {
 } from '$lib/server/personalization';
 
 export const load: PageServerLoad = async ({ locals }) => {
+	const user = requireAuthenticatedUser(locals);
 	const [notifications, preferences, unreadCount] = await Promise.all([
-		getUserNotifications(locals.user!.id),
-		getUserNotificationPreferences(locals.user!.id),
-		getUnreadNotificationCount(locals.user!.id)
+		getUserNotifications(user.id),
+		getUserNotificationPreferences(user.id),
+		getUnreadNotificationCount(user.id)
 	]);
 
 	return { notifications, preferences, unreadCount };
@@ -21,8 +23,9 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 export const actions: Actions = {
 	savePreferences: async ({ locals, request }) => {
+		const user = requireAuthenticatedUser(locals);
 		const formData = await request.formData();
-		await updateUserNotificationPreferences(locals.user!.id, {
+		const preferences = await updateUserNotificationPreferences(user.id, {
 			emailSubmissionUpdates: formData.has('emailSubmissionUpdates'),
 			emailOrgActivity: formData.has('emailOrgActivity'),
 			emailFollowedOrgs: formData.has('emailFollowedOrgs'),
@@ -34,17 +37,22 @@ export const actions: Actions = {
 			inAppBookmarkReminders: formData.has('inAppBookmarkReminders')
 		});
 
-		return { success: true };
+		return {
+			preferencesSuccess: 'Preferences saved for future notifications.',
+			preferencesSavedAt: preferences.updatedAt.toISOString()
+		};
 	},
 	markRead: async ({ locals, request }) => {
+		const user = requireAuthenticatedUser(locals);
 		const formData = await request.formData();
 		const notificationId = formData.get('notificationId')?.toString().trim();
 		if (!notificationId) return fail(400, { error: 'Notification is required.' });
-		await markNotificationRead(locals.user!.id, notificationId);
+		await markNotificationRead(user.id, notificationId);
 		return { success: true };
 	},
 	markAllRead: async ({ locals }) => {
-		await markAllNotificationsRead(locals.user!.id);
+		const user = requireAuthenticatedUser(locals);
+		await markAllNotificationsRead(user.id);
 		return { success: true };
 	}
 };

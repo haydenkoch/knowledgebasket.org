@@ -1,4 +1,5 @@
 import type { Actions, PageServerLoad } from './$types';
+import { requirePrivilegedApiUser } from '$lib/server/access-control';
 import {
 	bulkApproveFunding,
 	bulkDeleteFunding,
@@ -40,21 +41,24 @@ export const load: PageServerLoad = async ({ url }) => {
 
 export const actions: Actions = {
 	bulkApprove: async ({ request, locals }) => {
+		const user = requirePrivilegedApiUser(locals);
 		const formData = await request.formData();
 		const ids = formData.getAll('ids') as string[];
 		if (ids.length === 0) return { success: false };
-		const count = await bulkApproveFunding(ids, locals.user!.id);
+		const count = await bulkApproveFunding(ids, user.id);
 		return { success: true, count };
 	},
 	bulkReject: async ({ request, locals }) => {
+		const user = requirePrivilegedApiUser(locals);
 		const formData = await request.formData();
 		const ids = formData.getAll('ids') as string[];
 		const reason = formData.get('reason') as string | null;
 		if (ids.length === 0) return { success: false };
-		const count = await bulkRejectFunding(ids, locals.user!.id, reason ?? undefined);
+		const count = await bulkRejectFunding(ids, user.id, reason ?? undefined);
 		return { success: true, count };
 	},
-	bulkDelete: async ({ request }) => {
+	bulkDelete: async ({ request, locals }) => {
+		requirePrivilegedApiUser(locals);
 		const formData = await request.formData();
 		const ids = formData.getAll('ids') as string[];
 		if (ids.length === 0) return { success: false };

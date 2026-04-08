@@ -40,7 +40,11 @@ import {
 	saveHomepageConfig,
 	HOMEPAGE_CONFIG_KEY
 } from '../src/lib/server/homepage';
-import { buildHomepageSectionMoreHref, resolveSectionLayoutPreset } from '../src/lib/data/homepage';
+import {
+	buildHomepageItemHref,
+	buildHomepageSectionMoreHref,
+	resolveSectionLayoutPreset
+} from '../src/lib/data/homepage';
 
 describe('homepage config', () => {
 	beforeEach(() => {
@@ -216,5 +220,21 @@ describe('homepage config', () => {
 				futureOnly: false
 			})
 		).toBe('/jobs?q=coordinator');
+	});
+
+	it('builds homepage item URLs with coil route aliases', () => {
+		expect(
+			buildHomepageItemHref('redpages', {
+				id: 'business-1',
+				slug: 'capital-city-beads'
+			})
+		).toBe('/red-pages/capital-city-beads');
+		expect(
+			buildHomepageItemHref('featured', {
+				id: 'business-1',
+				slug: 'capital-city-beads',
+				coil: 'redpages'
+			})
+		).toBe('/red-pages/capital-city-beads');
 	});
 });

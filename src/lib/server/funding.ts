@@ -6,6 +6,7 @@ import { db, type DbExecutor } from '$lib/server/db';
 import { funding as fundingTable, organizations, user as userTable } from '$lib/server/db/schema';
 import { indexDocument, removeDocument } from '$lib/server/meilisearch';
 import { getSourceProvenanceByPublishedRecord } from '$lib/server/source-provenance';
+import { sanitizeRichTextHtml } from '$lib/server/sanitize-rich-text';
 import type { FundingItem } from '$lib/data/kb';
 import type { FundingSearchDoc } from '$lib/server/meilisearch';
 import { stripHtml } from '$lib/utils/format';
@@ -27,7 +28,7 @@ function rowToItem(
 		id: row.id,
 		slug: row.slug,
 		title: row.title,
-		description: row.description ?? undefined,
+		description: sanitizeRichTextHtml(row.description ?? undefined),
 		coil: 'funding',
 		funderName: row.funderName ?? undefined,
 		organizationId: row.organizationId ?? undefined,
@@ -357,9 +358,10 @@ export async function createFunding(
 	database: DbExecutor = db
 ): Promise<FundingRow> {
 	const slug = await uniqueSlug(slugify(data.title));
+	const description = sanitizeRichTextHtml(data.description ?? undefined) ?? null;
 	const [row] = await database
 		.insert(fundingTable)
-		.values({ ...data, slug })
+		.values({ ...data, slug, description })
 		.returning();
 	if (!row) throw new Error('Insert did not return row');
 	if (row.status === 'published') {
@@ -373,9 +375,14 @@ export async function updateFunding(
 	data: Partial<Omit<FundingInsert, 'id' | 'createdAt'>>,
 	database: DbExecutor = db
 ): Promise<FundingRow | null> {
+	const nextData = { ...data };
+	if ('description' in nextData) {
+		nextData.description = sanitizeRichTextHtml(nextData.description ?? undefined) ?? null;
+	}
+
 	const [row] = await database
 		.update(fundingTable)
-		.set(data)
+		.set(nextData)
 		.where(eq(fundingTable.id, id))
 		.returning();
 	if (!row) return null;

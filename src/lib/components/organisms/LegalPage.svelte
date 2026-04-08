@@ -35,7 +35,7 @@
 	</header>
 
 	<!-- Cross-nav -->
-	<nav class="legal-nav" aria-label="Legal pages">
+	<nav class="legal-nav" aria-label="Support and policy pages">
 		<div class="legal-nav__inner">
 			{#each legalNavLinks as link}
 				<a

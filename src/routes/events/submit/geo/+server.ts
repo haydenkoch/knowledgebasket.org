@@ -1,10 +1,16 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { env } from '$env/dynamic/private';
+import { buildRateLimitHeaders, consumeRateLimit } from '$lib/server/rate-limit';
 
 const PHOTON_URL = 'https://photon.komoot.io/api/';
 const CENSUS_URL = 'https://geocoding.geo.census.gov/geocoder/locations/onelineaddress';
 const MAPBOX_URL = 'https://api.mapbox.com/geocoding/v5/mapbox.places';
+const GEO_LOOKUP_RATE_LIMIT = {
+	key: 'public:geocode',
+	limit: 60,
+	windowMs: 60_000
+} as const;
 
 type GeoFeature = {
 	type: 'Feature';
@@ -93,13 +99,34 @@ function censusToFeature(m: CensusMatch, index: number): GeoFeature | null {
 	};
 }
 
-export const GET: RequestHandler = async ({ url }) => {
+export const GET: RequestHandler = async ({ url, request, locals, getClientAddress }) => {
 	const q = url.searchParams.get('q')?.trim();
 	if (!q || q.length < 2) {
 		return json({ type: 'FeatureCollection', features: [] });
 	}
+
+	const rateLimit = consumeRateLimit(
+		{ request, url, locals, getClientAddress },
+		GEO_LOOKUP_RATE_LIMIT,
+		'/events/submit/geo'
+	);
+	if (!rateLimit.allowed) {
+		return json(
+			{
+				error: 'Too many geocoding requests. Please wait a moment and try again.',
+				type: 'FeatureCollection',
+				features: []
+			},
+			{
+				status: 429,
+				headers: buildRateLimitHeaders(rateLimit)
+			}
+		);
+	}
+
 	const limit = Math.min(Number(url.searchParams.get('limit')) || 12, 25);
 	const token = env.MAPBOX_ACCESS_TOKEN ?? env.MAPBOX_TOKEN;
+	const rateLimitHeaders = buildRateLimitHeaders(rateLimit);
 
 	try {
 		// Mapbox Geocoding (when token is set) – best address/place coverage
@@ -168,8 +195,8 @@ export const GET: RequestHandler = async ({ url }) => {
 		}
 		const features = [...byKey.values()].slice(0, limit);
 
-		return json({ type: 'FeatureCollection', features });
+		return json({ type: 'FeatureCollection', features }, { headers: rateLimitHeaders });
 	} catch {
-		return json({ type: 'FeatureCollection', features: [] });
+		return json({ type: 'FeatureCollection', features: [] }, { headers: rateLimitHeaders });
 	}
 };

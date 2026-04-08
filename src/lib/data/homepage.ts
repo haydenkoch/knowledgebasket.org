@@ -229,6 +229,36 @@ export function buildHomepageSectionMoreHref(
 	return query ? `${path}?${query}` : path;
 }
 
+type HomepageItemHrefTarget = {
+	id: string;
+	slug?: string;
+	coil?: CoilKey;
+};
+
+function buildCoilHref(coil: CoilKey): string {
+	return `/${coilPaths[coil] ?? coil}`;
+}
+
+export function buildHomepageItemHref(coil: CoilKey, item: HomepageItemHrefTarget): string;
+export function buildHomepageItemHref(
+	source: SectionSource,
+	item: HomepageItemHrefTarget
+): string | null;
+export function buildHomepageItemHref(
+	source: SectionSource,
+	item: HomepageItemHrefTarget
+): string | null {
+	if (source === 'featured') {
+		return item.coil ? `${buildCoilHref(item.coil)}/${item.slug ?? item.id}` : null;
+	}
+
+	if (source === 'richtext' || source === 'container' || source === 'image') {
+		return null;
+	}
+
+	return `${buildCoilHref(source)}/${item.slug ?? item.id}`;
+}
+
 let _idCounter = 0;
 export function genSectionId(): string {
 	return `sec_${Date.now()}_${++_idCounter}`;

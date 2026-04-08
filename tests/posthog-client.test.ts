@@ -6,6 +6,7 @@ const posthogMock = vi.hoisted(() => ({
 	opt_out_capturing: vi.fn(),
 	capture: vi.fn(),
 	identify: vi.fn(),
+	setPersonProperties: vi.fn(),
 	reset: vi.fn()
 }));
 
@@ -29,11 +30,16 @@ async function loadModule(options?: {
 		}
 	}));
 
-	vi.doMock('posthog-js', () => ({
+	vi.doMock('posthog-js/lib/src/entrypoints/module.slim.es.js', () => ({
 		default: posthogMock
 	}));
+	vi.doMock('posthog-js/lib/src/entrypoints/extension-bundles.es.js', () => ({
+		SessionReplayExtensions: {
+			sessionRecording: 'mock-session-recording-extension'
+		}
+	}));
 
-	return import('../src/lib/analytics/posthog.client');
+	return import('../src/lib/insights/provider.client');
 }
 
 describe('posthog client integration', () => {
@@ -50,8 +56,13 @@ describe('posthog client integration', () => {
 			'phc_test_key',
 			expect.objectContaining({
 				api_host: 'https://us.i.posthog.com',
+				__extensionClasses: {
+					sessionRecording: 'mock-session-recording-extension'
+				},
 				defaults: '2026-01-30',
-				autocapture: true,
+				autocapture: false,
+				capture_pageview: false,
+				capture_pageleave: false,
 				opt_out_capturing_by_default: true
 			})
 		);
@@ -63,5 +74,25 @@ describe('posthog client integration', () => {
 		module.syncAnalyticsConsent(true);
 
 		expect(posthogMock.init).not.toHaveBeenCalled();
+	});
+
+	it('updates person properties only after consent is granted', async () => {
+		const module = await loadModule({ dev: false });
+
+		module.updateAnalyticsPersonProperties({
+			email_newsletter: true
+		});
+		expect(posthogMock.setPersonProperties).not.toHaveBeenCalled();
+
+		module.syncAnalyticsConsent(true);
+		module.updateAnalyticsPersonProperties({
+			email_newsletter: true,
+			email_followed_orgs: true
+		});
+
+		expect(posthogMock.setPersonProperties).toHaveBeenCalledWith({
+			email_newsletter: true,
+			email_followed_orgs: true
+		});
 	});
 });

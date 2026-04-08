@@ -35,7 +35,7 @@
 <CoilTheme {coil}>
 	<div
 		class="coil-layout flex w-full flex-col flex-nowrap md:flex-row"
-		style="min-height: calc(100dvh - 144px - var(--kb-submit-banner-offset, 76px))"
+		style="min-height: calc(100dvh - 144px)"
 		role="presentation"
 	>
 		<div

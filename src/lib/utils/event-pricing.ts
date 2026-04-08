@@ -86,7 +86,9 @@ function extractDollarAmounts(text?: string | null): number[] {
 	return Array.from(new Set(values)).sort((a, b) => a - b);
 }
 
-function derivePriceBounds(event: Pick<EventItem, 'priceMin' | 'priceMax' | 'pricingTiers' | 'cost'>) {
+function derivePriceBounds(
+	event: Pick<EventItem, 'priceMin' | 'priceMax' | 'pricingTiers' | 'cost'>
+) {
 	const tierPrices = sortPricingTiers(event.pricingTiers)
 		.map((tier) => tier.price)
 		.filter(isFiniteNumber);
@@ -119,9 +121,13 @@ function getPriceRangeLabel(minPrice: number | null, maxPrice: number | null): s
 	return null;
 }
 
-function isFreeEvent(costText: string, minPrice: number | null, maxPrice: number | null): boolean {
+function isFreeEvent(costText: string, minPrice: number | null): boolean {
 	if (minPrice === 0) return true;
-	if (costText.includes('free') || costText.includes('complimentary') || costText.includes('no cost'))
+	if (
+		costText.includes('free') ||
+		costText.includes('complimentary') ||
+		costText.includes('no cost')
+	)
 		return true;
 	if (costText.includes('sponsored')) return true;
 	return false;
@@ -151,10 +157,12 @@ export function formatEventCostFilterSelectionLabel(selected: string[]): string 
 	return `${selected.length} selected`;
 }
 
-export function getEventCostBucket(event: Pick<EventItem, 'cost' | 'priceMin' | 'priceMax' | 'pricingTiers'>) {
+export function getEventCostBucket(
+	event: Pick<EventItem, 'cost' | 'priceMin' | 'priceMax' | 'pricingTiers'>
+) {
 	const costText = normalizeCostValue(event.cost);
 	const { minPrice, maxPrice } = derivePriceBounds(event);
-	if (isFreeEvent(costText, minPrice, maxPrice)) return 'free' satisfies EventCostFilterId;
+	if (isFreeEvent(costText, minPrice)) return 'free' satisfies EventCostFilterId;
 	if (isSlidingScaleEvent(costText)) return 'sliding-scale' satisfies EventCostFilterId;
 	const entryPrice = minPrice ?? maxPrice;
 	if (entryPrice != null) {
@@ -204,7 +212,7 @@ export function getEventPricingSummary(
 	const { minPrice, maxPrice } = derivePriceBounds(event);
 	const costText = cleanText(event.cost);
 	const normalizedCost = normalizeCostValue(event.cost);
-	const isFree = isFreeEvent(normalizedCost, minPrice, maxPrice);
+	const isFree = isFreeEvent(normalizedCost, minPrice);
 	const isSlidingScale = isSlidingScaleEvent(normalizedCost);
 	const rangeLabel = getPriceRangeLabel(minPrice, maxPrice);
 	const filterBucket = getEventCostBucket(event);

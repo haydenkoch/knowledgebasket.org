@@ -1,5 +1,6 @@
 import type { Actions, PageServerLoad } from './$types';
 import { fail, redirect } from '@sveltejs/kit';
+import { requirePrivilegedApiUser } from '$lib/server/access-control';
 import { createFunding } from '$lib/server/funding';
 import { getAllOrganizations } from '$lib/server/organizations';
 import {
@@ -26,6 +27,7 @@ export const load: PageServerLoad = async () => {
 
 export const actions: Actions = {
 	default: async ({ request, locals }) => {
+		const user = requirePrivilegedApiUser(locals);
 		const formData = await request.formData();
 		const title = parseString(formData, 'title');
 		const funderName = parseString(formData, 'funderName');
@@ -102,7 +104,7 @@ export const actions: Actions = {
 			unlisted: formData.has('unlisted'),
 			publishedAt: null,
 			adminNotes: nullableString(formData, 'adminNotes'),
-			submittedById: locals.user?.id ?? null,
+			submittedById: user.id,
 			reviewedById: null
 		});
 

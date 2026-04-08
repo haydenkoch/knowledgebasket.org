@@ -6,6 +6,16 @@
 		type RobotsMode
 	} from '$lib/seo/metadata';
 
+	function isGeneratedOgImage(value: string | null): boolean {
+		if (!value) return false;
+
+		try {
+			return new URL(value).pathname === '/og.png';
+		} catch {
+			return value.startsWith('/og.png');
+		}
+	}
+
 	let {
 		origin,
 		pathname,
@@ -47,6 +57,7 @@
 			breadcrumbItems
 		})
 	);
+	const usesGeneratedOgImage = $derived(isGeneratedOgImage(metadata.ogImage));
 </script>
 
 <svelte:head>
@@ -66,9 +77,11 @@
 	<meta property="og:url" content={metadata.ogUrl} />
 	{#if metadata.ogImage}
 		<meta property="og:image" content={metadata.ogImage} />
-		<meta property="og:image:type" content="image/png" />
-		<meta property="og:image:width" content="1200" />
-		<meta property="og:image:height" content="630" />
+		{#if usesGeneratedOgImage}
+			<meta property="og:image:type" content="image/png" />
+			<meta property="og:image:width" content="1200" />
+			<meta property="og:image:height" content="630" />
+		{/if}
 		{#if metadata.ogImageAlt}
 			<meta property="og:image:alt" content={metadata.ogImageAlt} />
 		{/if}

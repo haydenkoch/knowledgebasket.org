@@ -12,10 +12,7 @@
 	import { eventTypeGroups } from '$lib/data/formSchema';
 	import { IsMobile } from '$lib/hooks/is-mobile.svelte';
 	import { getEventCostFilterLabel } from '$lib/utils/event-pricing';
-	import {
-		EVENTS_SORT_OPTIONS,
-		type EventsSortKey
-	} from '$lib/hooks/use-events-filters-v2.svelte';
+	import { EVENTS_SORT_OPTIONS, type EventsSortKey } from '$lib/hooks/use-events-filters-v2.svelte';
 
 	type EventFiltersV2 = {
 		searchQuery: string;
@@ -147,22 +144,21 @@
 				const dow = now.getDay();
 				const daysUntilSat = (6 - dow + 7) % 7;
 				const sat = new Date(now.getFullYear(), now.getMonth(), now.getDate() + daysUntilSat);
-				const sun = new Date(
-					sat.getFullYear(),
-					sat.getMonth(),
-					sat.getDate() + 1,
-					23,
-					59,
-					59,
-					999
-				);
+				const sun = new Date(sat.getFullYear(), sat.getMonth(), sat.getDate() + 1, 23, 59, 59, 999);
 				return { start: sat.getTime(), end: sun.getTime() };
 			}
 			case 'next7':
 				return {
 					start: startOfToday,
-					end:
-						new Date(now.getFullYear(), now.getMonth(), now.getDate() + 7, 23, 59, 59, 999).getTime()
+					end: new Date(
+						now.getFullYear(),
+						now.getMonth(),
+						now.getDate() + 7,
+						23,
+						59,
+						59,
+						999
+					).getTime()
 				};
 			case 'thisMonth':
 				return {

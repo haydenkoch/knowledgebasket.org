@@ -32,6 +32,8 @@ For implementation truth, use:
   - design direction and UI guidance
 - `docs/PERFORMANCE.md`
   - performance notes and follow-up work
+- `docs/ANALYTICS_AND_MARKETING.md`
+  - PostHog capture contract, event inventory, and marketing-email template usage
 - `docs/SOURCE_OPS_HANDOFF.md`
   - source-ops and operational handoff context
 - `docs/PRODUCTION_RUNBOOK.md`

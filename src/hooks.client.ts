@@ -3,7 +3,7 @@ import * as Sentry from '@sentry/sveltekit';
 import { dev } from '$app/environment';
 import { env } from '$env/dynamic/public';
 import { CONSENT_UPDATED_EVENT, getConsent, type ConsentRecord } from '$lib/privacy/consent';
-import { syncAnalyticsConsent } from '$lib/analytics/posthog.client';
+import { syncAnalyticsConsent } from '$lib/insights/provider.client';
 import {
 	configuredBoolean,
 	configuredSampleRate,
@@ -23,7 +23,7 @@ function initializeSentry() {
 	if (feedbackEnabled) {
 		integrations.push(
 			Sentry.feedbackIntegration({
-				autoInject: configuredBoolean(env.PUBLIC_SENTRY_FEEDBACK_AUTO_INJECT, true),
+				autoInject: configuredBoolean(env.PUBLIC_SENTRY_FEEDBACK_AUTO_INJECT, false),
 				showBranding: false,
 				colorScheme: 'system',
 				formTitle: 'Report a bug',

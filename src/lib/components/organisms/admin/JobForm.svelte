@@ -640,7 +640,7 @@
 						</div>
 					{/if}
 					<div class="space-y-1.5">
-						<Label for="imageUrl">Image URL</Label>
+						<Label for="imageUrl">Employer logo URL</Label>
 						<Input
 							id="imageUrl"
 							name="imageUrl"
@@ -650,7 +650,7 @@
 						/>
 					</div>
 					<div class="space-y-1.5">
-						<Label for="imageUrls">Additional image URLs</Label>
+						<Label for="imageUrls">Additional gallery image URLs</Label>
 						<Textarea
 							id="imageUrls"
 							name="imageUrls"

@@ -1,12 +1,6 @@
 import type { RequestHandler } from './$types';
 import { getEvents } from '$lib/server/events';
-
-function toIcalDate(d: Date): string {
-	return d
-		.toISOString()
-		.replace(/[-:]/g, '')
-		.replace(/\.\d{3}/, '');
-}
+import { escapeIcalText, toIcalDate } from '$lib/server/ical';
 
 export const GET: RequestHandler = async ({ url }) => {
 	const events = await getEvents({ includeIcal: false, includeUnlisted: true });
@@ -39,8 +33,8 @@ export const GET: RequestHandler = async ({ url }) => {
 		lines.push('DTSTAMP:' + toIcalDate(new Date()));
 		lines.push('DTSTART:' + toIcalDate(start));
 		lines.push('DTEND:' + (end ? toIcalDate(end) : toIcalDate(start)));
-		lines.push('SUMMARY:' + (e.title || '').replace(/\n/g, ' '));
-		if (e.location) lines.push('LOCATION:' + e.location.replace(/\n/g, ' '));
+		lines.push('SUMMARY:' + escapeIcalText(e.title || ''));
+		if (e.location) lines.push('LOCATION:' + escapeIcalText(e.location));
 		if (e.eventUrl) lines.push('URL:' + e.eventUrl);
 		lines.push('END:VEVENT');
 	}

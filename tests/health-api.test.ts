@@ -21,9 +21,6 @@ describe('health API schema reporting', () => {
 			services: {
 				configuration: {
 					ok: boolean;
-					missing: Array<{ key: string; message: string }>;
-					invalid: Array<{ key: string; message: string }>;
-					warnings: Array<{ key: string; message: string }>;
 				};
 				schema: {
 					ok: boolean;
@@ -37,14 +34,7 @@ describe('health API schema reporting', () => {
 		};
 
 		expect(payload.status === 'ok' || payload.status === 'degraded').toBe(true);
-		expect(payload.services.configuration).toEqual(
-			expect.objectContaining({
-				ok: expect.any(Boolean),
-				missing: expect.any(Array),
-				invalid: expect.any(Array),
-				warnings: expect.any(Array)
-			})
-		);
+		expect(payload.services.configuration).toEqual({ ok: expect.any(Boolean) });
 		expect(payload.services.schema).toEqual(
 			expect.objectContaining({
 				ok: expect.any(Boolean),

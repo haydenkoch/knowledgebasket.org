@@ -47,6 +47,22 @@
 		<li>Consent choices are stored so the site remembers what you selected.</li>
 	</ul>
 
+	<h2>Analytics technologies in use</h2>
+	<ul>
+		<li>
+			Knowledge Basket uses PostHog for explicit product analytics and masked session replay after
+			analytics consent is granted.
+		</li>
+		<li>
+			The app does not use broad click autocapture or automatic pageview capture for PostHog.
+		</li>
+		<li>
+			For signed-in users who opt in, PostHog may receive account-level properties such as email,
+			role, and email-delivery preferences so the team can understand opted-in cohorts and prepare
+			relevant follow-up campaigns.
+		</li>
+	</ul>
+
 	<h2>How to change your choices</h2>
 	<p>
 		Use the persistent privacy launcher in the lower corner of the site, the Legal section in the

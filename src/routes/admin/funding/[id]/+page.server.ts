@@ -1,5 +1,6 @@
 import type { Actions, PageServerLoad } from './$types';
 import { error, fail, redirect } from '@sveltejs/kit';
+import { requirePrivilegedApiUser } from '$lib/server/access-control';
 import {
 	approveFunding,
 	deleteFunding,
@@ -49,6 +50,7 @@ export const load: PageServerLoad = async ({ params }) => {
 
 export const actions: Actions = {
 	update: async ({ params, request, locals }) => {
+		const user = requirePrivilegedApiUser(locals);
 		const formData = await request.formData();
 		const title = parseString(formData, 'title');
 		const funderName = parseString(formData, 'funderName');
@@ -96,7 +98,7 @@ export const actions: Actions = {
 		);
 		const moderationFields = buildModerationFields(current, {
 			status,
-			reviewerId: locals.user?.id ?? null,
+			reviewerId: user.id,
 			rejectionReason: nullableString(formData, 'rejectionReason'),
 			allowCancelled: true,
 			preservePublishedOnCancel: true
@@ -145,16 +147,19 @@ export const actions: Actions = {
 		return { success: true };
 	},
 	approve: async ({ params, locals }) => {
-		await approveFunding(params.id, locals.user!.id);
+		const user = requirePrivilegedApiUser(locals);
+		await approveFunding(params.id, user.id);
 		return { success: true };
 	},
 	reject: async ({ params, request, locals }) => {
+		const user = requirePrivilegedApiUser(locals);
 		const formData = await request.formData();
 		const reason = formData.get('reason') as string | null;
-		await rejectFunding(params.id, locals.user!.id, reason ?? undefined);
+		await rejectFunding(params.id, user.id, reason ?? undefined);
 		return { success: true };
 	},
-	delete: async ({ params }) => {
+	delete: async ({ params, locals }) => {
+		requirePrivilegedApiUser(locals);
 		await deleteFunding(params.id);
 		throw redirect(303, '/admin/funding');
 	}

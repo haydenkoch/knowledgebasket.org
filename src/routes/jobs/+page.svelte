@@ -6,7 +6,6 @@
 	import KbHero from '$lib/components/organisms/KbHero.svelte';
 	import KbPublicBrowseShell from '$lib/components/organisms/KbPublicBrowseShell.svelte';
 	import JobsSidebar from '$lib/components/organisms/JobsSidebar.svelte';
-	import KbSubmitBanner from '$lib/components/organisms/KbSubmitBanner.svelte';
 	import JobListItem from '$lib/components/molecules/JobListItem.svelte';
 	import { Alert, AlertDescription, AlertTitle } from '$lib/components/ui/alert/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
@@ -237,15 +236,6 @@
 			</Alert>
 		{/if}
 
-		{#if search.readiness.state !== 'ready'}
-			<Alert class="mb-6 border-amber-300 bg-amber-50 text-amber-950">
-				<AlertTitle>Search is running in compatibility mode</AlertTitle>
-				<AlertDescription>
-					Job results are using the database fallback while indexed search catches up.
-				</AlertDescription>
-			</Alert>
-		{/if}
-
 		<div
 			class="mb-5 flex flex-wrap items-center justify-between gap-3 border-b border-[var(--rule)] pb-4"
 		>
@@ -320,12 +310,4 @@
 			</nav>
 		{/if}
 	</KbPublicBrowseShell>
-
-	<KbSubmitBanner
-		coil="jobs"
-		heading="Know about an opportunity that belongs here?"
-		description="Share jobs, fellowships, and contracts that support Indigenous communities and Native hiring."
-		href="/jobs/submit"
-		label="Submit a job"
-	/>
 </div>

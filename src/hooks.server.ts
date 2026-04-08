@@ -25,7 +25,17 @@ if (!building && !dev) {
 	assertProductionRuntimeConfig();
 }
 
-function buildContentSecurityPolicy(): string {
+function allowsSameOriginEmbedding(pathname: string | undefined): boolean {
+	if (!pathname) return false;
+
+	return (
+		pathname.startsWith('/uploads/') ||
+		pathname.startsWith('/resources/') ||
+		/^\/toolbox\/[^/]+\/preview\/?$/.test(pathname)
+	);
+}
+
+function buildContentSecurityPolicy(pathname?: string): string {
 	const connectSrc = [
 		"'self'",
 		'https://photon.komoot.io',
@@ -51,8 +61,8 @@ function buildContentSecurityPolicy(): string {
 	}
 
 	const scriptSrc = ["'self'"];
-	scriptSrc.push("'unsafe-inline'");
 	if (dev) {
+		scriptSrc.push("'unsafe-inline'");
 		scriptSrc.push("'unsafe-eval'");
 	}
 
@@ -61,16 +71,19 @@ function buildContentSecurityPolicy(): string {
 		formAction.push('https://accounts.google.com');
 	}
 
+	const frameAncestors = allowsSameOriginEmbedding(pathname) ? "'self'" : "'none'";
+
 	return [
 		"default-src 'self'",
 		`script-src ${scriptSrc.join(' ')}`,
+		"script-src-attr 'none'",
 		"worker-src 'self' blob:",
 		"style-src 'self' 'unsafe-inline' https://use.typekit.net https://p.typekit.net",
 		"font-src 'self' data: https://use.typekit.net https://p.typekit.net",
 		`img-src ${imgSrc.join(' ')}`,
 		`connect-src ${connectSrc.join(' ')}`,
 		"object-src 'none'",
-		"frame-ancestors 'none'",
+		`frame-ancestors ${frameAncestors}`,
 		"base-uri 'self'",
 		`form-action ${formAction.join(' ')}`,
 		"manifest-src 'self'"
@@ -78,7 +91,7 @@ function buildContentSecurityPolicy(): string {
 }
 
 function applySecurityHeaders(response: Response, pathname?: string): Response {
-	response.headers.set('Content-Security-Policy', buildContentSecurityPolicy());
+	response.headers.set('Content-Security-Policy', buildContentSecurityPolicy(pathname));
 	response.headers.set(
 		'Permissions-Policy',
 		'camera=(), microphone=(), geolocation=(), payment=(), usb=(), midi=(), autoplay=(self), fullscreen=(self), clipboard-read=(), clipboard-write=(self)'

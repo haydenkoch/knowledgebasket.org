@@ -33,4 +33,26 @@ describe('admin request protection', () => {
 		expect(response.status).toBe(401);
 		expect(await response.json()).toEqual({ error: 'Authentication required' });
 	});
+
+	it('blocks unauthenticated admin funding create actions', async () => {
+		const response = await fetch(`${server.baseUrl}/admin/funding/new`, {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/x-www-form-urlencoded'
+			},
+			body: new URLSearchParams({ title: 'Test funding', funderName: 'Funder' })
+		});
+
+		expect(response.status).toBe(401);
+		expect(await response.json()).toEqual({ error: 'Authentication required' });
+	});
+
+	it('blocks unauthenticated admin funding moderation actions', async () => {
+		const response = await fetch(`${server.baseUrl}/admin/funding/demo-id?/approve`, {
+			method: 'POST'
+		});
+
+		expect(response.status).toBe(401);
+		expect(await response.json()).toEqual({ error: 'Authentication required' });
+	});
 });

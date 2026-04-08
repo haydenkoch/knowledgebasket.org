@@ -156,18 +156,21 @@ const updates = [
 			p(
 				'Big Time gatherings, a tradition among many California Native communities, serve as spaces for celebration, cultural expression and community resilience.'
 			),
-			p('The Inaugural Big Time will be on Friday April 3rd, 2026 at the University Credit Union Center.')
+			p(
+				'The Inaugural Big Time will be on Friday April 3rd, 2026 at the University Credit Union Center.'
+			)
 		)
 	},
 	{
 		slug: 'ucr-44th-annual-medicine-ways-conference',
 		eventUrl: 'https://nasp.ucr.edu/events/medicine-ways-conference',
-		hostOrg: 'Native American Student Association and Native American Student Programs, UC Riverside',
+		hostOrg:
+			'Native American Student Association and Native American Student Programs, UC Riverside',
 		location: 'Student Success Center, UC Riverside, Riverside, CA',
 		address: '900 University Ave, Riverside, CA 92521',
 		description: body(
 			p(
-				"For over four decades, UCR's Native American Student Association and Native American Student Programs have hosted the annual Medicine Ways Conference. Featured guests from across the nation are invited to partake in this event and admission is free to our students, faculty, staff, and community. This year's Medicine Ways Conference theme \"Stories Passed Around the Fire\"."
+				'For over four decades, UCR\'s Native American Student Association and Native American Student Programs have hosted the annual Medicine Ways Conference. Featured guests from across the nation are invited to partake in this event and admission is free to our students, faculty, staff, and community. This year\'s Medicine Ways Conference theme "Stories Passed Around the Fire".'
 			),
 			p(
 				'Time Saturday, April 4, 2026 Theme "Stories Passed Around the Fire" Student Success Center (SSC)'
@@ -176,10 +179,10 @@ const updates = [
 				'8:30am - 9:30am Registration and Breakfast',
 				'9:30am - 10:00am Welcome, Blessing, and Birdsongs Michael Madrigal (Cahuilla)',
 				'10:15am - 11:00am Keynote Speaker William Bauer (Round Valley Indian Tribes)',
-				'11:10am - 12:00pm Keynote Speaker James Yee (Kaswa\' Chumash)',
+				"11:10am - 12:00pm Keynote Speaker James Yee (Kaswa' Chumash)",
 				'12:00pm - 1:00pm Lunch',
 				'1:00pm - 1:50pm Pottery Workshop Izzi Reyes (Mexican Kikapú/Lepaí Ndé)',
-				'1:00pm - 1:50pm NASA Ink Stamping Alikoi Parra (Kaswa\' Chumash) and Francine Phillips (Fort Yuma Quechan Indian Tribe)',
+				"1:00pm - 1:50pm NASA Ink Stamping Alikoi Parra (Kaswa' Chumash) and Francine Phillips (Fort Yuma Quechan Indian Tribe)",
 				'1:50pm - 2:00pm Closing'
 			])
 		)
@@ -191,7 +194,7 @@ const updates = [
 		address: null,
 		description: body(
 			p(
-				"queer sol’s LIVING LEGACY program is in its early building stages, inviting those with the heart to join and become a part of this epic endeavor: helping to build a new world, together."
+				'queer sol’s LIVING LEGACY program is in its early building stages, inviting those with the heart to join and become a part of this epic endeavor: helping to build a new world, together.'
 			),
 			p(
 				'This program is a community centered, multi-generational, eco-conscious housing concept that stems from the need to provide culturally supportive housing access to some of the most vulnerable members of the 2SLGBTQ+ community.'
@@ -207,7 +210,9 @@ const updates = [
 		eventUrl: 'https://www.humboldt.edu/itepp/california-indian-big-time-social-gathering',
 		description: body(
 			p('Save the Date: April 4th, 2026'),
-			p('The annual California Indian Big Time & Social Gathering is held each year on the first Saturday of the month.')
+			p(
+				'The annual California Indian Big Time & Social Gathering is held each year on the first Saturday of the month.'
+			)
 		)
 	},
 	{
@@ -229,7 +234,9 @@ const updates = [
 				'The UC Davis Powwow also benefits the campus community by promoting cross-cultural communication and alliances and supporting both the recruitment and retention of Native American students at UC Davis. Altogether, everything put into preparing and holding the annual UC Davis Powwow affords the opportunity for the campus and local Native community to build connections to address the social, cultural, historical and political issues facing Indigenous people today.'
 			),
 			p('All are welcome to join us at the Annual UC Davis Powwow.'),
-			p('The 50th Annual Powwow will be on Saturday April 4th, 2026, at the University Credit Union Center.')
+			p(
+				'The 50th Annual Powwow will be on Saturday April 4th, 2026, at the University Credit Union Center.'
+			)
 		)
 	},
 	{
@@ -243,7 +250,9 @@ const updates = [
 			p(
 				'Join families, survivors, cultural and spiritual leaders, and community partners for prayer, cultural practices, youth and family activities, and shared dialogue rooted in respect and tradition addressing the MMIP crisis.'
 			),
-			p('We invite you to confirm your attendance to the MMIW/R community gathering by submitting your RSVP.')
+			p(
+				'We invite you to confirm your attendance to the MMIW/R community gathering by submitting your RSVP.'
+			)
 		)
 	},
 	{
@@ -263,7 +272,9 @@ const updates = [
 	},
 	{
 		slug: 'carmel-band-of-rumsen-indians-community-gathering-and-powwow',
-		description: body(p('Save the Date! Friday April 17th - Sunday April 19th 2026, Arcadia County Park.'))
+		description: body(
+			p('Save the Date! Friday April 17th - Sunday April 19th 2026, Arcadia County Park.')
+		)
 	},
 	{
 		slug: 'comic-creation',
@@ -271,15 +282,15 @@ const updates = [
 			p(
 				'Explore the art of storytelling through illustrations and dialogue. From developing compelling characters and plots to mastering visual techniques and panel layout, this workshop will guide you through every step of creating a unique comic!'
 			),
-			p(
-				'Taught by Native American artist, Devaney Rain Royalty (Ponca/Cree/Tsalagi/Gaelic).'
-			)
+			p('Taught by Native American artist, Devaney Rain Royalty (Ponca/Cree/Tsalagi/Gaelic).')
 		)
 	},
 	{
 		slug: 'garden-box-workshop',
 		description: body(
-			p('Learn to build your own Garden Box and get ready to plant for spring/summer! Limited Supplies available so sign up early!'),
+			p(
+				'Learn to build your own Garden Box and get ready to plant for spring/summer! Limited Supplies available so sign up early!'
+			),
 			ul([
 				'Saturday April 18th - 10 am - 3 pm',
 				'Sunday April 19th - 10am - 3 pm',
@@ -291,8 +302,12 @@ const updates = [
 	{
 		slug: 'agave-roast-native-food-tasting-event-at-malki-museum',
 		description: body(
-			p('Hello Malki Museum Supporters,We are excited to bring a bountiful and educational Agave Roast for the year of 2026!'),
-			p('PLEASE NOTE THAT WE WILL NOT BE HAVING THE VOLUNTEER HARVESTING DAY FOR THE YEAR OF 2026.'),
+			p(
+				'Hello Malki Museum Supporters,We are excited to bring a bountiful and educational Agave Roast for the year of 2026!'
+			),
+			p(
+				'PLEASE NOTE THAT WE WILL NOT BE HAVING THE VOLUNTEER HARVESTING DAY FOR THE YEAR OF 2026.'
+			),
 			p(
 				'We wanted to share an informative presentation which gives facts about the desert agave and also the Cahuilla’s use of this helpful plant. We encourage everyone who is interested in learning about the desert Agave and the Malki Museum Agave and Roast history to take a look. We are thankful to have such great resources available at the museum to help create this presentation so please review the "Resources" portion at the end of the presentation to find out what resources were used.'
 			),
@@ -300,7 +315,7 @@ const updates = [
 				'The Agave Harvest and Tasting is an annual event sponsored by the Malki Museum. It is held on two consecutive Saturdays in mid- to late-April, when the Agave plants were traditionally gathered. The agave or amul was a basic food staple for the Cahuilla and Kumeyaay Indians of Southern California.'
 			),
 			p(
-				'The harvested agave is brought back to the Malki Museum for the Agave Roast, held the following Saturday. The agave hearts are cooked in a traditional roasting pit and served with other customary Native foods. There are also community organization\'s presenting on Native plants and animals.'
+				"The harvested agave is brought back to the Malki Museum for the Agave Roast, held the following Saturday. The agave hearts are cooked in a traditional roasting pit and served with other customary Native foods. There are also community organization's presenting on Native plants and animals."
 			)
 		)
 	},
@@ -327,14 +342,18 @@ const updates = [
 			p(
 				'Yoomén celebrates the coming of spring, a welcome time of new growth, and the guarantee of fresh foods and warmer weather. The cultural event features Native American performers and cultural demonstrators who showcase their exquisite skills working with natural materials to create baskets, jewelry, tools and more! The local Native artist community will also have artwork on view in the museum, and crafts and other goods will be sold by Native artisans. Native-inspired art and game stations for children and guided tours of the museum and site will also be available, including tours of the site’s famous ancient petroglyphs.'
 			),
-			p('This popular annual event is FREE to the public as we strive to remain an accessible learning center for all!')
+			p(
+				'This popular annual event is FREE to the public as we strive to remain an accessible learning center for all!'
+			)
 		)
 	},
 	{
 		slug: 'indigenous-stories-film-festival-and-art-walk',
 		description: body(
 			p('The Indigenous Stories Film Festival & Art Walk is BACK and bigger than ever!'),
-			p('Join us for our 2nd Annual celebration of Indigenous creativity, culture, and community on May 1st at the Rincon Government Center.'),
+			p(
+				'Join us for our 2nd Annual celebration of Indigenous creativity, culture, and community on May 1st at the Rincon Government Center.'
+			),
 			ul([
 				'Indigenous-Made Films',
 				'Experience powerful stories told by Indigenous directors, creators, and communities-highlighting culture, resilience, and authentic lived experiences on screen.',
@@ -376,7 +395,7 @@ const updates = [
 		description: body(
 			p('Please join us May 5th for the Yurok MMIP Awareness Day & Walk.'),
 			p(
-				'This event will be held at the Adorni Center in Eureka from 12:30-4:30pm. This will be a powerful day of remembrance for missing and murdered Indigenous people with prayer, walk, speakers and dinner. To\' Kee Skuy\' Soo Ney-Wo-Chek\'.'
+				"This event will be held at the Adorni Center in Eureka from 12:30-4:30pm. This will be a powerful day of remembrance for missing and murdered Indigenous people with prayer, walk, speakers and dinner. To' Kee Skuy' Soo Ney-Wo-Chek'."
 			)
 		)
 	},
@@ -402,7 +421,9 @@ const updates = [
 		slug: '4th-annual-california-indian-studies-conference-and-gathering',
 		eventUrl: 'https://www.californiaindianstudies.org/conferencesymposium.html',
 		description: body(
-			p('The California Indian Studies Conference and Gathering is set to be hosted in Patwin homelands at UC Davis.'),
+			p(
+				'The California Indian Studies Conference and Gathering is set to be hosted in Patwin homelands at UC Davis.'
+			),
 			p('More info to come!')
 		)
 	},
@@ -465,10 +486,14 @@ async function applyUpdate(update) {
 		? update.address
 		: current.address;
 	const startDate = Object.prototype.hasOwnProperty.call(update, 'startDate')
-		? (update.startDate ? new Date(update.startDate) : null)
+		? update.startDate
+			? new Date(update.startDate)
+			: null
 		: current.start_date;
 	const endDate = Object.prototype.hasOwnProperty.call(update, 'endDate')
-		? (update.endDate ? new Date(update.endDate) : null)
+		? update.endDate
+			? new Date(update.endDate)
+			: null
 		: current.end_date;
 
 	const rows = await db`

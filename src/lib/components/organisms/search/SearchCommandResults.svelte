@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { trackSearchResultClicked } from '$lib/analytics/events';
+	import { trackSearchResultClicked } from '$lib/insights/events';
 	import * as Command from '$lib/components/ui/command/index.js';
 	import ChevronRight from '@lucide/svelte/icons/chevron-right';
 	import CornerDownLeft from '@lucide/svelte/icons/corner-down-left';

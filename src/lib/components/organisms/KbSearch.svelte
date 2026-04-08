@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { trackSearchPerformed } from '$lib/analytics/events';
+	import { trackSearchPerformed } from '$lib/insights/events';
 	import { goto } from '$app/navigation';
 	import { onMount } from 'svelte';
 	import SearchIcon from '@lucide/svelte/icons/search';

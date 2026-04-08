@@ -2,6 +2,7 @@ import { and, eq } from 'drizzle-orm';
 import { db, type DbExecutor } from '$lib/server/db';
 import { canonicalRecords, sourceRecordLinks, sources } from '$lib/server/db/schema';
 import type { CoilKey, SourceProvenance } from '$lib/data/kb';
+import { normalizePublicHttpUrl } from '$lib/server/url-safety';
 
 type SourceOpsCoil = 'events' | 'funding' | 'jobs' | 'red_pages' | 'toolbox';
 
@@ -56,8 +57,11 @@ export async function getSourceProvenanceByPublishedRecord(
 	return {
 		sourceName: primary.source.name,
 		sourceSlug: primary.source.slug,
-		sourceUrl: primary.source.homepageUrl ?? primary.source.sourceUrl,
-		sourceItemUrl: primary.link.sourceItemUrl ?? undefined,
+		sourceUrl:
+			normalizePublicHttpUrl(primary.source.homepageUrl) ??
+			normalizePublicHttpUrl(primary.source.sourceUrl) ??
+			undefined,
+		sourceItemUrl: normalizePublicHttpUrl(primary.link.sourceItemUrl ?? undefined) ?? undefined,
 		attributionText:
 			primary.link.sourceAttribution ?? primary.source.attributionText ?? primary.source.name,
 		lastSyncedAt: toIso(primary.link.lastSyncAt ?? primary.link.lastSeenAt ?? null),

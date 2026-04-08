@@ -1,14 +1,16 @@
 <script lang="ts">
 	import { browser } from '$app/environment';
-	import { trackContentViewed, trackExternalLinkClicked } from '$lib/analytics/events';
+	import { trackContentViewed, trackExternalLinkClicked } from '$lib/insights/events';
 	import SeoHead from '$lib/components/SeoHead.svelte';
 	import { resolveAbsoluteUrl } from '$lib/config/public-assets';
 	import type { RedPagesItem } from '$lib/data/kb';
+	import { resolveSeoSocialImage } from '$lib/seo/images';
 	import { buildOgImagePath } from '$lib/seo/metadata';
 	import { stripHtml } from '$lib/utils/format';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import * as Tooltip from '$lib/components/ui/tooltip/index.js';
 	import CoilDetailActionRail from '$lib/components/organisms/CoilDetailActionRail.svelte';
+	import CoilDetailHero from '$lib/components/organisms/CoilDetailHero.svelte';
 	import LocationMap from '$lib/components/molecules/LocationMap.svelte';
 	import MapPinIcon from '@lucide/svelte/icons/map-pin';
 	import ArrowLeft from '@lucide/svelte/icons/arrow-left';
@@ -54,12 +56,25 @@
 		})
 	);
 	const socialImage = $derived(
-		buildOgImagePath({
-			title: item?.title ?? 'Red Pages',
-			eyebrow: 'Knowledge Basket · Red Pages',
-			theme: 'redpages',
-			meta: item?.tribalAffiliation ?? item?.serviceType ?? 'Native-owned businesses and services'
-		})
+		item
+			? resolveSeoSocialImage({
+					imageUrl: item.imageUrl ?? item.imageUrls?.[0] ?? item.logoUrl ?? null,
+					origin,
+					seed: item.slug ?? item.title,
+					fallbackOgImage: buildOgImagePath({
+						title: item.title,
+						eyebrow: 'Knowledge Basket · Red Pages',
+						theme: 'redpages',
+						meta:
+							item.tribalAffiliation ?? item.serviceType ?? 'Native-owned businesses and services'
+					})
+				})
+			: buildOgImagePath({
+					title: 'Red Pages',
+					eyebrow: 'Knowledge Basket · Red Pages',
+					theme: 'redpages',
+					meta: 'Native-owned businesses and services'
+				})
 	);
 	const breadcrumbItems = $derived(
 		item
@@ -158,63 +173,43 @@
 		>
 	</div>
 {:else}
-	<div class="kb-rp-wrap">
-		<!-- Hero header: optional banner image behind gradient scrim, logo overlaps rail below -->
-		<div class="kb-rp-hero" class:has-banner={!!heroBanner}>
-			{#if heroBanner}
-				<img src={heroBanner} alt="" class="kb-rp-hero-banner" loading="lazy" />
+	<CoilDetailHero
+		title={item.title}
+		subtitle={item.tribalAffiliation ?? undefined}
+		bannerImages={galleryImages}
+		selectedBannerIndex={selectedGalleryIndex}
+		onSelectBanner={(i) => (selectedGalleryIndex = i)}
+		galleryLabel="Listing gallery"
+		placeholderKey={item.slug}
+	>
+		{#snippet badges()}
+			{#if item.verified}
+				<span class="kb-coil-tag kb-coil-tag--accent">Verified</span>
 			{/if}
-			<div class="kb-rp-hero-scrim"></div>
-			<div class="kb-rp-hero-body">
-				<div class="kb-rp-badges">
-					{#if item.verified}
-						<span class="kb-rp-badge kb-rp-badge--verified">Verified</span>
-					{/if}
-					{#each serviceTypesDisplay as st (st)}
-						<span class="kb-rp-badge">{st}</span>
-					{/each}
-				</div>
-				<h1 class="kb-rp-title">{item.title}</h1>
-				{#if item.tribalAffiliation}
-					<p class="kb-rp-affiliation">{item.tribalAffiliation}</p>
-				{/if}
-				{#if galleryImages.length > 1}
-					<div class="kb-rp-filmstrip" role="tablist" aria-label="Gallery">
-						{#each galleryImages as url, i (url + i)}
-							<button
-								type="button"
-								class="kb-rp-thumb"
-								class:selected={i === selectedGalleryIndex}
-								aria-label="View image {i + 1}"
-								aria-selected={i === selectedGalleryIndex}
-								role="tab"
-								onclick={() => (selectedGalleryIndex = i)}
-							>
-								<img src={url} alt="" loading="lazy" />
-							</button>
-						{/each}
-					</div>
-				{/if}
-			</div>
-			<div class="kb-rp-logo-wrap">
-				{#if item.logoUrl}
-					<img src={item.logoUrl} alt="{item.title} logo" class="kb-rp-logo" />
-				{:else}
-					<div class="kb-rp-initials" aria-hidden="true">{initials(item.title)}</div>
-				{/if}
-			</div>
-		</div>
+			{#each serviceTypesDisplay as st (st)}
+				<span class="kb-coil-tag">{st}</span>
+			{/each}
+		{/snippet}
+		{#snippet logo()}
+			{#if item.logoUrl}
+				<img src={item.logoUrl} alt="{item.title} logo" class="kb-rp-logo" />
+			{:else}
+				<div class="kb-rp-initials" aria-hidden="true">{initials(item.title)}</div>
+			{/if}
+		{/snippet}
+	</CoilDetailHero>
 
-		<div class="kb-rp-rail">
-			<CoilDetailActionRail
-				isAuthed={!!data.user}
-				{isBookmarked}
-				{loginHref}
-				contentType="redpage"
-				contentSlug={item.slug}
-				saveLabel="listing"
-				accent="var(--red)"
-			>
+	<div class="kb-rp-wrap">
+		<CoilDetailActionRail
+			isAuthed={!!data.user}
+			{isBookmarked}
+			{loginHref}
+			contentType="redpage"
+			contentSlug={item.slug}
+			saveLabel="listing"
+			accent="var(--red)"
+			hasLogoOverhang
+		>
 				{#snippet actions()}
 					{#if item.phone}
 						<Tooltip.Root>
@@ -289,8 +284,7 @@
 						</Button>
 					{/if}
 				{/snippet}
-			</CoilDetailActionRail>
-		</div>
+		</CoilDetailActionRail>
 
 		<div class="kb-rp-grid">
 			<!-- Main content -->
@@ -465,115 +459,16 @@
 	.kb-rp-wrap {
 		max-width: 1200px;
 		margin: 0 auto;
-		padding: 1.5rem 1.5rem 3rem;
-	}
-	.kb-rp-hero {
-		position: relative;
-		overflow: visible;
-		border-radius: 18px 18px 0 0;
-		background: linear-gradient(135deg, var(--red), var(--color-elderberry-950, #3f0d16));
-		min-height: 260px;
-		padding: 2rem 2rem 2rem;
-		color: white;
-		isolation: isolate;
-	}
-	@media (min-width: 640px) {
-		.kb-rp-hero {
-			min-height: 320px;
-			padding: 2.5rem 2.25rem 2.25rem;
-		}
-	}
-	@media (min-width: 1024px) {
-		.kb-rp-hero {
-			min-height: 360px;
-			padding: 3rem 2.75rem 2.75rem;
-		}
-	}
-	.kb-rp-hero-banner {
-		position: absolute;
-		inset: 0;
-		width: 100%;
-		height: 100%;
-		object-fit: cover;
-		z-index: 0;
-		border-radius: 14px 14px 0 0;
-	}
-	.kb-rp-hero-scrim {
-		position: absolute;
-		inset: 0;
-		z-index: 1;
-		border-radius: 14px 14px 0 0;
-		background: linear-gradient(135deg, rgba(140, 20, 25, 0.92) 0%, rgba(63, 13, 22, 0.82) 100%);
-	}
-	.kb-rp-hero.has-banner .kb-rp-hero-scrim {
-		background: linear-gradient(135deg, rgba(140, 20, 25, 0.7) 0%, rgba(63, 13, 22, 0.85) 100%);
-	}
-	.kb-rp-hero-body {
-		position: relative;
-		z-index: 2;
-		min-width: 0;
-	}
-	/* ── Gallery filmstrip ── */
-	.kb-rp-filmstrip {
-		display: none;
-		flex-shrink: 0;
-		gap: 0.5rem;
-		padding: 0.5rem;
-		margin-top: 0.75rem;
-		border-radius: 10px;
-		background: rgba(0, 0, 0, 0.35);
-		backdrop-filter: blur(6px);
-		-webkit-backdrop-filter: blur(6px);
-		border: 1px solid rgba(255, 255, 255, 0.1);
-	}
-	@media (min-width: 480px) {
-		.kb-rp-filmstrip {
-			display: flex;
-		}
-	}
-	.kb-rp-thumb {
-		width: 56px;
-		height: 56px;
-		padding: 0;
-		border: 2px solid transparent;
-		border-radius: 6px;
-		overflow: hidden;
-		background: rgba(255, 255, 255, 0.06);
-		cursor: pointer;
-		transition:
-			border-color 0.15s,
-			transform 0.15s;
-	}
-	.kb-rp-thumb:hover {
-		transform: translateY(-1px);
-	}
-	.kb-rp-thumb.selected {
-		border-color: white;
-	}
-	.kb-rp-thumb img {
-		width: 100%;
-		height: 100%;
-		object-fit: cover;
-	}
-	.kb-rp-logo-wrap {
-		position: absolute;
-		z-index: 3;
-		left: 1.75rem;
-		bottom: -36px;
-	}
-	@media (min-width: 640px) {
-		.kb-rp-logo-wrap {
-			left: 2rem;
-		}
+		padding: 0 1.5rem 3rem;
 	}
 	.kb-rp-logo {
 		display: block;
-		width: 72px;
-		height: 72px;
+		width: 112px;
+		height: 112px;
 		object-fit: contain;
-		border-radius: 12px;
+		border-radius: 50%;
 		background: white;
-		padding: 6px;
+		padding: 10px;
 		box-shadow: 0 6px 18px rgba(0, 0, 0, 0.3);
 		border: 3px solid var(--background);
 	}
@@ -581,63 +476,16 @@
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		width: 72px;
-		height: 72px;
+		width: 112px;
+		height: 112px;
 		border-radius: 50%;
 		background: var(--color-elderberry-950, #3f0d16);
 		color: white;
 		font-family: var(--font-serif);
-		font-size: 1.6rem;
+		font-size: 2.25rem;
 		font-weight: 700;
 		box-shadow: 0 6px 18px rgba(0, 0, 0, 0.3);
 		border: 3px solid var(--background);
-	}
-	/* Rail override: clear the overlapping logo circle on desktop. */
-	.kb-rp-rail :global(.coil-rail) {
-		padding-left: 104px;
-	}
-	@media (max-width: 640px) {
-		.kb-rp-rail :global(.coil-rail) {
-			padding-left: 92px;
-			padding-top: 1.25rem;
-		}
-	}
-	.kb-rp-badges {
-		display: flex;
-		flex-wrap: wrap;
-		gap: 0.375rem;
-		margin-bottom: 0.5rem;
-	}
-	.kb-rp-badge {
-		display: inline-block;
-		padding: 0.2rem 0.5rem;
-		background: rgba(255, 255, 255, 0.15);
-		border-radius: 4px;
-		font-size: 0.6875rem;
-		font-weight: 700;
-		letter-spacing: 0.06em;
-		text-transform: uppercase;
-	}
-	.kb-rp-badge--verified {
-		background: var(--color-flicker-400);
-		color: rgba(0, 0, 0, 0.85);
-	}
-	.kb-rp-title {
-		font-family: var(--font-display, var(--font-serif));
-		font-size: clamp(1.75rem, 4.75vw, 3rem);
-		font-weight: 700;
-		line-height: 1.05;
-		letter-spacing: -0.01em;
-		margin: 0 0 0.5rem 0;
-		color: white;
-		text-shadow: 0 2px 20px rgba(0, 0, 0, 0.35);
-	}
-	.kb-rp-affiliation {
-		font-family: var(--font-serif);
-		font-size: 1rem;
-		opacity: 0.88;
-		font-style: italic;
-		margin: 0;
 	}
 	.kb-rp-grid {
 		display: grid;

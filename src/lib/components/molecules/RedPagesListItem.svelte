@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { resolveAbsoluteUrl } from '$lib/config/public-assets';
 	import type { RedPagesItem } from '$lib/data/kb';
 	import { stripHtml } from '$lib/utils/format';
 
@@ -6,6 +7,9 @@
 
 	const href = $derived(`/red-pages/${vendor.slug ?? vendor.id}`);
 	const plainDesc = $derived(vendor.description ? stripHtml(String(vendor.description)) : '');
+	const logoUrl = $derived(resolveAbsoluteUrl(vendor.logoUrl) ?? vendor.logoUrl ?? null);
+	const avatarShellClass =
+		'flex h-16 w-16 flex-none items-center justify-center overflow-hidden rounded-full border border-[var(--rule)] shadow-sm';
 
 	function initials(title: string): string {
 		return (
@@ -36,11 +40,17 @@
 	class="flex items-start gap-4 rounded-lg border border-[var(--rule)] bg-white p-4 text-inherit no-underline shadow-[var(--sh)] transition-[box-shadow,transform] duration-150 hover:translate-x-[3px] hover:no-underline hover:shadow-[var(--shh)]"
 	style="animation-delay: {index * 30}ms"
 >
-	<div
-		class="flex h-14 w-14 flex-none items-center justify-center rounded-full bg-[var(--red)] font-sans text-xl font-bold text-white"
-	>
-		{initials(vendor.title)}
-	</div>
+	{#if logoUrl}
+		<div class={`${avatarShellClass} bg-white p-0.5`}>
+			<img src={logoUrl} alt="" class="h-full w-full scale-[1.12] object-cover" loading="lazy" />
+		</div>
+	{:else}
+		<div class={`${avatarShellClass} bg-[var(--red)]`}>
+			<span class="font-sans text-xl font-bold text-white">
+				{initials(vendor.title)}
+			</span>
+		</div>
+	{/if}
 	<div class="flex min-w-0 flex-1 flex-col gap-1">
 		<h3 class="font-serif text-base font-semibold text-[var(--dark)]">{vendor.title}</h3>
 		{#if vendor.tribalAffiliation}

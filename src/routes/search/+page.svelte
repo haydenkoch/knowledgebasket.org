@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { browser } from '$app/environment';
 	import SeoHead from '$lib/components/SeoHead.svelte';
-	import { trackSearchPerformed, trackSearchResultClicked } from '$lib/analytics/events';
+	import { trackSearchPerformed, trackSearchResultClicked } from '$lib/insights/events';
 	import type { SearchFacetGroup, SearchIndexScope } from '$lib/server/search-contracts';
 	import { Alert, AlertDescription, AlertTitle } from '$lib/components/ui/alert/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';

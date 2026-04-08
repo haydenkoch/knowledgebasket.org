@@ -49,7 +49,8 @@ export async function GET({ params }) {
 	return new Response(buf, {
 		headers: {
 			'Content-Type': contentType,
-			'Content-Length': String(buf.length)
+			'Content-Length': String(buf.length),
+			...(contentType === 'application/pdf' ? { 'Content-Disposition': 'inline' } : {})
 		}
 	});
 }

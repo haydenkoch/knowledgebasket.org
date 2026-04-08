@@ -18,16 +18,17 @@
 	import CoilTheme from '$lib/components/organisms/CoilTheme.svelte';
 	import MobilePeekPanel from '$lib/components/organisms/MobilePeekPanel.svelte';
 	import KbSidebar from '$lib/components/organisms/KbSidebar.svelte';
-	import KbSubmitBanner from '$lib/components/organisms/KbSubmitBanner.svelte';
 	import * as Popover from '$lib/components/ui/popover/index.js';
 	import * as Command from '$lib/components/ui/command/index.js';
 	import { Alert, AlertDescription, AlertTitle } from '$lib/components/ui/alert/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { useSidebar } from '$lib/components/ui/sidebar/index.js';
+	import { resolveAbsoluteUrl } from '$lib/config/public-assets';
 	import type { ToolboxItem } from '$lib/data/kb';
 	import { TOOLBOX_SUBSECTIONS } from '$lib/data/formSchema';
 	import { buildOgImagePath } from '$lib/seo/metadata';
 	import type { SearchResponse } from '$lib/server/search-contracts';
+	import { formatToolboxLabel, getToolboxHostLabel } from '$lib/toolbox/presentation';
 	import { stripHtml } from '$lib/utils/format';
 
 	const EMPTY_SEARCH: SearchResponse = {
@@ -405,7 +406,7 @@
 	<CoilTheme coil="toolbox">
 		<div
 			class="coil-layout flex w-full flex-col flex-nowrap md:flex-row"
-			style="min-height: calc(100dvh - 144px - var(--kb-submit-banner-offset, 76px))"
+			style="min-height: calc(100dvh - 144px)"
 			role="presentation"
 		>
 			<div
@@ -424,15 +425,6 @@
 						<AlertDescription>
 							Some live toolbox data is temporarily unavailable, so you may be seeing limited
 							results right now. Please try again in a little while.
-						</AlertDescription>
-					</Alert>
-				{/if}
-
-				{#if search.readiness.state !== 'ready'}
-					<Alert class="mb-6 border-amber-300 bg-amber-50 text-amber-950">
-						<AlertTitle>Search is running in compatibility mode</AlertTitle>
-						<AlertDescription>
-							Toolbox results are using the database fallback while indexed search catches up.
 						</AlertDescription>
 					</Alert>
 				{/if}
@@ -486,40 +478,82 @@
 						>
 					</div>
 				{:else}
-					<div class="grid gap-4 md:grid-cols-2">
+					<div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
 						{#each search.results as result (result.id)}
 							{@const item = result.fields as ToolboxItem}
 							{@const Icon = iconFor(item)}
+							{@const cardImage = resolveAbsoluteUrl(item.imageUrl, { origin }) ?? item.imageUrl}
+							{@const displayMediaType = formatToolboxLabel(item.mediaType) ?? 'Resource'}
+							{@const displayCategory = formatToolboxLabel(item.category)}
+							{@const provider = getToolboxHostLabel(item.externalUrl)}
 							<a
 								href={`/toolbox/${item.slug ?? item.id}`}
-								class="group rounded-2xl border border-[var(--rule)] bg-white p-5 text-inherit no-underline shadow-[var(--sh)] transition-[box-shadow,border-color,transform] duration-150 hover:-translate-y-[2px] hover:border-[var(--primary)]/30 hover:shadow-[var(--shh)]"
+								class="group overflow-hidden rounded-lg border border-[var(--rule)] bg-white text-inherit no-underline shadow-[var(--sh)] transition-[box-shadow,border-color,transform] duration-150 hover:-translate-y-[2px] hover:border-[var(--primary)]/30 hover:shadow-[var(--shh)]"
 							>
-								<div class="mb-3 flex items-center gap-3">
-									<div
-										class="flex h-11 w-11 items-center justify-center rounded-full bg-[var(--muted)] text-[var(--primary)]"
-									>
-										<Icon class="h-5 w-5" />
-									</div>
-									<div>
-										<p
-											class="font-sans text-xs font-semibold tracking-[0.08em] text-[var(--muted-foreground)] uppercase"
-										>
-											{item.mediaType ?? 'Resource'}
-										</p>
-										{#if item.category}
-											<p class="text-sm text-[var(--muted-foreground)]">{item.category}</p>
-										{/if}
-									</div>
+								<div
+									class="relative overflow-hidden border-b border-[var(--rule)] bg-[var(--muted)]"
+								>
+									{#if cardImage}
+										<div class="aspect-[16/9] overflow-hidden">
+											<img
+												src={cardImage}
+												alt=""
+												loading="lazy"
+												class="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+											/>
+										</div>
+										<div
+											class="pointer-events-none absolute inset-0 bg-gradient-to-t from-[rgba(8,24,44,0.72)] via-transparent to-transparent"
+										></div>
+										<div class="absolute right-3 bottom-3 left-3 flex items-end justify-between gap-3">
+											<div>
+												<p
+													class="font-sans text-[11px] font-semibold tracking-[0.1em] text-white/78 uppercase"
+												>
+													{displayMediaType}
+												</p>
+												{#if displayCategory}
+													<p class="mt-1 text-sm text-white/92">{displayCategory}</p>
+												{/if}
+											</div>
+											<div
+												class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white/18 text-white backdrop-blur-sm"
+											>
+												<Icon class="h-5 w-5" />
+											</div>
+										</div>
+									{:else}
+										<div class="flex items-center gap-3 p-5">
+											<div
+												class="flex h-11 w-11 items-center justify-center rounded-full bg-white text-[var(--primary)] shadow-sm"
+											>
+												<Icon class="h-5 w-5" />
+											</div>
+											<div>
+												<p
+													class="font-sans text-xs font-semibold tracking-[0.08em] text-[var(--muted-foreground)] uppercase"
+												>
+													{displayMediaType}
+												</p>
+												{#if displayCategory}
+													<p class="text-sm text-[var(--muted-foreground)]">{displayCategory}</p>
+												{/if}
+											</div>
+										</div>
+									{/if}
 								</div>
-								<h3 class="font-serif text-lg font-semibold text-[var(--dark)]">{item.title}</h3>
-								{#if item.description || item.body}
-									<p class="mt-2 line-clamp-3 text-sm leading-6 text-[var(--mid)]">
-										{stripHtml(item.description ?? item.body ?? '')}
-									</p>
-								{/if}
-								<div class="mt-4 flex flex-wrap gap-2 text-xs text-[var(--muted-foreground)]">
-									{#if item.sourceName}<span>{item.sourceName}</span>{/if}
-									{#if item.author}<span>{item.author}</span>{/if}
+								<div class="p-5">
+									<h3 class="font-serif text-lg font-semibold text-[var(--dark)]">{item.title}</h3>
+									{#if item.description || item.body}
+										<p class="mt-2 line-clamp-3 text-sm leading-6 text-[var(--mid)]">
+											{stripHtml(item.description ?? item.body ?? '')}
+										</p>
+									{/if}
+									<div class="mt-4 flex flex-wrap gap-2 text-xs text-[var(--muted-foreground)]">
+										{#if item.sourceName}<span>{item.sourceName}</span>{/if}
+										{#if provider && provider !== item.sourceName}<span>{provider}</span>{/if}
+										{#if item.author}<span>{item.author}</span>{/if}
+									</div>
 								</div>
 							</a>
 						{/each}
@@ -593,14 +627,6 @@
 			</div>
 		</MobilePeekPanel>
 	</CoilTheme>
-
-	<KbSubmitBanner
-		coil="toolbox"
-		heading="Have a resource we should include?"
-		description="Share toolkits, reports, and practical guides that belong in the toolbox."
-		href="/toolbox/submit"
-		label="Submit a resource"
-	/>
 </div>
 
 <style>

@@ -3,11 +3,9 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
 	import { untrack } from 'svelte';
-	import Star from '@lucide/svelte/icons/star';
 	import KbHero from '$lib/components/organisms/KbHero.svelte';
 	import KbPublicBrowseShell from '$lib/components/organisms/KbPublicBrowseShell.svelte';
 	import RedPagesSidebar from '$lib/components/organisms/RedPagesSidebar.svelte';
-	import KbSubmitBanner from '$lib/components/organisms/KbSubmitBanner.svelte';
 	import RedPagesListItem from '$lib/components/molecules/RedPagesListItem.svelte';
 	import { Alert, AlertDescription, AlertTitle } from '$lib/components/ui/alert/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
@@ -114,31 +112,6 @@
 			)
 	);
 
-	const featured = $derived(
-		search.results.slice(0, 6).map((result) => result.fields as RedPagesItem)
-	);
-
-	function initials(title: string): string {
-		return (
-			title
-				.split(/\s+/)
-				.filter(Boolean)
-				.slice(0, 2)
-				.map((word) => word[0])
-				.join('')
-				.toUpperCase() || '?'
-		);
-	}
-
-	function serviceTags(serviceType?: string): string[] {
-		if (!serviceType?.trim()) return [];
-		const raw = serviceType
-			.split(/[:,)]+/)
-			.map((segment) => segment.replace(/\s*\([^)]*$/, '').trim())
-			.filter((segment) => segment.length > 0 && segment.length < 45);
-		return [...new Set(raw)];
-	}
-
 	function buildPageHref(nextPage: number) {
 		const url = new URL($page.url);
 		if (nextPage > 1) url.searchParams.set('page', String(nextPage));
@@ -244,65 +217,6 @@
 		{stats}
 	/>
 
-	{#if featured.length > 0}
-		<section
-			class="border-b border-[var(--rule)] bg-[var(--color-alpine-100,var(--bone))] px-4 pt-5 pb-3 sm:px-6 lg:px-10"
-			aria-label="Featured vendors"
-		>
-			<div
-				class="mb-2 font-sans text-[11px] font-bold tracking-[0.12em] text-[var(--color-elderberry-950,var(--red))] uppercase"
-			>
-				Featured vendors
-			</div>
-			<div class="flex flex-wrap gap-3">
-				{#each featured as vendor (vendor.id)}
-					{@const tags = serviceTags(vendor.serviceType).slice(0, 2)}
-					<a
-						href="/red-pages/{vendor.slug ?? vendor.id}"
-						class="flex items-start gap-4 rounded-lg border-2 border-[var(--color-salmonberry-100,var(--red-lt))] bg-white p-4 text-inherit no-underline shadow-[var(--sh)] transition-[box-shadow,border-color,transform] duration-150 hover:translate-x-[3px] hover:border-[var(--color-salmonberry-900,var(--red))] hover:shadow-[var(--shh)]"
-					>
-						<div
-							class="flex h-14 w-14 flex-none items-center justify-center rounded-full bg-[var(--red)] font-sans text-xl font-bold text-white"
-						>
-							{initials(vendor.title)}
-						</div>
-						<div class="flex min-w-0 flex-1 flex-col gap-1">
-							<span
-								class="mb-1 inline-flex items-center gap-1 rounded-full bg-[var(--color-salmonberry-900,var(--red))] px-2 py-0.5 font-sans text-[11px] font-bold tracking-[0.08em] text-white uppercase"
-							>
-								<Star class="inline h-3 w-3 fill-current" /> Featured
-							</span>
-							<div class="mb-1 font-serif text-base font-semibold text-[var(--dark)]">
-								{vendor.title}
-							</div>
-							{#if vendor.tribalAffiliation}
-								<div class="mb-1 text-sm text-[var(--muted-foreground)]">
-									{vendor.tribalAffiliation}
-								</div>
-							{/if}
-							{#if tags.length || vendor.region}
-								<div class="my-1 flex flex-wrap gap-1.5">
-									{#each tags as tag}
-										<span
-											class="rounded bg-[var(--muted)] px-2 py-0.5 text-[11px] font-semibold text-[var(--muted-foreground)]"
-											>{tag}</span
-										>
-									{/each}
-									{#if vendor.region}
-										<span
-											class="rounded bg-[var(--muted)] px-2 py-0.5 text-[11px] font-semibold text-[var(--muted-foreground)]"
-											>{vendor.region}</span
-										>
-									{/if}
-								</div>
-							{/if}
-						</div>
-					</a>
-				{/each}
-			</div>
-		</section>
-	{/if}
-
 	<KbPublicBrowseShell
 		coil="redpages"
 		bind:mobileFiltersExpanded
@@ -315,15 +229,6 @@
 				<AlertDescription>
 					Some live directory data is temporarily unavailable, so you may be seeing limited results
 					right now. Please try again in a little while.
-				</AlertDescription>
-			</Alert>
-		{/if}
-
-		{#if search.readiness.state !== 'ready'}
-			<Alert class="mb-6 border-amber-300 bg-amber-50 text-amber-950">
-				<AlertTitle>Search is running in compatibility mode</AlertTitle>
-				<AlertDescription>
-					Directory results are using the database fallback while indexed search catches up.
 				</AlertDescription>
 			</Alert>
 		{/if}
@@ -404,12 +309,4 @@
 			</nav>
 		{/if}
 	</KbPublicBrowseShell>
-
-	<KbSubmitBanner
-		coil="redpages"
-		heading="Know a Native-owned business we should include?"
-		description="Share vendors, artists, and service providers that belong in the directory."
-		href="/red-pages/submit"
-		label="Submit a listing"
-	/>
 </div>

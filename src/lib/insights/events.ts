@@ -1,4 +1,4 @@
-import { captureAnalyticsEvent } from '$lib/analytics/posthog.client';
+import { captureAnalyticsEvent } from '$lib/insights/provider.client';
 
 type ContentType = 'event' | 'funding' | 'redpage' | 'job' | 'toolbox' | 'organization';
 type SubmissionType = 'event' | 'funding' | 'redpage' | 'toolbox';
@@ -193,5 +193,59 @@ export function trackOrganizationAction(action: string, slug: string | null | un
 	captureAnalyticsEvent('organization_action_clicked', {
 		action: normalizedAction,
 		slug: normalizedSlug
+	});
+}
+
+export function trackOrganizationFollowChanged(options: {
+	slug: string | null | undefined;
+	following: boolean;
+	signedIn?: boolean;
+}) {
+	const slug = normalizeText(options.slug, 160);
+	if (!slug) return;
+
+	captureAnalyticsEvent('organization_follow_changed', {
+		slug,
+		following: options.following,
+		signed_in: options.signedIn ?? false
+	});
+}
+
+export function trackJobInterestChanged(options: {
+	slug: string | null | undefined;
+	interested: boolean;
+	signedIn?: boolean;
+}) {
+	const slug = normalizeText(options.slug, 160);
+	if (!slug) return;
+
+	captureAnalyticsEvent('job_interest_changed', {
+		slug,
+		interested: options.interested,
+		signed_in: options.signedIn ?? false
+	});
+}
+
+export function trackNotificationPreferencesSaved(options: {
+	emailSubmissionUpdates: boolean;
+	emailOrgActivity: boolean;
+	emailFollowedOrgs: boolean;
+	emailBookmarkReminders: boolean;
+	emailNewsletter: boolean;
+	inAppSubmissionUpdates: boolean;
+	inAppOrgActivity: boolean;
+	inAppFollowedOrgs: boolean;
+	inAppBookmarkReminders: boolean;
+}) {
+	captureAnalyticsEvent('notification_preferences_saved', {
+		email_submission_updates: options.emailSubmissionUpdates,
+		email_org_activity: options.emailOrgActivity,
+		email_followed_orgs: options.emailFollowedOrgs,
+		email_bookmark_reminders: options.emailBookmarkReminders,
+		email_newsletter: options.emailNewsletter,
+		in_app_submission_updates: options.inAppSubmissionUpdates,
+		in_app_org_activity: options.inAppOrgActivity,
+		in_app_followed_orgs: options.inAppFollowedOrgs,
+		in_app_bookmark_reminders: options.inAppBookmarkReminders
 	});
 }

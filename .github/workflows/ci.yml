@@ -63,6 +63,12 @@ jobs:
       - name: Install
         run: pnpm install --frozen-lockfile
 
+      - name: Typecheck
+        run: pnpm check
+
+      - name: Lint
+        run: pnpm lint
+
       - name: Wait for services
         run: |
           node <<'EOF'
@@ -99,17 +105,11 @@ jobs:
           }
           EOF
 
-      - name: Migrate database
-        run: pnpm db:migrate
+      - name: Apply database schema
+        run: pnpm db:deploy
 
       - name: Seed database
         run: pnpm db:seed
-
-      - name: Typecheck
-        run: pnpm check
-
-      - name: Lint
-        run: pnpm lint
 
       - name: Test
         run: pnpm test

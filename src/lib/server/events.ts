@@ -25,6 +25,7 @@ import {
 } from '$lib/server/db/schema';
 import { indexEvent, removeDocument } from '$lib/server/meilisearch';
 import { getSourceProvenanceByPublishedRecord } from '$lib/server/source-provenance';
+import { sanitizeRichTextHtml } from '$lib/server/sanitize-rich-text';
 import { stripHtml } from '$lib/utils/format';
 import type { EventItem, PricingTier } from '$lib/data/kb';
 import { buildModerationFields } from '$lib/server/admin-content';
@@ -58,7 +59,7 @@ function rowToEventItem(
 		id: row.id,
 		slug: row.slug,
 		title: row.title,
-		description: row.description ?? undefined,
+		description: sanitizeRichTextHtml(row.description ?? undefined),
 		coil: 'events',
 		location: row.location ?? undefined,
 		address: row.address ?? undefined,
@@ -621,13 +622,14 @@ export async function createEvent(
 		? new Date(data.registrationDeadline)
 		: null;
 	const doorsOpenAt = data.doorsOpenAt ? new Date(data.doorsOpenAt) : null;
+	const description = sanitizeRichTextHtml(data.description ?? undefined) ?? null;
 
 	const [row] = await database
 		.insert(eventsTable)
 		.values({
 			slug,
 			title: data.title,
-			description: data.description ?? null,
+			description,
 			location: data.location ?? null,
 			address: data.address ?? null,
 			region: data.region ?? null,
@@ -685,6 +687,11 @@ export async function updateEvent(
 	data: Partial<Omit<EventInsert, 'id' | 'createdAt'>>,
 	database: DbExecutor = db
 ): Promise<EventItem | null> {
+	const nextData = { ...data };
+	if ('description' in nextData) {
+		nextData.description = sanitizeRichTextHtml(nextData.description ?? undefined) ?? null;
+	}
+
 	if (data.slug != null) {
 		const [current] = await database
 			.select({ slug: eventsTable.slug })
@@ -700,7 +707,7 @@ export async function updateEvent(
 	}
 	const [row] = await database
 		.update(eventsTable)
-		.set(data)
+		.set(nextData)
 		.where(eq(eventsTable.id, id))
 		.returning();
 	if (!row) return null;

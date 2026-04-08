@@ -6,7 +6,6 @@
 	import KbHero from '$lib/components/organisms/KbHero.svelte';
 	import KbPublicBrowseShell from '$lib/components/organisms/KbPublicBrowseShell.svelte';
 	import FundingSidebar from '$lib/components/organisms/FundingSidebar.svelte';
-	import KbSubmitBanner from '$lib/components/organisms/KbSubmitBanner.svelte';
 	import FundingCard from '$lib/components/molecules/FundingCard.svelte';
 	import { Alert, AlertDescription, AlertTitle } from '$lib/components/ui/alert/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
@@ -274,7 +273,7 @@
 			{data.rollingCount} Rolling
 		</div>
 		<div class="ml-auto text-[11px] text-[var(--muted-foreground)]">
-			{search.resultSource === 'meilisearch' ? 'Indexed search' : 'Compatibility mode'}
+			{search.resultSource === 'meilisearch' ? 'Indexed search' : 'Fallback search'}
 		</div>
 	</div>
 
@@ -290,15 +289,6 @@
 				<AlertDescription>
 					Some live funding data is temporarily unavailable, so you may be seeing limited results
 					right now. Please try again in a little while.
-				</AlertDescription>
-			</Alert>
-		{/if}
-
-		{#if search.readiness.state !== 'ready'}
-			<Alert class="mb-6 border-amber-300 bg-amber-50 text-amber-950">
-				<AlertTitle>Search is running in compatibility mode</AlertTitle>
-				<AlertDescription>
-					Funding results are using the database fallback while indexed search catches up.
 				</AlertDescription>
 			</Alert>
 		{/if}
@@ -379,12 +369,4 @@
 			</nav>
 		{/if}
 	</KbPublicBrowseShell>
-
-	<KbSubmitBanner
-		coil="funding"
-		heading="Know a funding opportunity we should include?"
-		description="Share grants, contracts, or fellowships that support Indigenous communities and Native-led organizations."
-		href="/funding/submit"
-		label="Submit funding"
-	/>
 </div>

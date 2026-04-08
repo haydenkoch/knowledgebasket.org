@@ -14,7 +14,7 @@ export const load: PageServerLoad = async ({ url }) => {
 		parseSearchRequestFromUrl(url, {
 			surface: 'browse',
 			scope: 'redpages',
-			limit: 6,
+			limit: 12,
 			sort: 'title'
 		})
 	);

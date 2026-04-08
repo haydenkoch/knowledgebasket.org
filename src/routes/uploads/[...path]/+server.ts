@@ -5,6 +5,8 @@ import { captureServerError } from '$lib/server/observability';
 function fallbackContentType(pathname: string): string {
 	const ext = pathname.split('.').pop()?.toLowerCase();
 	switch (ext) {
+		case 'pdf':
+			return 'application/pdf';
 		case 'jpg':
 		case 'jpeg':
 			return 'image/jpeg';
@@ -30,13 +32,18 @@ export async function GET({ params }) {
 
 	try {
 		const object = await getUploadObject(decoded);
+		const contentType = object.contentType ?? fallbackContentType(decoded);
+
 		return new Response(Buffer.from(object.body), {
 			headers: {
-				'Content-Type': object.contentType ?? fallbackContentType(decoded),
+				'Content-Type': contentType,
 				'Content-Length': object.contentLength
 					? String(object.contentLength)
 					: String(object.body.length),
 				'Cache-Control': 'public, max-age=31536000, immutable',
+				...(contentType.startsWith('application/pdf')
+					? { 'Content-Disposition': 'inline' }
+					: {}),
 				...(object.lastModified ? { 'Last-Modified': object.lastModified.toUTCString() } : {}),
 				...(object.etag ? { ETag: object.etag } : {})
 			}

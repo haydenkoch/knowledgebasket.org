@@ -5,8 +5,8 @@ export const CONSENT_VERSION = '2026-04-05';
 export const legalConfig = {
 	operatorName: 'Indigenous Futures Society',
 	productName: 'Knowledge Basket',
-	privacyEmail: 'privacy@knowledgebasket.ca',
-	supportEmail: 'hello@knowledgebasket.ca',
+	privacyEmail: 'privacy@knowledgebasket.org',
+	supportEmail: 'support@knowledgebasket.org',
 	mailingAddress: [
 		'Indigenous Futures Society',
 		'California and Canada operations',
@@ -51,6 +51,7 @@ export const legalConfig = {
 
 export const legalNavLinks = [
 	{ href: '/about', label: 'About' },
+	{ href: '/support', label: 'Support' },
 	{ href: '/privacy', label: 'Privacy' },
 	{ href: '/terms', label: 'Terms' },
 	{ href: '/cookies', label: 'Cookies' },

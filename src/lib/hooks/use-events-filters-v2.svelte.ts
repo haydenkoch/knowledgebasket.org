@@ -157,9 +157,7 @@ export function useEventsFiltersV2(data: EventsFiltersData | (() => EventsFilter
 		searchFiltered.filter((e) => eventMatchesCostFilters(e, costFilter))
 	);
 	const regionFiltered = $derived(filterByFacets(costFiltered, { region: regionSelect }));
-	const audienceFiltered = $derived(
-		filterByFacets(regionFiltered, { audience: audienceSelect })
-	);
+	const audienceFiltered = $derived(filterByFacets(regionFiltered, { audience: audienceSelect }));
 	const formatFiltered = $derived(
 		formatSelect.length === 0
 			? audienceFiltered
@@ -226,9 +224,7 @@ export function useEventsFiltersV2(data: EventsFiltersData | (() => EventsFilter
 		regionValues.filter((r) => (regionCountsInRange[r] ?? 0) > 0 || regionSelect.includes(r))
 	);
 	const audienceValuesVisible = $derived(
-		audienceValues.filter(
-			(a) => (audienceCountsInRange[a] ?? 0) > 0 || audienceSelect.includes(a)
-		)
+		audienceValues.filter((a) => (audienceCountsInRange[a] ?? 0) > 0 || audienceSelect.includes(a))
 	);
 	const typeTagsVisible = $derived.by(() => {
 		return eventTypeTags.filter((tag) => {
@@ -254,8 +250,7 @@ export function useEventsFiltersV2(data: EventsFiltersData | (() => EventsFilter
 					const fb = b.featured ? 0 : 1;
 					if (fa !== fb) return fa - fb;
 					return (
-						(parseEventStart(a.startDate) ?? Infinity) -
-						(parseEventStart(b.startDate) ?? Infinity)
+						(parseEventStart(a.startDate) ?? Infinity) - (parseEventStart(b.startDate) ?? Infinity)
 					);
 				});
 			case 'closing':
@@ -264,8 +259,7 @@ export function useEventsFiltersV2(data: EventsFiltersData | (() => EventsFilter
 					const db = parseDeadline(b.registrationDeadline) ?? Infinity;
 					if (da !== db) return da - db;
 					return (
-						(parseEventStart(a.startDate) ?? Infinity) -
-						(parseEventStart(b.startDate) ?? Infinity)
+						(parseEventStart(a.startDate) ?? Infinity) - (parseEventStart(b.startDate) ?? Infinity)
 					);
 				});
 			case 'alpha':
@@ -274,8 +268,7 @@ export function useEventsFiltersV2(data: EventsFiltersData | (() => EventsFilter
 			default:
 				return list.sort(
 					(a, b) =>
-						(parseEventStart(a.startDate) ?? Infinity) -
-						(parseEventStart(b.startDate) ?? Infinity)
+						(parseEventStart(a.startDate) ?? Infinity) - (parseEventStart(b.startDate) ?? Infinity)
 				);
 		}
 	});

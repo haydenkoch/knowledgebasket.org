@@ -1,14 +1,16 @@
 <script lang="ts">
-	import { trackGlobalSearchOpened, trackSearchPerformed } from '$lib/analytics/events';
+	import { trackGlobalSearchOpened, trackSearchPerformed } from '$lib/insights/events';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
 	import { onMount } from 'svelte';
 	import SearchIcon from '@lucide/svelte/icons/search';
 	import ChevronRight from '@lucide/svelte/icons/chevron-right';
 	import Sparkles from '@lucide/svelte/icons/sparkles';
+	import X from '@lucide/svelte/icons/x';
 	import type { CoilKey } from '$lib/data/kb';
 	import type { SearchResponse } from '$lib/server/search-contracts';
 	import * as Command from '$lib/components/ui/command/index.js';
+	import { Command as CommandPrimitive } from 'bits-ui';
 	import * as Dialog from '$lib/components/ui/dialog/index.js';
 	import * as Drawer from '$lib/components/ui/drawer/index.js';
 	import SearchBrowseMenu from '$lib/components/organisms/SearchBrowseMenu.svelte';
@@ -42,6 +44,12 @@
 			href: '/about'
 		},
 		{
+			id: 'support',
+			label: 'Support',
+			meta: 'Get help with your account, submissions, or site issues',
+			href: '/support'
+		},
+		{
 			id: 'open-source',
 			label: 'Open source thanks',
 			meta: 'See the libraries and tools behind the site',
@@ -60,7 +68,6 @@
 	let timer: ReturnType<typeof setTimeout> | undefined;
 	let controller: AbortController | null = null;
 	let inputEl = $state<HTMLInputElement | null>(null);
-	let shortcutLabel = $state('Ctrl K');
 	let selectedScope = $state<(typeof scopeOptions)[number]>('all');
 	let lastTrackedSearchSignature = $state('');
 	const pathname = $derived($page.url.pathname);
@@ -207,11 +214,19 @@
 		errorMessage = '';
 	}
 
-	onMount(() => {
-		if (navigator.platform.toLowerCase().includes('mac')) {
-			shortcutLabel = '⌘K';
-		}
+	function clearScope() {
+		setScope('all');
+		inputEl?.focus();
+	}
 
+	function onInputKeydown(event: KeyboardEvent) {
+		if (event.key === 'Backspace' && query === '' && selectedScope !== 'all') {
+			event.preventDefault();
+			clearScope();
+		}
+	}
+
+	onMount(() => {
 		const handleOpenSearch = (event: Event) => {
 			const detail = (event as CustomEvent<{ query?: string }>).detail;
 			openWithQuery(detail?.query ?? '');
@@ -253,30 +268,50 @@
 		class="bg-[linear-gradient(180deg,color-mix(in_srgb,var(--color-alpine-100,var(--bone))_76%,white)_0%,white_18%,white_100%)] text-[var(--dark)]"
 	>
 		<div
-			class="flex items-center gap-3 border-b border-[color:var(--rule)] bg-white/90 px-4 py-2 backdrop-blur"
+			class="flex items-center gap-3 border-b border-[color:var(--rule)] bg-white/90 py-2 pr-12 pl-4 backdrop-blur"
 		>
 			<div class="relative min-w-0 flex-1">
 				{#if !isMobile.current}
-					<div
-						class="pointer-events-none absolute top-1/2 left-3 z-10 flex -translate-y-1/2 items-center gap-2"
-					>
-						<span
-							class="inline-flex items-center gap-1 rounded-[0.3rem] border border-[color:var(--rule)] bg-[color-mix(in_srgb,var(--color-lakebed-950)_4%,white)] px-2.5 py-1 text-[10px] font-semibold tracking-[0.08em] text-[var(--dark)] uppercase"
+					<div class="absolute top-1/2 left-3 z-10 flex -translate-y-1/2 items-center gap-1.5">
+						<button
+							type="button"
+							class="inline-flex cursor-pointer items-center gap-1 rounded-[0.3rem] border border-[color:var(--rule)] bg-[color-mix(in_srgb,var(--color-lakebed-950)_4%,white)] px-2.5 py-1 text-[10px] font-semibold tracking-[0.08em] text-[var(--dark)] uppercase transition-colors hover:bg-[color-mix(in_srgb,var(--color-lakebed-950)_8%,white)]"
+							onclick={() => inputEl?.focus()}
+							onmousedown={(e) => e.preventDefault()}
+							tabindex={-1}
 						>
 							<Sparkles class="h-3 w-3 text-[var(--color-lakebed-900)]" />
 							{inputBadgeLabel}
-						</span>
+						</button>
+						{#if selectedScope !== 'all'}
+							<button
+								type="button"
+								class="inline-flex h-5 w-5 cursor-pointer items-center justify-center rounded-full border border-[color:var(--rule)] bg-[color-mix(in_srgb,var(--color-lakebed-950)_4%,white)] text-[var(--mid)] transition-colors hover:bg-[color-mix(in_srgb,var(--color-lakebed-950)_12%,white)] hover:text-[var(--dark)]"
+								aria-label="Clear scope filter"
+								onclick={clearScope}
+								onmousedown={(e) => e.preventDefault()}
+								tabindex={-1}
+							>
+								<X class="h-3 w-3" />
+							</button>
+						{/if}
 					</div>
 				{/if}
-				<Command.Input
-					bind:ref={inputEl}
-					bind:value={query}
-					oninput={onInput}
-					placeholder={inputPrompt}
-					class="min-w-0 flex-1 pr-10 text-[15px] text-[var(--dark)] placeholder:text-[var(--mid)] {isMobile.current
-						? ''
-						: 'pl-[9.25rem]'}"
-				/>
+				<CommandPrimitive.Input bind:ref={inputEl} bind:value={query} placeholder={inputPrompt}>
+					{#snippet child({ props })}
+						<input
+							{...props}
+							oninput={onInput}
+							onkeydown={onInputKeydown}
+							class="flex h-10 w-full min-w-0 rounded-md bg-transparent py-3 pr-10 text-[15px] text-[var(--dark)] outline-none placeholder:text-[var(--mid)] disabled:cursor-not-allowed disabled:opacity-50 {isMobile.current
+								? 'pl-2'
+								: selectedScope !== 'all'
+									? 'pl-[11rem]'
+									: 'pl-[9.25rem]'}"
+							autocomplete="off"
+						/>
+					{/snippet}
+				</CommandPrimitive.Input>
 				<button
 					type="button"
 					class="absolute top-1/2 right-0 inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-[0.4rem] bg-[var(--color-lakebed-900)] text-white transition-colors hover:bg-[var(--color-lakebed-950)]"
@@ -286,14 +321,6 @@
 					<ChevronRight class="h-4 w-4" />
 				</button>
 			</div>
-			{#if !isMobile.current}
-				<span
-					class="ml-3 hidden font-sans text-xs text-[var(--mid)]/50 sm:inline"
-					aria-hidden="true"
-				>
-					{shortcutLabel}
-				</span>
-			{/if}
 		</div>
 
 		<Command.List class="max-h-[72vh] px-2 py-2">
@@ -377,6 +404,9 @@
 			>
 				<span><kbd class="font-sans">↑↓</kbd> navigate</span>
 				<span><kbd class="font-sans">↵</kbd> open</span>
+				{#if selectedScope !== 'all'}
+					<span><kbd class="font-sans">⌫</kbd> clear scope</span>
+				{/if}
 				<span><kbd class="font-sans">esc</kbd> close</span>
 			</div>
 		{/if}

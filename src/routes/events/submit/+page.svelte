@@ -6,7 +6,7 @@
 		trackSubmissionCompleted,
 		trackSubmissionStarted,
 		trackSubmissionSubmitted
-	} from '$lib/analytics/events';
+	} from '$lib/insights/events';
 	import RichTextEditor from '$lib/components/molecules/RichTextEditor.svelte';
 	import KbFormShell from '$lib/components/organisms/KbFormShell.svelte';
 	import KbFileDropzone from '$lib/components/molecules/KbFileDropzone.svelte';

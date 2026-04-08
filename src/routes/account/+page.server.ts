@@ -1,13 +1,15 @@
 import { fail, type Actions } from '@sveltejs/kit';
 import { eq } from 'drizzle-orm';
 import type { PageServerLoad } from './$types';
+import { requireAuthenticatedUser } from '$lib/server/access-control';
 import { getAccountDashboard } from '$lib/server/account';
 import { db } from '$lib/server/db';
 import { user as userTable } from '$lib/server/db/auth.schema';
 import { uploadImage } from '$lib/server/upload';
 
 export const load: PageServerLoad = async ({ locals }) => {
-	return getAccountDashboard(locals.user!.id);
+	const user = requireAuthenticatedUser(locals);
+	return getAccountDashboard(user.id);
 };
 
 export const actions: Actions = {

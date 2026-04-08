@@ -1,6 +1,7 @@
 import { fail, redirect, type Actions } from '@sveltejs/kit';
 import { APIError } from 'better-auth/api';
 import type { PageServerLoad } from './$types';
+import { requireAuthenticatedUser } from '$lib/server/access-control';
 import { auth, googleAuthEnabled } from '$lib/server/auth';
 import { findLinkedGoogleAccount } from '$lib/server/google-profile';
 import {
@@ -11,11 +12,12 @@ import {
 } from '$lib/server/social-auth';
 
 export const load: PageServerLoad = async ({ locals, url }) => {
-	const linkedGoogleAccount = await findLinkedGoogleAccount(locals.user!.id);
+	const user = requireAuthenticatedUser(locals);
+	const linkedGoogleAccount = await findLinkedGoogleAccount(user.id);
 
 	return {
-		email: locals.user!.email,
-		emailVerified: Boolean((locals.user as { emailVerified?: boolean }).emailVerified),
+		email: user.email,
+		emailVerified: Boolean((user as { emailVerified?: boolean }).emailVerified),
 		googleEnabled: googleAuthEnabled,
 		googleConnected: Boolean(linkedGoogleAccount),
 		googleSuccess:
@@ -102,11 +104,12 @@ export const actions: Actions = {
 	},
 
 	linkGoogle: async ({ locals, request }) => {
+		const user = requireAuthenticatedUser(locals);
 		if (!googleAuthEnabled) {
 			return fail(400, { googleError: 'Google sign-in is not configured for this environment.' });
 		}
 
-		const linkedGoogleAccount = await findLinkedGoogleAccount(locals.user!.id);
+		const linkedGoogleAccount = await findLinkedGoogleAccount(user.id);
 		if (linkedGoogleAccount) {
 			return { googleSuccess: 'Google is already linked to this account.' };
 		}

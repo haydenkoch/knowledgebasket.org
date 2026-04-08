@@ -96,7 +96,8 @@
 		{/if}
 		{#if plainDesc}
 			<p
-				class="mb-[14px] line-clamp-3 min-h-0 flex-auto text-[13px] leading-[1.5] text-[var(--mid)]"
+				class="mb-[14px] line-clamp-3 overflow-hidden text-[13px] leading-[1.5] text-[var(--mid)]"
+				style="max-height: calc(1.5em * 3);"
 			>
 				{plainDesc}
 			</p>

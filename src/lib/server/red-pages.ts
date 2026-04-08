@@ -10,6 +10,7 @@ import {
 } from '$lib/server/db/schema';
 import { indexDocument, removeDocument } from '$lib/server/meilisearch';
 import { getSourceProvenanceByPublishedRecord } from '$lib/server/source-provenance';
+import { sanitizeRichTextHtml } from '$lib/server/sanitize-rich-text';
 import type { RedPagesItem } from '$lib/data/kb';
 import type { RedPagesSearchDoc } from '$lib/server/meilisearch';
 import { stripHtml } from '$lib/utils/format';
@@ -32,7 +33,7 @@ function rowToItem(
 		title: row.name,
 		slug: row.slug,
 		name: row.name,
-		description: row.description ?? undefined,
+		description: sanitizeRichTextHtml(row.description ?? undefined),
 		coil: 'redpages',
 		organizationId: row.organizationId ?? undefined,
 		organizationName: extra?.organizationName ?? undefined,
@@ -328,9 +329,10 @@ export async function createBusiness(
 	database: DbExecutor = db
 ): Promise<RedPagesRow> {
 	const slug = await uniqueSlug(slugify(data.name));
+	const description = sanitizeRichTextHtml(data.description ?? undefined) ?? null;
 	const [row] = await database
 		.insert(rpTable)
-		.values({ ...data, slug })
+		.values({ ...data, slug, description })
 		.returning();
 	if (!row) throw new Error('Insert did not return row');
 	if (row.status === 'published') {
@@ -344,7 +346,12 @@ export async function updateBusiness(
 	data: Partial<Omit<RedPagesInsert, 'id' | 'createdAt'>>,
 	database: DbExecutor = db
 ): Promise<RedPagesRow | null> {
-	const [row] = await database.update(rpTable).set(data).where(eq(rpTable.id, id)).returning();
+	const nextData = { ...data };
+	if ('description' in nextData) {
+		nextData.description = sanitizeRichTextHtml(nextData.description ?? undefined) ?? null;
+	}
+
+	const [row] = await database.update(rpTable).set(nextData).where(eq(rpTable.id, id)).returning();
 	if (!row) return null;
 	if (row.status === 'published') {
 		await indexDocument('redpages', itemToSearchDoc(rowToItem(row)));

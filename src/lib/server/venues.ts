@@ -1,6 +1,69 @@
-import { desc, eq, ilike, inArray, or, sql } from 'drizzle-orm';
+import { and, desc, eq, gte, ilike, inArray, isNotNull, lte, or, sql } from 'drizzle-orm';
 import { db } from '$lib/server/db';
 import { events, venues } from '$lib/server/db/schema';
+import { stripHtml } from '$lib/utils/format';
+
+export type GeoFilter = {
+	lat: number;
+	lng: number;
+	radiusMiles: number;
+};
+
+const EARTH_RADIUS_MI = 3958.7613;
+
+function toRadians(deg: number): number {
+	return (deg * Math.PI) / 180;
+}
+
+export function haversineMiles(
+	aLat: number,
+	aLng: number,
+	bLat: number,
+	bLng: number
+): number {
+	const dLat = toRadians(bLat - aLat);
+	const dLng = toRadians(bLng - aLng);
+	const lat1 = toRadians(aLat);
+	const lat2 = toRadians(bLat);
+	const h =
+		Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
+	return 2 * EARTH_RADIUS_MI * Math.asin(Math.sqrt(h));
+}
+
+/**
+ * Returns a lat/lng bounding box that inscribes a circle of `radiusMiles`
+ * around the given center. Used as a cheap SQL prefilter before the precise
+ * haversine refinement in JS.
+ */
+function boundingBox(center: GeoFilter): {
+	minLat: number;
+	maxLat: number;
+	minLng: number;
+	maxLng: number;
+} {
+	const latDelta = center.radiusMiles / 69; // ~69 mi per degree of latitude
+	const lngDelta =
+		center.radiusMiles / (69 * Math.max(Math.cos(toRadians(center.lat)), 0.000001));
+	return {
+		minLat: center.lat - latDelta,
+		maxLat: center.lat + latDelta,
+		minLng: center.lng - lngDelta,
+		maxLng: center.lng + lngDelta
+	};
+}
+
+function buildGeoBoundingBoxWhere(geo?: GeoFilter) {
+	if (!geo) return undefined;
+	const box = boundingBox(geo);
+	return and(
+		isNotNull(venues.lat),
+		isNotNull(venues.lng),
+		gte(venues.lat, box.minLat),
+		lte(venues.lat, box.maxLat),
+		gte(venues.lng, box.minLng),
+		lte(venues.lng, box.maxLng)
+	);
+}
 
 export type VenueRow = typeof venues.$inferSelect;
 export type VenueInsert = typeof venues.$inferInsert;
@@ -145,13 +208,46 @@ export async function getVenues(opts?: {
 	search?: string;
 	page?: number;
 	limit?: number;
+	geo?: GeoFilter;
 }): Promise<{ venues: VenueRow[]; total: number }> {
 	const includeAliases = await hasVenueAliasesColumn();
 	const page = opts?.page ?? 1;
 	const limit = opts?.limit ?? 50;
-	const offset = (page - 1) * limit;
 
-	const where = buildSearchWhere(opts?.search, includeAliases);
+	const searchWhere = buildSearchWhere(opts?.search, includeAliases);
+	const geoWhere = buildGeoBoundingBoxWhere(opts?.geo);
+	const where = geoWhere && searchWhere ? and(geoWhere, searchWhere) : (geoWhere ?? searchWhere);
+
+	// Geo path: load a generous slice of the bounding box, refine in JS by
+	// precise haversine distance, then paginate.
+	if (opts?.geo) {
+		const rows = await db
+			.select(venueSelection(includeAliases))
+			.from(venues)
+			.where(where)
+			.orderBy(venues.name)
+			.limit(1500);
+
+		const geo = opts.geo;
+		const withDistance = rows
+			.map((row) => normalizeVenueRow(row))
+			.map((row) => ({
+				row,
+				distance:
+					row.lat != null && row.lng != null
+						? haversineMiles(geo.lat, geo.lng, row.lat, row.lng)
+						: Number.POSITIVE_INFINITY
+			}))
+			.filter((entry) => entry.distance <= geo.radiusMiles)
+			.sort((a, b) => a.distance - b.distance);
+
+		const total = withDistance.length;
+		const offset = (page - 1) * limit;
+		const slice = withDistance.slice(offset, offset + limit).map((entry) => entry.row);
+		return { venues: slice, total };
+	}
+
+	const offset = (page - 1) * limit;
 
 	const [countResult] = await db
 		.select({ count: sql<number>`count(*)::int` })
@@ -168,6 +264,89 @@ export async function getVenues(opts?: {
 		.offset(offset);
 
 	return { venues: rows.map((row) => normalizeVenueRow(row)), total };
+}
+
+export type VenueMapPoint = {
+	id: string;
+	slug: string;
+	name: string;
+	lat: number;
+	lng: number;
+	imageUrl: string | null;
+	venueType: string | null;
+	city: string | null;
+	state: string | null;
+	address: string | null;
+	description: string | null;
+};
+
+export async function getVenueMapPoints(opts?: {
+	search?: string;
+	limit?: number;
+	geo?: GeoFilter;
+}): Promise<VenueMapPoint[]> {
+	const includeAliases = await hasVenueAliasesColumn();
+	const limit = opts?.limit ?? 500;
+	const searchWhere = buildSearchWhere(opts?.search, includeAliases);
+	const geoWhere = buildGeoBoundingBoxWhere(opts?.geo);
+	const baseNonNull = and(isNotNull(venues.lat), isNotNull(venues.lng));
+	const where = geoWhere
+		? searchWhere
+			? and(geoWhere, searchWhere)
+			: geoWhere
+		: searchWhere
+			? and(baseNonNull, searchWhere)
+			: baseNonNull;
+
+	const rows = await db
+		.select({
+			id: venues.id,
+			slug: venues.slug,
+			name: venues.name,
+			lat: venues.lat,
+			lng: venues.lng,
+			imageUrl: venues.imageUrl,
+			venueType: venues.venueType,
+			city: venues.city,
+			state: venues.state,
+			address: venues.address,
+			description: venues.description
+		})
+		.from(venues)
+		.where(where)
+		.orderBy(venues.name)
+		.limit(limit);
+
+	const geo = opts?.geo;
+	return rows
+		.filter(
+			(row): row is typeof row & { lat: number; lng: number } =>
+				typeof row.lat === 'number' &&
+				typeof row.lng === 'number' &&
+				Number.isFinite(row.lat) &&
+				Number.isFinite(row.lng)
+		)
+		.filter((row) =>
+			geo ? haversineMiles(geo.lat, geo.lng, row.lat, row.lng) <= geo.radiusMiles : true
+		)
+		.map((row) => {
+			const cleaned = row.description ? stripHtml(row.description).trim() : '';
+			const truncated =
+				cleaned.length > 160 ? `${cleaned.slice(0, 157).trimEnd()}…` : cleaned || null;
+			return {
+				id: row.id,
+				slug: row.slug,
+				name: row.name,
+				lat: row.lat,
+				lng: row.lng,
+				imageUrl: row.imageUrl ?? null,
+				venueType: row.venueType ?? null,
+				city: row.city ?? null,
+				state: row.state ?? null,
+				address: row.address ?? null,
+				description: truncated
+			};
+		});
 }
 
 export async function getVenueById(id: string): Promise<VenueRow | null> {

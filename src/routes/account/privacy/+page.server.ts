@@ -1,5 +1,6 @@
 import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
+import { requireAuthenticatedUser } from '$lib/server/access-control';
 import {
 	createContentPrivacyRequest,
 	deleteUserAccount,
@@ -29,8 +30,9 @@ export function _loadPrivacyPage(
 	}
 ): PageServerLoad {
 	return async ({ locals }) => {
+		const user = requireAuthenticatedUser(locals);
 		const [dashboard, privacyRequests, accountLifecycle] = await Promise.all([
-			deps.getPrivacyDashboard(locals.user!.id),
+			deps.getPrivacyDashboard(user.id),
 			deps.getPrivacyRequestsSchemaHealth(),
 			deps.getAccountLifecycleSchemaHealth()
 		]);
@@ -58,6 +60,7 @@ export function _createPrivacyActions(
 ): Actions {
 	return {
 		requestCorrection: async ({ request, locals }) => {
+			const user = requireAuthenticatedUser(locals);
 			const schemaHealth = await deps.getPrivacyRequestsSchemaHealth();
 			if (!schemaHealth.ok) {
 				return fail(503, {
@@ -80,7 +83,7 @@ export function _createPrivacyActions(
 			}
 
 			await deps.createContentPrivacyRequest({
-				userId: locals.user!.id,
+				userId: user.id,
 				requestType: 'correct_content',
 				subject,
 				message,
@@ -90,6 +93,7 @@ export function _createPrivacyActions(
 			return { correctionSuccess: 'Correction request submitted.' };
 		},
 		requestRemoval: async ({ request, locals }) => {
+			const user = requireAuthenticatedUser(locals);
 			const schemaHealth = await deps.getPrivacyRequestsSchemaHealth();
 			if (!schemaHealth.ok) {
 				return fail(503, {
@@ -111,7 +115,7 @@ export function _createPrivacyActions(
 			}
 
 			await deps.createContentPrivacyRequest({
-				userId: locals.user!.id,
+				userId: user.id,
 				requestType: 'remove_content',
 				subject,
 				message,
@@ -121,6 +125,7 @@ export function _createPrivacyActions(
 			return { removalSuccess: 'Removal request submitted.' };
 		},
 		deleteAccount: async ({ request, locals, cookies }) => {
+			const user = requireAuthenticatedUser(locals);
 			const schemaHealth = await deps.getAccountLifecycleSchemaHealth();
 			if (!schemaHealth.ok) {
 				return fail(503, {
@@ -138,7 +143,7 @@ export function _createPrivacyActions(
 				});
 			}
 
-			await deps.deleteUserAccount(locals.user!.id);
+			await deps.deleteUserAccount(user.id);
 			cookies.delete('better-auth.session_token', { path: '/' });
 			throw redirect(303, '/?accountDeleted=1');
 		}

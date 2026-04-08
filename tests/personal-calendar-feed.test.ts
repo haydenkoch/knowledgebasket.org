@@ -48,4 +48,30 @@ describe('personal calendar feed', () => {
 		expect(response.headers.get('content-type')).toContain('text/calendar');
 		expect(await response.text()).toContain('SUMMARY:Community Gathering');
 	});
+
+	it('escapes reserved ICS characters and strips HTML in calendar fields', async () => {
+		getPersonalCalendarFeedByToken.mockResolvedValueOnce({ userId: 'user-1', token: 'abc' });
+		getPersonalCalendarFeedEvents.mockResolvedValueOnce([
+			{
+				id: 'event-2',
+				slug: 'gathering-notes',
+				title: 'Community; Gathering, Draft \\ Notes',
+				description: '<p>Hello<br>World; team, all \\ here</p>',
+				location: 'Bishop; CA, Plaza \\ Lot 4',
+				startDate: '2026-04-12T18:00:00.000Z',
+				endDate: '2026-04-12T20:00:00.000Z'
+			}
+		]);
+
+		const mod = await import('../src/routes/account/calendar/feed/[token]/+server');
+		const response = await mod.GET({
+			params: { token: 'abc' },
+			url: new URL('https://example.com/account/calendar/feed/abc')
+		} as never);
+		const body = await response.text();
+
+		expect(body).toContain('SUMMARY:Community\\; Gathering\\, Draft \\\\ Notes');
+		expect(body).toContain('DESCRIPTION:Hello\\nWorld\\; team\\, all \\\\ here');
+		expect(body).toContain('LOCATION:Bishop\\; CA\\, Plaza \\\\ Lot 4');
+	});
 });

@@ -15,9 +15,11 @@ This is a **design proposal**, not yet an execution plan. Each idea is ranked by
 ## Tier 1 — High Impact, Low Effort
 
 ### 1. Date Range: Quick Preset Chips (Refine)
+
 **Problem.** The histogram + dual slider is beautiful but slow for the most common intent: "what's happening this weekend?" Users currently have to drag two thumbs to a one-month window.
 
 **Proposal.** Above the histogram, add a single-row chip strip of presets that snap the slider:
+
 - `Today` · `This weekend` · `Next 7 days` · `This month` · `Next 3 months` · `All`
 
 **Components.** Reuse `Badge` (`src/lib/components/ui/badge`) styled as togglable chips, OR a horizontal `ToggleGroup` if it exists in `ui/`. Single-select; selecting clears to "All" toggles back to the full 24-month range. Keep the histogram + slider below for power-user fine-tuning.
@@ -29,6 +31,7 @@ This is a **design proposal**, not yet an execution plan. Each idea is ranked by
 ---
 
 ### 2. Event Format Toggle (Add)
+
 **Problem.** `eventFormat: 'in_person' | 'online' | 'hybrid'` exists on every event but is invisible to users. Post-pandemic this is one of the most-asked questions.
 
 **Proposal.** A compact 3-button segmented control directly under the Date Range section:
@@ -48,9 +51,10 @@ Multi-select (so a user can pick "In person + Hybrid"). Empty = all. This is con
 ---
 
 ### 3. Active-Filters Bar Above Sections (Refine)
+
 **Problem.** When a user has selections across cost + region + type + date, there's no single place to see "what am I currently filtering by?" The Type chips show inside their popover trigger, but cost and region only show count summaries ("3 selected").
 
-**Proposal.** Just under the search input (above Date Range section), render a single horizontal wrap of removable chips for *every* active filter — date preset name, cost buckets, regions, types, format. Same `kb-form-type-chip` style already defined (lines 594–605 of `EventsSidebar.svelte`), one click X to remove. Add a small "Clear all" link inline if any chip exists.
+**Proposal.** Just under the search input (above Date Range section), render a single horizontal wrap of removable chips for _every_ active filter — date preset name, cost buckets, regions, types, format. Same `kb-form-type-chip` style already defined (lines 594–605 of `EventsSidebar.svelte`), one click X to remove. Add a small "Clear all" link inline if any chip exists.
 
 **Components.** Reuse the existing `.kb-form-type-chip` CSS class. Drive from a single `$derived` array in the sidebar.
 
@@ -59,9 +63,11 @@ Multi-select (so a user can pick "In person + Hybrid"). Empty = all. This is con
 ---
 
 ### 4. Sort Order Selector (Add)
+
 **Problem.** The list is hard-coded sorted by start date ascending in `useEventsFilters` (the final `.sort` call). No way to see soonest-deadline-first, featured-first, or alphabetical.
 
 **Proposal.** A compact `Select` (the existing shadcn `Select`, not a popover) at the bottom of the sidebar or in the toolbar. Options:
+
 - `Soonest first` (default)
 - `Latest first`
 - `Featured first`
@@ -77,6 +83,7 @@ Multi-select (so a user can pick "In person + Hybrid"). Empty = all. This is con
 ## Tier 2 — Medium Impact
 
 ### 5. Audience Filter (Add)
+
 **Field.** `event.audience` — observed values include "General Public", "Indigenous Only", "By Profession". For a Native-community-focused KB this is an important navigational axis.
 
 **Proposal.** New popover row inside the existing "Filter" section, identical pattern to Cost/Geography (`kb-refine-select` trigger + Command popover with checkboxes and counts). Multi-select.
@@ -86,9 +93,11 @@ Multi-select (so a user can pick "In person + Hybrid"). Empty = all. This is con
 ---
 
 ### 6. Registration Status Quick-Filter (Add)
+
 **Fields.** `soldOut: boolean`, `waitlistUrl?: string`, `registrationDeadline?: string`, `capacity?: number`.
 
 **Proposal.** A small `Switch`-style row of toggles in the Filter section:
+
 - `Hide sold out` (default off)
 - `Registration still open`
 - `Closing this week`
@@ -100,6 +109,7 @@ Multi-select (so a user can pick "In person + Hybrid"). Empty = all. This is con
 ---
 
 ### 7. Featured-Only Toggle (Add)
+
 **Field.** `event.featured: boolean`.
 
 **Proposal.** A single `Switch` at the top of the Filter section: `Featured only`. One line, minimal real estate, useful for browsing curated content.
@@ -109,6 +119,7 @@ Multi-select (so a user can pick "In person + Hybrid"). Empty = all. This is con
 ---
 
 ### 8. Type Filter — Grouped Display (Refine)
+
 **Problem.** The type popover today is a flat alphabetical list of 15 tags. The hook already has the concept of `eventTypeGroups` (referenced in `typeGroupsForFilter`) — groups like "Performance" containing related sub-tags. Users see flat tags, but matching uses groups.
 
 **Proposal.** Inside the Type popover's `Command.Root`, render `Command.Group` blocks per group with a heading, instead of one flat group. The shadcn `Command` component supports group headings natively (already used elsewhere). Same multi-select behavior, just visually organized.
@@ -120,9 +131,11 @@ Multi-select (so a user can pick "In person + Hybrid"). Empty = all. This is con
 ## Tier 3 — Higher Effort, Specialized
 
 ### 9. Distance / Radius Filter (Add)
+
 **Fields.** `event.lat`, `event.lng`. Use cases: "events within 50 mi of me."
 
 **Proposal.** A collapsible "Near me" section with:
+
 - `Use my location` button (browser geolocation)
 - A radius `Slider` (10 / 25 / 50 / 100 / 250 mi)
 - Falls back gracefully when geolocation denied
@@ -134,9 +147,11 @@ Multi-select (so a user can pick "In person + Hybrid"). Empty = all. This is con
 ---
 
 ### 10. Price Range Slider (Refine, optional replacement)
+
 **Problem.** Cost buckets ($25-$99 etc.) lose precision; a $30 ticket and a $90 ticket land in the same bucket.
 
 **Proposal.** Either:
+
 - **(a)** Add a $-range slider inside the Cost popover (uses `priceMin`/`priceMax`), keeping bucket checkboxes for the "Free / Sliding scale / Cost varies" non-numeric cases; or
 - **(b)** Skip — bucket UX is genuinely faster for browsing.
 
@@ -145,6 +160,7 @@ Multi-select (so a user can pick "In person + Hybrid"). Empty = all. This is con
 ---
 
 ### 11. Organization Filter (Add)
+
 **Fields.** `organizationName`, `organizationId`, `organizationSlug`.
 
 **Proposal.** Searchable multi-select combobox (Command + Popover) in a new "Organizers" section, listing unique organization names with event counts. Useful for users who follow specific orgs.
@@ -184,15 +200,15 @@ Since this is one v2 component (not a series of PRs to v1), the build order is t
 
 **New files (v2 — copied from v1, then extended):**
 
-| File | Source | What it adds |
-|---|---|---|
-| `src/lib/components/organisms/EventsSidebarV2.svelte` | copy of `EventsSidebar.svelte` | Active filters bar, date preset chips, format toggle, audience popover, registration switches, featured toggle, sort selector, grouped type display |
-| `src/lib/hooks/use-events-filters-v2.svelte.ts` | copy of `use-events-filters.svelte.ts` | New state fields: `formatSelect`, `audienceSelect`, `sortBy`, `featuredOnly`, `hideSoldOut`, `registrationOpen`, `closingThisWeek`. New filter steps in the chain. New derived counts (`audienceCountsInRange`, `audienceValuesVisible`). Updated `clearFilters()`. Replaces hard-coded sort with switch on `sortBy`. |
+| File                                                  | Source                                 | What it adds                                                                                                                                                                                                                                                                                                          |
+| ----------------------------------------------------- | -------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/lib/components/organisms/EventsSidebarV2.svelte` | copy of `EventsSidebar.svelte`         | Active filters bar, date preset chips, format toggle, audience popover, registration switches, featured toggle, sort selector, grouped type display                                                                                                                                                                   |
+| `src/lib/hooks/use-events-filters-v2.svelte.ts`       | copy of `use-events-filters.svelte.ts` | New state fields: `formatSelect`, `audienceSelect`, `sortBy`, `featuredOnly`, `hideSoldOut`, `registrationOpen`, `closingThisWeek`. New filter steps in the chain. New derived counts (`audienceCountsInRange`, `audienceValuesVisible`). Updated `clearFilters()`. Replaces hard-coded sort with switch on `sortBy`. |
 
 **Files modified to consume v2:**
 
-| File | Change |
-|---|---|
+| File                             | Change                                                                                                                                     |
+| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
 | `src/routes/events/+page.svelte` | Swap import from `EventsSidebar` → `EventsSidebarV2` and `useEventsFilters` → `useEventsFiltersV2`. Pass new props/derived values through. |
 
 **Untouched (v1 preserved as fallback):**

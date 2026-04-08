@@ -122,6 +122,7 @@ Launch environments should set, at minimum:
 Recommended observability settings:
 
 - `SENTRY_DSN` and/or `PUBLIC_SENTRY_DSN`
+- `PUBLIC_POSTHOG_KEY` and optional `PUBLIC_POSTHOG_HOST`
 - `LOG_LEVEL`
 - `ERROR_WEBHOOK_URL`
 
@@ -170,6 +171,7 @@ As of the current takeover baseline:
 - `docs/ADR-002-curated-beta-coils.md`
 - `docs/DESIGN_SYSTEM.md`
 - `docs/PERFORMANCE.md`
+- `docs/ANALYTICS_AND_MARKETING.md`
 - `docs/PRODUCTION_RUNBOOK.md`
 - `docs/ops-content-workflows.md`
 - `docs/SOURCE_OPS_HANDOFF.md`

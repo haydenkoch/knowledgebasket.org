@@ -21,7 +21,6 @@
 	import EventsViewSelector from '$lib/components/molecules/EventsViewSelector.svelte';
 	import EventsToolbar from '$lib/components/molecules/EventsToolbar.svelte';
 	import CoilTheme from '$lib/components/organisms/CoilTheme.svelte';
-	import KbSubmitBanner from '$lib/components/organisms/KbSubmitBanner.svelte';
 	import MobilePeekPanel from '$lib/components/organisms/MobilePeekPanel.svelte';
 	import EventsSidebar from '$lib/components/organisms/EventsSidebarV2.svelte';
 	import EventsCalendarView from '$lib/components/organisms/EventsCalendarView.svelte';
@@ -29,9 +28,9 @@
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { useSidebar } from '$lib/components/ui/sidebar/index.js';
 	import { Alert, AlertDescription, AlertTitle } from '$lib/components/ui/alert/index.js';
-import { formatDisplayDate } from '$lib/utils/display';
-import { formatEventCostFilterSelectionLabel } from '$lib/utils/event-pricing';
-import { tsToCalendarDate } from '$lib/utils/date.js';
+	import { formatDisplayDate } from '$lib/utils/display';
+	import { formatEventCostFilterSelectionLabel } from '$lib/utils/event-pricing';
+	import { tsToCalendarDate } from '$lib/utils/date.js';
 	import {
 		matchSearch,
 		parseEventStart,
@@ -833,7 +832,7 @@ import { tsToCalendarDate } from '$lib/utils/date.js';
 		<!-- Inline layout so left sidebar is a direct child (no snippet) – fixes interaction in filter bar -->
 		<div
 			class="coil-layout flex w-full flex-col flex-nowrap md:flex-row"
-			style="min-height: calc(100dvh - 144px - var(--kb-submit-banner-offset, 76px))"
+			style="min-height: calc(100dvh - 144px)"
 			role="presentation"
 		>
 			<div
@@ -894,14 +893,6 @@ import { tsToCalendarDate } from '$lib/utils/date.js';
 			</div>
 		</MobilePeekPanel>
 	</CoilTheme>
-
-	<KbSubmitBanner
-		coil="events"
-		heading="Know of an event we should list?"
-		description="Submit Indigenous-led and Indigenous-serving events for IFS staff review."
-		href="/events/submit"
-		label="Submit an Event"
-	/>
 </div>
 
 <style>

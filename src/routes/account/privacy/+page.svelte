@@ -133,7 +133,7 @@
 										id="correction-url"
 										name="contentUrl"
 										type="url"
-										placeholder="https://knowledgebasket.ca/events/example"
+										placeholder="https://knowledgebasket.org/events/example"
 									/>
 								</Field.Content>
 							</Field.Field>
@@ -178,7 +178,7 @@
 										id="removal-url"
 										name="contentUrl"
 										type="url"
-										placeholder="https://knowledgebasket.ca/red-pages/example"
+										placeholder="https://knowledgebasket.org/red-pages/example"
 									/>
 								</Field.Content>
 							</Field.Field>

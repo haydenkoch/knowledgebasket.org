@@ -83,7 +83,10 @@ function cleanText(value) {
 }
 
 function paragraphsToHtml(paragraphs) {
-	return paragraphs.filter(Boolean).map((paragraph) => `<p>${paragraph}</p>`).join('\n');
+	return paragraphs
+		.filter(Boolean)
+		.map((paragraph) => `<p>${paragraph}</p>`)
+		.join('\n');
 }
 
 function resolveUrl(base, value) {
@@ -427,7 +430,9 @@ async function safeFetchPageDetails(url) {
 
 async function fetchYbgEventDetails(url) {
 	const page = await fetchPageDetails(url);
-	const apiHref = page.$('link[rel="alternate"][href*="/wp-json/tribe/events/v1/events/"]').attr('href');
+	const apiHref = page
+		.$('link[rel="alternate"][href*="/wp-json/tribe/events/v1/events/"]')
+		.attr('href');
 	if (!apiHref) return null;
 
 	const payload = await fetchJson(apiHref);
@@ -437,7 +442,9 @@ async function fetchYbgEventDetails(url) {
 		descriptionHtml: sanitized.html,
 		registrationUrl: sanitized.registrationUrl ?? page.registrationUrl,
 		imageSourceUrl: payload.image?.url ?? page.imageSourceUrl,
-		startDate: payload.start_date ? new Date(`${payload.start_date.replace(' ', 'T')}-07:00`) : null,
+		startDate: payload.start_date
+			? new Date(`${payload.start_date.replace(' ', 'T')}-07:00`)
+			: null,
 		endDate: payload.end_date ? new Date(`${payload.end_date.replace(' ', 'T')}-07:00`) : null,
 		cost: cleanText(payload.cost) || null
 	};
@@ -500,7 +507,9 @@ async function upsertOrganization(definition) {
 async function upsertVenue(definition, organizationId) {
 	if (!definition?.name) return null;
 
-	const slug = slugify([definition.name, definition.city, definition.state].filter(Boolean).join(' '));
+	const slug = slugify(
+		[definition.name, definition.city, definition.state].filter(Boolean).join(' ')
+	);
 	const rows = await db`
 		insert into venues (
 			slug,
@@ -546,7 +555,8 @@ async function upsertVenue(definition, organizationId) {
 const OFFICIAL_EVENTS = [
 	{
 		slug: '80-years-of-native-american-arts-a-program-dedicated-to-indigenous-artistic-excellence',
-		title: '80 Years of Native American Arts - A Program Dedicated to Indigenous Artistic Excellence | Spring Michael Kabotie Lecture Series',
+		title:
+			'80 Years of Native American Arts - A Program Dedicated to Indigenous Artistic Excellence | Spring Michael Kabotie Lecture Series',
 		url: 'https://idyllwildarts.org/event/80-years-of-native-american-arts-a-program-dedicated-to-indigenous-artistic-excellence-spring-michael-kabotie-lecture-series/',
 		type: 'Lecture',
 		region: 'Southern California',
@@ -674,7 +684,8 @@ const OFFICIAL_EVENTS = [
 	},
 	{
 		slug: 'modesto-junior-college-tradition-is-our-medicine-knowledge-is-our-fire-intertribal-powwow-2026',
-		title: "Modesto Junior College Tradition is Our Medicine; Knowledge is Our Fire Intertribal Powwow 2026",
+		title:
+			'Modesto Junior College Tradition is Our Medicine; Knowledge is Our Fire Intertribal Powwow 2026',
 		url: 'https://www.mjc.edu/events/powwow.html',
 		type: 'Powwow',
 		region: 'Central Valley',
@@ -682,9 +693,9 @@ const OFFICIAL_EVENTS = [
 		endDate: new Date('2026-03-28T19:00:00-07:00'),
 		cost: null,
 		descriptionHtml: paragraphsToHtml([
-			'The Modesto Junior College Tradition is Our Medicine; Knowledge is Our Fire Intertribal Powwow 2026 is a social gathering that brings together Native American communities from various tribes within California and throughout Turtle Island (USA) to celebrate and honor their cultural heritage here on the Yokut and Me-Wuk peoples\' land.',
+			"The Modesto Junior College Tradition is Our Medicine; Knowledge is Our Fire Intertribal Powwow 2026 is a social gathering that brings together Native American communities from various tribes within California and throughout Turtle Island (USA) to celebrate and honor their cultural heritage here on the Yokut and Me-Wuk peoples' land.",
 			'This event serves as a platform for dancing, singing, feasting, and the exchange of arts, crafts, and traditions, fostering unity and cultural pride among participants.',
-			'In addition, this powwow will provide an opportunity to uphold and share tribal customs, languages, and values, ensuring their preservation for future generations. While rooted in indigenous traditions, MJC\'s powwow is open to the public, inviting non-Native attendees to experience and appreciate the rich cultural expressions of Native American peoples.'
+			"In addition, this powwow will provide an opportunity to uphold and share tribal customs, languages, and values, ensuring their preservation for future generations. While rooted in indigenous traditions, MJC's powwow is open to the public, inviting non-Native attendees to experience and appreciate the rich cultural expressions of Native American peoples."
 		]),
 		organization: {
 			slug: 'modesto-junior-college',
@@ -824,7 +835,8 @@ const OFFICIAL_EVENTS = [
 			zip: '92025',
 			venueType: 'Park'
 		},
-		imageSourceUrl: 'https://socalindigenousarts.com/wp-content/uploads/2026/03/SCIA-2026-Final-Flyer.png'
+		imageSourceUrl:
+			'https://socalindigenousarts.com/wp-content/uploads/2026/03/SCIA-2026-Final-Flyer.png'
 	},
 	{
 		slug: '55th-annual-stanford-powwow',
@@ -836,7 +848,7 @@ const OFFICIAL_EVENTS = [
 		endDate: new Date('2026-05-10T18:00:00-07:00'),
 		cost: null,
 		descriptionHtml: paragraphsToHtml([
-			'Inviting everyone to the 55th Annual Stanford Powwow! Save the dates May 8-10, 2026 at Stanford University. Our Stanford Native student committee is excited to welcome everyone this Mother\'s Day Weekend for our dancing and singing, specials, vendors, food, and celebrating this year\'s theme of Dancing for Seven Generations.',
+			"Inviting everyone to the 55th Annual Stanford Powwow! Save the dates May 8-10, 2026 at Stanford University. Our Stanford Native student committee is excited to welcome everyone this Mother's Day Weekend for our dancing and singing, specials, vendors, food, and celebrating this year's theme of Dancing for Seven Generations.",
 			"This poster's beautiful artwork was done by Nico Vargas. We'd love to thank him for his amazing work and helping us bring our vision together!",
 			'Please share widely, bring your loved ones, and we will see you all at Stanford soon!'
 		]),
@@ -929,7 +941,8 @@ const OFFICIAL_EVENTS = [
 	},
 	{
 		slug: 'land-language-family-cahuilla-land-stewardship-spring-michael-kabotie-lecture-series',
-		title: 'Land, Language, Family: Cahuilla Land Stewardship | Spring Michael Kabotie Lecture Series',
+		title:
+			'Land, Language, Family: Cahuilla Land Stewardship | Spring Michael Kabotie Lecture Series',
 		url: 'https://idyllwildarts.org/event/land-language-family-cahuilla-land-stewardship-spring-michael-kabotie-lecture-series/',
 		type: 'Lecture',
 		region: 'Southern California',
@@ -1480,7 +1493,7 @@ const OFFICIAL_EVENTS = [
 		cost: 'Included with general admission',
 		registrationUrl: 'https://www.aquariumofpacific.org/visit/tickets',
 		descriptionHtml: paragraphsToHtml([
-			'You are invited to join the Aquarium of the Pacific for its twenty-second annual Moompetam American Indian Festival. Moompetam (pronounced \'mohm peh tahm), meaning "People of the Ocean," is derived from the word for \'saltwater\' in the Tongva language. For the California Indigenous coastal peoples, the ocean has always been a sacred entity.',
+			"You are invited to join the Aquarium of the Pacific for its twenty-second annual Moompetam American Indian Festival. Moompetam (pronounced 'mohm peh tahm), meaning \"People of the Ocean,\" is derived from the word for 'saltwater' in the Tongva language. For the California Indigenous coastal peoples, the ocean has always been a sacred entity.",
 			'The festival celebrates Indigenous California maritime cultures, including Tongva, Acjachemen, Chumash, Costanoan, Kumeyaay, and Luiseno. This celebration features traditional cultural craft demonstrations, storytelling, music, and dance, and an award ceremony.',
 			'Live festival presentations are scheduled for the following times in the following locations. All programs subject to change and weather dependent. Festival programming is 15-20 minutes: 10:00 a.m. Honda Blue Cavern; 10:45 a.m. Honda Blue Cavern; 11:30 a.m. Honda Pacific Visions Theater; 12:15 p.m. Honda Blue Cavern; 1:00 p.m. Honda Pacific Visions Theater; 1:45 p.m. Honda Blue Cavern; 2:30 p.m. Honda Pacific Visions Theater; 3:15 p.m. Honda Blue Cavern; 4:00 p.m. Honda Pacific Visions Theater.'
 		]),
@@ -1576,7 +1589,8 @@ const OFFICIAL_EVENTS = [
 		},
 		priceMin: 0,
 		priceMax: 0,
-		imageSourceUrl: 'https://d3fd2cznj6kriy.cloudfront.net/wp-content/uploads/2025/11/20093014/HOT-FB-cover.jpg',
+		imageSourceUrl:
+			'https://d3fd2cznj6kriy.cloudfront.net/wp-content/uploads/2025/11/20093014/HOT-FB-cover.jpg',
 		skipAutoImage: true
 	}
 ];
@@ -1594,10 +1608,16 @@ async function upsertEventRecord(eventConfig) {
 
 	const descriptionHtml = eventConfig.descriptionHtml ?? ybgDetails?.descriptionHtml ?? null;
 	const registrationUrl =
-		eventConfig.registrationUrl ?? ybgDetails?.registrationUrl ?? pageDetails.registrationUrl ?? null;
+		eventConfig.registrationUrl ??
+		ybgDetails?.registrationUrl ??
+		pageDetails.registrationUrl ??
+		null;
 	const imageSourceUrl = eventConfig.skipAutoImage
 		? null
-		: eventConfig.imageSourceUrl ?? ybgDetails?.imageSourceUrl ?? pageDetails.imageSourceUrl ?? null;
+		: (eventConfig.imageSourceUrl ??
+			ybgDetails?.imageSourceUrl ??
+			pageDetails.imageSourceUrl ??
+			null);
 	let imageUrl = null;
 	if (imageSourceUrl) {
 		try {

@@ -1,6 +1,7 @@
 import { and, asc, desc, eq, ilike, or, sql } from 'drizzle-orm';
 import { db } from '$lib/server/db';
 import { sourceTags, sources, user as userTable } from '$lib/server/db/schema';
+import { normalizePublicHttpUrl } from '$lib/server/url-safety';
 
 export type SourceRow = typeof sources.$inferSelect;
 export type SourceInsert = typeof sources.$inferInsert;
@@ -54,6 +55,19 @@ function normalizeTags(tags?: SourceTagInput[]): SourceTagInput[] {
 			tagValue: tag.tagValue.trim()
 		}))
 		.filter((tag) => tag.tagKey.length > 0 && tag.tagValue.length > 0);
+}
+
+function requireSafeSourceUrl(value: string | null | undefined, field: string): string {
+	const normalized = normalizePublicHttpUrl(value);
+	if (!normalized) {
+		throw new Error(`${field} must be a valid public http or https URL.`);
+	}
+	return normalized;
+}
+
+function optionalSafeSourceUrl(value: string | null | undefined, field: string): string | null {
+	if (!value?.trim()) return null;
+	return requireSafeSourceUrl(value, field);
 }
 
 export async function getSourcesForAdmin(opts?: {
@@ -174,13 +188,19 @@ export async function createSource(
 	}
 ): Promise<SourceDetail> {
 	const { tags = [], ...sourceData } = data;
-	const slug = await uniqueSlug(slugify(sourceData.name));
+	const normalizedSourceData = {
+		...sourceData,
+		sourceUrl: requireSafeSourceUrl(sourceData.sourceUrl, 'Source URL'),
+		homepageUrl: optionalSafeSourceUrl(sourceData.homepageUrl, 'Homepage URL'),
+		fetchUrl: optionalSafeSourceUrl(sourceData.fetchUrl, 'Fetch URL')
+	};
+	const slug = await uniqueSlug(slugify(normalizedSourceData.name));
 
 	return db.transaction(async (tx) => {
 		const [source] = await tx
 			.insert(sources)
 			.values({
-				...sourceData,
+				...normalizedSourceData,
 				slug
 			})
 			.returning();
@@ -214,9 +234,35 @@ export async function updateSource(
 	}
 ): Promise<SourceDetail | null> {
 	const { tags, ...sourceData } = data;
+	const normalizedSourceData = { ...sourceData };
+
+	if ('sourceUrl' in normalizedSourceData) {
+		normalizedSourceData.sourceUrl = requireSafeSourceUrl(
+			normalizedSourceData.sourceUrl ?? null,
+			'Source URL'
+		);
+	}
+
+	if ('homepageUrl' in normalizedSourceData) {
+		normalizedSourceData.homepageUrl = optionalSafeSourceUrl(
+			normalizedSourceData.homepageUrl ?? null,
+			'Homepage URL'
+		);
+	}
+
+	if ('fetchUrl' in normalizedSourceData) {
+		normalizedSourceData.fetchUrl = optionalSafeSourceUrl(
+			normalizedSourceData.fetchUrl ?? null,
+			'Fetch URL'
+		);
+	}
 
 	return db.transaction(async (tx) => {
-		const [source] = await tx.update(sources).set(sourceData).where(eq(sources.id, id)).returning();
+		const [source] = await tx
+			.update(sources)
+			.set(normalizedSourceData)
+			.where(eq(sources.id, id))
+			.returning();
 		if (!source) return null;
 
 		if (tags) {

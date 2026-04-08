@@ -1,4 +1,4 @@
-import { desc, eq, ilike, inArray, or, sql } from 'drizzle-orm';
+import { and, desc, eq, ilike, inArray, isNotNull, or, sql } from 'drizzle-orm';
 import { db } from '$lib/server/db';
 import {
 	events,
@@ -9,6 +9,7 @@ import {
 	toolboxResources,
 	venues
 } from '$lib/server/db/schema';
+import { stripHtml } from '$lib/utils/format';
 
 export type OrganizationRow = typeof organizations.$inferSelect;
 export type OrganizationInsert = typeof organizations.$inferInsert;
@@ -211,6 +212,78 @@ export async function getOrganizations(opts?: {
 		.offset(offset);
 
 	return { orgs: orgs.map((row) => normalizeOrganizationRow(row)), total };
+}
+
+export type OrganizationMapPoint = {
+	id: string;
+	slug: string;
+	name: string;
+	lat: number;
+	lng: number;
+	logoUrl: string | null;
+	orgType: string | null;
+	verified: boolean;
+	city: string | null;
+	state: string | null;
+	description: string | null;
+};
+
+export async function getOrganizationMapPoints(opts?: {
+	search?: string;
+	limit?: number;
+}): Promise<OrganizationMapPoint[]> {
+	const includeAliases = await hasOrganizationAliasesColumn();
+	const limit = opts?.limit ?? 500;
+	const searchWhere = buildSearchWhere(opts?.search, includeAliases);
+	const where = searchWhere
+		? and(isNotNull(organizations.lat), isNotNull(organizations.lng), searchWhere)
+		: and(isNotNull(organizations.lat), isNotNull(organizations.lng));
+
+	const rows = await db
+		.select({
+			id: organizations.id,
+			slug: organizations.slug,
+			name: organizations.name,
+			lat: organizations.lat,
+			lng: organizations.lng,
+			logoUrl: organizations.logoUrl,
+			orgType: organizations.orgType,
+			verified: organizations.verified,
+			city: organizations.city,
+			state: organizations.state,
+			description: organizations.description
+		})
+		.from(organizations)
+		.where(where)
+		.orderBy(organizations.name)
+		.limit(limit);
+
+	return rows
+		.filter(
+			(row): row is typeof row & { lat: number; lng: number } =>
+				typeof row.lat === 'number' &&
+				typeof row.lng === 'number' &&
+				Number.isFinite(row.lat) &&
+				Number.isFinite(row.lng)
+		)
+		.map((row) => {
+			const cleaned = row.description ? stripHtml(row.description).trim() : '';
+			const truncated =
+				cleaned.length > 160 ? `${cleaned.slice(0, 157).trimEnd()}…` : cleaned || null;
+			return {
+				id: row.id,
+				slug: row.slug,
+				name: row.name,
+				lat: row.lat,
+				lng: row.lng,
+				logoUrl: row.logoUrl ?? null,
+				orgType: row.orgType ?? null,
+				verified: Boolean(row.verified),
+				city: row.city ?? null,
+				state: row.state ?? null,
+				description: truncated
+			};
+		});
 }
 
 export async function getOrganizationById(id: string): Promise<OrganizationRow | null> {

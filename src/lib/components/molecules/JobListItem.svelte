@@ -1,4 +1,5 @@
 <script lang="ts">
+	import LogoBadge from '$lib/components/molecules/LogoBadge.svelte';
 	import type { JobItem } from '$lib/data/kb';
 	import { formatDisplayValue } from '$lib/utils/display.js';
 	import Star from '@lucide/svelte/icons/star';
@@ -44,6 +45,56 @@
 	const jobTypeLabel = $derived(
 		job.jobType ? formatDisplayValue(job.jobType, { key: 'jobType' }) : null
 	);
+	const workArrangementLabel = $derived(
+		job.workArrangement ? formatDisplayValue(job.workArrangement, { key: 'workArrangement' }) : null
+	);
+	const seniorityLabel = $derived(
+		job.seniority ? formatDisplayValue(job.seniority, { key: 'seniority' }) : null
+	);
+
+	function normalizeForComparison(value: string): string {
+		return value
+			.toLowerCase()
+			.replace(/[^a-z0-9]+/g, ' ')
+			.trim();
+	}
+
+	function locationAlreadyCoversArrangement(
+		location: string | undefined,
+		arrangement: string | null
+	): boolean {
+		if (!location || !arrangement) return false;
+
+		const normalizedLocation = normalizeForComparison(location);
+		const normalizedArrangement = normalizeForComparison(arrangement);
+		if (!normalizedLocation || !normalizedArrangement) return false;
+
+		if (normalizedLocation.includes(normalizedArrangement)) return true;
+		if (normalizedArrangement === 'in office' && normalizedLocation.includes('office')) return true;
+		return false;
+	}
+
+	const metaDetails = $derived.by(() => {
+		const details: Array<{ label: string; value: string }> = [];
+		const locationValue = job.location?.trim();
+		const regionValue = job.region?.trim();
+
+		if (locationValue) details.push({ label: 'Location', value: locationValue });
+		else if (regionValue) details.push({ label: 'Region', value: regionValue });
+
+		if (
+			workArrangementLabel &&
+			!locationAlreadyCoversArrangement(locationValue, workArrangementLabel)
+		) {
+			details.push({ label: 'Work setup', value: workArrangementLabel });
+		}
+
+		if (seniorityLabel) details.push({ label: 'Level', value: seniorityLabel });
+
+		return details;
+	});
+
+	const fallbackInitials = $derived(initials(job.employerName ?? job.title));
 </script>
 
 <a
@@ -51,11 +102,13 @@
 	class="flex items-start gap-4 rounded-lg border border-[var(--rule)] bg-white p-4 text-inherit no-underline transition-[box-shadow,transform] duration-150 hover:translate-x-[3px] hover:no-underline hover:shadow-[var(--shh)]"
 	style="animation-delay: {index * 30}ms"
 >
-	<div
-		class="flex h-12 w-12 flex-none items-center justify-center rounded-full bg-[var(--forest,#2d6a4f)] font-sans text-lg font-bold text-white"
-	>
-		{initials(job.employerName ?? job.title)}
-	</div>
+	<LogoBadge
+		src={job.imageUrl ?? null}
+		alt=""
+		fallbackText={fallbackInitials}
+		size="card"
+		containerClass="flex-none"
+	/>
 	<div class="flex min-w-0 flex-1 flex-col gap-1">
 		{#if job.indigenousPriority}
 			<span class="text-[11px] font-bold tracking-[0.06em] text-[var(--teal)] uppercase"
@@ -82,10 +135,19 @@
 				{/if}
 			</div>
 		{/if}
-		{#if job.location || job.seniority}
-			<div class="flex flex-wrap gap-1.5 text-xs text-[var(--muted-foreground)]">
-				{#if job.location}<span>{job.location}</span>{/if}
-				{#if job.seniority}<span>{job.seniority}</span>{/if}
+		{#if metaDetails.length > 0}
+			<div
+				class="flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-[var(--muted-foreground)]"
+			>
+				{#each metaDetails as detail, detailIndex (`${detail.label}-${detail.value}`)}
+					<span class="inline-flex items-baseline gap-1.5">
+						{#if detailIndex > 0}
+							<span aria-hidden="true" class="text-[var(--line)]">•</span>
+						{/if}
+						<span class="font-semibold text-[var(--dark)]">{detail.label}:</span>
+						<span>{detail.value}</span>
+					</span>
+				{/each}
 			</div>
 		{/if}
 	</div>

@@ -1304,7 +1304,8 @@ describe('approveCandidate publishing', () => {
 					normalizedData: {
 						coil: 'events',
 						title: 'Knowledge Gathering',
-						description: 'A community event',
+						description:
+							'A community event <strong>with details</strong><img src="https://example.com/x.png" onerror="alert(1)"><script>alert(1)</script>',
 						url: 'https://example.com/events/knowledge-gathering',
 						organization_name: 'Smithsonian',
 						organization_id: null,
@@ -1362,12 +1363,19 @@ describe('approveCandidate publishing', () => {
 
 		expect(createEvent).toHaveBeenCalledOnce();
 		expect(updateEvent).not.toHaveBeenCalled();
+		const [publishedPayload] = createEvent.mock.calls[0] as unknown as [
+			{ description?: string | null }
+		];
+		expect(publishedPayload.description).toContain('<strong>with details</strong>');
+		expect(publishedPayload.description).not.toContain('onerror');
+		expect(publishedPayload.description).not.toContain('<script');
 		expect(result?.status).toBe('approved');
 		expect(fakeDb.state.canonicalRecords[0]?.publishedRecordId).toBe('evt-1');
 		expect(fakeDb.state.canonicalRecords[0]?.sourceSnapshot).toEqual(
 			expect.objectContaining({
 				title: 'Knowledge Gathering',
-				description: 'A community event'
+				description:
+					'A community event <strong>with details</strong><img src="https://example.com/x.png" onerror="alert(1)"><script>alert(1)</script>'
 			})
 		);
 		expect(fakeDb.state.sourceRecordLinks).toHaveLength(1);

@@ -8,6 +8,8 @@ import postgres from 'postgres';
 import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
 import { randomUUID } from 'crypto';
+import { syncCuratedFunding } from './lib/curated-funding-sync.mjs';
+import { syncCuratedRedPages } from './lib/curated-red-pages-sync.mjs';
 
 if (!process.env.DATABASE_URL) {
 	console.error('DATABASE_URL is not set.');
@@ -282,225 +284,18 @@ async function seedOrganizationsAndVenues() {
 
 // ── Red Pages ─────────────────────────────────────────────────────────────────
 async function seedRedPages() {
-	const csvPath = existsSync(
-		join(process.cwd(), '..', 'data', 'The Red Pages - Native Vendors - Knowledge Basket.csv')
-	)
-		? join(process.cwd(), '..', 'data', 'The Red Pages - Native Vendors - Knowledge Basket.csv')
-		: join(process.cwd(), 'data', 'The Red Pages - Native Vendors - Knowledge Basket.csv');
-
-	if (!existsSync(csvPath)) {
-		console.log('Red Pages CSV not found, skipping.');
-		return;
-	}
-
-	const rows = parseCSV(readFileSync(csvPath, 'utf-8'));
-	const headers = rows[0] || [];
-	const col = (row, name) => {
-		const i = headers.indexOf(name);
-		return i >= 0 ? (row[i] || '').trim() : '';
-	};
-
-	const seen = new Set();
-	let count = 0;
-	for (let i = 1; i < rows.length; i++) {
-		const row = rows[i];
-		const name = col(row, 'Entity/Individual');
-		if (!name || name.startsWith('http')) continue;
-		const slug = uniqueSlug(slugify(name), seen);
-		const serviceType = col(row, 'Filter - Service Type').replace(/^"|"$/g, '').trim() || null;
-		const region = col(row, 'Filter - Service Area') || null;
-		const ownership = col(row, 'Filter - Ownership/Identity') || null;
-		const description = col(row, 'Desription') || null;
-		const tribalAffiliation = col(row, 'Native Identity') || null;
-		const website = col(row, 'Link or Contact') || null;
-		const ownershipArr = ownership
-			? ownership
-					.split(',')
-					.map((s) => s.trim())
-					.filter(Boolean)
-			: [];
-
-		await sql`
-			INSERT INTO red_pages_businesses (id, slug, name, description, service_type, region, tribal_affiliation, website, ownership_identity, status, source, published_at)
-			VALUES (
-				${randomUUID()}, ${slug}, ${name}, ${description},
-				${serviceType}, ${region}, ${tribalAffiliation}, ${website && website !== 'Link' ? website : null},
-				${ownershipArr}, 'published', 'seed', NOW()
-			)
-			ON CONFLICT (slug) DO NOTHING
-		`;
-		count++;
-	}
-	console.log(`Seeded ${count} Red Pages businesses.`);
+	const summary = await syncCuratedRedPages(sql, { prune: true });
+	console.log(
+		`Synced ${summary.total} curated Red Pages listings (${summary.created} created, ${summary.updated} updated, ${summary.deleted} legacy rows removed).`
+	);
 }
 
 // ── Funding ───────────────────────────────────────────────────────────────────
 async function seedFunding() {
-	const items = [
-		{
-			title: 'Tribal Community Development Block Grant',
-			funderName: 'U.S. Department of Housing and Urban Development',
-			fundingType: 'Grant',
-			applicationStatus: 'open',
-			focusAreas: ['Housing', 'Community Development'],
-			region: 'National',
-			amountMin: 50000,
-			amountMax: 500000,
-			amountDescription: '$50,000 – $500,000',
-			description:
-				'<p>The Tribal Community Development Block Grant (ICDBG) program provides assistance for the development of viable tribal communities. Eligible activities include housing rehabilitation, public facilities, and economic development.</p>',
-			applyUrl: 'https://www.hud.gov/program_offices/public_indian_housing/ih/grants/icdbg',
-			eligibilityType: 'tribal_gov',
-			eligibilityTypes: ['tribal_gov'],
-			deadline: new Date('2026-06-30')
-		},
-		{
-			title: 'First Nations Development Institute Native Agriculture and Food Systems Initiative',
-			funderName: 'First Nations Development Institute',
-			fundingType: 'Grant',
-			applicationStatus: 'open',
-			focusAreas: ['Food Sovereignty', 'Agriculture'],
-			region: 'National',
-			amountMin: 25000,
-			amountMax: 75000,
-			amountDescription: '$25,000 – $75,000',
-			description:
-				'<p>Supports Native-led efforts to reclaim control over food systems, revitalize traditional agriculture, and address food sovereignty issues in Native communities.</p>',
-			applyUrl: 'https://www.firstnations.org',
-			eligibilityType: 'nonprofit',
-			eligibilityTypes: ['nonprofit', 'tribal_gov'],
-			deadline: new Date('2026-05-15')
-		},
-		{
-			title: 'Administration for Native Americans Social and Economic Development Strategies',
-			funderName: 'Administration for Native Americans',
-			fundingType: 'Grant',
-			applicationStatus: 'open',
-			focusAreas: ['Economic Development', 'Social Services'],
-			region: 'National',
-			amountMin: 100000,
-			amountMax: 400000,
-			amountDescription: 'Up to $400,000',
-			description:
-				'<p>SEDS grants support social and economic development strategies for Native American communities, including projects that strengthen tribal governance, economic self-sufficiency, and community well-being.</p>',
-			applyUrl: 'https://www.acf.hhs.gov/ana',
-			eligibilityType: 'tribal_gov',
-			eligibilityTypes: ['tribal_gov', 'nonprofit'],
-			deadline: new Date('2026-07-01'),
-			isRecurring: true,
-			recurringSchedule: 'Annual'
-		},
-		{
-			title: 'Native Arts and Cultures Foundation Catalyst Grant',
-			funderName: 'Native Arts and Cultures Foundation',
-			fundingType: 'Grant',
-			applicationStatus: 'rolling',
-			focusAreas: ['Arts & Culture', 'Language Revitalization'],
-			region: 'National',
-			amountMin: 10000,
-			amountMax: 50000,
-			amountDescription: '$10,000 – $50,000',
-			description:
-				'<p>The Catalyst Grant supports emerging and established Native artists and arts organizations. Projects should be rooted in Indigenous cultural practices and contribute to the vitality of Native arts and cultures.</p>',
-			applyUrl: 'https://www.nativeartsandcultures.org',
-			eligibilityType: 'individual',
-			eligibilityTypes: ['individual', 'nonprofit']
-		},
-		{
-			title: 'Indigenous Language Institute Endangered Language Fund',
-			funderName: 'Indigenous Language Institute',
-			fundingType: 'Grant',
-			applicationStatus: 'open',
-			focusAreas: ['Language Revitalization', 'Education'],
-			region: 'National',
-			amountMin: 5000,
-			amountMax: 30000,
-			amountDescription: '$5,000 – $30,000',
-			description:
-				'<p>Supports documentation, revitalization, and education programs for endangered Indigenous languages. Projects may include language nests, master-apprentice programs, digital archiving, or curriculum development.</p>',
-			applyUrl: 'https://www.indigenous-language.org',
-			eligibilityType: 'nonprofit',
-			eligibilityTypes: ['nonprofit', 'tribal_gov', 'individual'],
-			deadline: new Date('2026-04-15')
-		},
-		{
-			title: 'USDA Forest Service Tribal Agreements Program',
-			funderName: 'USDA Forest Service',
-			fundingType: 'Contract',
-			applicationStatus: 'rolling',
-			focusAreas: ['Environmental Stewardship', 'Tribal Management'],
-			region: 'California',
-			amountMin: 0,
-			amountMax: 250000,
-			amountDescription: 'Varies by project scope',
-			description:
-				'<p>The Forest Service enters into agreements with tribes for stewardship, restoration, and resource management projects on National Forest lands with tribal cultural significance. California tribes are especially encouraged to apply for Sierra Nevada projects.</p>',
-			applyUrl: 'https://www.fs.usda.gov/managing-land/tribal-relations',
-			eligibilityType: 'tribal_gov',
-			eligibilityTypes: ['tribal_gov']
-		},
-		{
-			title: 'EPA Indian Environmental General Assistance Program',
-			funderName: 'U.S. Environmental Protection Agency',
-			fundingType: 'Grant',
-			applicationStatus: 'open',
-			focusAreas: ['Environmental Stewardship', 'Climate'],
-			region: 'National',
-			amountMin: 30000,
-			amountMax: 100000,
-			amountDescription: '$30,000 – $100,000',
-			description:
-				'<p>GAP grants provide funding to build capacity at tribal environmental programs, including developing infrastructure for environmental management, solid and hazardous waste, water quality, and air programs.</p>',
-			applyUrl: 'https://www.epa.gov/tribal/indian-environmental-general-assistance-program-gap',
-			eligibilityType: 'tribal_gov',
-			eligibilityTypes: ['tribal_gov'],
-			deadline: new Date('2026-08-31'),
-			isRecurring: true
-		},
-		{
-			title: 'First Peoples Worldwide Indigenous Rights Fellowship',
-			funderName: 'First Peoples Worldwide',
-			fundingType: 'Fellowship',
-			applicationStatus: 'closed',
-			focusAreas: ['Human Rights', 'Indigenous Rights'],
-			region: 'National',
-			amountMin: 15000,
-			amountMax: 15000,
-			amountDescription: '$15,000 stipend',
-			description:
-				'<p>The Indigenous Rights Fellowship supports early-career Indigenous advocates working on human rights, free, prior and informed consent, and indigenous rights in extractive industry contexts. Applications for the current cycle are closed.</p>',
-			applyUrl: 'https://www.firstpeoples.org',
-			eligibilityType: 'individual',
-			eligibilityTypes: ['individual']
-		}
-	];
-
-	const seen = new Set();
-	let count = 0;
-	for (const item of items) {
-		const slug = uniqueSlug(slugify(item.title), seen);
-		await sql`
-			INSERT INTO funding (
-				id, slug, title, description, funder_name, funding_type, application_status,
-				focus_areas, region, amount_min, amount_max, amount_description,
-				apply_url, eligibility_type, eligibility_types, deadline,
-				is_recurring, recurring_schedule,
-				status, source, published_at
-			) VALUES (
-				${randomUUID()}, ${slug}, ${item.title}, ${item.description},
-				${item.funderName}, ${item.fundingType}, ${item.applicationStatus},
-				${item.focusAreas ?? []}, ${item.region ?? null},
-				${item.amountMin ?? null}, ${item.amountMax ?? null}, ${item.amountDescription ?? null},
-				${item.applyUrl ?? null}, ${item.eligibilityType ?? null}, ${item.eligibilityTypes ?? []},
-				${item.deadline ?? null},
-				${item.isRecurring ?? false}, ${item.recurringSchedule ?? null},
-				'published', 'seed', NOW()
-			)
-			ON CONFLICT (slug) DO NOTHING
-		`;
-		count++;
-	}
-	console.log(`Seeded ${count} funding opportunities.`);
+	const summary = await syncCuratedFunding(sql, { prune: true });
+	console.log(
+		`Synced ${summary.total} curated funding opportunities (${summary.created} created, ${summary.updated} updated, ${summary.deleted} legacy rows removed, ${summary.searchIndexed ? `${summary.indexedCount} search docs rebuilt` : 'search reindex skipped'}).`
+	);
 }
 
 // ── Jobs ──────────────────────────────────────────────────────────────────────

@@ -1,19 +1,15 @@
 <script lang="ts">
 	import { browser } from '$app/environment';
 	import { onMount } from 'svelte';
-	import Shield from '@lucide/svelte/icons/shield';
-	import X from '@lucide/svelte/icons/x';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import * as Dialog from '$lib/components/ui/dialog/index.js';
 	import Checkbox from '$lib/components/ui/checkbox/checkbox.svelte';
 	import { buttonVariants } from '$lib/components/ui/button/index.js';
-	import { useSidebar } from '$lib/components/ui/sidebar/index.js';
 	import {
 		CONSENT_UPDATED_EVENT,
 		CONSENT_CATEGORIES,
 		closePrivacyChoices,
 		getConsent,
-		hasConsent,
 		privacyChoicesOpen,
 		readStoredConsent,
 		saveConsent,
@@ -22,7 +18,6 @@
 	import { cn } from '$lib/utils.js';
 
 	const editableCategories = CONSENT_CATEGORIES.filter((category) => category !== 'essential');
-	const PRIVACY_LAUNCHER_DISMISS_KEY = 'kb:privacy-launcher-dismissed';
 
 	const categoryLabels: Record<Exclude<ConsentCategory, 'essential'>, string> = {
 		preferences: 'Preferences cookies',
@@ -36,37 +31,16 @@
 		marketing: 'Marketing, retargeting, and ad-related technologies.'
 	};
 
-	const sidebar = useSidebar();
-
 	let open = $state(false);
 	let bannerEl = $state<HTMLDivElement | null>(null);
 	let mounted = $state(false);
 	let consent = $state(getConsent());
 	let consentResolved = $state(false);
-	let launcherDismissed = $state(false);
 	let preferences = $state(false);
 	let analytics = $state(false);
 	let marketing = $state(false);
 
 	const showBanner = $derived(mounted && !consentResolved);
-	const showLauncher = $derived(
-		mounted &&
-			consentResolved &&
-			!launcherDismissed &&
-			!open &&
-			!sidebar.isMobile &&
-			!sidebar.openMobile
-	);
-
-	function syncLauncherDismissed() {
-		if (!browser) return;
-		try {
-			launcherDismissed =
-				hasConsent('preferences') && localStorage.getItem(PRIVACY_LAUNCHER_DISMISS_KEY) === '1';
-		} catch {
-			launcherDismissed = false;
-		}
-	}
 
 	function syncFromStoredConsent() {
 		const stored = readStoredConsent();
@@ -76,7 +50,6 @@
 		preferences = record.categories.preferences;
 		analytics = record.categories.analytics;
 		marketing = record.categories.marketing;
-		syncLauncherDismissed();
 	}
 
 	function persistSelection(source: 'banner' | 'preferences') {
@@ -104,23 +77,6 @@
 		analytics = false;
 		marketing = false;
 		persistSelection('banner');
-	}
-
-	function dismissLauncher() {
-		launcherDismissed = true;
-		if (!browser) return;
-		try {
-			if (hasConsent('preferences')) {
-				localStorage.setItem(PRIVACY_LAUNCHER_DISMISS_KEY, '1');
-			}
-		} catch {
-			/* blocked storage */
-		}
-	}
-
-	function openLauncherPreferences() {
-		syncFromStoredConsent();
-		privacyChoicesOpen.set(true);
 	}
 
 	function syncBannerOffset() {
@@ -219,31 +175,6 @@
 				</div>
 			</Card.Content>
 		</Card.Root>
-	</div>
-{/if}
-
-{#if showLauncher}
-	<div
-		class="fixed right-4 z-30 hidden items-center gap-1 rounded-full border border-border/70 bg-background/94 p-1.5 shadow-lg backdrop-blur md:flex"
-		style="bottom: calc(var(--kb-submit-banner-offset, 0px) + env(safe-area-inset-bottom, 0px) + 1rem);"
-	>
-		<button
-			type="button"
-			class="flex items-center gap-2 rounded-full px-3 py-2 text-sm font-semibold text-foreground transition hover:bg-muted"
-			onclick={openLauncherPreferences}
-			aria-label="Open privacy choices"
-		>
-			<Shield class="h-4 w-4" />
-			<span>Privacy choices</span>
-		</button>
-		<button
-			type="button"
-			class="flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground transition hover:bg-muted hover:text-foreground"
-			onclick={dismissLauncher}
-			aria-label="Dismiss privacy choices launcher"
-		>
-			<X class="h-4 w-4" />
-		</button>
 	</div>
 {/if}
 

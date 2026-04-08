@@ -24,6 +24,7 @@
 
 	const quickLinks: QuickLink[] = [
 		{ id: 'work-queue', label: 'Work Queue', meta: 'Moderation', href: '/admin' },
+		{ id: 'users', label: 'Users', meta: 'Administration', href: '/admin/users' },
 		{ id: 'source-review', label: 'Import Review', meta: 'Sources', href: '/admin/sources/review' },
 		{ id: 'source-health', label: 'Source Health', meta: 'Sources', href: '/admin/sources/health' },
 		{
@@ -57,6 +58,7 @@
 		if (pathname.startsWith('/admin/red-pages')) return 'Red Pages';
 		if (pathname.startsWith('/admin/jobs')) return 'Jobs';
 		if (pathname.startsWith('/admin/toolbox')) return 'Toolbox';
+		if (pathname.startsWith('/admin/users')) return 'Users';
 		if (pathname.startsWith('/admin/organizations')) return 'Organizations';
 		if (pathname.startsWith('/admin/venues')) return 'Venues';
 		if (pathname.startsWith('/admin/sources')) return 'Sources';

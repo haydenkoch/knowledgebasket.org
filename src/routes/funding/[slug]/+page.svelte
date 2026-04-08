@@ -1,14 +1,16 @@
 <script lang="ts">
 	import { browser } from '$app/environment';
-	import { trackContentViewed, trackExternalLinkClicked } from '$lib/analytics/events';
+	import { trackContentViewed, trackExternalLinkClicked } from '$lib/insights/events';
 	import SeoHead from '$lib/components/SeoHead.svelte';
 	import { resolveAbsoluteUrl } from '$lib/config/public-assets';
 	import type { FundingItem } from '$lib/data/kb';
+	import { resolveSeoSocialImage } from '$lib/seo/images';
 	import { buildOgImagePath } from '$lib/seo/metadata';
 	import { formatDisplayValue } from '$lib/utils/display.js';
 	import { stripHtml } from '$lib/utils/format';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import CoilDetailActionRail from '$lib/components/organisms/CoilDetailActionRail.svelte';
+	import CoilDetailHero from '$lib/components/organisms/CoilDetailHero.svelte';
 	import ArrowLeft from '@lucide/svelte/icons/arrow-left';
 	import ExternalLinkIcon from '@lucide/svelte/icons/external-link';
 
@@ -46,12 +48,24 @@
 		})
 	);
 	const socialImage = $derived(
-		buildOgImagePath({
-			title: item?.title ?? 'Funding',
-			eyebrow: 'Knowledge Basket · Funding',
-			theme: 'funding',
-			meta: item?.funderName ?? item?.amountDescription ?? 'Funding opportunities'
-		})
+		item
+			? resolveSeoSocialImage({
+					imageUrl: item.imageUrl ?? item.imageUrls?.[0] ?? null,
+					origin,
+					seed: item.slug ?? item.title,
+					fallbackOgImage: buildOgImagePath({
+						title: item.title,
+						eyebrow: 'Knowledge Basket · Funding',
+						theme: 'funding',
+						meta: item.funderName ?? item.amountDescription ?? 'Funding opportunities'
+					})
+				})
+			: buildOgImagePath({
+					title: 'Funding',
+					eyebrow: 'Knowledge Basket · Funding',
+					theme: 'funding',
+					meta: 'Funding opportunities'
+				})
 	);
 	const breadcrumbItems = $derived(
 		item
@@ -173,82 +187,36 @@
 		>
 	</div>
 {:else}
-	<div class="kb-funding-wrap">
-		<!-- Hero header -->
-		<div class="kb-funding-hero" class:has-image={galleryImages.length > 0}>
-			<!-- Decorative grant-paper motif -->
-			<svg
-				class="kb-funding-hero-motif"
-				viewBox="0 0 400 400"
-				xmlns="http://www.w3.org/2000/svg"
-				aria-hidden="true"
-			>
-				<defs>
-					<pattern id="kb-fund-grid" width="28" height="28" patternUnits="userSpaceOnUse">
-						<path d="M28 0H0V28" fill="none" stroke="currentColor" stroke-width="0.5" />
-					</pattern>
-				</defs>
-				<rect width="400" height="400" fill="url(#kb-fund-grid)" />
-				<circle cx="340" cy="60" r="70" fill="currentColor" opacity="0.08" />
-				<circle cx="340" cy="60" r="40" fill="currentColor" opacity="0.08" />
-			</svg>
-			<div class="kb-funding-hero-body">
-				<div class="kb-funding-hero-text">
-					<div class="kb-funding-hero-badges">
-						{#if applicationStatusLabel}
-							<span class="kb-funding-badge kb-funding-badge--status">{applicationStatusLabel}</span
-							>
-						{/if}
-						{#each fundingTypesDisplay as ft (ft)}
-							<span class="kb-funding-badge">{ft}</span>
-						{/each}
-						{#if deadlineCountdown}
-							<span
-								class="kb-funding-badge kb-funding-badge--countdown"
-								class:is-urgent={deadlineCountdown.urgent}
-								class:is-closed={deadlineCountdown.closed}
-							>
-								{deadlineCountdown.label}
-							</span>
-						{/if}
-					</div>
-					{#if item.amountDescription}
-						<p class="kb-funding-amount">{item.amountDescription}</p>
-					{/if}
-					<h1 class="kb-funding-title">{item.title}</h1>
-					{#if item.funderName}
-						<p class="kb-funding-funder">Funded by {item.funderName}</p>
-					{/if}
-				</div>
-				{#if galleryImages.length > 0}
-					<figure class="kb-funding-hero-figure">
-						<img
-							src={galleryImages[selectedGalleryIndex] ?? galleryImages[0]}
-							alt=""
-							loading="lazy"
-						/>
-						{#if galleryImages.length > 1}
-							<div class="kb-funding-filmstrip" role="tablist" aria-label="Gallery">
-								{#each galleryImages as url, i (url + i)}
-									<button
-										type="button"
-										class="kb-funding-thumb"
-										class:selected={i === selectedGalleryIndex}
-										aria-label="View image {i + 1}"
-										aria-selected={i === selectedGalleryIndex}
-										role="tab"
-										onclick={() => (selectedGalleryIndex = i)}
-									>
-										<img src={url} alt="" loading="lazy" />
-									</button>
-								{/each}
-							</div>
-						{/if}
-					</figure>
-				{/if}
-			</div>
-		</div>
+	<CoilDetailHero
+		title={item.title}
+		subtitle={item.funderName ? `Funded by ${item.funderName}` : undefined}
+		bannerImages={galleryImages}
+		selectedBannerIndex={selectedGalleryIndex}
+		onSelectBanner={(i) => (selectedGalleryIndex = i)}
+		galleryLabel="Funder gallery"
+		imageFit="logo-on-cover"
+		placeholderKey={item.slug}
+	>
+		{#snippet badges()}
+			{#if applicationStatusLabel}
+				<span class="kb-coil-tag kb-coil-tag--accent">{applicationStatusLabel}</span>
+			{/if}
+			{#each fundingTypesDisplay as ft (ft)}
+				<span class="kb-coil-tag">{ft}</span>
+			{/each}
+			{#if deadlineCountdown}
+				<span
+					class="kb-coil-tag"
+					class:kb-coil-tag--urgent={deadlineCountdown.urgent}
+					class:kb-coil-tag--closed={deadlineCountdown.closed}
+				>
+					{deadlineCountdown.label}
+				</span>
+			{/if}
+		{/snippet}
+	</CoilDetailHero>
 
+	<div class="kb-funding-wrap">
 		<CoilDetailActionRail
 			isAuthed={!!data.user}
 			{isBookmarked}
@@ -459,176 +427,7 @@
 	.kb-funding-wrap {
 		max-width: 1200px;
 		margin: 0 auto;
-		padding: 1.5rem 1.5rem 3rem;
-	}
-	.kb-funding-hero {
-		position: relative;
-		overflow: hidden;
-		border-radius: 18px 18px 0 0;
-		background: linear-gradient(
-			135deg,
-			var(--color-flicker-900, #461404) 0%,
-			var(--color-flicker-700, #ca4404) 55%,
-			var(--color-elderberry-950, #3f0d16) 100%
-		);
-		padding: 2.25rem 2rem 2.25rem;
-		color: white;
-		isolation: isolate;
-	}
-	@media (min-width: 1024px) {
-		.kb-funding-hero {
-			padding: 3rem 2.5rem;
-		}
-	}
-	.kb-funding-hero-motif {
-		position: absolute;
-		inset: 0;
-		width: 100%;
-		height: 100%;
-		color: white;
-		opacity: 0.16;
-		z-index: 0;
-		pointer-events: none;
-	}
-	.kb-funding-hero-body {
-		position: relative;
-		z-index: 1;
-		display: flex;
-		align-items: flex-start;
-		gap: 1.5rem;
-	}
-	.kb-funding-hero-text {
-		flex: 1 1 auto;
-		min-width: 0;
-	}
-	.kb-funding-hero-figure {
-		display: none;
-		flex-shrink: 0;
-		width: 200px;
-		height: 200px;
-		border-radius: 12px;
-		overflow: hidden;
-		margin: 0;
-		border: 1px solid rgba(255, 255, 255, 0.25);
-		box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-		transform: rotate(-1.5deg);
-	}
-	.kb-funding-hero-figure img {
-		width: 100%;
-		height: 100%;
-		object-fit: cover;
-	}
-	@media (min-width: 768px) {
-		.kb-funding-hero.has-image .kb-funding-hero-figure {
-			display: block;
-		}
-	}
-	/* ── Gallery filmstrip inside figure ── */
-	.kb-funding-filmstrip {
-		display: flex;
-		flex-wrap: wrap;
-		gap: 0.375rem;
-		padding: 0.375rem;
-		margin-top: 0.5rem;
-		background: rgba(0, 0, 0, 0.25);
-		border-radius: 8px;
-	}
-	.kb-funding-thumb {
-		width: 48px;
-		height: 48px;
-		padding: 0;
-		border: 2px solid transparent;
-		border-radius: 4px;
-		overflow: hidden;
-		cursor: pointer;
-		transition:
-			border-color 0.15s,
-			transform 0.15s;
-	}
-	.kb-funding-thumb:hover {
-		transform: translateY(-1px);
-	}
-	.kb-funding-thumb.selected {
-		border-color: white;
-	}
-	.kb-funding-thumb img {
-		width: 100%;
-		height: 100%;
-		object-fit: cover;
-	}
-	@media (min-width: 1024px) {
-		.kb-funding-hero-figure {
-			width: 240px;
-			height: 240px;
-		}
-	}
-	.kb-funding-hero-badges {
-		display: flex;
-		flex-wrap: wrap;
-		gap: 0.375rem;
-		margin-bottom: 0.5rem;
-	}
-	.kb-funding-badge {
-		display: inline-block;
-		padding: 0.2rem 0.5rem;
-		background: rgba(255, 255, 255, 0.18);
-		border-radius: 4px;
-		font-size: 0.6875rem;
-		font-weight: 700;
-		letter-spacing: 0.06em;
-		text-transform: uppercase;
-	}
-	.kb-funding-badge--status {
-		background: rgba(255, 255, 255, 0.28);
-	}
-	.kb-funding-badge--countdown {
-		background: rgba(255, 255, 255, 0.14);
-		border: 1px solid rgba(255, 255, 255, 0.22);
-	}
-	.kb-funding-badge--countdown.is-urgent {
-		background: var(--color-flicker-400, #f97316);
-		color: rgba(0, 0, 0, 0.88);
-		border-color: transparent;
-		animation: kb-funding-pulse 2.4s ease-in-out infinite;
-	}
-	.kb-funding-badge--countdown.is-closed {
-		background: rgba(255, 255, 255, 0.12);
-		text-decoration: line-through;
-		opacity: 0.7;
-	}
-	@keyframes kb-funding-pulse {
-		0%,
-		100% {
-			box-shadow: 0 0 0 0 rgba(249, 115, 22, 0.55);
-		}
-		50% {
-			box-shadow: 0 0 0 8px rgba(249, 115, 22, 0);
-		}
-	}
-	.kb-funding-amount {
-		font-family: var(--font-display, var(--font-serif));
-		font-size: clamp(2rem, 5vw, 3rem);
-		font-weight: 700;
-		line-height: 1;
-		letter-spacing: -0.01em;
-		margin: 0 0 0.5rem 0;
-		color: white;
-	}
-	.kb-funding-title {
-		font-family: var(--font-display, var(--font-serif));
-		font-size: clamp(1.5rem, 3.75vw, 2.25rem);
-		font-weight: 700;
-		line-height: 1.1;
-		letter-spacing: -0.005em;
-		margin: 0 0 0.5rem 0;
-		color: white;
-	}
-	.kb-funding-funder {
-		font-family: var(--font-serif);
-		font-style: italic;
-		font-size: 1rem;
-		opacity: 0.9;
-		margin: 0;
+		padding: 0 1.5rem 3rem;
 	}
 	.kb-funding-meta-deadline {
 		font-weight: 600;

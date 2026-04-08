@@ -1,5 +1,7 @@
 import { betterAuth } from 'better-auth/minimal';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
+import { admin } from 'better-auth/plugins/admin';
+import { adminAc, userAc } from 'better-auth/plugins/admin/access';
 import { sveltekitCookies } from 'better-auth/svelte-kit';
 import { env } from '$env/dynamic/private';
 import { getRequestEvent } from '$app/server';
@@ -83,15 +85,20 @@ export const auth = betterAuth({
 					`
 				});
 			}
-		},
-		additionalFields: {
-			role: {
-				type: 'string',
-				required: false,
-				defaultValue: 'contributor',
-				input: false
-			}
 		}
 	},
-	plugins: [sveltekitCookies(getRequestEvent)]
+	plugins: [
+		admin({
+			defaultRole: 'contributor',
+			adminRoles: ['admin'],
+			bannedUserMessage:
+				'Your Knowledge Basket account has been disabled. Please contact support if you believe this is an error.',
+			roles: {
+				contributor: userAc,
+				moderator: userAc,
+				admin: adminAc
+			}
+		}),
+		sveltekitCookies(getRequestEvent)
+	]
 });

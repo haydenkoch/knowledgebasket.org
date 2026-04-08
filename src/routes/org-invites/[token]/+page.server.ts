@@ -1,5 +1,6 @@
 import { error, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
+import { requireAuthenticatedUser } from '$lib/server/access-control';
 import { db } from '$lib/server/db';
 import { organizationInvites, organizations } from '$lib/server/db/schema';
 import { eq } from 'drizzle-orm';
@@ -28,7 +29,8 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 
 export const actions: Actions = {
 	accept: async ({ locals, params }) => {
-		const invite = await acceptOrganizationInvite(params.token, locals.user!.id);
+		const user = requireAuthenticatedUser(locals);
+		const invite = await acceptOrganizationInvite(params.token, user.id);
 		throw redirect(303, `/account/organizations?inviteAccepted=${invite.organizationId}`);
 	}
 };

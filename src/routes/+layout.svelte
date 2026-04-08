@@ -4,10 +4,11 @@
 	import { browser } from '$app/environment';
 	import favicon from '$lib/assets/favicon.svg';
 	import { page } from '$app/stores';
-	import { identifyAnalyticsUser, resetAnalyticsUser } from '$lib/analytics/posthog.client';
+	import { identifyAnalyticsUser, resetAnalyticsUser } from '$lib/insights/provider.client';
 	import KbHeader from '$lib/components/organisms/KbHeader.svelte';
 	import KbPublicNavSidebar from '$lib/components/organisms/KbPublicNavSidebar.svelte';
 	import ConsentManager from '$lib/components/organisms/ConsentManager.svelte';
+	import KbActionDock from '$lib/components/organisms/KbActionDock.svelte';
 	import PublicCommandPalette from '$lib/components/organisms/PublicCommandPalette.svelte';
 	import * as Sidebar from '$lib/components/ui/sidebar/index.js';
 
@@ -99,6 +100,7 @@
 				</button>
 			{/if}
 			<ConsentManager />
+			<KbActionDock />
 			<PublicCommandPalette />
 		</div>
 	</Sidebar.Provider>

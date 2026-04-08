@@ -133,6 +133,22 @@
 		</div>
 	</section>
 
+	<section class="about-section">
+		<div class="about-section__inner">
+			<h2 class="about-section-heading">Acknowledgment</h2>
+			<div class="about-prose">
+				<p>
+					Knowledge Basket was inspired in part by
+					<a href="https://ipcaknowledgebasket.ca/" target="_blank" rel="noreferrer">
+						IPCA Knowledge Basket
+					</a>
+					. We are grateful for the example their work set and want to thank their team for helping show
+					what a community-centered knowledge basket can look like online.
+				</p>
+			</div>
+		</div>
+	</section>
+
 	<!-- Bottom links -->
 	<section class="about-section">
 		<div class="about-section__inner">
@@ -158,6 +174,17 @@
 						<Button href="/terms" variant="secondary">Terms</Button>
 						<Button href="/cookies" variant="secondary">Cookies</Button>
 					</div>
+				</div>
+
+				<div class="about-link-block">
+					<h3 class="about-link-block__title">Support</h3>
+					<p class="about-link-block__desc">
+						Need help with your account, a submission, or a site problem? Start with the support
+						page for the current contact path and routing guidance.
+					</p>
+					<Button href="/support" variant="secondary" class="mt-3 gap-2">
+						Get support <ArrowRight size={14} />
+					</Button>
 				</div>
 			</div>
 		</div>

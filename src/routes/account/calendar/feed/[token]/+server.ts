@@ -1,16 +1,10 @@
 import type { RequestHandler } from './$types';
+import { error } from '@sveltejs/kit';
+import { escapeIcalText, htmlToIcalText, toIcalDate } from '$lib/server/ical';
 import {
 	getPersonalCalendarFeedByToken,
 	getPersonalCalendarFeedEvents
 } from '$lib/server/personalization';
-import { error } from '@sveltejs/kit';
-
-function toIcalDate(d: Date): string {
-	return d
-		.toISOString()
-		.replace(/[-:]/g, '')
-		.replace(/\.\d{3}/, '');
-}
 
 export const GET: RequestHandler = async ({ params, url }) => {
 	const feed = await getPersonalCalendarFeedByToken(params.token);
@@ -28,17 +22,12 @@ export const GET: RequestHandler = async ({ params, url }) => {
 		lines.push(`DTSTAMP:${toIcalDate(new Date())}`);
 		lines.push(`DTSTART:${toIcalDate(start)}`);
 		lines.push(`DTEND:${toIcalDate(end)}`);
-		lines.push(`SUMMARY:${(eventItem.title || '').replace(/\n/g, ' ').replace(/,/g, '\\,')}`);
+		lines.push(`SUMMARY:${escapeIcalText(eventItem.title || '')}`);
 		if (eventItem.description) {
-			lines.push(
-				`DESCRIPTION:${String(eventItem.description)
-					.replace(/<[^>]+>/g, ' ')
-					.replace(/\s+/g, ' ')
-					.replace(/,/g, '\\,')}`
-			);
+			lines.push(`DESCRIPTION:${htmlToIcalText(String(eventItem.description))}`);
 		}
 		if (eventItem.location) {
-			lines.push(`LOCATION:${eventItem.location.replace(/\n/g, ' ').replace(/,/g, '\\,')}`);
+			lines.push(`LOCATION:${escapeIcalText(eventItem.location)}`);
 		}
 		if (eventItem.slug) {
 			lines.push(`URL:${url.origin}/events/${eventItem.slug}`);

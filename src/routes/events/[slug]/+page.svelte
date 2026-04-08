@@ -1,15 +1,13 @@
 <script lang="ts">
 	import { browser } from '$app/environment';
-	import { trackContentViewed, trackExternalLinkClicked } from '$lib/analytics/events';
+	import { trackContentViewed, trackExternalLinkClicked } from '$lib/insights/events';
 	import SeoHead from '$lib/components/SeoHead.svelte';
 	import { resolveAbsoluteUrl } from '$lib/config/public-assets';
 	import type { EventItem } from '$lib/data/kb';
 	import { getPlaceholderImageSrcset, DEFAULT_SIZES_HERO } from '$lib/data/placeholders';
+	import { resolveSeoSocialImage } from '$lib/seo/images';
 	import { formatDisplayDate } from '$lib/utils/display';
-	import {
-		getEventPricingSummary,
-		getEventRegistrationCtaLabel
-	} from '$lib/utils/event-pricing';
+	import { getEventPricingSummary, getEventRegistrationCtaLabel } from '$lib/utils/event-pricing';
 	import { buildOgImagePath } from '$lib/seo/metadata';
 	import {
 		formatEventDateRange,
@@ -146,11 +144,16 @@
 		})
 	);
 	const socialImage = $derived(
-		buildOgImagePath({
-			title: event.title,
-			eyebrow: 'Knowledge Basket · Events',
-			theme: 'events',
-			meta: `${event.region ?? 'Indigenous events'}${event.hostOrg ? ` · ${event.hostOrg}` : ''}`
+		resolveSeoSocialImage({
+			imageUrl: primaryImage,
+			origin,
+			seed: event.slug ?? event.title,
+			fallbackOgImage: buildOgImagePath({
+				title: event.title,
+				eyebrow: 'Knowledge Basket · Events',
+				theme: 'events',
+				meta: `${event.region ?? 'Indigenous events'}${event.hostOrg ? ` · ${event.hostOrg}` : ''}`
+			})
 		})
 	);
 	const breadcrumbItems = $derived([
@@ -514,13 +517,6 @@
 						>
 					</p>
 				</div>
-			{:else if (event.location || event.venueSlug) && directionsUrl}
-				<div class="kb-event-info-card">
-					<h3>Location</h3>
-					<a href={directionsUrl} target="_blank" rel="noopener" class="kb-event-info-link"
-						>Get directions <ArrowRight class="inline h-4 w-4" /></a
-					>
-				</div>
 			{/if}
 			{#if pricing.summaryLabel || pricing.detailNote || pricing.pricingTiers.length > 0}
 				<div class="kb-event-info-card">
@@ -811,10 +807,6 @@
 		position: sticky;
 		top: 60px;
 		z-index: 40;
-	}
-	.kb-event-rail-sticky :global(.coil-rail) {
-		padding-left: 1.5rem;
-		padding-right: 1.5rem;
 	}
 	.kb-event-meta-date {
 		font-weight: 600;

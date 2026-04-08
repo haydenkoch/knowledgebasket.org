@@ -11,6 +11,7 @@ import {
 } from '$lib/server/db/schema';
 import { indexDocument, removeDocument } from '$lib/server/meilisearch';
 import { getSourceProvenanceByPublishedRecord } from '$lib/server/source-provenance';
+import { sanitizeRichTextHtml } from '$lib/server/sanitize-rich-text';
 import type { ToolboxItem } from '$lib/data/kb';
 import type { ToolboxSearchDoc } from '$lib/server/meilisearch';
 import { stripHtml } from '$lib/utils/format';
@@ -32,8 +33,8 @@ function rowToItem(
 		id: row.id,
 		slug: row.slug,
 		title: row.title,
-		description: row.description ?? undefined,
-		body: row.body ?? undefined,
+		description: sanitizeRichTextHtml(row.description ?? undefined),
+		body: sanitizeRichTextHtml(row.body ?? undefined),
 		coil: 'toolbox',
 		sourceName: row.sourceName ?? undefined,
 		organizationId: row.organizationId ?? undefined,
@@ -324,9 +325,11 @@ export async function createResource(
 	database: DbExecutor = db
 ): Promise<ToolboxRow> {
 	const slug = await uniqueSlug(slugify(data.title));
+	const description = sanitizeRichTextHtml(data.description ?? undefined) ?? null;
+	const body = sanitizeRichTextHtml(data.body ?? undefined) ?? null;
 	const [row] = await database
 		.insert(tbTable)
-		.values({ ...data, slug })
+		.values({ ...data, slug, description, body })
 		.returning();
 	if (!row) throw new Error('Insert did not return row');
 	if (row.status === 'published') {
@@ -340,7 +343,15 @@ export async function updateResource(
 	data: Partial<Omit<ToolboxInsert, 'id' | 'createdAt'>>,
 	database: DbExecutor = db
 ): Promise<ToolboxRow | null> {
-	const [row] = await database.update(tbTable).set(data).where(eq(tbTable.id, id)).returning();
+	const nextData = { ...data };
+	if ('description' in nextData) {
+		nextData.description = sanitizeRichTextHtml(nextData.description ?? undefined) ?? null;
+	}
+	if ('body' in nextData) {
+		nextData.body = sanitizeRichTextHtml(nextData.body ?? undefined) ?? null;
+	}
+
+	const [row] = await database.update(tbTable).set(nextData).where(eq(tbTable.id, id)).returning();
 	if (!row) return null;
 	if (row.status === 'published') {
 		await indexDocument('toolbox', itemToSearchDoc(rowToItem(row)));

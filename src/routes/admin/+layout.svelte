@@ -69,7 +69,10 @@
 		{ href: '/admin/settings/search', label: 'Search', icon: Search }
 	];
 
-	const accountNav = [{ href: '/admin/account', label: 'Account', icon: User }];
+	const accountNav = [
+		{ href: '/admin/users', label: 'Users', icon: ShieldCheck },
+		{ href: '/admin/account', label: 'Account', icon: User }
+	];
 
 	function isActive(href: string) {
 		if (href === '/admin') return $page.url.pathname === '/admin';
@@ -101,6 +104,7 @@
 		branding: 'Branding',
 		integrations: 'Integrations',
 		search: 'Search',
+		users: 'Users',
 		account: 'Account',
 		new: 'New',
 		import: 'Import',

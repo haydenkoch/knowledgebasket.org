@@ -88,7 +88,7 @@ test('public SEO metadata covers public, filtered, org, venue, and private pages
 		);
 		await expect(page.locator('meta[property="og:image"]')).toHaveAttribute(
 			'content',
-			/\/og\.png\?/
+			/placeholders\/landscapes\/960\/.+\.jpg$/
 		);
 		const organizationSchemas = await page
 			.locator('script[type="application/ld+json"]')
@@ -108,7 +108,7 @@ test('public SEO metadata covers public, filtered, org, venue, and private pages
 		);
 		await expect(page.locator('meta[property="og:image"]')).toHaveAttribute(
 			'content',
-			/\/og\.png\?/
+			/placeholders\/landscapes\/960\/.+\.jpg$/
 		);
 		const venueSchemas = await page
 			.locator('script[type="application/ld+json"]')

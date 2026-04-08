@@ -109,7 +109,7 @@
 <style>
 	.kb-two-col {
 		display: flex;
-		min-height: calc(100dvh - 144px - var(--kb-submit-banner-offset, 76px));
+		min-height: calc(100dvh - 144px);
 		align-items: stretch;
 		background: linear-gradient(
 			180deg,

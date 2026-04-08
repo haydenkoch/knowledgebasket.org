@@ -17,6 +17,7 @@ import {
 	isFollowingOrganization,
 	unfollowOrganization
 } from '$lib/server/personalization';
+import { env } from '$env/dynamic/private';
 import { error, fail } from '@sveltejs/kit';
 
 export async function load({ params, locals }) {
@@ -52,6 +53,7 @@ export async function load({ params, locals }) {
 		viewerClaimStatus,
 		isFollowing,
 		canManageOrganization: canManageOrganization(membership?.role),
+		mapboxToken: env.MAPBOX_ACCESS_TOKEN ?? env.MAPBOX_TOKEN ?? null,
 		collections: {
 			events,
 			funding,
@@ -79,7 +81,7 @@ export const actions = {
 			await followOrganization(locals.user.id, organization.id);
 		}
 
-		return { success: true };
+		return { success: true, following: !currentlyFollowing };
 	},
 	createClaim: async ({ locals, params, request }) => {
 		if (!locals.user) {

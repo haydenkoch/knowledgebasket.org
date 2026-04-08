@@ -11,6 +11,7 @@ import {
 } from '$lib/server/db/schema';
 import { indexDocument, removeDocument } from '$lib/server/meilisearch';
 import { getSourceProvenanceByPublishedRecord } from '$lib/server/source-provenance';
+import { sanitizeRichTextHtml } from '$lib/server/sanitize-rich-text';
 import type { JobItem } from '$lib/data/kb';
 import type { JobSearchDoc } from '$lib/server/meilisearch';
 import { stripHtml } from '$lib/utils/format';
@@ -18,6 +19,33 @@ import { buildModerationFields } from '$lib/server/admin-content';
 
 export type JobRow = typeof jobsTable.$inferSelect;
 export type JobInsert = typeof jobsTable.$inferInsert;
+
+function sanitizeJobRichTextFields<
+	T extends {
+		description?: string | null;
+		qualifications?: string | null;
+		benefits?: string | null;
+		applicationInstructions?: string | null;
+	}
+>(data: T): T {
+	const nextData = { ...data };
+
+	if ('description' in nextData) {
+		nextData.description = sanitizeRichTextHtml(nextData.description ?? undefined) ?? null;
+	}
+	if ('qualifications' in nextData) {
+		nextData.qualifications = sanitizeRichTextHtml(nextData.qualifications ?? undefined) ?? null;
+	}
+	if ('benefits' in nextData) {
+		nextData.benefits = sanitizeRichTextHtml(nextData.benefits ?? undefined) ?? null;
+	}
+	if ('applicationInstructions' in nextData) {
+		nextData.applicationInstructions =
+			sanitizeRichTextHtml(nextData.applicationInstructions ?? undefined) ?? null;
+	}
+
+	return nextData;
+}
 
 function rowToItem(
 	row: JobRow,
@@ -34,8 +62,8 @@ function rowToItem(
 		id: row.id,
 		slug: row.slug,
 		title: row.title,
-		description: row.description ?? undefined,
-		qualifications: row.qualifications ?? undefined,
+		description: sanitizeRichTextHtml(row.description ?? undefined),
+		qualifications: sanitizeRichTextHtml(row.qualifications ?? undefined),
 		coil: 'jobs',
 		employerName: row.employerName ?? undefined,
 		organizationId: row.organizationId ?? undefined,
@@ -60,10 +88,10 @@ function rowToItem(
 		compensationMin: row.compensationMin,
 		compensationMax: row.compensationMax,
 		compensationDescription: row.compensationDescription ?? undefined,
-		benefits: row.benefits ?? undefined,
+		benefits: sanitizeRichTextHtml(row.benefits ?? undefined),
 		applyUrl: row.applyUrl ?? undefined,
 		applicationDeadline: row.applicationDeadline?.toISOString() ?? undefined,
-		applicationInstructions: row.applicationInstructions ?? undefined,
+		applicationInstructions: sanitizeRichTextHtml(row.applicationInstructions ?? undefined),
 		indigenousPriority: row.indigenousPriority ?? undefined,
 		tribalPreference: row.tribalPreference ?? undefined,
 		imageUrl: row.imageUrl ?? undefined,
@@ -391,9 +419,10 @@ export async function createJob(
 	database: DbExecutor = db
 ): Promise<JobRow> {
 	const slug = await uniqueSlug(slugify(data.title));
+	const nextData = sanitizeJobRichTextFields(data);
 	const [row] = await database
 		.insert(jobsTable)
-		.values({ ...data, slug })
+		.values({ ...nextData, slug })
 		.returning();
 	if (!row) throw new Error('Insert did not return row');
 	if (row.status === 'published') {
@@ -407,7 +436,12 @@ export async function updateJob(
 	data: Partial<Omit<JobInsert, 'id' | 'createdAt'>>,
 	database: DbExecutor = db
 ): Promise<JobRow | null> {
-	const [row] = await database.update(jobsTable).set(data).where(eq(jobsTable.id, id)).returning();
+	const nextData = sanitizeJobRichTextFields(data);
+	const [row] = await database
+		.update(jobsTable)
+		.set(nextData)
+		.where(eq(jobsTable.id, id))
+		.returning();
 	if (!row) return null;
 	if (row.status === 'published') {
 		await indexDocument('jobs', itemToSearchDoc(rowToItem(row)));

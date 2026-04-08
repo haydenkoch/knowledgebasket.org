@@ -9,10 +9,11 @@
 	import RedPagesListItem from '$lib/components/molecules/RedPagesListItem.svelte';
 	import { coilLabels, coilPaths, type CoilKey } from '$lib/data/kb';
 	import type { EventItem, FundingItem, JobItem, ToolboxItem, RedPagesItem } from '$lib/data/kb';
-	import { stripHtml } from '$lib/utils/format';
+	import { formatEventDateShort, stripHtml } from '$lib/utils/format';
 	import { formatDisplayDate } from '$lib/utils/display';
 	import {
 		DEFAULT_HEADINGS,
+		buildHomepageItemHref,
 		buildHomepageSectionMoreHref,
 		resolveSectionLayoutPreset,
 		type SectionSource
@@ -80,7 +81,14 @@
 	}
 
 	function itemHref(coil: CoilKey, item: { slug?: string; id: string }) {
-		return `${coilHref(coil)}/${item.slug ?? item.id}`;
+		return buildHomepageItemHref(coil, item);
+	}
+
+	function sectionItemHref(
+		source: SectionSource,
+		item: { slug?: string; id: string; coil?: CoilKey }
+	) {
+		return buildHomepageItemHref(source, item) ?? '#';
 	}
 
 	function sectionMoreHref(section: {
@@ -95,6 +103,22 @@
 		coil: CoilKey;
 		item: EventItem | FundingItem | JobItem | ToolboxItem | RedPagesItem;
 	};
+
+	type EventDateCandidate = Pick<EventItem, 'startDate' | 'endDate'>;
+
+	function eventDateLabel(item?: EventDateCandidate | null) {
+		if (!item?.startDate) return '';
+		return formatEventDateShort(item.startDate, item.endDate);
+	}
+
+	function featuredEventDateLabel(item: ResolvedFeatured) {
+		return item.coil === 'events' ? eventDateLabel(item.item as EventDateCandidate) : '';
+	}
+
+	function sectionEventDateLabel(source: SectionSource, item: unknown) {
+		if (source !== 'events' || !item || typeof item !== 'object') return '';
+		return eventDateLabel(item as EventDateCandidate);
+	}
 </script>
 
 <SeoHead
@@ -130,10 +154,10 @@
 		<span><strong class="text-lg font-bold text-white">{data.counts.funding}</strong> Funding</span>
 		<span><strong class="text-lg font-bold text-white">{data.counts.jobs}</strong> Jobs</span>
 		<span
-			><strong class="text-lg font-bold text-white">{data.counts.redpages}</strong> Businesses</span
+			><strong class="text-lg font-bold text-white">{data.counts.redpages}</strong> Red Page Businesses</span
 		>
 		<span
-			><strong class="text-lg font-bold text-white">{data.counts.toolbox}</strong> Resources</span
+			><strong class="text-lg font-bold text-white">{data.counts.toolbox}</strong> Toolbox Resources</span
 		>
 	</div>
 {/snippet}
@@ -178,6 +202,7 @@
 			{@const featItems = items as ResolvedFeatured[]}
 			{@const lead = featItems[0]}
 			{@const LeadIcon = coilIcons[lead.coil]}
+			{@const leadEventDate = featuredEventDateLabel(lead)}
 			{@const secondary = featItems.slice(1)}
 			<section
 				class="border-b border-[var(--rule)] px-4 py-8 sm:px-6 lg:px-10 {bgClass}"
@@ -228,6 +253,15 @@
 									>
 										{lead.item.title}
 									</h3>
+									{#if leadEventDate}
+										<p
+											class="mb-3 flex items-center gap-1.5 font-sans text-sm font-semibold"
+											style="color: {coilColors[lead.coil]}"
+										>
+											<CalendarDays class="h-4 w-4" aria-hidden="true" />
+											{leadEventDate}
+										</p>
+									{/if}
 									{#if lead.item.description}
 										<p class="mb-3 line-clamp-3 text-[15px] leading-[1.55] text-[var(--mid)]">
 											{stripHtml(String(lead.item.description))}
@@ -246,6 +280,7 @@
 								<div class="flex flex-col gap-3">
 									{#each secondary as feat}
 										{@const FeatIcon = coilIcons[feat.coil]}
+										{@const featEventDate = featuredEventDateLabel(feat)}
 										<a
 											href={itemHref(feat.coil, feat.item)}
 											class="group flex gap-4 rounded-lg border border-[var(--rule)] bg-white p-4 no-underline transition-shadow duration-150 hover:no-underline hover:shadow-[var(--shh)]"
@@ -273,6 +308,15 @@
 												>
 													{feat.item.title}
 												</h3>
+												{#if featEventDate}
+													<p
+														class="mb-1 flex items-center gap-1 text-[12px] font-medium"
+														style="color: {coilColors[feat.coil]}"
+													>
+														<CalendarDays class="h-3.5 w-3.5" aria-hidden="true" />
+														{featEventDate}
+													</p>
+												{/if}
 												{#if feat.item.description}
 													<p class="line-clamp-2 text-[13px] leading-[1.45] text-[var(--mid)]">
 														{stripHtml(String(feat.item.description))}
@@ -289,6 +333,7 @@
 						<div class="space-y-3">
 							{#each featItems as feat}
 								{@const FeatIcon = coilIcons[feat.coil]}
+								{@const featEventDate = featuredEventDateLabel(feat)}
 								<a
 									href={itemHref(feat.coil, feat.item)}
 									class="group flex gap-4 rounded-lg border border-[var(--rule)] bg-white p-4 no-underline transition-shadow duration-150 hover:no-underline hover:shadow-[var(--shh)]"
@@ -314,6 +359,15 @@
 										>
 											{feat.item.title}
 										</h3>
+										{#if featEventDate}
+											<p
+												class="mb-1 flex items-center gap-1 text-[12px] font-medium"
+												style="color: {coilColors[feat.coil]}"
+											>
+												<CalendarDays class="h-3.5 w-3.5" aria-hidden="true" />
+												{featEventDate}
+											</p>
+										{/if}
 										{#if feat.item.description}
 											<p class="line-clamp-2 text-[13px] leading-[1.45] text-[var(--mid)]">
 												{stripHtml(String(feat.item.description))}
@@ -330,6 +384,7 @@
 						>
 							{#each featItems as feat}
 								{@const FeatIcon = coilIcons[feat.coil]}
+								{@const featEventDate = featuredEventDateLabel(feat)}
 								<a
 									href={itemHref(feat.coil, feat.item)}
 									class="group flex items-center gap-3 px-4 py-3 no-underline transition-colors hover:bg-[var(--color-alpine-snow-100)]/40 hover:no-underline"
@@ -349,6 +404,11 @@
 										>
 											{feat.item.title}
 										</h3>
+										{#if featEventDate}
+											<p class="mt-0.5 truncate text-[11px] text-[var(--mid)]">
+												{featEventDate}
+											</p>
+										{/if}
 									</div>
 									<span
 										class="shrink-0 text-[10px] font-bold tracking-[0.06em] uppercase"
@@ -458,14 +518,28 @@
 											class="divide-y divide-[var(--rule)] rounded-xl border border-[var(--rule)] bg-white"
 										>
 											{#each childItems as childItem}
-												{@const ci = childItem as { id: string; title: string; slug?: string }}
+												{@const ci = childItem as {
+													id: string;
+													title: string;
+													slug?: string;
+													coil?: CoilKey;
+												}}
+												{@const childEventDate = sectionEventDateLabel(child.source, childItem)}
 												<a
-													href="/{child.source}/{ci.slug ?? ci.id}"
+													href={sectionItemHref(child.source, ci)}
 													class="group flex items-center gap-2 px-3 py-2 no-underline hover:bg-[var(--color-alpine-snow-100)]/40 hover:no-underline"
 												>
-													<span class="truncate text-sm text-[var(--dark)] group-hover:underline"
-														>{ci.title}</span
-													>
+													<div class="min-w-0 flex-1">
+														<span
+															class="block truncate text-sm text-[var(--dark)] group-hover:underline"
+															>{ci.title}</span
+														>
+														{#if childEventDate}
+															<span class="block text-[11px] text-[var(--mid)]">
+																{childEventDate}
+															</span>
+														{/if}
+													</div>
 												</a>
 											{/each}
 										</div>
@@ -477,14 +551,21 @@
 													title: string;
 													slug?: string;
 													description?: string;
+													coil?: CoilKey;
 												}}
+												{@const childEventDate = sectionEventDateLabel(child.source, childItem)}
 												<a
-													href="/{child.source}/{ci.slug ?? ci.id}"
+													href={sectionItemHref(child.source, ci)}
 													class="group block rounded-lg border border-[var(--rule)] bg-white p-3 no-underline hover:no-underline hover:shadow-[var(--shh)]"
 												>
 													<h4 class="text-sm font-medium text-[var(--dark)] group-hover:underline">
 														{ci.title}
 													</h4>
+													{#if childEventDate}
+														<p class="mt-1 text-[11px] font-medium text-[var(--teal)]">
+															{childEventDate}
+														</p>
+													{/if}
 													{#if ci.description}
 														<p class="mt-1 line-clamp-1 text-xs text-[var(--mid)]">
 															{stripHtml(String(ci.description))}
@@ -499,14 +580,25 @@
 											style="grid-template-columns: repeat(auto-fill, minmax(160px, 1fr))"
 										>
 											{#each childItems as childItem}
-												{@const ci = childItem as { id: string; title: string; slug?: string }}
+												{@const ci = childItem as {
+													id: string;
+													title: string;
+													slug?: string;
+													coil?: CoilKey;
+												}}
+												{@const childEventDate = sectionEventDateLabel(child.source, childItem)}
 												<a
-													href="/{child.source}/{ci.slug ?? ci.id}"
+													href={sectionItemHref(child.source, ci)}
 													class="group rounded-lg border border-[var(--rule)] bg-white p-3 no-underline shadow-[var(--sh)] hover:no-underline hover:shadow-[var(--shh)]"
 												>
 													<h4 class="text-sm font-medium text-[var(--dark)] group-hover:underline">
 														{ci.title}
 													</h4>
+													{#if childEventDate}
+														<p class="mt-1 text-[11px] font-medium text-[var(--teal)]">
+															{childEventDate}
+														</p>
+													{/if}
 												</a>
 											{/each}
 										</div>

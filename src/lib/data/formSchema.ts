@@ -99,7 +99,10 @@ export const eventCostOptions = [
 	{ value: '', label: 'Select…' },
 	{ value: 'Free', label: 'Free' },
 	{ value: 'Free, registration required', label: 'Free, registration required' },
-	{ value: 'Suggested donation / pay what you can', label: 'Suggested donation / pay what you can' },
+	{
+		value: 'Suggested donation / pay what you can',
+		label: 'Suggested donation / pay what you can'
+	},
 	{ value: 'Sliding scale', label: 'Sliding scale' },
 	{ value: 'Paid', label: 'Paid' },
 	{ value: 'Cost varies', label: 'Cost varies' }

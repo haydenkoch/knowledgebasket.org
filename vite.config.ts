@@ -60,7 +60,18 @@ export default defineConfig({
 		dedupe: ['svelte', 'bits-ui']
 	},
 	optimizeDeps: {
-		include: ['svelte', '@sentry/sveltekit', 'posthog-js']
+		include: [
+			'svelte',
+			'@sentry/sveltekit',
+			'posthog-js',
+			// Deep subpath imports used by `$lib/analytics/posthog.client.ts`.
+			// Without pre-bundling these, Vite discovers them lazily, re-optimizes
+			// mid-session, and leaves the transform cache referencing stale `?v=`
+			// hashes → 504 Outdated Optimize Dep on dynamic imports of
+			// anything that touches analytics (e.g. PublicCommandPalette).
+			'posthog-js/lib/src/entrypoints/module.slim.es.js',
+			'posthog-js/lib/src/entrypoints/extension-bundles.es.js'
+		]
 	},
 	server: {
 		host: 'localhost',
@@ -69,6 +80,24 @@ export default defineConfig({
 			// SvelteKit rewrites `.svelte-kit/types` proxy files during route sync.
 			// Ignoring that generated subtree prevents transient ENOENT noise in dev.
 			ignored: ['**/.svelte-kit/types/**']
+		},
+		// Pre-transform the root layout, client hooks, and the top-level global
+		// organisms at boot. This forces Vite to crawl their deps (Lucide icons,
+		// posthog, Sentry, bits-ui, etc.) before the browser requests anything,
+		// which prevents mid-session re-optimization cycles that invalidate the
+		// transform cache and surface as "Loading failed for the module" /
+		// 504 Outdated Optimize Dep errors in the browser.
+		warmup: {
+			clientFiles: [
+				'./src/hooks.client.ts',
+				'./src/routes/+layout.svelte',
+				'./src/lib/components/organisms/KbHeader.svelte',
+				'./src/lib/components/organisms/KbPublicNavSidebar.svelte',
+				'./src/lib/components/organisms/PublicCommandPalette.svelte',
+				'./src/lib/components/organisms/ConsentManager.svelte',
+				'./src/lib/insights/provider.client.ts',
+				'./src/lib/insights/events.ts'
+			]
 		}
 	},
 	test: {

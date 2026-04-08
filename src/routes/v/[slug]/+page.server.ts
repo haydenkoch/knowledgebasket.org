@@ -5,6 +5,7 @@ import { getFundingByOrganizationId } from '$lib/server/funding';
 import { getJobsByOrganizationId } from '$lib/server/jobs';
 import { getBusinessesByOrganizationId } from '$lib/server/red-pages';
 import { getResourcesByOrganizationId } from '$lib/server/toolbox';
+import { env } from '$env/dynamic/private';
 import { error } from '@sveltejs/kit';
 
 export async function load({ params }) {
@@ -27,6 +28,7 @@ export async function load({ params }) {
 	return {
 		venue,
 		organization,
+		mapboxToken: env.MAPBOX_ACCESS_TOKEN ?? env.MAPBOX_TOKEN ?? null,
 		collections: {
 			events,
 			funding,

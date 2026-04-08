@@ -1,16 +1,10 @@
 import type { RequestHandler } from './$types';
 import { getEventsForAdmin } from '$lib/server/events';
+import { escapeIcalText, toIcalDate } from '$lib/server/ical';
 
 function escapeCsv(s: string): string {
 	if (/[",\n\r]/.test(s)) return '"' + s.replace(/"/g, '""') + '"';
 	return s;
-}
-
-function toIcalDate(d: Date): string {
-	return d
-		.toISOString()
-		.replace(/[-:]/g, '')
-		.replace(/\.\d{3}/, '');
 }
 
 export const GET: RequestHandler = async ({ url, locals }) => {
@@ -70,8 +64,8 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 			lines.push('DTSTAMP:' + toIcalDate(new Date()));
 			lines.push('DTSTART:' + toIcalDate(start));
 			lines.push('DTEND:' + (end ? toIcalDate(end) : toIcalDate(start)));
-			lines.push('SUMMARY:' + (e.title || '').replace(/\n/g, ' '));
-			if (e.location) lines.push('LOCATION:' + e.location.replace(/\n/g, ' '));
+			lines.push('SUMMARY:' + escapeIcalText(e.title || ''));
+			if (e.location) lines.push('LOCATION:' + escapeIcalText(e.location));
 			if (e.eventUrl) lines.push('URL:' + e.eventUrl);
 			lines.push('END:VEVENT');
 		}

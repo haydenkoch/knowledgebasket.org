@@ -12,6 +12,7 @@ import { getResourceById } from '$lib/server/toolbox';
 import { queryResourcesForHomepage } from '$lib/server/toolbox';
 import { getBusinessById } from '$lib/server/red-pages';
 import { queryBusinessesForHomepage } from '$lib/server/red-pages';
+import { sanitizeRichTextHtml } from '$lib/server/sanitize-rich-text';
 import type {
 	CoilKey,
 	EventItem,
@@ -61,6 +62,20 @@ function parseFeaturedRefs(arr: unknown): HomepageFeaturedRef[] {
 			itemId: item.itemId as string,
 			title: typeof item.title === 'string' ? item.title : ''
 		}));
+}
+
+function sanitizeHomepageSectionContent(section: HomepageSectionConfig): HomepageSectionConfig {
+	const nextSection = { ...section };
+
+	if (typeof nextSection.content === 'string') {
+		nextSection.content = sanitizeRichTextHtml(nextSection.content) ?? undefined;
+	}
+
+	if (nextSection.source === 'container' && nextSection.children) {
+		nextSection.children = nextSection.children.map(sanitizeHomepageSectionContent);
+	}
+
+	return nextSection;
 }
 
 function parseHomepageConfig(raw: string | null): HomepageConfig {
@@ -207,7 +222,10 @@ function parseHomepageConfig(raw: string | null): HomepageConfig {
 			}
 		}
 
-		return cloneHomepageConfig({ featured: [], sections });
+		return cloneHomepageConfig({
+			featured: [],
+			sections: sections.map(sanitizeHomepageSectionContent)
+		});
 	} catch {
 		return createDefaultHomepageConfig();
 	}

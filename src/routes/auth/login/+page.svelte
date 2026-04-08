@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import { onMount } from 'svelte';
-	import { trackAuthPageViewed, trackAuthSubmitted } from '$lib/analytics/events';
+	import { trackAuthPageViewed, trackAuthSubmitted } from '$lib/insights/events';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import * as Alert from '$lib/components/ui/alert/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';

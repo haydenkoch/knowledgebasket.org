@@ -33,6 +33,7 @@ import {
 	planCandidateMerge,
 	type MergePreview
 } from '$lib/server/import-candidate-merge';
+import { sanitizeRichTextHtml } from '$lib/server/sanitize-rich-text';
 import type { ImageCandidate, ImageRole, UrlRole } from '$lib/server/ingestion/types';
 
 export type ImportedCandidateRow = typeof importedCandidates.$inferSelect;
@@ -990,9 +991,10 @@ function mapEventCandidate(
 ) {
 	const publishedAt = new Date();
 	const imageCandidates = readImageCandidates(imageCandidatesRaw);
+	const description = sanitizeRichTextHtml(readString(normalized, 'description') ?? undefined);
 	return {
 		title: readString(normalized, 'title') ?? 'Untitled event',
-		description: readString(normalized, 'description') ?? undefined,
+		description: description ?? undefined,
 		organizationId: readString(normalized, 'organization_id') ?? undefined,
 		venueId: readString(normalized, 'venue_id') ?? undefined,
 		location: buildEventLocation(normalized),
@@ -1038,9 +1040,10 @@ function mapFundingCandidate(
 	imageCandidatesRaw: unknown[]
 ) {
 	const imageCandidates = readImageCandidates(imageCandidatesRaw);
+	const description = sanitizeRichTextHtml(readString(normalized, 'description') ?? undefined);
 	return {
 		title: readString(normalized, 'title') ?? 'Untitled funding',
-		description: readString(normalized, 'description') ?? null,
+		description: description ?? null,
 		organizationId: readString(normalized, 'organization_id') ?? null,
 		funderName:
 			readString(normalized, 'funder_name') ?? readString(normalized, 'organization_name') ?? null,
@@ -1077,9 +1080,10 @@ function mapJobCandidate(
 	imageCandidatesRaw: unknown[]
 ) {
 	const imageCandidates = readImageCandidates(imageCandidatesRaw);
+	const description = sanitizeRichTextHtml(readString(normalized, 'description') ?? undefined);
 	return {
 		title: readString(normalized, 'title') ?? 'Untitled job',
-		description: readString(normalized, 'description') ?? null,
+		description: description ?? null,
 		organizationId: readString(normalized, 'organization_id') ?? null,
 		employerName: readString(normalized, 'organization_name') ?? null,
 		jobType: readString(normalized, 'job_type') ?? null,
@@ -1124,9 +1128,10 @@ function mapRedPagesCandidate(
 	imageCandidatesRaw: unknown[]
 ) {
 	const imageCandidates = readImageCandidates(imageCandidatesRaw);
+	const description = sanitizeRichTextHtml(readString(normalized, 'description') ?? undefined);
 	return {
 		name: readString(normalized, 'title') ?? 'Untitled listing',
-		description: readString(normalized, 'description') ?? null,
+		description: description ?? null,
 		organizationId: readString(normalized, 'organization_id') ?? null,
 		ownerName: readString(normalized, 'organization_name') ?? null,
 		serviceType: readString(normalized, 'organization_type') ?? null,
@@ -1163,9 +1168,10 @@ function mapToolboxCandidate(
 	imageCandidatesRaw: unknown[]
 ) {
 	const imageCandidates = readImageCandidates(imageCandidatesRaw);
+	const description = sanitizeRichTextHtml(readString(normalized, 'description') ?? undefined);
 	return {
 		title: readString(normalized, 'title') ?? 'Untitled resource',
-		description: readString(normalized, 'description') ?? null,
+		description: description ?? null,
 		organizationId: readString(normalized, 'organization_id') ?? null,
 		sourceName:
 			readString(normalized, 'publisher') ?? readString(normalized, 'organization_name') ?? null,

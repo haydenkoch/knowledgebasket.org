@@ -1,11 +1,14 @@
 <script lang="ts">
+	import { enhance } from '$app/forms';
+	import { trackNotificationPreferencesSaved } from '$lib/insights/events';
+	import { updateAnalyticsPersonProperties } from '$lib/insights/provider.client';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import { Badge } from '$lib/components/ui/badge/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Separator } from '$lib/components/ui/separator/index.js';
 	import { Switch } from '$lib/components/ui/switch/index.js';
 
-	let { data } = $props();
+	let { data, form } = $props();
 
 	const preferenceSections = [
 		{
@@ -46,6 +49,45 @@
 			]
 		}
 	] as const;
+
+	type PreferenceKey = (typeof preferenceSections)[number]['fields'][number][0];
+	type NotificationPreferenceState = Record<PreferenceKey, boolean>;
+
+	function notificationPreferenceState(
+		source: Partial<Record<PreferenceKey, boolean | null | undefined>>
+	): NotificationPreferenceState {
+		return {
+			emailSubmissionUpdates: Boolean(source.emailSubmissionUpdates),
+			emailOrgActivity: Boolean(source.emailOrgActivity),
+			emailFollowedOrgs: Boolean(source.emailFollowedOrgs),
+			emailBookmarkReminders: Boolean(source.emailBookmarkReminders),
+			emailNewsletter: Boolean(source.emailNewsletter),
+			inAppSubmissionUpdates: Boolean(source.inAppSubmissionUpdates),
+			inAppOrgActivity: Boolean(source.inAppOrgActivity),
+			inAppFollowedOrgs: Boolean(source.inAppFollowedOrgs),
+			inAppBookmarkReminders: Boolean(source.inAppBookmarkReminders)
+		};
+	}
+
+	let preferences = $state(notificationPreferenceState({}));
+
+	$effect(() => {
+		preferences = notificationPreferenceState(data.preferences);
+	});
+
+	function notificationPreferencesSnapshot(formData: FormData) {
+		return {
+			emailSubmissionUpdates: formData.has('emailSubmissionUpdates'),
+			emailOrgActivity: formData.has('emailOrgActivity'),
+			emailFollowedOrgs: formData.has('emailFollowedOrgs'),
+			emailBookmarkReminders: formData.has('emailBookmarkReminders'),
+			emailNewsletter: formData.has('emailNewsletter'),
+			inAppSubmissionUpdates: formData.has('inAppSubmissionUpdates'),
+			inAppOrgActivity: formData.has('inAppOrgActivity'),
+			inAppFollowedOrgs: formData.has('inAppFollowedOrgs'),
+			inAppBookmarkReminders: formData.has('inAppBookmarkReminders')
+		};
+	}
 </script>
 
 <div class="grid gap-6 lg:grid-cols-[1fr_1.05fr]">
@@ -54,8 +96,32 @@
 			<Card.Title>Delivery preferences</Card.Title>
 			<Card.Description>Choose which updates should reach you by email or in-app.</Card.Description>
 		</Card.Header>
-		<Card.Content>
-			<form method="POST" action="?/savePreferences" class="space-y-6">
+		<Card.Content class="space-y-4">
+			<form
+				method="POST"
+				action="?/savePreferences"
+				class="space-y-6"
+				use:enhance={({ formData }) => {
+					const nextPreferences = notificationPreferencesSnapshot(formData);
+					return async ({ result, update }) => {
+						if (result.type === 'success') {
+							trackNotificationPreferencesSaved(nextPreferences);
+							updateAnalyticsPersonProperties({
+								email_submission_updates: nextPreferences.emailSubmissionUpdates,
+								email_org_activity: nextPreferences.emailOrgActivity,
+								email_followed_orgs: nextPreferences.emailFollowedOrgs,
+								email_bookmark_reminders: nextPreferences.emailBookmarkReminders,
+								email_newsletter: nextPreferences.emailNewsletter,
+								in_app_submission_updates: nextPreferences.inAppSubmissionUpdates,
+								in_app_org_activity: nextPreferences.inAppOrgActivity,
+								in_app_followed_orgs: nextPreferences.inAppFollowedOrgs,
+								in_app_bookmark_reminders: nextPreferences.inAppBookmarkReminders
+							});
+						}
+						await update();
+					};
+				}}
+			>
 				{#each preferenceSections as section, si}
 					{#if si > 0}
 						<Separator />
@@ -76,12 +142,7 @@
 									<p class="text-sm font-medium">{title}</p>
 									<p class="mt-0.5 text-xs text-muted-foreground">{hint}</p>
 								</div>
-								<Switch
-									id={`pref-${key}`}
-									name={key}
-									value="on"
-									checked={Boolean(data.preferences[key])}
-								/>
+								<Switch id={`pref-${key}`} name={key} value="on" bind:checked={preferences[key]} />
 							</label>
 						{/each}
 					</div>
@@ -90,6 +151,17 @@
 					<Button type="submit">Save preferences</Button>
 				</div>
 			</form>
+			<div class="space-y-1">
+				{#if form?.preferencesSuccess}
+					<p class="text-sm text-emerald-700 dark:text-emerald-400">
+						{form.preferencesSuccess}
+					</p>
+				{/if}
+				<p class="text-xs text-muted-foreground">
+					Current preference snapshot updated
+					{new Date(form?.preferencesSavedAt ?? data.preferences.updatedAt).toLocaleString()}.
+				</p>
+			</div>
 		</Card.Content>
 	</Card.Root>
 

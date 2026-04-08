@@ -10,6 +10,11 @@ body {
 	font-size: 16px;
 	line-height: 1.65;
 	min-height: 100vh;
+	/* Prevent stray descendants from triggering horizontal page scroll.
+	   `overflow-x: clip` clips horizontal overflow without creating a
+	   scroll container, so it does not break `position: sticky` on
+	   descendants the way `overflow-x: hidden` would. */
+	overflow-x: clip;
 }
 
 button {

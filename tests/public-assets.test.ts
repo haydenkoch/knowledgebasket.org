@@ -70,6 +70,17 @@ describe('public asset URL helpers', () => {
 		).toBe('https://assets.example.com/kb-uploads/events/curated/elderberry.png');
 	});
 
+	it('rewrites legacy bucket-style URLs onto a modern /uploads asset base', () => {
+		expect(
+			resolveAbsoluteUrl(
+				'http://localhost:9000/kb-uploads/logos/funding/native-cultures-fund.png',
+				{
+					baseUrl: 'https://knowledgebasket.org/uploads'
+				}
+			)
+		).toBe('https://knowledgebasket.org/uploads/logos/funding/native-cultures-fund.png');
+	});
+
 	it('rewrites nested legacy local object storage URLs while preserving query strings and hashes', () => {
 		const result = rewriteLegacyLocalObjectStorageUrlsInValue(
 			{

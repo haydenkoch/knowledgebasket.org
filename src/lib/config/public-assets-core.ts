@@ -60,6 +60,22 @@ function isLocalNetworkHostname(hostname: string): boolean {
 	return /^172\.(1[6-9]|2\d|3[0-1])(?:\.\d{1,3}){2}$/.test(normalized);
 }
 
+function resolveObjectKeyFromCandidatePath(candidatePath: string, basePath: string): string | null {
+	if (!basePath) return stripLeadingSlash(candidatePath);
+
+	if (candidatePath.startsWith(`${basePath}/`)) {
+		return stripLeadingSlash(candidatePath.slice(basePath.length));
+	}
+
+	// Support legacy MinIO bucket-style URLs like `/kb-uploads/...` even when the
+	// public origin now serves the same objects from `/uploads/...`.
+	if (candidatePath.startsWith('/kb-uploads/')) {
+		return stripLeadingSlash(candidatePath.slice('/kb-uploads'.length));
+	}
+
+	return null;
+}
+
 export function rewriteLegacyLocalObjectStorageUrl(
 	value: string,
 	options?: { baseUrl?: string | null }
@@ -74,12 +90,7 @@ export function rewriteLegacyLocalObjectStorageUrl(
 		const base = new URL(baseUrl);
 		const basePath = stripTrailingSlash(base.pathname);
 		const candidatePath = candidate.pathname;
-
-		const objectKey = basePath
-			? candidatePath.startsWith(`${basePath}/`)
-				? stripLeadingSlash(candidatePath.slice(basePath.length))
-				: null
-			: stripLeadingSlash(candidatePath);
+		const objectKey = resolveObjectKeyFromCandidatePath(candidatePath, basePath);
 
 		if (!objectKey) return null;
 		return `${buildPublicAssetUrlFromBase(baseUrl, objectKey)}${candidate.search}${candidate.hash}`;

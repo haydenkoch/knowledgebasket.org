@@ -25,6 +25,7 @@ export default defineConfig({
 		env: {
 			...process.env,
 			ORIGIN: baseURL,
+			PUBLIC_ASSET_BASE_URL: process.env.PUBLIC_ASSET_BASE_URL ?? `${baseURL}/assets`,
 			REINDEX_SECRET: process.env.REINDEX_SECRET ?? 'playwright-reindex-secret'
 		}
 	},

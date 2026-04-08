@@ -18,6 +18,7 @@ jobs:
       SMTP_HOST: 127.0.0.1
       SMTP_PORT: 1025
       SMTP_FROM: '"Knowledge Basket" <noreply@example.com>'
+      PUBLIC_ASSET_BASE_URL: http://127.0.0.1:4273/assets
       MEILISEARCH_HOST: http://127.0.0.1:7700
       MEILISEARCH_API_KEY: kbdev
       REINDEX_SECRET: ci-reindex-secret-1234567890123456

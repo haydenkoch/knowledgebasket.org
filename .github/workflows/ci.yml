@@ -5,7 +5,7 @@ on:
     branches:
       - main
       - master
-      - 'codex/**'
+      - staging
     paths-ignore:
       - 'docs/**'
       - '**/*.md'

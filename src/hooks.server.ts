@@ -35,7 +35,7 @@ function allowsSameOriginEmbedding(pathname: string | undefined): boolean {
 	);
 }
 
-function buildContentSecurityPolicy(pathname?: string): string {
+function buildContentSecurityPolicy(pathname?: string, nonce?: string): string {
 	const connectSrc = [
 		"'self'",
 		'https://photon.komoot.io',
@@ -61,6 +61,9 @@ function buildContentSecurityPolicy(pathname?: string): string {
 	}
 
 	const scriptSrc = ["'self'"];
+	if (nonce) {
+		scriptSrc.push(`'nonce-${nonce}'`);
+	}
 	if (dev) {
 		scriptSrc.push("'unsafe-inline'");
 		scriptSrc.push("'unsafe-eval'");
@@ -90,8 +93,8 @@ function buildContentSecurityPolicy(pathname?: string): string {
 	].join('; ');
 }
 
-function applySecurityHeaders(response: Response, pathname?: string): Response {
-	response.headers.set('Content-Security-Policy', buildContentSecurityPolicy(pathname));
+function applySecurityHeaders(response: Response, pathname?: string, nonce?: string): Response {
+	response.headers.set('Content-Security-Policy', buildContentSecurityPolicy(pathname, nonce));
 	response.headers.set(
 		'Permissions-Policy',
 		'camera=(), microphone=(), geolocation=(), payment=(), usb=(), midi=(), autoplay=(self), fullscreen=(self), clipboard-read=(), clipboard-write=(self)'
@@ -111,7 +114,16 @@ function applySecurityHeaders(response: Response, pathname?: string): Response {
 	return response;
 }
 
+function generateCspNonce(): string {
+	const bytes = new Uint8Array(16);
+	crypto.getRandomValues(bytes);
+	let binary = '';
+	for (const byte of bytes) binary += String.fromCharCode(byte);
+	return btoa(binary);
+}
+
 const handleBetterAuth: Handle = async ({ event, resolve }) => {
+	const cspNonce = generateCspNonce();
 	const session = await auth.api.getSession({ headers: event.request.headers });
 
 	if (session) {
@@ -132,13 +144,13 @@ const handleBetterAuth: Handle = async ({ event, resolve }) => {
 		const { isAuthPath } = await import('better-auth/svelte-kit');
 		const matched = isAuthPath(url, auth.options);
 		if (matched) {
-			return applySecurityHeaders(await auth.handler(event.request), event.url.pathname);
+			return applySecurityHeaders(await auth.handler(event.request), event.url.pathname, cspNonce);
 		}
 	}
 
 	const adminGuardResponse = guardAdminRequest(event);
 	if (adminGuardResponse) {
-		return applySecurityHeaders(adminGuardResponse, event.url.pathname);
+		return applySecurityHeaders(adminGuardResponse, event.url.pathname, cspNonce);
 	}
 
 	Sentry.setTag('runtime', 'railway');
@@ -156,8 +168,29 @@ const handleBetterAuth: Handle = async ({ event, resolve }) => {
 	}
 	Sentry.setTag('request.method', event.request.method);
 
-	const response = await svelteKitHandler({ event, resolve, auth, building });
-	return applySecurityHeaders(response, event.url.pathname);
+	const resolveWithNonce: typeof resolve = (ev, opts) =>
+		resolve(ev, {
+			...opts,
+			transformPageChunk: ({ html, done }) => {
+				const chained = opts?.transformPageChunk?.({ html, done });
+				const apply = (input: string) =>
+					input.replace(/<script(?=[\s>])/g, `<script nonce="${cspNonce}"`);
+				if (chained && typeof (chained as Promise<string>).then === 'function') {
+					return (chained as Promise<string | undefined>).then((value) =>
+						value == null ? apply(html) : apply(value)
+					);
+				}
+				return apply((chained as string | undefined) ?? html);
+			}
+		});
+
+	const response = await svelteKitHandler({
+		event,
+		resolve: resolveWithNonce,
+		auth,
+		building
+	});
+	return applySecurityHeaders(response, event.url.pathname, cspNonce);
 };
 
 export const handle: Handle = sequence(Sentry.sentryHandle(), handleBetterAuth);

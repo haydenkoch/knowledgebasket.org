@@ -48,6 +48,65 @@ function stripLeadingSlash(value: string): string {
 	return value.replace(/^\/+/, '');
 }
 
+function normalizeOptionalPublicAssetBaseUrl(value?: string | null): string | null {
+	const normalized = value?.trim();
+	if (normalized) return normalizePublicAssetBaseUrl(normalized);
+
+	try {
+		return getPublicAssetBaseUrl();
+	} catch {
+		return null;
+	}
+}
+
+function isLocalNetworkHostname(hostname: string): boolean {
+	const normalized = hostname.trim().toLowerCase();
+	if (!normalized) return false;
+
+	if (
+		normalized === 'localhost' ||
+		normalized === '127.0.0.1' ||
+		normalized === '0.0.0.0' ||
+		normalized === '::1' ||
+		normalized === '[::1]' ||
+		normalized.endsWith('.local')
+	) {
+		return true;
+	}
+
+	if (/^10(?:\.\d{1,3}){3}$/.test(normalized)) return true;
+	if (/^192\.168(?:\.\d{1,3}){2}$/.test(normalized)) return true;
+	return /^172\.(1[6-9]|2\d|3[0-1])(?:\.\d{1,3}){2}$/.test(normalized);
+}
+
+function resolveLegacyLocalObjectStorageUrl(
+	value: string,
+	options?: { baseUrl?: string | null }
+): string | null {
+	const baseUrl = normalizeOptionalPublicAssetBaseUrl(options?.baseUrl);
+	if (!baseUrl) return null;
+
+	try {
+		const candidate = new URL(value);
+		if (!isLocalNetworkHostname(candidate.hostname)) return null;
+
+		const base = new URL(baseUrl);
+		const basePath = stripTrailingSlash(base.pathname);
+		const candidatePath = candidate.pathname;
+
+		const objectKey = basePath
+			? candidatePath.startsWith(`${basePath}/`)
+				? stripLeadingSlash(candidatePath.slice(basePath.length))
+				: null
+			: stripLeadingSlash(candidatePath);
+
+		if (!objectKey) return null;
+		return `${buildPublicAssetUrlFromBase(baseUrl, objectKey)}${candidate.search}${candidate.hash}`;
+	} catch {
+		return null;
+	}
+}
+
 export function isAbsoluteHttpUrl(value: string | null | undefined): boolean {
 	return Boolean(value && /^https?:\/\//i.test(value));
 }
@@ -60,7 +119,9 @@ export function resolveAbsoluteUrl(
 	const trimmed = value.trim();
 	if (!trimmed) return null;
 
-	if (isAbsoluteHttpUrl(trimmed)) return trimmed;
+	if (isAbsoluteHttpUrl(trimmed)) {
+		return resolveLegacyLocalObjectStorageUrl(trimmed, options) ?? trimmed;
+	}
 
 	const normalizedOrigin = options?.origin?.trim().replace(/\/+$/, '') ?? '';
 	const uploadPath = trimmed.startsWith('/uploads/')

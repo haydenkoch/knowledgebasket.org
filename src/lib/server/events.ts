@@ -26,6 +26,7 @@ import {
 import { indexEvent, removeDocument } from '$lib/server/meilisearch';
 import { getSourceProvenanceByPublishedRecord } from '$lib/server/source-provenance';
 import { sanitizeRichTextHtml } from '$lib/server/sanitize-rich-text';
+import { resolveAbsoluteUrl } from '$lib/config/public-assets';
 import { stripHtml } from '$lib/utils/format';
 import type { EventItem, PricingTier } from '$lib/data/kb';
 import { buildModerationFields } from '$lib/server/admin-content';
@@ -55,6 +56,11 @@ function rowToEventItem(
 		venueSlug?: string;
 	}
 ): EventItem {
+	const imageUrl = resolveAbsoluteUrl(row.imageUrl) ?? undefined;
+	const imageUrls = Array.isArray(row.imageUrls)
+		? (row.imageUrls as string[]).map((url) => resolveAbsoluteUrl(url) ?? url)
+		: undefined;
+
 	return {
 		id: row.id,
 		slug: row.slug,
@@ -76,8 +82,8 @@ function rowToEventItem(
 		endDate: row.endDate?.toISOString() ?? undefined,
 		endDateInput: row.endDate?.toISOString().slice(0, 16) ?? undefined,
 		hostOrg: row.hostOrg ?? undefined,
-		imageUrl: row.imageUrl ?? undefined,
-		imageUrls: Array.isArray(row.imageUrls) ? (row.imageUrls as string[]) : undefined,
+		imageUrl,
+		imageUrls,
 		organizationId: row.organizationId ?? undefined,
 		venueId: row.venueId ?? undefined,
 		parentEventId: row.parentEventId ?? undefined,

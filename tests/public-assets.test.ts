@@ -61,6 +61,14 @@ describe('public asset URL helpers', () => {
 		).toBe('https://assets.example.com/kb-uploads/brand/logo.png');
 	});
 
+	it('rewrites legacy local object storage URLs to the public asset base', () => {
+		expect(
+			resolveAbsoluteUrl('http://localhost:9000/kb-uploads/events/curated/elderberry.png', {
+				baseUrl: 'https://assets.example.com/kb-uploads'
+			})
+		).toBe('https://assets.example.com/kb-uploads/events/curated/elderberry.png');
+	});
+
 	it('resolves site-relative paths against the canonical origin', () => {
 		expect(resolveAbsoluteUrl('/icon-192.png', { origin: 'https://kb.example.com' })).toBe(
 			'https://kb.example.com/icon-192.png'

@@ -1,4 +1,3 @@
-import { env } from '$env/dynamic/private';
 import { json } from '@sveltejs/kit';
 import { runDueSources } from '$lib/server/ingestion/scheduler';
 import type { RequestHandler } from './$types';
@@ -9,6 +8,7 @@ import {
 	consumeRateLimit
 } from '$lib/server/rate-limit';
 import { captureServerError, logServerEvent } from '$lib/server/observability';
+import { readRuntimeConfigValue } from '$lib/server/runtime-secrets';
 
 export const POST: RequestHandler = async ({ locals, request, getClientAddress, url }) => {
 	const rateLimit = consumeRateLimit(
@@ -24,7 +24,7 @@ export const POST: RequestHandler = async ({ locals, request, getClientAddress, 
 		);
 	}
 
-	const sourceOpsSecret = env.SOURCE_OPS_SECRET?.trim();
+	const sourceOpsSecret = readRuntimeConfigValue('SOURCE_OPS_SECRET')?.trim();
 	const headerSecret = request.headers.get('x-source-ops-secret')?.trim();
 	const hasValidSecret = !!sourceOpsSecret && headerSecret === sourceOpsSecret;
 

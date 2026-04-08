@@ -374,7 +374,9 @@ function buildExperience(
 
 function normalizeSearchDoc(doc: SearchDoc): SearchDoc {
 	const imageUrl =
-		typeof doc.imageUrl === 'string' ? (resolveAbsoluteUrl(doc.imageUrl) ?? doc.imageUrl) : undefined;
+		typeof doc.imageUrl === 'string'
+			? (resolveAbsoluteUrl(doc.imageUrl) ?? doc.imageUrl)
+			: undefined;
 
 	if (imageUrl === doc.imageUrl) return doc;
 

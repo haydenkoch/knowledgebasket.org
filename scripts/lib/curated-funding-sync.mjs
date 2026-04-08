@@ -109,7 +109,8 @@ function stripHtml(value) {
 
 function buildFundingSearchDoc(row) {
 	const summary = stripHtml(row.description).slice(0, 280) || undefined;
-	const publishedAt = toIsoString(row.published_at) ?? toIsoString(row.updated_at) ?? new Date(0).toISOString();
+	const publishedAt =
+		toIsoString(row.published_at) ?? toIsoString(row.updated_at) ?? new Date(0).toISOString();
 	const updatedAt = toIsoString(row.updated_at) ?? publishedAt;
 	return {
 		id: row.id,
@@ -125,8 +126,7 @@ function buildFundingSearchDoc(row) {
 		updatedAt,
 		publishedAt,
 		sortDate: toIsoString(row.deadline) ?? publishedAt,
-		openRank:
-			row.application_status === 'open' || row.application_status === 'rolling' ? 1 : 0,
+		openRank: row.application_status === 'open' || row.application_status === 'rolling' ? 1 : 0,
 		featuredRank: row.featured ? 1 : 0,
 		imageUrl: row.image_url ?? undefined,
 		region: row.region ?? undefined,

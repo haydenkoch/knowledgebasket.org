@@ -5,7 +5,15 @@
 	import * as Alert from '$lib/components/ui/alert/index.js';
 	import { Badge, type BadgeVariant } from '$lib/components/ui/badge/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
-	import { ShieldAlert, ShieldCheck, Search, KeyRound, Ban, RefreshCcw, Users } from '@lucide/svelte';
+	import {
+		ShieldAlert,
+		ShieldCheck,
+		Search,
+		KeyRound,
+		Ban,
+		RefreshCcw,
+		Users
+	} from '@lucide/svelte';
 
 	let { data, form } = $props();
 
@@ -63,7 +71,9 @@
 					<Users class="h-5 w-5" />
 				</div>
 				<div>
-					<p class="text-xs font-semibold tracking-[0.12em] text-[var(--mid)] uppercase">Directory</p>
+					<p class="text-xs font-semibold tracking-[0.12em] text-[var(--mid)] uppercase">
+						Directory
+					</p>
 					<p class="text-2xl font-semibold text-[var(--dark)]">{data.total}</p>
 				</div>
 			</div>
@@ -89,7 +99,9 @@
 
 		<div class="rounded-2xl border border-[color:var(--rule)] bg-white/92 p-4 shadow-[var(--sh)]">
 			<div class="flex items-center gap-3">
-				<div class="rounded-2xl bg-[color:color-mix(in_srgb,var(--color-ember-500)_12%,white)] p-3 text-[var(--color-ember-700)]">
+				<div
+					class="rounded-2xl bg-[color:color-mix(in_srgb,var(--color-ember-500)_12%,white)] p-3 text-[var(--color-ember-700)]"
+				>
 					<ShieldAlert class="h-5 w-5" />
 				</div>
 				<div>
@@ -112,20 +124,19 @@
 		<div class="space-y-5 p-4 sm:p-5">
 			<form method="GET" class="flex flex-col gap-3 md:flex-row md:items-center">
 				<div class="relative flex-1">
-					<Search class="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-					<Input
-						name="q"
-						value={data.search}
-						placeholder="Search by name or email"
-						class="pl-9"
+					<Search
+						class="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground"
 					/>
+					<Input name="q" value={data.search} placeholder="Search by name or email" class="pl-9" />
 				</div>
 				<Button type="submit">Search</Button>
 				<Button href="/admin/users" type="button" variant="ghost">Clear</Button>
 			</form>
 
 			{#if data.users.length === 0}
-				<div class="rounded-2xl border border-dashed border-[color:var(--rule)] bg-[var(--color-alpine-snow-50)] p-8 text-center">
+				<div
+					class="rounded-2xl border border-dashed border-[color:var(--rule)] bg-[var(--color-alpine-snow-50)] p-8 text-center"
+				>
 					<p class="text-base font-medium text-[var(--dark)]">No users matched that search.</p>
 					<p class="mt-2 text-sm text-[var(--mid)]">
 						Try a different email fragment, a first name, or clear the current filter.
@@ -135,8 +146,12 @@
 				<div class="space-y-4">
 					{#each data.users as managedUser}
 						{@const isCurrentAdmin = managedUser.id === data.currentAdminId}
-						<div class="rounded-2xl border border-[color:var(--rule)] bg-white/95 shadow-[var(--sh)]">
-							<div class="flex flex-col gap-4 border-b border-[color:var(--rule)] px-4 py-4 lg:flex-row lg:items-start lg:justify-between">
+						<div
+							class="rounded-2xl border border-[color:var(--rule)] bg-white/95 shadow-[var(--sh)]"
+						>
+							<div
+								class="flex flex-col gap-4 border-b border-[color:var(--rule)] px-4 py-4 lg:flex-row lg:items-start lg:justify-between"
+							>
 								<div class="min-w-0 space-y-2">
 									<div class="flex flex-wrap items-center gap-2">
 										<h2 class="text-lg font-semibold text-[var(--dark)]">
@@ -167,14 +182,19 @@
 									</div>
 									{#if managedUser.banned && managedUser.banReason}
 										<p class="text-sm text-[var(--dark)]">
-											<span class="font-medium">Reason:</span> {managedUser.banReason}
+											<span class="font-medium">Reason:</span>
+											{managedUser.banReason}
 										</p>
 									{/if}
 								</div>
 							</div>
 
 							<div class="grid gap-4 px-4 py-4 lg:grid-cols-2 xl:grid-cols-4">
-								<form method="POST" action="?/setRole" class="rounded-2xl border border-[color:var(--rule)] p-4">
+								<form
+									method="POST"
+									action="?/setRole"
+									class="rounded-2xl border border-[color:var(--rule)] p-4"
+								>
 									<input type="hidden" name="userId" value={managedUser.id} />
 									<p class="mb-3 text-sm font-semibold text-[var(--dark)]">Permissions</p>
 									<div class="space-y-3">
@@ -225,12 +245,7 @@
 									<p class="mb-3 text-sm text-[var(--mid)]">
 										Force re-authentication across every active session for this account.
 									</p>
-									<Button
-										type="submit"
-										class="w-full"
-										variant="outline"
-										disabled={isCurrentAdmin}
-									>
+									<Button type="submit" class="w-full" variant="outline" disabled={isCurrentAdmin}>
 										<RefreshCcw class="mr-2 h-4 w-4" />
 										Revoke all sessions
 									</Button>
@@ -253,10 +268,7 @@
 										</Button>
 									{:else}
 										<div class="space-y-3">
-											<Input
-												name="banReason"
-												placeholder="Optional reason shown to staff"
-											/>
+											<Input name="banReason" placeholder="Optional reason shown to staff" />
 											<select
 												name="banDuration"
 												class="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-xs transition-colors focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
@@ -266,7 +278,12 @@
 												<option value="604800">Disable for 7 days</option>
 												<option value="2592000">Disable for 30 days</option>
 											</select>
-											<Button type="submit" class="w-full" variant="destructive" disabled={isCurrentAdmin}>
+											<Button
+												type="submit"
+												class="w-full"
+												variant="destructive"
+												disabled={isCurrentAdmin}
+											>
 												<Ban class="mr-2 h-4 w-4" />
 												Disable account
 											</Button>
@@ -280,7 +297,9 @@
 			{/if}
 
 			{#if data.totalPages > 1}
-				<div class="flex flex-col gap-3 border-t border-[color:var(--rule)] pt-4 sm:flex-row sm:items-center sm:justify-between">
+				<div
+					class="flex flex-col gap-3 border-t border-[color:var(--rule)] pt-4 sm:flex-row sm:items-center sm:justify-between"
+				>
 					<p class="text-sm text-[var(--mid)]">
 						Page {data.page} of {data.totalPages}
 					</p>

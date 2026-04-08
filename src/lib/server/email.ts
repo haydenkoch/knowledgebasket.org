@@ -1,5 +1,5 @@
 import nodemailer from 'nodemailer';
-import { env } from '$env/dynamic/private';
+import { readRuntimeConfigValue } from '$lib/server/runtime-secrets';
 
 function readBoolean(value: string | undefined, fallback = false): boolean {
 	if (!value) return fallback;
@@ -20,16 +20,21 @@ function readBoolean(value: string | undefined, fallback = false): boolean {
 	}
 }
 
-const smtpPort = Number.parseInt(env.SMTP_PORT ?? '1025', 10);
-const smtpSecure = readBoolean(env.SMTP_SECURE, smtpPort === 465);
-const smtpRequireTls = readBoolean(env.SMTP_REQUIRE_TLS, false);
+const smtpHost = readRuntimeConfigValue('SMTP_HOST') ?? 'localhost';
+const smtpPort = Number.parseInt(readRuntimeConfigValue('SMTP_PORT') ?? '1025', 10);
+const smtpSecure = readBoolean(readRuntimeConfigValue('SMTP_SECURE'), smtpPort === 465);
+const smtpRequireTls = readBoolean(readRuntimeConfigValue('SMTP_REQUIRE_TLS'), false);
+const smtpUser = readRuntimeConfigValue('SMTP_USER');
+const smtpPass = readRuntimeConfigValue('SMTP_PASS');
+const smtpFrom =
+	readRuntimeConfigValue('SMTP_FROM') ?? '"Knowledge Basket" <noreply@knowledgebasket.ca>';
 
 const transporter = nodemailer.createTransport({
-	host: env.SMTP_HOST ?? 'localhost',
+	host: smtpHost,
 	port: Number.isFinite(smtpPort) ? smtpPort : 1025,
 	secure: smtpSecure,
 	requireTLS: smtpRequireTls,
-	auth: env.SMTP_USER && env.SMTP_PASS ? { user: env.SMTP_USER, pass: env.SMTP_PASS } : undefined
+	auth: smtpUser && smtpPass ? { user: smtpUser, pass: smtpPass } : undefined
 });
 
 export async function sendMail({
@@ -44,7 +49,7 @@ export async function sendMail({
 	text?: string;
 }): Promise<void> {
 	await transporter.sendMail({
-		from: env.SMTP_FROM ?? '"Knowledge Basket" <noreply@knowledgebasket.ca>',
+		from: smtpFrom,
 		to,
 		subject,
 		html,

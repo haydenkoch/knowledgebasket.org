@@ -146,11 +146,14 @@ export function buildMarketingEmailTemplate(options: {
 		options.intro,
 		'',
 		renderTextSections(options.sections),
-		options.primaryCta ? `Primary CTA: ${options.primaryCta.label} — ${options.primaryCta.href}` : null,
+		options.primaryCta
+			? `Primary CTA: ${options.primaryCta.label} — ${options.primaryCta.href}`
+			: null,
 		options.secondaryCta
 			? `Secondary CTA: ${options.secondaryCta.label} — ${options.secondaryCta.href}`
 			: null,
-		options.footerNote ?? 'You are receiving this because of your account activity or email preferences in Knowledge Basket.',
+		options.footerNote ??
+			'You are receiving this because of your account activity or email preferences in Knowledge Basket.',
 		options.managePreferencesUrl ? `Manage preferences: ${options.managePreferencesUrl}` : null,
 		options.unsubscribeUrl ? `Unsubscribe: ${options.unsubscribeUrl}` : null
 	]
@@ -173,7 +176,10 @@ export function buildFollowDigestEmail(options: {
 	managePreferencesUrl?: string;
 	unsubscribeUrl?: string;
 }): MarketingEmailTemplate {
-	const audience = options.organizations.length > 0 ? options.organizations.join(', ') : 'your followed organizations';
+	const audience =
+		options.organizations.length > 0
+			? options.organizations.join(', ')
+			: 'your followed organizations';
 
 	return buildMarketingEmailTemplate({
 		subject: options.subject ?? 'Updates from the organizations you follow',
@@ -186,7 +192,8 @@ export function buildFollowDigestEmail(options: {
 		sections: [
 			{
 				title: 'Fresh from followed organizations',
-				description: 'Swap these cards for events, jobs, funding, or resources tied to the user’s follow graph.',
+				description:
+					'Swap these cards for events, jobs, funding, or resources tied to the user’s follow graph.',
 				items: options.items
 			}
 		],

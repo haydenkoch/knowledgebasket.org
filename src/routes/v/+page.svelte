@@ -49,9 +49,7 @@
 		return mapPoints.filter((p) => {
 			// Bounds straddling the antimeridian flip west > east.
 			const inLng =
-				b.west <= b.east
-					? p.lng >= b.west && p.lng <= b.east
-					: p.lng >= b.west || p.lng <= b.east;
+				b.west <= b.east ? p.lng >= b.west && p.lng <= b.east : p.lng >= b.west || p.lng <= b.east;
 			return inLng && p.lat >= b.south && p.lat <= b.north;
 		});
 	});
@@ -89,8 +87,7 @@
 			name: v.name,
 			description: v.description ?? null,
 			venueType: v.venueType ?? null,
-			locationLabel:
-				[v.city, v.state].filter(Boolean).join(', ') || v.address || null
+			locationLabel: [v.city, v.state].filter(Boolean).join(', ') || v.address || null
 		}));
 	});
 
@@ -335,9 +332,7 @@
 								</p>
 							{/if}
 							{#if venue.locationLabel}
-								<div
-									class="mt-3 flex items-center gap-1.5 text-xs text-[var(--muted-foreground)]"
-								>
+								<div class="mt-3 flex items-center gap-1.5 text-xs text-[var(--muted-foreground)]">
 									<MapPinIcon class="size-3.5 shrink-0" />
 									<span class="truncate">{venue.locationLabel}</span>
 								</div>
@@ -352,9 +347,7 @@
 			<nav class="flex flex-wrap items-center justify-center gap-1 pt-6" aria-label="Pagination">
 				<Button
 					variant="ghost"
-					href={!mapDriven && currentPageNum > 1
-						? buildPageHref(currentPageNum - 1)
-						: undefined}
+					href={!mapDriven && currentPageNum > 1 ? buildPageHref(currentPageNum - 1) : undefined}
 					disabled={currentPageNum <= 1}
 					onclick={mapDriven ? () => goToClientPage(currentPageNum - 1) : undefined}
 				>

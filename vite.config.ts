@@ -5,6 +5,7 @@ import { defineConfig } from 'vite';
 import type { Plugin } from 'vite';
 import { resolve, join } from 'path';
 import { cpSync, existsSync, readFileSync } from 'fs';
+import { resolveRuntimeConfigValue } from './src/lib/config/runtime-secrets';
 
 function tinymceSelfHosted(): Plugin {
 	const tinymceBase = resolve('node_modules/tinymce');
@@ -36,16 +37,21 @@ function tinymceSelfHosted(): Plugin {
 }
 
 function shouldUploadSentrySourceMaps(): boolean {
-	return Boolean(
-		process.env.SENTRY_AUTH_TOKEN && process.env.SENTRY_ORG && process.env.SENTRY_PROJECT
-	);
+	const sentryAuthToken = resolveRuntimeConfigValue(process.env, 'SENTRY_AUTH_TOKEN', {
+		readFile: (path) => readFileSync(path, 'utf8')
+	}).value;
+
+	return Boolean(sentryAuthToken && process.env.SENTRY_ORG && process.env.SENTRY_PROJECT);
 }
 
 const uploadSentrySourceMaps = shouldUploadSentrySourceMaps();
+const sentryAuthToken = resolveRuntimeConfigValue(process.env, 'SENTRY_AUTH_TOKEN', {
+	readFile: (path) => readFileSync(path, 'utf8')
+}).value;
 const sentryPlugins = await sentrySvelteKit({
 	adapter: 'node',
 	autoUploadSourceMaps: uploadSentrySourceMaps,
-	authToken: process.env.SENTRY_AUTH_TOKEN,
+	authToken: sentryAuthToken,
 	org: process.env.SENTRY_ORG,
 	project: process.env.SENTRY_PROJECT,
 	release: {

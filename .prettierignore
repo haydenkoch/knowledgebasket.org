@@ -10,3 +10,7 @@ bun.lockb
 /drizzle/
 /.claude/
 /test-results/
+/AGENTS.md
+/CLAUDE.md
+/docs/plans/**
+/docs/reviews/**

@@ -252,7 +252,8 @@
 				place: placeName
 			});
 		} catch (err) {
-			const message = err instanceof GeolocationPositionError ? err.message : 'Unable to get location';
+			const message =
+				err instanceof GeolocationPositionError ? err.message : 'Unable to get location';
 			geoError = message;
 		} finally {
 			geolocating = false;
@@ -313,7 +314,7 @@
 							role="option"
 							aria-selected={i === activeIndex}
 						>
-							<MapPinIcon class="size-3.5 kb-radius__suggestion-icon" />
+							<MapPinIcon class="kb-radius__suggestion-icon size-3.5" />
 							<span class="kb-radius__suggestion-label">{s.placeName}</span>
 						</button>
 					{/each}
@@ -556,7 +557,6 @@
 		cursor: default;
 	}
 
-
 	.kb-radius__error {
 		margin: 0;
 		font-size: 0.72rem;
@@ -590,7 +590,9 @@
 		align-items: baseline;
 		gap: 0.3rem;
 		font-variant-numeric: tabular-nums;
-		transition: color 0.15s ease, transform 0.15s ease;
+		transition:
+			color 0.15s ease,
+			transform 0.15s ease;
 	}
 
 	.kb-radius__slider-readout strong {

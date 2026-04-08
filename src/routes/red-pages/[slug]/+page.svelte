@@ -210,80 +210,80 @@
 			accent="var(--red)"
 			hasLogoOverhang
 		>
-				{#snippet actions()}
-					{#if item.phone}
-						<Tooltip.Root>
-							<Tooltip.Trigger>
-								{#snippet child({ props })}
-									<Button
-										{...props}
-										href="tel:{item.phone}"
-										variant="ghost"
-										size="icon-sm"
-										aria-label="Call {item.phone}"
-										onclick={() =>
-											trackExternalLinkClicked({
-												contentType: 'redpage',
-												slug: item.slug,
-												action: 'call',
-												href: `tel:${item.phone}`,
-												signedIn: Boolean(data.user)
-											})}
-									>
-										<PhoneIcon class="size-4" />
-									</Button>
-								{/snippet}
-							</Tooltip.Trigger>
-							<Tooltip.Content>Call</Tooltip.Content>
-						</Tooltip.Root>
-					{/if}
-					{#if item.email}
-						<Tooltip.Root>
-							<Tooltip.Trigger>
-								{#snippet child({ props })}
-									<Button
-										{...props}
-										href="mailto:{item.email}"
-										variant="ghost"
-										size="icon-sm"
-										aria-label="Email {item.email}"
-										onclick={() =>
-											trackExternalLinkClicked({
-												contentType: 'redpage',
-												slug: item.slug,
-												action: 'email',
-												href: `mailto:${item.email}`,
-												signedIn: Boolean(data.user)
-											})}
-									>
-										<MailIcon class="size-4" />
-									</Button>
-								{/snippet}
-							</Tooltip.Trigger>
-							<Tooltip.Content>Email</Tooltip.Content>
-						</Tooltip.Root>
-					{/if}
-				{/snippet}
-				{#snippet primary()}
-					{#if item.website}
-						<Button
-							href={item.website}
-							target="_blank"
-							rel="noopener"
-							size="sm"
-							onclick={() =>
-								trackExternalLinkClicked({
-									contentType: 'redpage',
-									slug: item.slug,
-									action: 'visit_site',
-									href: item.website,
-									signedIn: Boolean(data.user)
-								})}
-						>
-							<GlobeIcon class="size-[14px]" /> Visit site
-						</Button>
-					{/if}
-				{/snippet}
+			{#snippet actions()}
+				{#if item.phone}
+					<Tooltip.Root>
+						<Tooltip.Trigger>
+							{#snippet child({ props })}
+								<Button
+									{...props}
+									href="tel:{item.phone}"
+									variant="ghost"
+									size="icon-sm"
+									aria-label="Call {item.phone}"
+									onclick={() =>
+										trackExternalLinkClicked({
+											contentType: 'redpage',
+											slug: item.slug,
+											action: 'call',
+											href: `tel:${item.phone}`,
+											signedIn: Boolean(data.user)
+										})}
+								>
+									<PhoneIcon class="size-4" />
+								</Button>
+							{/snippet}
+						</Tooltip.Trigger>
+						<Tooltip.Content>Call</Tooltip.Content>
+					</Tooltip.Root>
+				{/if}
+				{#if item.email}
+					<Tooltip.Root>
+						<Tooltip.Trigger>
+							{#snippet child({ props })}
+								<Button
+									{...props}
+									href="mailto:{item.email}"
+									variant="ghost"
+									size="icon-sm"
+									aria-label="Email {item.email}"
+									onclick={() =>
+										trackExternalLinkClicked({
+											contentType: 'redpage',
+											slug: item.slug,
+											action: 'email',
+											href: `mailto:${item.email}`,
+											signedIn: Boolean(data.user)
+										})}
+								>
+									<MailIcon class="size-4" />
+								</Button>
+							{/snippet}
+						</Tooltip.Trigger>
+						<Tooltip.Content>Email</Tooltip.Content>
+					</Tooltip.Root>
+				{/if}
+			{/snippet}
+			{#snippet primary()}
+				{#if item.website}
+					<Button
+						href={item.website}
+						target="_blank"
+						rel="noopener"
+						size="sm"
+						onclick={() =>
+							trackExternalLinkClicked({
+								contentType: 'redpage',
+								slug: item.slug,
+								action: 'visit_site',
+								href: item.website,
+								signedIn: Boolean(data.user)
+							})}
+					>
+						<GlobeIcon class="size-[14px]" /> Visit site
+					</Button>
+				{/if}
+			{/snippet}
 		</CoilDetailActionRail>
 
 		<div class="kb-rp-grid">

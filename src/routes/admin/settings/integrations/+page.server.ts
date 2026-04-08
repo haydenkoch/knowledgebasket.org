@@ -15,11 +15,12 @@ export const load: PageServerLoad = async () => {
 	const posthogConfigured = !!publicEnv.PUBLIC_POSTHOG_KEY?.trim();
 	const posthogHost = publicEnv.PUBLIC_POSTHOG_HOST?.trim() || POSTHOG_DEFAULT_HOST;
 	const smtpConfigured = !!(env.SMTP_HOST?.trim() && env.SMTP_FROM?.trim());
-	const smtpTransportSecurity = env.SMTP_SECURE?.trim() === 'true'
-		? 'SMTPS'
-		: env.SMTP_REQUIRE_TLS?.trim() === 'true'
-			? 'STARTTLS'
-			: 'Not enforced';
+	const smtpTransportSecurity =
+		env.SMTP_SECURE?.trim() === 'true'
+			? 'SMTPS'
+			: env.SMTP_REQUIRE_TLS?.trim() === 'true'
+				? 'STARTTLS'
+				: 'Not enforced';
 
 	return {
 		mapboxConfigured,

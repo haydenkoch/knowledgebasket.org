@@ -14,6 +14,34 @@ This runbook is the current operational baseline for launching and maintaining K
   - `ERROR_WEBHOOK_URL` for forwarding structured server errors
   - `LOG_LEVEL` to tune structured stdout logging (`debug`, `info`, `warn`, `error`)
 
+## Secrets strategy
+
+- Keep env templates in git:
+  - `.env.local.example`
+  - `.env.staging.example`
+  - `.env.example`
+  - `.env.ci.example`
+- Keep real values in provider secret managers or deploy-platform secret UIs.
+- Prefer file-backed secrets where possible:
+  - `DATABASE_URL_FILE`
+  - `BETTER_AUTH_SECRET_FILE`
+  - `MEILISEARCH_API_KEY_FILE`
+  - `MINIO_SECRET_KEY_FILE`
+  - `SMTP_PASS_FILE`
+  - `REINDEX_SECRET_FILE`
+  - `SOURCE_OPS_SECRET_FILE`
+- Set `KB_ENVIRONMENT` explicitly per environment:
+  - local dev: `development`
+  - CI: `ci`
+  - staging: `staging`
+  - production: `production`
+- Validate the contract before deploy:
+  - `pnpm secrets:check:staging`
+  - `pnpm secrets:check:production`
+  - `pnpm secrets:check:ci`
+
+Staging should mirror production keys exactly. The values should differ, but the key set should not.
+
 ## Railway baseline
 
 - `railway.toml` is the deployment source of truth for the web service:
@@ -23,6 +51,7 @@ This runbook is the current operational baseline for launching and maintaining K
   - healthcheck: `GET /api/health`
 - Generate a Railway public domain before first launch.
 - Set `ORIGIN` explicitly once the final public URL is known.
+- Set `KB_ENVIRONMENT` to `staging` or `production` in each Railway environment.
 - If `ORIGIN` is temporarily omitted, the app can fall back to `RAILWAY_PUBLIC_DOMAIN`, but treat that as a bootstrap convenience rather than the steady-state production setting.
 
 ## Health checks
@@ -128,6 +157,13 @@ Run one full restore drill in staging before launch and record the exact timesta
 5. Verify `GET /api/health` is healthy.
 6. Spot-check `/search`, `/events`, `/account`, and a representative uploaded asset.
 7. Trigger `POST /api/source-ops/run-due` once and confirm the scheduler path still works after restore.
+
+## Environment drift prevention
+
+1. When a new env var is introduced, update the example templates in the same PR.
+2. Run the matching `pnpm secrets:check:<env>` command before merging.
+3. Apply the new key to staging first, then production.
+4. Do not create staging-only variable names when a staging-specific value under the production key name will do.
 
 ## Incident checks
 

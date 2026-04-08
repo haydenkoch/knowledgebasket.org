@@ -90,6 +90,7 @@ function parseArgs(argv) {
 			case '--help':
 				printUsage();
 				process.exit(0);
+				break;
 			case '--dry-run':
 				options.dryRun = true;
 				break;

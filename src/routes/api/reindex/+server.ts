@@ -1,4 +1,3 @@
-import { env } from '$env/dynamic/private';
 import { error, json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { requirePrivilegedApiUser } from '$lib/server/access-control';
@@ -10,6 +9,7 @@ import {
 import { captureServerError, logServerEvent } from '$lib/server/observability';
 import { reindexAllPublishedContent, reindexSearchScope } from '$lib/server/search-ops';
 import { SEARCH_INDEX_SCOPES, type SearchIndexScope } from '$lib/server/search-contracts';
+import { readRuntimeConfigValue } from '$lib/server/runtime-secrets';
 
 /**
  * Reindex all events from DB into Meilisearch. Call after db:seed or when search is out of sync.
@@ -29,7 +29,7 @@ export const POST: RequestHandler = async ({ locals, request, getClientAddress, 
 		);
 	}
 
-	const reindexSecret = env.REINDEX_SECRET?.trim();
+	const reindexSecret = readRuntimeConfigValue('REINDEX_SECRET')?.trim();
 	const headerSecret = request.headers.get('x-reindex-secret')?.trim();
 	const hasValidSecret = !!reindexSecret && headerSecret === reindexSecret;
 

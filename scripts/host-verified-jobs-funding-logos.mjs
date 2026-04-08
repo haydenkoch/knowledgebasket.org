@@ -59,7 +59,8 @@ const logoMappings = [
 	},
 	{
 		objectKey: 'logos/jobs/blue-lake-rancheria.png',
-		remoteUrl: 'https://www.bluelakerancheria-nsn.gov/wp-content/uploads/2024/08/BLR_Tribal-Seal.png',
+		remoteUrl:
+			'https://www.bluelakerancheria-nsn.gov/wp-content/uploads/2024/08/BLR_Tribal-Seal.png',
 		target: { table: 'jobs', column: 'employer_name', value: 'Blue Lake Rancheria' }
 	},
 	{
@@ -79,12 +80,14 @@ const logoMappings = [
 	},
 	{
 		objectKey: 'logos/jobs/news-from-native-california.png',
-		remoteUrl: 'https://newsfromnativecalifornia.com/wp-content/uploads/2020/07/NNC_Logo_white_80.png',
+		remoteUrl:
+			'https://newsfromnativecalifornia.com/wp-content/uploads/2020/07/NNC_Logo_white_80.png',
 		target: { table: 'jobs', column: 'employer_name', value: 'News From Native California' }
 	},
 	{
 		objectKey: 'logos/jobs/karuk-tribe.png',
-		remoteUrl: 'https://cdn.prod.website-files.com/6840684a84781283cd1b68e3/687012149e5340bcb616ab51_Karuk%20Seal.png',
+		remoteUrl:
+			'https://cdn.prod.website-files.com/6840684a84781283cd1b68e3/687012149e5340bcb616ab51_Karuk%20Seal.png',
 		target: { table: 'jobs', column: 'employer_name', value: 'Karuk Tribe' }
 	},
 	{
@@ -214,7 +217,10 @@ async function uploadRemoteAsset(objectKey, remoteUrl) {
 		throw new Error(`Failed to fetch ${remoteUrl}: ${response.status} ${response.statusText}`);
 	}
 
-	const contentType = inferContentType(response.url || remoteUrl, response.headers.get('content-type'));
+	const contentType = inferContentType(
+		response.url || remoteUrl,
+		response.headers.get('content-type')
+	);
 	const body = Buffer.from(await response.arrayBuffer());
 
 	await s3.send(
@@ -303,7 +309,9 @@ async function main() {
 			imageUrl,
 			updated
 		});
-		console.log(`Uploaded ${mapping.objectKey} and updated ${updated} ${mapping.target.table} row(s) for ${mapping.target.value}`);
+		console.log(
+			`Uploaded ${mapping.objectKey} and updated ${updated} ${mapping.target.table} row(s) for ${mapping.target.value}`
+		);
 	}
 
 	const counts = await verifyTargetCounts();

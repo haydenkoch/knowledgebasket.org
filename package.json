@@ -95,7 +95,7 @@
 		"@sentry/sveltekit": "^10.47.0",
 		"cheerio": "^1.2.0",
 		"csv-parse": "^6.2.1",
-		"fast-xml-parser": "^5.5.9",
+		"fast-xml-parser": "^5.7.0",
 		"mapbox-gl": "^3.19.1",
 		"meilisearch": "^0.55.0",
 		"node-ical": "^0.25.5",

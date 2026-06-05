@@ -66,8 +66,8 @@ importers:
         specifier: ^0.3.2
         version: 0.3.2
       tinymce:
-        specifier: ^8.3.2
-        version: 8.3.2
+        specifier: ^8.5.1
+        version: 8.5.1
       xlsx:
         specifier: ^0.18.5
         version: 0.18.5
@@ -1695,8 +1695,8 @@ packages:
   '@posthog/types@1.364.7':
     resolution: {integrity: sha512-Rg6q4wSu8krrn8f3Nv44kGXjor4qh5iG0typt2sB7/SYQFRSbXYE2C46+qDMcBYGxmRMsWBitBcZ9x94DQCnfA==}
 
-  '@preact/signals-core@1.14.0':
-    resolution: {integrity: sha512-AowtCcCU/33lFlh1zRFf/u+12rfrhtNakj7UpaGEsmMwUKpKWMVvcktOGcwBBNiB4lWrZWc01LhiyyzVklJyaQ==}
+  '@preact/signals-core@1.14.2':
+    resolution: {integrity: sha512-RZHdBj9ZF4n40Rp4jS052EHHjBWf96P9oNdXPfhQTovCuWY9iQn3Gq+gOTJSgBO9A/JBuPfMOWsSX/lIU9Pc/A==}
 
   '@preact/signals@2.8.2':
     resolution: {integrity: sha512-gym5yoa64c+0w2kL7zRAAjY548qzWXbbuOfjsK9F1nWrEqooDwyWnih5SNdonjhQSp27zUqYh7UrxIRnkCyFCA==}
@@ -4763,8 +4763,8 @@ packages:
     resolution: {integrity: sha512-j2Zq4NyQYG5XMST4cbs02Ak8iJUdxRM0XI5QyxXuZOzKOINmWurp3smXu3y5wDcJrptwpSjgXHzIQxR0omXljQ==}
     engines: {node: '>=12.0.0'}
 
-  tinymce@8.3.2:
-    resolution: {integrity: sha512-iZ8aIUtrgGOw2AkukNf8spUM0LOzNLoCHRepwXQwWmHxP2TI5LzHjjG0SmXGxbya4EmoD5/pAox0ZXJfLO5DUw==}
+  tinymce@8.5.1:
+    resolution: {integrity: sha512-Wd4OrokDEwlXppSR+ijXngLa2+s3v8NZax9WCvAHeQhqvFsj9tGt19PmrnAdGLiQFkBBYzdOLW23tsBTPMiJYw==}
 
   tinypool@1.1.1:
     resolution: {integrity: sha512-Zba82s87IFq9A9XmjiX5uZA/ARWDrB03OHlq+Vw1fSdt0I+4/Kutwy8BP4Y/y/aORMo61FQ0vIb5j44vSo5Pkg==}
@@ -6741,11 +6741,11 @@ snapshots:
 
   '@posthog/types@1.364.7': {}
 
-  '@preact/signals-core@1.14.0': {}
+  '@preact/signals-core@1.14.2': {}
 
   '@preact/signals@2.8.2(preact@10.29.0)':
     dependencies:
-      '@preact/signals-core': 1.14.0
+      '@preact/signals-core': 1.14.2
       preact: 10.29.0
 
   '@prisma/client@5.22.0': {}
@@ -9825,7 +9825,7 @@ snapshots:
       fdir: 6.5.0(picomatch@4.0.3)
       picomatch: 4.0.3
 
-  tinymce@8.3.2: {}
+  tinymce@8.5.1: {}
 
   tinypool@1.1.1: {}
 

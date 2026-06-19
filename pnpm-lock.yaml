@@ -45,8 +45,8 @@ importers:
         specifier: ^0.25.5
         version: 0.25.5
       nodemailer:
-        specifier: ^8.0.4
-        version: 8.0.4
+        specifier: ^9.0.1
+        version: 9.0.1
       pdfjs-dist:
         specifier: ^5.6.205
         version: 5.6.205
@@ -1695,8 +1695,8 @@ packages:
   '@posthog/types@1.364.7':
     resolution: {integrity: sha512-Rg6q4wSu8krrn8f3Nv44kGXjor4qh5iG0typt2sB7/SYQFRSbXYE2C46+qDMcBYGxmRMsWBitBcZ9x94DQCnfA==}
 
-  '@preact/signals-core@1.14.0':
-    resolution: {integrity: sha512-AowtCcCU/33lFlh1zRFf/u+12rfrhtNakj7UpaGEsmMwUKpKWMVvcktOGcwBBNiB4lWrZWc01LhiyyzVklJyaQ==}
+  '@preact/signals-core@1.14.3':
+    resolution: {integrity: sha512-m0K3vnbSLC5rHs2ZVfeAMvBtT1zIyq4mxx5OlNncSgMj5Iz6W5Rn3kPrDxAC+iIKmiVe0lSl6U37t5ZkEWoVAw==}
 
   '@preact/signals@2.8.2':
     resolution: {integrity: sha512-gym5yoa64c+0w2kL7zRAAjY548qzWXbbuOfjsK9F1nWrEqooDwyWnih5SNdonjhQSp27zUqYh7UrxIRnkCyFCA==}
@@ -4090,8 +4090,8 @@ packages:
   node-releases@2.0.36:
     resolution: {integrity: sha512-TdC8FSgHz8Mwtw9g5L4gR/Sh9XhSP/0DEkQxfEFXOpiul5IiHgHan2VhYYb6agDSfp4KuvltmGApc8HMgUrIkA==}
 
-  nodemailer@8.0.4:
-    resolution: {integrity: sha512-k+jf6N8PfQJ0Fe8ZhJlgqU5qJU44Lpvp2yvidH3vp1lPnVQMgi4yEEMPXg5eJS1gFIJTVq1NHBk7Ia9ARdSBdQ==}
+  nodemailer@9.0.1:
+    resolution: {integrity: sha512-Gwv8SQewT616ZM/URn0H54b8PWo/Wum7md3EW2aWy1lO27+WZCX+Xyak3J+NlmHUjDh5ME+uesJUDRbR3Ye8Bw==}
     engines: {node: '>=6.0.0'}
 
   normalize-url@8.1.1:
@@ -6741,11 +6741,11 @@ snapshots:
 
   '@posthog/types@1.364.7': {}
 
-  '@preact/signals-core@1.14.0': {}
+  '@preact/signals-core@1.14.3': {}
 
   '@preact/signals@2.8.2(preact@10.29.0)':
     dependencies:
-      '@preact/signals-core': 1.14.0
+      '@preact/signals-core': 1.14.3
       preact: 10.29.0
 
   '@prisma/client@5.22.0': {}
@@ -9112,7 +9112,7 @@ snapshots:
 
   node-releases@2.0.36: {}
 
-  nodemailer@8.0.4: {}
+  nodemailer@9.0.1: {}
 
   normalize-url@8.1.1:
     optional: true
